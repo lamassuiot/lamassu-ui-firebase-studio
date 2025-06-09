@@ -1,0 +1,145 @@
+"use client";
+
+import React, { useState, useTransition } from 'react';
+import type { CertificateData, VerificationStatus } from '@/types/certificate';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion } from 'lucide-react';
+import { verifyCertificateAction } from '@/lib/actions/certificateActions';
+import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+
+interface CertificateListProps {
+  certificates: CertificateData[];
+  onInspectCertificate: (certificate: CertificateData) => void;
+  onCertificateUpdated: (updatedCertificate: CertificateData) => void;
+}
+
+const StatusBadge: React.FC<{ status: VerificationStatus }> = ({ status }) => {
+  switch (status) {
+    case 'verified':
+      return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="mr-1 h-3 w-3" />Verified</Badge>;
+    case 'invalid_path':
+    case 'revoked':
+      return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Invalid</Badge>;
+    case 'expired':
+      return <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600"><AlertTriangle className="mr-1 h-3 w-3" />Expired</Badge>;
+    case 'pending':
+      return <Badge variant="secondary"><Loader2 className="mr-1 h-3 w-3 animate-spin" />Pending</Badge>;
+    case 'error':
+      return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" />Error</Badge>;
+    case 'unverified':
+    default:
+      return <Badge variant="outline"><ShieldQuestion className="mr-1 h-3 w-3" />Unverified</Badge>;
+  }
+};
+
+export function CertificateList({ certificates, onInspectCertificate, onCertificateUpdated }: CertificateListProps) {
+  const [isVerifying, startVerifyingTransition] = useTransition();
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const handleVerify = async (certificate: CertificateData) => {
+    setVerifyingId(certificate.id);
+    onCertificateUpdated({ ...certificate, verificationStatus: 'pending', verificationDetails: 'Verification in progress...' });
+
+    startVerifyingTransition(async () => {
+      try {
+        const result = await verifyCertificateAction(certificate.id, certificate.pemData);
+        onCertificateUpdated({
+          ...certificate,
+          verificationStatus: result.status,
+          verificationDetails: result.details,
+        });
+        toast({
+          title: result.success ? "Verification Complete" : "Verification Failed",
+          description: result.details,
+          variant: result.success ? "default" : "destructive",
+        });
+      } catch (error) {
+        console.error("Verification error:", error);
+        onCertificateUpdated({
+          ...certificate,
+          verificationStatus: 'error',
+          verificationDetails: 'An unexpected error occurred during verification client-side.',
+        });
+        toast({
+          title: "Verification Error",
+          description: "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setVerifyingId(null);
+      }
+    });
+  };
+
+  if (certificates.length === 0) {
+    return (
+      <Card className="mt-8 w-full shadow-lg">
+        <CardHeader>
+          <CardTitle className="font-headline text-2xl">Managed Certificates</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">No certificates imported yet. Upload a certificate to get started.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mt-8 w-full shadow-lg">
+      <CardHeader>
+        <CardTitle className="font-headline text-2xl">Managed Certificates</CardTitle>
+        <CardDescription>View and manage your imported X.509 certificates.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Filename</TableHead>
+              <TableHead className="hidden md:table-cell">Subject</TableHead>
+              <TableHead>Expires</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {certificates.map((cert) => (
+              <TableRow key={cert.id}>
+                <TableCell className="font-medium truncate max-w-xs">{cert.fileName}</TableCell>
+                <TableCell className="hidden md:table-cell truncate max-w-xs">{cert.subject}</TableCell>
+                <TableCell>{format(new Date(cert.validTo), 'MMM dd, yyyy')}</TableCell>
+                <TableCell>
+                  <StatusBadge status={cert.verificationStatus} />
+                </TableCell>
+                <TableCell className="text-right space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => onInspectCertificate(cert)} title="Inspect Certificate">
+                    <Eye className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only sm:ml-2">Inspect</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleVerify(cert)}
+                    disabled={isVerifying && verifyingId === cert.id}
+                    title="Verify Certificate"
+                  >
+                    {(isVerifying && verifyingId === cert.id) || cert.verificationStatus === 'pending' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                    <span className="sr-only sm:not-sr-only sm:ml-2">Verify</span>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
