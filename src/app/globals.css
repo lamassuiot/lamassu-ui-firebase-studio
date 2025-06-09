@@ -55,46 +55,46 @@ body {
   }
 
   .dark {
-    --background: 222 84% 5%; /* Dark Blue */
-    --foreground: 210 40% 98%; /* Light Blue/White */
+    --background: 222 40% 12%; /* Dark Slate Blue - Less "black" */
+    --foreground: 210 40% 95%; /* Light Blue/White for contrast */
 
-    --muted: 217 30% 16%;
+    --muted: 220 30% 20%;
     --muted-foreground: 215 20% 65%;
 
-    --popover: 222 84% 5%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 222 40% 10%; /* Slightly darker than background for depth */
+    --popover-foreground: 210 40% 95%;
 
-    --card: 222 84% 5%;
-    --card-foreground: 210 40% 98%;
+    --card: 222 40% 10%; /* Slightly darker than background for depth */
+    --card-foreground: 210 40% 95%;
 
     --border: 217 30% 25%;
-    --input: 217 30% 20%;
+    --input: 217 30% 18%; /* Adjusted for new background */
 
-    --primary: 217 100% 65%; /* Lighter blue for dark mode primary */
-    --primary-foreground: 222 80% 10%; /* Darker for contrast */
+    --primary: 217 90% 60%; /* Adjusted primary for dark mode */
+    --primary-foreground: 0 0% 98%; /* Light foreground for new primary */
 
-    --secondary: 217 30% 20%;
+    --secondary: 217 30% 22%;
     --secondary-foreground: 210 40% 90%;
 
-    --accent: 155 60% 40%; /* Darker periwinkle for dark mode */
-    --accent-foreground: 155 60% 90%; /* Lighter for contrast */
+    --accent: 155 55% 50%; /* Adjusted accent for dark mode */
+    --accent-foreground: 155 50% 95%; /* Light foreground for new accent */
 
     --destructive: 0 60% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --ring: 217 100% 65%;
+    --ring: 217 90% 60%; /* Ring matches new primary */
 
-    --chart-1: 217 100% 65%;
-    --chart-2: 155 60% 50%;
+    --chart-1: 217 90% 60%;
+    --chart-2: 155 55% 50%;
     
-    --sidebar-background: 222 80% 10%;
-    --sidebar-foreground: 210 40% 95%;
-    --sidebar-primary: 217 100% 65%;
-    --sidebar-primary-foreground: 222 80% 10%;
-    --sidebar-accent: 155 60% 45%;
-    --sidebar-accent-foreground: 155 60% 90%;
-    --sidebar-border: 217 30% 22%;
-    --sidebar-ring: 217 100% 65%;
+    --sidebar-background: 222 40% 9%; /* Darker than main bg for sidebar */
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 217 90% 60%; /* Matches new main primary */
+    --sidebar-primary-foreground: 0 0% 98%; /* Matches new main primary-foreground */
+    --sidebar-accent: 155 55% 55%; /* Adjusted sidebar accent */
+    --sidebar-accent-foreground: 155 50% 95%;
+    --sidebar-border: 217 30% 20%;
+    --sidebar-ring: 217 90% 60%;
   }
 }
 
