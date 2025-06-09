@@ -2,8 +2,10 @@
 'use client';
 
 import React from 'react';
+import crypto from 'crypto'; // For mock serial numbers
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Landmark, FolderTree, ChevronRight, Minus } from "lucide-react"; // Added FolderTree, ChevronRight, Minus
+import { Button } from "@/components/ui/button";
+import { Landmark, FolderTree, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle } from "lucide-react";
 
 // Define the CA data structure
 interface CA {
@@ -11,6 +13,7 @@ interface CA {
   name: string;
   issuer: string;
   expires: string;
+  serialNumber: string; // Added serial number
   status: 'active' | 'expired' | 'revoked';
   children?: CA[];
 }
@@ -22,6 +25,7 @@ const certificateAuthoritiesData: CA[] = [
     name: 'LamassuIoT Global Root CA G1',
     issuer: 'Self-signed',
     expires: '2045-12-31',
+    serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
     status: 'active',
     children: [
       {
@@ -29,6 +33,7 @@ const certificateAuthoritiesData: CA[] = [
         name: 'LamassuIoT Regional Services CA EU',
         issuer: 'LamassuIoT Global Root CA G1',
         expires: '2040-06-30',
+        serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
         status: 'active',
         children: [
           { 
@@ -36,6 +41,7 @@ const certificateAuthoritiesData: CA[] = [
             name: 'Device Authentication CA EU West', 
             issuer: 'LamassuIoT Regional Services CA EU', 
             expires: '2035-01-15',
+            serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
             status: 'active',
           },
           { 
@@ -43,6 +49,7 @@ const certificateAuthoritiesData: CA[] = [
             name: 'Secure Update Service CA EU Central', 
             issuer: 'LamassuIoT Regional Services CA EU', 
             expires: '2038-03-22',
+            serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
             status: 'active',
           },
         ],
@@ -52,6 +59,7 @@ const certificateAuthoritiesData: CA[] = [
         name: 'LamassuIoT Manufacturing CA US',
         issuer: 'LamassuIoT Global Root CA G1',
         expires: '2039-10-10',
+        serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
         status: 'active',
         children: [
            { 
@@ -59,6 +67,7 @@ const certificateAuthoritiesData: CA[] = [
             name: 'Factory A Provisioning CA', 
             issuer: 'LamassuIoT Manufacturing CA US', 
             expires: '2030-07-12',
+            serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
             status: 'active',
           }
         ]
@@ -70,6 +79,7 @@ const certificateAuthoritiesData: CA[] = [
     name: 'LamassuIoT Test & Development Root CA',
     issuer: 'Self-signed',
     expires: '2030-01-01',
+    serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
     status: 'active',
     children: [
         { 
@@ -77,6 +87,7 @@ const certificateAuthoritiesData: CA[] = [
           name: 'Staging Environment CA', 
           issuer: 'LamassuIoT Test & Development Root CA', 
           expires: '2028-07-07',
+          serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
           status: 'active',
         },
         { 
@@ -84,6 +95,7 @@ const certificateAuthoritiesData: CA[] = [
           name: 'QA Services CA (Expired)', 
           issuer: 'LamassuIoT Test & Development Root CA', 
           expires: '2023-01-01', // Expired
+          serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
           status: 'expired',
         }
     ]
@@ -93,6 +105,7 @@ const certificateAuthoritiesData: CA[] = [
     name: 'Old Partner Root CA (Revoked)',
     issuer: 'Self-signed',
     expires: '2025-05-05',
+    serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
     status: 'revoked',
   }
 ];
@@ -118,28 +131,54 @@ const CaTreeItem: React.FC<{ ca: CA; level: number }> = ({ ca, level }) => {
       statusColorClass = 'text-muted-foreground';
   }
 
+  const handleDetailsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Details for CA:', ca.name, ca.id);
+    // Implement navigation or modal display for CA details
+  };
+
+  const handleIssueCertClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Issue certificate from CA:', ca.name, ca.id);
+    // Implement certificate issuance logic/navigation
+  };
+
   return (
     <li className={`py-1 ${level > 0 ? 'pl-6 border-l border-dashed border-border ml-3' : ''} relative`}>
       {level > 0 && (
          <Minus className="h-3 w-3 absolute -left-[0.45rem] top-3.5 text-border transform rotate-90" />
       )}
       <div 
-        className={`flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50 ${hasChildren ? 'cursor-pointer' : ''}`}
+        className={`flex items-start space-x-2 p-2 rounded-md hover:bg-muted/50 ${hasChildren ? 'cursor-pointer' : ''}`}
         onClick={hasChildren ? () => setIsOpen(!isOpen) : undefined}
       >
-        {hasChildren ? (
-          <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`} />
-        ) : (
-          <div className="w-5 h-5"></div> // Placeholder for alignment
-        )}
-        <FolderTree className="h-5 w-5 text-primary" />
+        <div className="flex-shrink-0 pt-1"> {/* Align icons with first line of text */}
+          {hasChildren ? (
+            <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`} />
+          ) : (
+            <div className="w-5 h-5"></div> // Placeholder for alignment
+          )}
+        </div>
+        <FolderTree className="h-5 w-5 text-primary flex-shrink-0 pt-1" />
         <div className="flex-1">
           <span className="font-medium text-foreground">{ca.name}</span>
           <p className="text-xs text-muted-foreground">Issuer: {ca.issuer}</p>
         </div>
-        <div className="text-right text-xs">
+        <div className="text-right text-xs space-y-1 flex-shrink-0">
             <p className={`font-semibold ${statusColorClass}`}>{ca.status.toUpperCase()}</p>
             <p className="text-muted-foreground">Expires: {ca.expires}</p>
+            <p className="text-muted-foreground mt-1">ID: <span className="font-mono text-xs select-all">{ca.id}</span></p>
+            <p className="text-muted-foreground">Serial: <span className="font-mono text-xs select-all">{ca.serialNumber}</span></p>
+            <div className="flex justify-end space-x-1 mt-2">
+                <Button variant="outline" size="sm" onClick={handleDetailsClick} title={`Details for ${ca.name}`}>
+                    <FileSearch className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only sm:ml-1">Details</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleIssueCertClick} title={`Issue certificate from ${ca.name}`}>
+                    <FilePlus2 className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only sm:ml-1">Issue</span>
+                </Button>
+            </div>
         </div>
       </div>
       {hasChildren && isOpen && (
@@ -154,13 +193,23 @@ const CaTreeItem: React.FC<{ ca: CA; level: number }> = ({ ca, level }) => {
 };
 
 export default function CertificateAuthoritiesPage() {
+  const handleCreateNewCAClick = () => {
+    console.log('Create New Certificate Authority clicked');
+    // Implement navigation or modal display for new CA creation
+  };
+
   return (
     <div className="space-y-6">
       <Card className="shadow-lg">
         <CardHeader>
-          <div className="flex items-center space-x-3 mb-2">
-            <Landmark className="h-8 w-8 text-primary" />
-            <CardTitle className="text-2xl font-headline">Certificate Authorities</CardTitle>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-3">
+              <Landmark className="h-8 w-8 text-primary" />
+              <CardTitle className="text-2xl font-headline">Certificate Authorities</CardTitle>
+            </div>
+            <Button variant="default" onClick={handleCreateNewCAClick}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
+            </Button>
           </div>
           <CardDescription>Manage your Certificate Authority (CA) configurations and trust stores. Click on a CA with sub-items to expand/collapse.</CardDescription>
         </CardHeader>
