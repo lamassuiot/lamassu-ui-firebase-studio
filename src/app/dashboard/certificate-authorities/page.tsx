@@ -3,6 +3,7 @@
 
 import React from 'react';
 import crypto from 'crypto'; // For mock serial numbers
+import { useRouter } from 'next/navigation'; // Added for navigation
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Landmark, FolderTree, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle } from "lucide-react";
@@ -13,7 +14,7 @@ interface CA {
   name: string;
   issuer: string;
   expires: string;
-  serialNumber: string; // Added serial number
+  serialNumber: string; 
   status: 'active' | 'expired' | 'revoked';
   children?: CA[];
 }
@@ -111,8 +112,8 @@ const certificateAuthoritiesData: CA[] = [
 ];
 
 // Recursive component to render each CA and its children
-const CaTreeItem: React.FC<{ ca: CA; level: number }> = ({ ca, level }) => {
-  const [isOpen, setIsOpen] = React.useState(level < 2); // Default open for root and first level intermediates
+const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof useRouter> }> = ({ ca, level, router }) => {
+  const [isOpen, setIsOpen] = React.useState(level < 2); 
 
   const hasChildren = ca.children && ca.children.length > 0;
 
@@ -133,14 +134,12 @@ const CaTreeItem: React.FC<{ ca: CA; level: number }> = ({ ca, level }) => {
 
   const handleDetailsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Details for CA:', ca.name, ca.id);
-    // Implement navigation or modal display for CA details
+    router.push(`/dashboard/certificate-authorities/${ca.id}/details`);
   };
 
   const handleIssueCertClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Issue certificate from CA:', ca.name, ca.id);
-    // Implement certificate issuance logic/navigation
+    router.push(`/dashboard/certificate-authorities/${ca.id}/issue-certificate`);
   };
 
   return (
@@ -152,11 +151,11 @@ const CaTreeItem: React.FC<{ ca: CA; level: number }> = ({ ca, level }) => {
         className={`flex items-start space-x-2 p-2 rounded-md hover:bg-muted/50 ${hasChildren ? 'cursor-pointer' : ''}`}
         onClick={hasChildren ? () => setIsOpen(!isOpen) : undefined}
       >
-        <div className="flex-shrink-0 pt-1"> {/* Align icons with first line of text */}
+        <div className="flex-shrink-0 pt-1"> 
           {hasChildren ? (
             <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`} />
           ) : (
-            <div className="w-5 h-5"></div> // Placeholder for alignment
+            <div className="w-5 h-5"></div> 
           )}
         </div>
         <FolderTree className="h-5 w-5 text-primary flex-shrink-0 pt-1" />
@@ -184,7 +183,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number }> = ({ ca, level }) => {
       {hasChildren && isOpen && (
         <ul className="mt-1">
           {ca.children?.map((childCa) => (
-            <CaTreeItem key={childCa.id} ca={childCa} level={level + 1} />
+            <CaTreeItem key={childCa.id} ca={childCa} level={level + 1} router={router} />
           ))}
         </ul>
       )}
@@ -193,14 +192,18 @@ const CaTreeItem: React.FC<{ ca: CA; level: number }> = ({ ca, level }) => {
 };
 
 export default function CertificateAuthoritiesPage() {
+  const router = useRouter(); // Initialize router
+
   const handleCreateNewCAClick = () => {
     console.log('Create New Certificate Authority clicked');
     // Implement navigation or modal display for new CA creation
+    // For now, let's also route to a placeholder page if it existed, e.g.
+    // router.push('/dashboard/certificate-authorities/new');
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="shadow-lg">
+    <div className="space-y-6 w-full">
+      <Card className="shadow-lg w-full">
         <CardHeader>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-3">
@@ -217,7 +220,7 @@ export default function CertificateAuthoritiesPage() {
           {certificateAuthoritiesData.length > 0 ? (
             <ul className="space-y-1">
               {certificateAuthoritiesData.map((ca) => (
-                <CaTreeItem key={ca.id} ca={ca} level={0} />
+                <CaTreeItem key={ca.id} ca={ca} level={0} router={router} />
               ))}
             </ul>
           ) : (
