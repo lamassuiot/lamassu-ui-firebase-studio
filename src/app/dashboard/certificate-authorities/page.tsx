@@ -6,112 +6,11 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Landmark, FolderTree, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle } from "lucide-react";
-
-// Define the CA data structure
-interface CA {
-  id: string;
-  name: string;
-  issuer: string;
-  expires: string;
-  serialNumber: string;
-  status: 'active' | 'expired' | 'revoked';
-  children?: CA[];
-}
-
-// Mock CA data with static serial numbers
-const certificateAuthoritiesData: CA[] = [
-  {
-    id: 'root-ca-1',
-    name: 'LamassuIoT Global Root CA G1',
-    issuer: 'Self-signed',
-    expires: '2045-12-31',
-    serialNumber: '0A1B2C3D4E5F67890123',
-    status: 'active',
-    children: [
-      {
-        id: 'intermediate-ca-1a',
-        name: 'LamassuIoT Regional Services CA EU',
-        issuer: 'LamassuIoT Global Root CA G1',
-        expires: '2040-06-30',
-        serialNumber: '1A2B3C4D5E6F78901234',
-        status: 'active',
-        children: [
-          {
-            id: 'signing-ca-1a1',
-            name: 'Device Authentication CA EU West',
-            issuer: 'LamassuIoT Regional Services CA EU',
-            expires: '2035-01-15',
-            serialNumber: '2A3B4C5D6E7F89012345',
-            status: 'active',
-          },
-          {
-            id: 'signing-ca-1a2',
-            name: 'Secure Update Service CA EU Central',
-            issuer: 'LamassuIoT Regional Services CA EU',
-            expires: '2038-03-22',
-            serialNumber: '3A4B5C6D7E8F90123456',
-            status: 'active',
-          },
-        ],
-      },
-      {
-        id: 'intermediate-ca-1b',
-        name: 'LamassuIoT Manufacturing CA US',
-        issuer: 'LamassuIoT Global Root CA G1',
-        expires: '2039-10-10',
-        serialNumber: '4A5B6C7D8E9F01234567',
-        status: 'active',
-        children: [
-           {
-            id: 'signing-ca-1b1',
-            name: 'Factory A Provisioning CA',
-            issuer: 'LamassuIoT Manufacturing CA US',
-            expires: '2030-07-12',
-            serialNumber: '5A6B7C8D9E0F12345678',
-            status: 'active',
-          }
-        ]
-      },
-    ],
-  },
-  {
-    id: 'root-ca-2',
-    name: 'LamassuIoT Test & Development Root CA',
-    issuer: 'Self-signed',
-    expires: '2030-01-01',
-    serialNumber: '6A7B8C9D0E1F23456789',
-    status: 'active',
-    children: [
-        {
-          id: 'intermediate-ca-2a',
-          name: 'Staging Environment CA',
-          issuer: 'LamassuIoT Test & Development Root CA',
-          expires: '2028-07-07',
-          serialNumber: '7A8B9C0D1E2F34567890',
-          status: 'active',
-        },
-        {
-          id: 'intermediate-ca-2b',
-          name: 'QA Services CA (Expired)',
-          issuer: 'LamassuIoT Test & Development Root CA',
-          expires: '2023-01-01', // Expired
-          serialNumber: '8A9B0C1D2E3F45678901',
-          status: 'expired',
-        }
-    ]
-  },
-  {
-    id: 'root-ca-3',
-    name: 'Old Partner Root CA (Revoked)',
-    issuer: 'Self-signed',
-    expires: '2025-05-05',
-    serialNumber: '9A0B1C2D3E4F56789012',
-    status: 'revoked',
-  }
-];
+import type { CA } from '@/lib/ca-data'; // Updated import
+import { certificateAuthoritiesData, getCaDisplayName } from '@/lib/ca-data'; // Updated import
 
 // Recursive component to render each CA and its children
-const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof useRouter> }> = ({ ca, level, router }) => {
+const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof useRouter>; allCAs: CA[] }> = ({ ca, level, router, allCAs }) => {
   const [isOpen, setIsOpen] = React.useState(level < 2);
 
   const hasChildren = ca.children && ca.children.length > 0;
@@ -160,7 +59,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
         <FolderTree className="h-5 w-5 text-primary flex-shrink-0 pt-1" />
         <div className="flex-1">
           <span className="font-medium text-foreground">{ca.name}</span>
-          <p className="text-xs text-muted-foreground">Issuer: {ca.issuer}</p>
+          <p className="text-xs text-muted-foreground">Issuer: {getCaDisplayName(ca.issuer, allCAs)}</p>
         </div>
         <div className="text-right text-xs space-y-1 flex-shrink-0">
             <p className={`font-semibold ${statusColorClass}`}>{ca.status.toUpperCase()}</p>
@@ -182,7 +81,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
       {hasChildren && isOpen && (
         <ul className="mt-1">
           {ca.children?.map((childCa) => (
-            <CaTreeItem key={childCa.id} ca={childCa} level={level + 1} router={router} />
+            <CaTreeItem key={childCa.id} ca={childCa} level={level + 1} router={router} allCAs={allCAs} />
           ))}
         </ul>
       )}
@@ -216,7 +115,7 @@ export default function CertificateAuthoritiesPage() {
           {certificateAuthoritiesData.length > 0 ? (
             <ul className="space-y-1">
               {certificateAuthoritiesData.map((ca) => (
-                <CaTreeItem key={ca.id} ca={ca} level={0} router={router} />
+                <CaTreeItem key={ca.id} ca={ca} level={0} router={router} allCAs={certificateAuthoritiesData} />
               ))}
             </ul>
           ) : (
