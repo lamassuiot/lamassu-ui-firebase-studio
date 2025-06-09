@@ -2,8 +2,7 @@
 'use client';
 
 import React from 'react';
-// crypto import is no longer needed here for mock serial numbers
-import { useRouter } from 'next/navigation'; // Added for navigation
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Landmark, FolderTree, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle } from "lucide-react";
@@ -192,13 +191,10 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
 };
 
 export default function CertificateAuthoritiesPage() {
-  const router = useRouter(); // Initialize router
+  const router = useRouter(); 
 
   const handleCreateNewCAClick = () => {
-    console.log('Create New Certificate Authority clicked');
-    // Implement navigation or modal display for new CA creation
-    // For now, let's also route to a placeholder page if it existed, e.g.
-    // router.push('/dashboard/certificate-authorities/new');
+    router.push('/dashboard/certificate-authorities/new');
   };
 
   return (
