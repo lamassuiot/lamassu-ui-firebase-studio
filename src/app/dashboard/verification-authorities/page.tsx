@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ShieldCheck, Settings, FileText, ListChecks, Clock, Repeat, UploadCloud, KeyRound, Bell, TestTube2, Terminal, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ShieldCheck, Settings, FileText, ListChecks, Clock, Repeat, UploadCloud, KeyRound, Bell, TestTube2, Terminal, ChevronDown, ChevronUp, Plus, Trash2, FolderTree, Minus, ChevronRight } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
 
@@ -115,34 +117,82 @@ const getDefaultVAConfig = (caId: string): VAConfig => ({
   },
 });
 
+interface SelectableCaTreeItemProps {
+  ca: CA;
+  level: number;
+  onSelect: (ca: CA) => void;
+  currentSelectedCaId?: string | null;
+}
+
+const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({ ca, level, onSelect, currentSelectedCaId }) => {
+  const [isOpen, setIsOpen] = useState(level < 1); 
+  const hasChildren = ca.children && ca.children.length > 0;
+  const isSelectable = true; 
+
+  const handleSelect = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSelectable) {
+      onSelect(ca);
+    }
+  };
+
+  return (
+    <li className={`py-1 ${level > 0 ? 'pl-4 border-l border-dashed border-border ml-2' : ''} relative list-none`}>
+      {level > 0 && (
+         <Minus className="h-3 w-3 absolute -left-[0.4rem] top-3 text-border transform rotate-90" />
+      )}
+      <div className="flex items-center space-x-2">
+        {hasChildren && (
+          <ChevronRight 
+            className={`h-4 w-4 text-muted-foreground transition-transform duration-150 cursor-pointer ${isOpen ? 'rotate-90' : ''}`}
+            onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+          />
+        )}
+        {!hasChildren && <div className="w-4 h-4"></div>} 
+        
+        <FolderTree className="h-4 w-4 text-primary flex-shrink-0" />
+        <span 
+          className={`flex-1 text-sm ${isSelectable ? 'cursor-pointer hover:underline' : 'text-muted-foreground'} ${currentSelectedCaId === ca.id ? 'font-bold text-primary': ''}`}
+          onClick={isSelectable ? handleSelect : undefined}
+        >
+          {ca.name} ({ca.id})
+        </span>
+      </div>
+      {hasChildren && isOpen && (
+        <ul className="mt-1 pl-3">
+          {ca.children?.map((childCa) => (
+            <SelectableCaTreeItem key={childCa.id} ca={childCa} level={level + 1} onSelect={onSelect} currentSelectedCaId={currentSelectedCaId} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+};
+
 
 export default function VerificationAuthoritiesPage() {
   const [selectedCaId, setSelectedCaId] = useState<string | undefined>(undefined);
   const [config, setConfig] = useState<VAConfig | null>(null);
-  const [allCAs, setAllCAs] = useState<CA[]>([]);
+  const [isCaSelectModalOpen, setIsCaSelectModalOpen] = useState(false);
+  const [allCAsList, setAllCAsList] = useState<CA[]>([]); // This will store the original hierarchical data
 
   useEffect(() => {
-    // Flatten the CA tree for the selector
-    const flattenCAs = (cas: CA[], targetArray: CA[] = []) => {
-      for (const ca of cas) {
-        targetArray.push(ca);
-        if (ca.children) {
-          flattenCAs(ca.children, targetArray);
-        }
-      }
-      return targetArray;
-    };
-    setAllCAs(flattenCAs(certificateAuthoritiesData));
+    // We use certificateAuthoritiesData directly as it's already hierarchical
+    setAllCAsList(certificateAuthoritiesData);
   }, []);
 
   useEffect(() => {
     if (selectedCaId) {
-      // In a real app, you'd fetch existing config or use defaults
       setConfig(getDefaultVAConfig(selectedCaId));
     } else {
       setConfig(null);
     }
   }, [selectedCaId]);
+
+  const handleCaSelectedFromModal = (ca: CA) => {
+    setSelectedCaId(ca.id);
+    setIsCaSelectModalOpen(false);
+  };
 
   const handleInputChange = <K1 extends keyof VAConfig, K2 extends keyof VAConfig[K1]>(
     section: K1,
@@ -168,13 +218,12 @@ export default function VerificationAuthoritiesPage() {
     setConfig(prevConfig => {
       if (!prevConfig) return null;
       const currentSection = prevConfig[section];
-      // Ensure the key exists and is boolean before toggling
       if (typeof currentSection[key] === 'boolean') {
         return {
           ...prevConfig,
           [section]: {
             ...currentSection,
-            [key]: !currentSection[key] as VAConfig[K1][K2], // Type assertion
+            [key]: !currentSection[key] as VAConfig[K1][K2], 
           },
         };
       }
@@ -229,12 +278,24 @@ export default function VerificationAuthoritiesPage() {
     })
   };
 
+  const findCaByIdRecursive = (id: string, cas: CA[]): CA | undefined => {
+    for (const ca of cas) {
+      if (ca.id === id) return ca;
+      if (ca.children) {
+        const found = findCaByIdRecursive(id, ca.children);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+  
+  const selectedCaDetails = selectedCaId ? findCaByIdRecursive(selectedCaId, allCAsList) : null;
+
+
   if (!config && selectedCaId) {
     return <p>Loading configuration for {selectedCaId}...</p>;
   }
   
-  const selectedCa = allCAs.find(ca => ca.id === selectedCaId);
-
   return (
     <div className="space-y-6 w-full">
       <Card className="shadow-lg">
@@ -247,25 +308,52 @@ export default function VerificationAuthoritiesPage() {
         </CardHeader>
         <CardContent>
           <div className="mb-6 space-y-2">
-            <Label htmlFor="ca-select">Select Certificate Authority to Configure</Label>
-            <Select value={selectedCaId} onValueChange={setSelectedCaId}>
-              <SelectTrigger id="ca-select" className="w-full md:w-1/2">
-                <SelectValue placeholder="Select a CA..." />
-              </SelectTrigger>
-              <SelectContent>
-                {allCAs.map(ca => (
-                  <SelectItem key={ca.id} value={ca.id}>{ca.name} ({ca.id})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="ca-select-button">Select Certificate Authority to Configure</Label>
+             <Button
+                id="ca-select-button"
+                variant="outline"
+                onClick={() => setIsCaSelectModalOpen(true)}
+                className="w-full md:w-1/2 justify-start text-left font-normal"
+            >
+                {selectedCaDetails ? `${selectedCaDetails.name} (${selectedCaDetails.id})` : "Select a CA..."}
+            </Button>
           </div>
 
-          {config && selectedCa && (
+          <Dialog open={isCaSelectModalOpen} onOpenChange={setIsCaSelectModalOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Select Certificate Authority</DialogTitle>
+                <DialogDescription>
+                  Choose an existing CA to configure its Validation Authority settings.
+                </DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="h-72 my-4">
+                <ul className="space-y-1 pr-2">
+                  {allCAsList.map((ca) => (
+                    <SelectableCaTreeItem 
+                      key={ca.id} 
+                      ca={ca} 
+                      level={0} 
+                      onSelect={handleCaSelectedFromModal}
+                      currentSelectedCaId={selectedCaId}
+                    />
+                  ))}
+                </ul>
+              </ScrollArea>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">Cancel</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {config && selectedCaDetails && (
             <Card className="border-primary shadow-md">
               <CardHeader>
                 <CardTitle className="text-xl flex items-center">
                   <Settings className="mr-2 h-6 w-6 text-primary" />
-                  VA Settings for: <span className="font-semibold ml-1">{selectedCa.name}</span>
+                  VA Settings for: <span className="font-semibold ml-1">{selectedCaDetails.name}</span>
                 </CardTitle>
                 <CardDescription>Customize CRL, OCSP, and advanced validation parameters for this CA.</CardDescription>
               </CardHeader>
@@ -347,7 +435,6 @@ export default function VerificationAuthoritiesPage() {
                        <div>
                         <Label>Manual CRLs</Label>
                         <Button variant="outline" size="sm" className="ml-2"><UploadCloud className="mr-2 h-4 w-4" /> Upload CRL</Button>
-                        {/* Placeholder for listing managed CRLs */}
                         {config.crl.manualCrls.length > 0 && <div className="mt-2 text-sm text-muted-foreground">Managed CRLs: ...</div>}
                       </div>
                        <div className="flex items-center space-x-2">
@@ -585,7 +672,7 @@ export default function VerificationAuthoritiesPage() {
           {!selectedCaId && (
             <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
                 <h3 className="text-lg font-semibold text-muted-foreground">Select a CA</h3>
-                <p className="text-sm text-muted-foreground">Choose a Certificate Authority from the dropdown above to view or edit its VA settings.</p>
+                <p className="text-sm text-muted-foreground">Choose a Certificate Authority from the selector above to view or edit its VA settings.</p>
             </div>
           )}
         </CardContent>
@@ -594,3 +681,4 @@ export default function VerificationAuthoritiesPage() {
   );
 }
 
+    
