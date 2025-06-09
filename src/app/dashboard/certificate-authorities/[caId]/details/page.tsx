@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,19 @@ export default function CertificateAuthorityDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const caId = params.caId as string;
+  const [serialNumber, setSerialNumber] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Generate serial number on client side to avoid hydration mismatch
+    // In a real app, you would fetch this or have it as part of CA data
+    const generateRandomHex = (length: number) => {
+      const bytes = new Uint8Array(length);
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+    };
+    setSerialNumber(generateRandomHex(10));
+  }, []);
+
 
   // In a real app, you would fetch CA details based on caId
   // For now, we'll just display the ID and a placeholder.
@@ -39,7 +52,7 @@ export default function CertificateAuthorityDetailsPage() {
             <p><strong>Issuer:</strong> Placeholder Issuer</p>
             <p><strong>Status:</strong> Active (Placeholder)</p>
             <p><strong>Expires:</strong> 2030-12-31 (Placeholder)</p>
-            <p><strong>Serial Number:</strong> {crypto.randomBytes(10).toString('hex').toUpperCase()} (Placeholder)</p>
+            <p><strong>Serial Number:</strong> {serialNumber ? serialNumber : 'Loading...'} (Placeholder)</p>
             
             <div className="mt-6 p-6 border-2 border-dashed border-border rounded-lg bg-muted/20">
               <h3 className="text-lg font-semibold text-muted-foreground">Further Details</h3>

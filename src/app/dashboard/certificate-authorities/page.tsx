@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import crypto from 'crypto'; // For mock serial numbers
+// crypto import is no longer needed here for mock serial numbers
 import { useRouter } from 'next/navigation'; // Added for navigation
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,14 @@ interface CA {
   children?: CA[];
 }
 
-// Mock CA data
+// Mock CA data with static serial numbers
 const certificateAuthoritiesData: CA[] = [
   {
     id: 'root-ca-1',
     name: 'LamassuIoT Global Root CA G1',
     issuer: 'Self-signed',
     expires: '2045-12-31',
-    serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+    serialNumber: '0A1B2C3D4E5F67890123',
     status: 'active',
     children: [
       {
@@ -34,7 +34,7 @@ const certificateAuthoritiesData: CA[] = [
         name: 'LamassuIoT Regional Services CA EU',
         issuer: 'LamassuIoT Global Root CA G1',
         expires: '2040-06-30',
-        serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+        serialNumber: '1A2B3C4D5E6F78901234',
         status: 'active',
         children: [
           {
@@ -42,7 +42,7 @@ const certificateAuthoritiesData: CA[] = [
             name: 'Device Authentication CA EU West',
             issuer: 'LamassuIoT Regional Services CA EU',
             expires: '2035-01-15',
-            serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+            serialNumber: '2A3B4C5D6E7F89012345',
             status: 'active',
           },
           {
@@ -50,7 +50,7 @@ const certificateAuthoritiesData: CA[] = [
             name: 'Secure Update Service CA EU Central',
             issuer: 'LamassuIoT Regional Services CA EU',
             expires: '2038-03-22',
-            serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+            serialNumber: '3A4B5C6D7E8F90123456',
             status: 'active',
           },
         ],
@@ -60,7 +60,7 @@ const certificateAuthoritiesData: CA[] = [
         name: 'LamassuIoT Manufacturing CA US',
         issuer: 'LamassuIoT Global Root CA G1',
         expires: '2039-10-10',
-        serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+        serialNumber: '4A5B6C7D8E9F01234567',
         status: 'active',
         children: [
            {
@@ -68,7 +68,7 @@ const certificateAuthoritiesData: CA[] = [
             name: 'Factory A Provisioning CA',
             issuer: 'LamassuIoT Manufacturing CA US',
             expires: '2030-07-12',
-            serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+            serialNumber: '5A6B7C8D9E0F12345678',
             status: 'active',
           }
         ]
@@ -80,7 +80,7 @@ const certificateAuthoritiesData: CA[] = [
     name: 'LamassuIoT Test & Development Root CA',
     issuer: 'Self-signed',
     expires: '2030-01-01',
-    serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+    serialNumber: '6A7B8C9D0E1F23456789',
     status: 'active',
     children: [
         {
@@ -88,7 +88,7 @@ const certificateAuthoritiesData: CA[] = [
           name: 'Staging Environment CA',
           issuer: 'LamassuIoT Test & Development Root CA',
           expires: '2028-07-07',
-          serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+          serialNumber: '7A8B9C0D1E2F34567890',
           status: 'active',
         },
         {
@@ -96,7 +96,7 @@ const certificateAuthoritiesData: CA[] = [
           name: 'QA Services CA (Expired)',
           issuer: 'LamassuIoT Test & Development Root CA',
           expires: '2023-01-01', // Expired
-          serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+          serialNumber: '8A9B0C1D2E3F45678901',
           status: 'expired',
         }
     ]
@@ -106,7 +106,7 @@ const certificateAuthoritiesData: CA[] = [
     name: 'Old Partner Root CA (Revoked)',
     issuer: 'Self-signed',
     expires: '2025-05-05',
-    serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
+    serialNumber: '9A0B1C2D3E4F56789012',
     status: 'revoked',
   }
 ];
