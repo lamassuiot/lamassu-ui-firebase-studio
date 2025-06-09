@@ -1,8 +1,9 @@
+
 "use client";
 
 import type { FormEvent } from 'react';
-import React, { useRef, useState, useTransition } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import React, { useRef, useState, useTransition, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,33 +28,18 @@ function SubmitButton() {
 }
 
 export function CertificateImportForm({ onCertificateImported }: CertificateImportFormProps) {
-  const initialState = { message: '', errorFields: {} };
-  const [state, formAction] = useFormState(importCertificateAction, initialState);
+  const initialState: { message: string; certificate?: CertificateData, errorFields?: Record<string, string[]> } = { message: '', errorFields: {} };
+  const [state, dispatchFormAction] = useActionState(importCertificateAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPendingTransition, startTransition] = useTransition();
-
-
-  const handleFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    
-    startTransition(async () => {
-      const result = await importCertificateAction(state, formData);
-      if (result.certificate) {
-        onCertificateImported(result.certificate);
-        formRef.current?.reset();
-      }
-      // @ts-ignore TODO: Fix useFormState typing if possible with custom action signature
-      formAction(formData); 
-    });
-  };
   
   React.useEffect(() => {
     if (state.message && state.certificate) {
-        // Handled by onCertificateImported callback triggered via explicit call
-        // Potentially show a success toast here if not resetting form.
-        if (formRef.current) formRef.current.reset();
+        onCertificateImported(state.certificate);
+        if (formRef.current) {
+          formRef.current.reset();
+        }
     }
   }, [state.certificate, state.message, onCertificateImported]);
 
@@ -65,7 +51,15 @@ export function CertificateImportForm({ onCertificateImported }: CertificateImpo
         <CardDescription>Upload an X.509 certificate file (PEM, CRT, or CER format).</CardDescription>
       </CardHeader>
       <CardContent>
-        <form ref={formRef} action={formAction} className="space-y-6">
+        <form 
+          ref={formRef} 
+          action={payload => {
+            startTransition(() => {
+              dispatchFormAction(payload);
+            });
+          }}
+          className="space-y-6"
+        >
           <div className="space-y-2">
             <Label htmlFor="certificateFile">Certificate File</Label>
             <Input
