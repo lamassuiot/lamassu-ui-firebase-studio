@@ -14,7 +14,7 @@ interface CA {
   name: string;
   issuer: string;
   expires: string;
-  serialNumber: string; 
+  serialNumber: string;
   status: 'active' | 'expired' | 'revoked';
   children?: CA[];
 }
@@ -37,18 +37,18 @@ const certificateAuthoritiesData: CA[] = [
         serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
         status: 'active',
         children: [
-          { 
-            id: 'signing-ca-1a1', 
-            name: 'Device Authentication CA EU West', 
-            issuer: 'LamassuIoT Regional Services CA EU', 
+          {
+            id: 'signing-ca-1a1',
+            name: 'Device Authentication CA EU West',
+            issuer: 'LamassuIoT Regional Services CA EU',
             expires: '2035-01-15',
             serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
             status: 'active',
           },
-          { 
-            id: 'signing-ca-1a2', 
-            name: 'Secure Update Service CA EU Central', 
-            issuer: 'LamassuIoT Regional Services CA EU', 
+          {
+            id: 'signing-ca-1a2',
+            name: 'Secure Update Service CA EU Central',
+            issuer: 'LamassuIoT Regional Services CA EU',
             expires: '2038-03-22',
             serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
             status: 'active',
@@ -63,10 +63,10 @@ const certificateAuthoritiesData: CA[] = [
         serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
         status: 'active',
         children: [
-           { 
-            id: 'signing-ca-1b1', 
-            name: 'Factory A Provisioning CA', 
-            issuer: 'LamassuIoT Manufacturing CA US', 
+           {
+            id: 'signing-ca-1b1',
+            name: 'Factory A Provisioning CA',
+            issuer: 'LamassuIoT Manufacturing CA US',
             expires: '2030-07-12',
             serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
             status: 'active',
@@ -83,18 +83,18 @@ const certificateAuthoritiesData: CA[] = [
     serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
     status: 'active',
     children: [
-        { 
-          id: 'intermediate-ca-2a', 
-          name: 'Staging Environment CA', 
-          issuer: 'LamassuIoT Test & Development Root CA', 
+        {
+          id: 'intermediate-ca-2a',
+          name: 'Staging Environment CA',
+          issuer: 'LamassuIoT Test & Development Root CA',
           expires: '2028-07-07',
           serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
           status: 'active',
         },
-        { 
-          id: 'intermediate-ca-2b', 
-          name: 'QA Services CA (Expired)', 
-          issuer: 'LamassuIoT Test & Development Root CA', 
+        {
+          id: 'intermediate-ca-2b',
+          name: 'QA Services CA (Expired)',
+          issuer: 'LamassuIoT Test & Development Root CA',
           expires: '2023-01-01', // Expired
           serialNumber: crypto.randomBytes(10).toString('hex').toUpperCase(),
           status: 'expired',
@@ -113,7 +113,7 @@ const certificateAuthoritiesData: CA[] = [
 
 // Recursive component to render each CA and its children
 const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof useRouter> }> = ({ ca, level, router }) => {
-  const [isOpen, setIsOpen] = React.useState(level < 2); 
+  const [isOpen, setIsOpen] = React.useState(level < 2);
 
   const hasChildren = ca.children && ca.children.length > 0;
 
@@ -147,15 +147,15 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
       {level > 0 && (
          <Minus className="h-3 w-3 absolute -left-[0.45rem] top-3.5 text-border transform rotate-90" />
       )}
-      <div 
+      <div
         className={`flex items-start space-x-2 p-2 rounded-md hover:bg-muted/50 ${hasChildren ? 'cursor-pointer' : ''}`}
         onClick={hasChildren ? () => setIsOpen(!isOpen) : undefined}
       >
-        <div className="flex-shrink-0 pt-1"> 
+        <div className="flex-shrink-0 pt-1">
           {hasChildren ? (
             <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`} />
           ) : (
-            <div className="w-5 h-5"></div> 
+            <div className="w-5 h-5"></div>
           )}
         </div>
         <FolderTree className="h-5 w-5 text-primary flex-shrink-0 pt-1" />
