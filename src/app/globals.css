@@ -26,8 +26,8 @@ body {
     --primary: 217 100% 53%; /* #0f67ff */
     --primary-foreground: 0 0% 98%; /* White/very light for contrast on primary */
 
-    --secondary: 210 60% 90%;
-    --secondary-foreground: 217 80% 30%;
+    --secondary: 195 63% 79%; /* #a8daeb */
+    --secondary-foreground: 220 10% 20%; /* Dark grayish blue for contrast on new secondary */
 
     --accent: 155 60% 78%; /* #a2ecc8 */
     --accent-foreground: 155 50% 25%; /* Darker green for contrast on accent */
