@@ -6,7 +6,14 @@ import type { CertificateData, VerificationStatus } from '@/types/certificate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { verifyCertificateAction } from '@/lib/actions/certificateActions';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -84,16 +91,16 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
   if (certificates.length === 0) {
     return (
       <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-        <h3 className="text-lg font-semibold text-muted-foreground">No Certificates Found</h3>
+        <h3 className="text-lg font-semibold text-muted-foreground">No Certificates Listed</h3>
         <p className="text-sm text-muted-foreground">
-          There are no certificates to display. Certificates would typically be populated by internal system processes or imported.
+          There are no certificates to display. Mock data is available on the main certificates page if local storage is empty.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="mt-2 w-full"> 
+    <div className="mt-2 w-full">
       <div>
         <Table>
           <TableHeader>
@@ -125,7 +132,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                     variant="outline"
                     size="sm"
                     onClick={() => handleVerify(cert)}
-                    disabled={isVerifying && verifyingId === cert.id}
+                    disabled={(isVerifying && verifyingId === cert.id) || cert.verificationStatus === 'pending'}
                     title="Verify Certificate"
                   >
                     {(isVerifying && verifyingId === cert.id) || cert.verificationStatus === 'pending' ? (
@@ -135,6 +142,26 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                     )}
                     <span className="sr-only sm:not-sr-only sm:ml-1">Verify</span>
                   </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" title="More actions">
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">More actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => alert(`Revoke certificate: ${cert.fileName} (placeholder)`)}>
+                        Revoke Certificate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => alert(`Download PEM for: ${cert.fileName} (placeholder)`)}>
+                        Download PEM
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => alert(`View audit log for: ${cert.fileName} (placeholder)`)}>
+                        View Audit Log
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
@@ -144,4 +171,3 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     </div>
   );
 }
-
