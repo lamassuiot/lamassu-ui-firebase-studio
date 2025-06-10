@@ -1,7 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,10 +30,13 @@ export default function CertificateAuthorityDetailsPage() {
   const router = useRouter();
   const caId = params.caId as string;
   const [caDetails, setCaDetails] = useState<CA | null>(null);
+  const [placeholderSerial, setPlaceholderSerial] = useState<string>(''); // Initialize with empty string
 
   useEffect(() => {
     const foundCa = findCaById(caId, certificateAuthoritiesData);
     setCaDetails(foundCa);
+    // Generate placeholder serial on client to avoid hydration mismatch for this specific placeholder
+    setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
   }, [caId]);
 
   if (!caDetails) {
@@ -89,7 +93,7 @@ export default function CertificateAuthorityDetailsPage() {
               <AccordionTrigger className="text-lg">
                 <Info className="mr-2 h-5 w-5" /> General Information
               </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-1">
+              <AccordionContent className="space-y-1">
                 <DetailItem label="Full Name" value={caDetails.name} />
                 <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
                 <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, certificateAuthoritiesData)} />
@@ -103,11 +107,15 @@ export default function CertificateAuthorityDetailsPage() {
               <AccordionTrigger className="text-lg">
                 <KeyRound className="mr-2 h-5 w-5" /> Key & Signature Information
               </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-1">
+              <AccordionContent className="space-y-1">
                 <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
                 <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
-                <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">A1:B2:C3:D4:E5:F6:... (placeholder)</span>} />
-                <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">F6:E5:D4:C3:B2:A1:... (placeholder)</span>} />
+                {placeholderSerial && ( // Conditionally render if placeholderSerial is not empty
+                  <>
+                    <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[0]}:... (placeholder)</span>} />
+                    <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[1]}:... (placeholder)</span>} />
+                  </>
+                )}
               </AccordionContent>
             </AccordionItem>
             
@@ -115,7 +123,7 @@ export default function CertificateAuthorityDetailsPage() {
               <AccordionTrigger className="text-lg">
                 <Lock className="mr-2 h-5 w-5" /> Certificate Extensions
               </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-1">
+              <AccordionContent className="space-y-1">
                 <DetailItem label="Basic Constraints" value={
                     <div className="space-y-0.5">
                         <p>CA: <Badge variant={caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? "default" : "secondary"} className={(caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? 'bg-green-100 text-green-700' : '')}>TRUE</Badge></p>
@@ -146,7 +154,7 @@ export default function CertificateAuthorityDetailsPage() {
               <AccordionTrigger className="text-lg">
                 <LinkIcon className="mr-2 h-5 w-5" /> Distribution Points
               </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-1">
+              <AccordionContent className="space-y-1">
                 <DetailItem label="CRL Distribution Points (CDP)" value={
                     <ul className="list-disc list-inside space-y-1">
                         <li>URI: http://crl.example.com/{caDetails.id.replace(/-/g,'')}.crl (placeholder)</li>
@@ -166,7 +174,7 @@ export default function CertificateAuthorityDetailsPage() {
               <AccordionTrigger className="text-lg">
                 <Server className="mr-2 h-5 w-5" /> Issuance Hierarchy
               </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-1">
+              <AccordionContent className="space-y-1">
                 <DetailItem 
                     label="Issued By" 
                     value={
