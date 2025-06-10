@@ -17,7 +17,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, Home as HomeIcon, LayoutDashboard } from 'lucide-react'; // Added HomeIcon, LayoutDashboard
 import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({
@@ -28,11 +28,27 @@ export default function DashboardLayout({
   const pathname = usePathname();
 
   const navItems = [
+    { href: '/dashboard', label: 'Home', icon: HomeIcon }, // Added Home
     { href: '/dashboard/certificates', label: 'Certificates', icon: FileText },
     { href: '/dashboard/certificate-authorities', label: 'Certificate Authorities', icon: Landmark },
     { href: '/dashboard/registration-authorities', label: 'Registration Authorities', icon: Users },
     { href: '/dashboard/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
   ];
+
+  // Determine the active section label for the header
+  let activeLabel = 'Dashboard'; // Default label
+  const currentRootPath = pathname.split('/').slice(0, 3).join('/'); // e.g., /dashboard/certificates
+
+  const activeItem = navItems.find(item => 
+    item.href === pathname || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+  );
+  if (activeItem) {
+    activeLabel = activeItem.label;
+  } else if (pathname === '/dashboard') { // Explicitly set for /dashboard if not matched by exact href
+    const homeItem = navItems.find(item => item.href === '/dashboard');
+    if (homeItem) activeLabel = homeItem.label;
+  }
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -52,7 +68,7 @@ export default function DashboardLayout({
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard')} // More robust active check
+                    isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
                     tooltip={{children: item.label, side: 'right', align: 'center' }}
                   >
                     <Link href={item.href} className="flex items-center w-full justify-start">
@@ -80,7 +96,7 @@ export default function DashboardLayout({
             </div>
             <div className="flex-1 text-left ml-2 md:ml-4"> 
               <h1 className="text-xl font-semibold">
-                {navItems.find(item => pathname.startsWith(item.href))?.label || 'Dashboard'}
+                {activeLabel}
               </h1>
             </div>
           </header>

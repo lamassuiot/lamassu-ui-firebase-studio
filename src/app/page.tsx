@@ -9,7 +9,7 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/dashboard/certificates');
+    router.replace('/dashboard'); // Changed redirect to /dashboard
   }, [router]);
 
   return (
