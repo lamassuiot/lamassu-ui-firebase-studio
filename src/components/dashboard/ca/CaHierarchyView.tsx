@@ -55,7 +55,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
               wrapperStyle={{ width: '100%', height: '100%' }}
               contentStyle={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
             >
-              <div className="space-y-12">
+              <div className="flex flex-row items-start space-x-12">
                 {cas.map((rootCa) => (
                   <Tree
                     key={rootCa.id}
@@ -75,3 +75,4 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
     </div>
   );
 };
+
