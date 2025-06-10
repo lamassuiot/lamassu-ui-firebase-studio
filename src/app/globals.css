@@ -55,25 +55,25 @@ body {
   }
 
   .dark {
-    --background: 222 40% 12%; /* Dark Slate Blue - Less "black" */
-    --foreground: 210 40% 95%; /* Light Blue/White for contrast */
+    --background: 222 40% 15%; /* Lighter main background for more pop */
+    --foreground: 210 40% 95%;
 
-    --muted: 220 30% 20%;
+    --muted: 220 30% 22%; /* Slightly lighter to contrast with new darker cards/sidebar */
     --muted-foreground: 215 20% 65%;
 
-    --popover: 222 40% 10%; /* Slightly darker than background for depth */
+    --popover: 222 40% 10%; /* Stays same, good contrast with new bg */
     --popover-foreground: 210 40% 95%;
 
-    --card: 222 40% 10%; /* Slightly darker than background for depth */
+    --card: 222 40% 10%; /* Stays same, now more distinct from lighter bg */
     --card-foreground: 210 40% 95%;
 
-    --border: 217 30% 25%;
-    --input: 217 30% 18%; /* Adjusted for new background */
+    --border: 217 30% 28%; /* Slightly lighter border for new bg */
+    --input: 217 30% 20%; /* Slightly lighter input for new bg */
 
     --primary: 217 90% 60%; /* Adjusted primary for dark mode */
     --primary-foreground: 0 0% 98%; /* Light foreground for new primary */
 
-    --secondary: 217 30% 22%;
+    --secondary: 217 30% 25%; /* Making secondary a bit more distinct */
     --secondary-foreground: 210 40% 90%;
 
     --accent: 155 55% 50%; /* Adjusted accent for dark mode */
@@ -87,14 +87,13 @@ body {
     --chart-1: 217 90% 60%;
     --chart-2: 155 55% 50%;
     
-    --sidebar-background: 222 40% 9%; /* Darker than main bg for sidebar */
+    --sidebar-background: 222 40% 8%; /* Darker sidebar */
     --sidebar-foreground: 210 40% 90%;
     --sidebar-primary: 217 90% 60%; /* Matches new main primary */
     --sidebar-primary-foreground: 0 0% 98%; /* Matches new main primary-foreground */
     --sidebar-accent: 155 55% 55%; /* Adjusted sidebar accent */
     --sidebar-accent-foreground: 155 50% 95%;
-    --sidebar-border: 217 30% 20%;
-    --sidebar-ring: 217 90% 60%;
+    --sidebar-border: 217 30% 18%; /* Darker border for darker sidebar */
   }
 }
 
