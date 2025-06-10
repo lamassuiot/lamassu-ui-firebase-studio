@@ -6,9 +6,8 @@ import { CertificateStatusChartCard } from '@/components/dashboard/home/Certific
 
 export default function DashboardHomePage() {
   return (
-    <div className="w-full flex justify-center">
+    <div className="w-full flex justify-start">
       <CertificateStatusChartCard />
     </div>
   );
 }
-

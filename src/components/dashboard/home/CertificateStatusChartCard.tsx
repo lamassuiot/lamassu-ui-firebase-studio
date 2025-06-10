@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useTheme } from 'next-themes';
 
 interface ChartData {
@@ -13,19 +13,21 @@ interface ChartData {
 }
 
 const certificateStatusData: ChartData[] = [
-  { name: 'Active', value: 70, color: 'hsl(var(--chart-2))' },
-  { name: 'About to expire', value: 15, color: 'hsl(var(--chart-3))' },
-  { name: 'Expired', value: 10, color: 'hsl(var(--chart-5))' },
-  { name: 'Revoked', value: 5, color: 'hsl(var(--destructive))' },
+  { name: 'Active', value: 70, color: 'hsl(var(--chart-1))' }, // Using chart-1 (primary blue for active on primary bg)
+  { name: 'About to expire', value: 15, color: 'hsl(var(--chart-3))' }, // Orange/Amber
+  { name: 'Expired', value: 10, color: 'hsl(var(--chart-5))' }, // Reddish/Pinkish
+  { name: 'Revoked', value: 5, color: 'hsl(var(--destructive))' }, // Destructive Red
 ];
 
 // Fallback colors for recharts if CSS variables are not directly picked up by SVG elements
 const fallbackColors = {
-    'hsl(var(--chart-2))': '#84cc16', // lime-500 for Active
-    'hsl(var(--chart-3))': '#f97316', // orange-500 for About to expire
-    'hsl(var(--chart-5))': '#f43f5e', // rose-500 for Expired
-    'hsl(var(--destructive))': '#dc2626', // red-600 for Revoked
-    'hsl(var(--chart-4))': '#3b82f6', // blue-500 (example for a chart-4 if it was used)
+    'hsl(var(--chart-1))': 'hsl(217 100% 53%)', // primary blue
+    'hsl(var(--chart-3))': 'hsl(30 80% 55%)', // orange
+    'hsl(var(--chart-5))': 'hsl(340 75% 55%)', // pinkish-red
+    'hsl(var(--destructive))': 'hsl(0 72% 51%)', // destructive red
+    // Ensure chart-2 and chart-4 are defined if used, or remove if not. For now, assuming they are not directly used in this chart.
+    'hsl(var(--chart-2))': '#84cc16', 
+    'hsl(var(--chart-4))': '#3b82f6', 
 };
 
 
@@ -42,7 +44,7 @@ export function CertificateStatusChartCard() {
 
     return (
       <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs font-medium">
-        {`${name} (${(percent * 100).toFixed(0)}%)`}
+        {`${(percent * 100).toFixed(0)}%`}
       </text>
     );
   };
@@ -65,7 +67,7 @@ export function CertificateStatusChartCard() {
                 labelLine={false}
                 label={renderCustomizedLabel}
                 outerRadius="80%"
-                innerRadius="70%"
+                innerRadius="70%" 
                 fill="#8884d8"
                 dataKey="value"
                 stroke={'hsl(var(--primary))'} 
@@ -84,6 +86,11 @@ export function CertificateStatusChartCard() {
                 }}
                 itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
               />
+              <Legend 
+                verticalAlign="bottom" 
+                wrapperStyle={{ paddingTop: '20px', color: 'hsl(var(--primary-foreground))' }}
+                formatter={(value, entry) => <span style={{ color: 'hsl(var(--primary-foreground))' }}>{value}</span>}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -91,4 +98,3 @@ export function CertificateStatusChartCard() {
     </Card>
   );
 }
-
