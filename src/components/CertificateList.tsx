@@ -1,10 +1,10 @@
+
 "use client";
 
 import React, { useState, useTransition } from 'react';
 import type { CertificateData, VerificationStatus } from '@/types/certificate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion } from 'lucide-react';
 import { verifyCertificateAction } from '@/lib/actions/certificateActions';
@@ -78,24 +78,24 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
 
   if (certificates.length === 0) {
     return (
-      <Card className="mt-8 w-full shadow-lg">
-        <CardHeader>
-          <CardTitle className="font-headline text-2xl">Managed Certificates</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="mt-8 w-full"> {/* Was Card */}
+        <div className="mb-4"> {/* Was CardHeader */}
+          <h2 className="font-headline text-2xl font-semibold">Managed Certificates</h2> {/* Was CardTitle */}
+        </div>
+        <div> {/* Was CardContent */}
           <p className="text-muted-foreground">No certificates imported yet. Upload a certificate to get started.</p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="mt-8 w-full shadow-lg">
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl">Managed Certificates</CardTitle>
-        <CardDescription>View and manage your imported X.509 certificates.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="mt-8 w-full"> {/* Was Card */}
+      <div className="mb-4"> {/* Was CardHeader */}
+        <h2 className="font-headline text-2xl font-semibold">Managed Certificates</h2> {/* Was CardTitle */}
+        <p className="text-sm text-muted-foreground mt-1.5">View and manage your imported X.509 certificates.</p> {/* Was CardDescription */}
+      </div>
+      <div> {/* Was CardContent */}
         <Table>
           <TableHeader>
             <TableRow>
@@ -139,7 +139,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

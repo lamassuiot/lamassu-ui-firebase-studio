@@ -3,11 +3,10 @@
 
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea"; // Assuming you have this or similar
+import { Textarea } from "@/components/ui/textarea"; 
 import { ArrowLeft, FilePlus2 } from "lucide-react";
 
 export default function IssueCertificatePage() {
@@ -15,30 +14,28 @@ export default function IssueCertificatePage() {
   const router = useRouter();
   const caId = params.caId as string;
 
-  // In a real app, you would have form handling state and submission logic
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     console.log(`Issuing certificate from CA: ${caId} with form data...`);
-    // Add logic to submit form data
     alert(`Mock issue certificate from CA ${caId}`);
   };
 
   return (
     <div className="w-full space-y-6">
        <Button variant="outline" onClick={() => router.back()} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to CA Details
       </Button>
-      <Card className="w-full shadow-lg">
-        <CardHeader>
+      <div className="w-full"> {/* Was Card */}
+        <div className="p-6"> {/* Was CardHeader */}
           <div className="flex items-center space-x-3">
             <FilePlus2 className="h-8 w-8 text-primary" />
-            <CardTitle className="text-2xl font-headline">Issue Certificate from CA: {caId}</CardTitle>
+            <h1 className="text-2xl font-headline font-semibold">Issue Certificate from CA: {caId}</h1> {/* Was CardTitle */}
           </div>
-          <CardDescription>
+          <p className="text-sm text-muted-foreground mt-1.5"> {/* Was CardDescription */}
             Fill out the details below to issue a new certificate signed by CA ID: {caId}.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="p-6 pt-0"> {/* Was CardContent */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <Label htmlFor="commonName">Common Name (CN)</Label>
@@ -65,8 +62,8 @@ export default function IssueCertificatePage() {
               Issue Certificate
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -3,14 +3,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, HardDrive, KeyRound, Settings, Info, CalendarDays } from "lucide-react";
+import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Settings, Info, CalendarDays } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
 import { Separator } from '@/components/ui/separator';
@@ -182,17 +181,17 @@ export default function CreateCertificateAuthorityPage() {
       <Button variant="outline" onClick={() => router.back()} className="mb-4">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
       </Button>
-      <Card className="w-full shadow-lg">
-        <CardHeader>
+      <div className="w-full"> {/* Was Card */}
+        <div className="p-6"> {/* Was CardHeader - simplified to p-6 or adjust as needed */}
           <div className="flex items-center space-x-3">
             <PlusCircle className="h-8 w-8 text-primary" />
-            <CardTitle className="text-2xl font-headline">Create New Certificate Authority</CardTitle>
+            <h1 className="text-2xl font-headline font-semibold">Create New Certificate Authority</h1> {/* Was CardTitle */}
           </div>
-          <CardDescription>
+          <p className="text-sm text-muted-foreground mt-1.5"> {/* Was CardDescription, added mt-1.5 for spacing */}
             Fill in the details below to provision a new Certificate Authority.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="p-6 pt-0"> {/* Was CardContent */}
           <form onSubmit={handleSubmit} className="space-y-8">
 
             {/* CA Settings Section */}
@@ -361,8 +360,8 @@ export default function CreateCertificateAuthorityPage() {
               </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <Dialog open={isParentCaModalOpen} onOpenChange={setIsParentCaModalOpen}>
         <DialogContent className="sm:max-w-md">

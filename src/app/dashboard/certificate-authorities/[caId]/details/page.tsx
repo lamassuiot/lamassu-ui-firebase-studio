@@ -4,7 +4,6 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server } from "lucide-react";
@@ -30,12 +29,11 @@ export default function CertificateAuthorityDetailsPage() {
   const router = useRouter();
   const caId = params.caId as string;
   const [caDetails, setCaDetails] = useState<CA | null>(null);
-  const [placeholderSerial, setPlaceholderSerial] = useState<string>(''); // Initialize with empty string
+  const [placeholderSerial, setPlaceholderSerial] = useState<string>('');
 
   useEffect(() => {
     const foundCa = findCaById(caId, certificateAuthoritiesData);
     setCaDetails(foundCa);
-    // Generate placeholder serial on client to avoid hydration mismatch for this specific placeholder
     setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
   }, [caId]);
 
@@ -77,17 +75,17 @@ export default function CertificateAuthorityDetailsPage() {
       <Button variant="outline" onClick={() => router.back()} className="mb-4">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
       </Button>
-      <Card className="w-full shadow-lg">
-        <CardHeader>
+      <div className="w-full"> {/* Was Card */}
+        <div className="p-6"> {/* Was CardHeader - simplified or adjust padding as needed */}
           <div className="flex items-center space-x-3">
             <FileText className="h-8 w-8 text-primary" />
-            <CardTitle className="text-2xl font-headline">{caDetails.name}</CardTitle>
+            <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1> {/* Was CardTitle */}
           </div>
-          <CardDescription>
+          <p className="text-sm text-muted-foreground mt-1.5"> {/* Was CardDescription */}
             Detailed information for Certificate Authority: <span className="font-semibold">{caDetails.name}</span> (ID: {caDetails.id}).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="p-6 pt-0"> {/* Was CardContent */}
           <Accordion type="multiple" defaultValue={['general', 'keyInfo']} className="w-full">
             <AccordionItem value="general">
               <AccordionTrigger className="text-lg">
@@ -110,7 +108,7 @@ export default function CertificateAuthorityDetailsPage() {
               <AccordionContent className="space-y-1">
                 <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
                 <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
-                {placeholderSerial && ( // Conditionally render if placeholderSerial is not empty
+                {placeholderSerial && (
                   <>
                     <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[0]}:... (placeholder)</span>} />
                     <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[1]}:... (placeholder)</span>} />
@@ -219,8 +217,8 @@ export default function CertificateAuthorityDetailsPage() {
               </div>
             </div>
 
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

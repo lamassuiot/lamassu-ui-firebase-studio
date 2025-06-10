@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Keep for INNER card
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -298,15 +298,15 @@ export default function VerificationAuthoritiesPage() {
   
   return (
     <div className="space-y-6 w-full">
-      <Card className="shadow-lg">
-        <CardHeader>
+      <div> {/* Was Card */}
+        <div className="p-6"> {/* Was CardHeader */}
           <div className="flex items-center space-x-3 mb-2">
             <ShieldCheck className="h-8 w-8 text-primary" />
-            <CardTitle className="text-2xl font-headline">Validation Authority (VA) Configuration</CardTitle>
+            <h1 className="text-2xl font-headline font-semibold">Validation Authority (VA) Configuration</h1> {/* Was CardTitle */}
           </div>
-          <CardDescription>Configure CRL and OCSP settings per Certificate Authority.</CardDescription>
-        </CardHeader>
-        <CardContent>
+          <p className="text-sm text-muted-foreground">Configure CRL and OCSP settings per Certificate Authority.</p> {/* Was CardDescription */}
+        </div>
+        <div className="p-6 pt-0"> {/* Was CardContent */}
           <div className="mb-6 space-y-2">
             <Label htmlFor="ca-select-button">Select Certificate Authority to Configure</Label>
              <Button
@@ -355,7 +355,7 @@ export default function VerificationAuthoritiesPage() {
           )}
 
           {config && selectedCaDetails && (
-            <Card className="border-primary/50 shadow-md mt-4">
+            <Card className="border-primary/50 shadow-md mt-4"> {/* This INNER Card remains */}
               <CardHeader>
                 <CardTitle className="text-xl flex items-center">
                   <Settings className="mr-2 h-6 w-6 text-primary" />
@@ -364,7 +364,7 @@ export default function VerificationAuthoritiesPage() {
                 <CardDescription>Customize CRL, OCSP, and advanced validation parameters for this CA.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <Card>
+                <Card> {/* This card for General Validation Methods also remains as it is internal */}
                   <CardHeader>
                     <CardTitle className="text-lg">General Validation Methods</CardTitle>
                   </CardHeader>
@@ -677,9 +677,8 @@ export default function VerificationAuthoritiesPage() {
                 <p className="text-sm text-muted-foreground">Choose a Certificate Authority from the selector above to view or edit its VA settings.</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
-

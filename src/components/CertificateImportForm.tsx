@@ -7,7 +7,6 @@ import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { UploadCloud, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { importCertificateAction } from '@/lib/actions/certificateActions';
@@ -45,12 +44,12 @@ export function CertificateImportForm({ onCertificateImported }: CertificateImpo
 
 
   return (
-    <Card className="w-full max-w-lg shadow-lg">
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl">Import Certificate</CardTitle>
-        <CardDescription>Upload an X.509 certificate file (PEM, CRT, or CER format).</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full max-w-lg"> {/* Was Card */}
+      <div className="mb-4"> {/* Was CardHeader, using mb-4 for spacing */}
+        <h2 className="font-headline text-2xl font-semibold">Import Certificate</h2> {/* Was CardTitle */}
+        <p className="text-sm text-muted-foreground mt-1.5">Upload an X.509 certificate file (PEM, CRT, or CER format).</p> {/* Was CardDescription */}
+      </div>
+      <div> {/* Was CardContent */}
         <form 
           ref={formRef} 
           action={payload => {
@@ -93,7 +92,7 @@ export function CertificateImportForm({ onCertificateImported }: CertificateImpo
              </Alert>
            )}
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
