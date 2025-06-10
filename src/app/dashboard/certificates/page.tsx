@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-// CertificateImportForm is no longer needed here
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
+import { FileText } from 'lucide-react'; // Added icon import
 
 // Loader2Icon to be defined or imported if needed elsewhere, kept local for now
 function Loader2Icon(props: React.SVGProps<SVGSVGElement>) {
@@ -52,16 +52,6 @@ export default function CertificatesPage() {
     }
   }, [certificates, isClient]);
 
-  // handleCertificateImported is no longer needed as the form is removed
-  // const handleCertificateImported = (newCertificate: CertificateData) => {
-  //   setCertificates((prevCerts) => {
-  //     if (prevCerts.some(c => c.fingerprintSha256 === newCertificate.fingerprintSha256 || c.pemData === newCertificate.pemData)) {
-  //       return prevCerts;
-  //     }
-  //     return [newCertificate, ...prevCerts];
-  //   });
-  // };
-
   const handleInspectCertificate = (certificate: CertificateData) => {
     setSelectedCertificate(certificate);
     setIsModalOpen(true);
@@ -88,8 +78,14 @@ export default function CertificatesPage() {
   }
 
   return (
-    <div className="w-full space-y-6"> 
-      {/* CertificateImportForm removed from here */}
+    <div className="w-full space-y-6">
+      <div className="flex items-center space-x-3 mb-4">
+        <FileText className="h-8 w-8 text-primary" />
+        <h1 className="text-2xl font-headline font-semibold">Issued Certificates</h1>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        A list of certificates managed by the system, displaying their Common Name (CN), serial number, issuing CA, and current status.
+      </p>
       <CertificateList 
         certificates={certificates} 
         onInspectCertificate={handleInspectCertificate}
@@ -103,3 +99,4 @@ export default function CertificatesPage() {
     </div>
   );
 }
+

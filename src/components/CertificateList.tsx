@@ -83,25 +83,24 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
 
   if (certificates.length === 0) {
     return (
-      <div className="mt-2 w-full"> {/* Reduced top margin */}
-        {/* Removed "Managed Certificates" heading */}
-        <div>
-          <p className="text-muted-foreground">No certificates imported yet. You would typically import them via a dedicated import page or function.</p>
-        </div>
+      <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
+        <h3 className="text-lg font-semibold text-muted-foreground">No Certificates Found</h3>
+        <p className="text-sm text-muted-foreground">
+          There are no certificates to display. Certificates would typically be populated by internal system processes or imported.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="mt-2 w-full"> {/* Reduced top margin */}
-      {/* Removed "Managed Certificates" heading and description */}
+    <div className="mt-2 w-full"> 
       <div>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Common Name</TableHead>
               <TableHead className="hidden md:table-cell">Serial Number</TableHead>
-              <TableHead className="hidden lg:table-cell">Issuer</TableHead>
+              <TableHead className="hidden lg:table-cell">CA Issuer</TableHead>
               <TableHead>Expires</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -145,3 +144,4 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     </div>
   );
 }
+
