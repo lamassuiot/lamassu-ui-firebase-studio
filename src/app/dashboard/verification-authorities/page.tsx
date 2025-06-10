@@ -292,7 +292,7 @@ export default function VerificationAuthoritiesPage() {
   const selectedCaDetails = selectedCaId ? findCaByIdRecursive(selectedCaId, allCAsList) : null;
 
 
-  if (!config && selectedCaId && selectedCaDetails) { // ensure selectedCaDetails is also available
+  if (!config && selectedCaId && selectedCaDetails) { 
     return <p>Loading configuration for {selectedCaDetails.name} ({selectedCaId})...</p>;
   }
   
@@ -385,7 +385,7 @@ export default function VerificationAuthoritiesPage() {
                     <AccordionTrigger className="text-lg font-medium">
                       <FileText className="mr-2 h-5 w-5" /> CRL Configuration
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-4 p-4 border rounded-md bg-muted/20">
+                    <AccordionContent className="space-y-4 p-4">
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="crlRetrievalInterval">Retrieval Interval</Label>
@@ -479,7 +479,7 @@ export default function VerificationAuthoritiesPage() {
                     <AccordionTrigger className="text-lg font-medium">
                       <ListChecks className="mr-2 h-5 w-5" /> OCSP Configuration
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-4 p-4 border rounded-md bg-muted/20">
+                    <AccordionContent className="space-y-4 p-4">
                         <div>
                             <Label>OCSP Responder URLs (Failover Order)</Label>
                             {config.ocsp.responderUrls.map((item, index) => (
@@ -618,7 +618,7 @@ export default function VerificationAuthoritiesPage() {
                     <AccordionTrigger className="text-lg font-medium">
                       <Settings className="mr-2 h-5 w-5" /> Advanced Options
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-4 p-4 border rounded-md bg-muted/20">
+                    <AccordionContent className="space-y-4 p-4">
                       <div className="space-y-2">
                         <Label htmlFor="alertingEmail"><Bell className="inline mr-1 h-4 w-4" />Alerting Email</Label>
                         <Input id="alertingEmail" type="email" placeholder="admin@example.com" value={config.advanced.alertingEmail} onChange={e => handleInputChange('advanced', 'alertingEmail', e.target.value)} />
@@ -682,3 +682,4 @@ export default function VerificationAuthoritiesPage() {
     </div>
   );
 }
+
