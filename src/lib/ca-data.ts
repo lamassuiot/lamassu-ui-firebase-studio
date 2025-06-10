@@ -9,10 +9,19 @@ export interface CA {
   status: 'active' | 'expired' | 'revoked';
   keyAlgorithm: string;
   signatureAlgorithm: string;
+  pemData?: string; // Added PEM data field
   children?: CA[];
 }
 
-// Mock CA data with static serial numbers
+// Mock PEM data generator
+const generateMockPem = (name: string, id: string): string => {
+  const header = `-----BEGIN CERTIFICATE-----`;
+  const footer = `-----END CERTIFICATE-----`;
+  const body = Buffer.from(`Subject: CN=${name}, ID=${id}\nIssuer: Mock CA\nValidity: Mock Dates\nPublicKey: Mock Key\nSignature: Mock Signature\n${crypto.randomBytes(64).toString('base64')}\n${crypto.randomBytes(64).toString('base64')}\n${crypto.randomBytes(64).toString('base64')}`).toString('base64').replace(/(.{64})/g, "$1\n");
+  return `${header}\n${body}\n${footer}`;
+};
+
+// Mock CA data with static serial numbers and PEM data
 export const certificateAuthoritiesData: CA[] = [
   {
     id: 'root-ca-1',
@@ -23,6 +32,7 @@ export const certificateAuthoritiesData: CA[] = [
     status: 'active',
     keyAlgorithm: 'RSA 4096 bit',
     signatureAlgorithm: 'SHA512withRSA',
+    pemData: generateMockPem('LamassuIoT Global Root CA G1', 'root-ca-1'),
     children: [
       {
         id: 'intermediate-ca-1a',
@@ -33,6 +43,7 @@ export const certificateAuthoritiesData: CA[] = [
         status: 'active',
         keyAlgorithm: 'RSA 2048 bit',
         signatureAlgorithm: 'SHA256withRSA',
+        pemData: generateMockPem('LamassuIoT Regional Services CA EU', 'intermediate-ca-1a'),
         children: [
           {
             id: 'signing-ca-1a1',
@@ -43,6 +54,7 @@ export const certificateAuthoritiesData: CA[] = [
             status: 'active',
             keyAlgorithm: 'ECDSA P-256',
             signatureAlgorithm: 'SHA256withECDSA',
+            pemData: generateMockPem('Device Authentication CA EU West', 'signing-ca-1a1'),
           },
           {
             id: 'signing-ca-1a2',
@@ -53,6 +65,7 @@ export const certificateAuthoritiesData: CA[] = [
             status: 'active',
             keyAlgorithm: 'RSA 2048 bit',
             signatureAlgorithm: 'SHA256withRSA',
+            pemData: generateMockPem('Secure Update Service CA EU Central', 'signing-ca-1a2'),
           },
         ],
       },
@@ -65,6 +78,7 @@ export const certificateAuthoritiesData: CA[] = [
         status: 'active',
         keyAlgorithm: 'RSA 3072 bit',
         signatureAlgorithm: 'SHA384withRSA',
+        pemData: generateMockPem('LamassuIoT Manufacturing CA US', 'intermediate-ca-1b'),
         children: [
            {
             id: 'signing-ca-1b1',
@@ -75,6 +89,7 @@ export const certificateAuthoritiesData: CA[] = [
             status: 'active',
             keyAlgorithm: 'RSA 2048 bit',
             signatureAlgorithm: 'SHA256withRSA',
+            pemData: generateMockPem('Factory A Provisioning CA', 'signing-ca-1b1'),
           }
         ]
       },
@@ -89,6 +104,7 @@ export const certificateAuthoritiesData: CA[] = [
     status: 'active',
     keyAlgorithm: 'ECDSA P-384',
     signatureAlgorithm: 'SHA384withECDSA',
+    pemData: generateMockPem('LamassuIoT Test & Development Root CA', 'root-ca-2'),
     children: [
         {
           id: 'intermediate-ca-2a',
@@ -99,6 +115,7 @@ export const certificateAuthoritiesData: CA[] = [
           status: 'active',
           keyAlgorithm: 'ECDSA P-256',
           signatureAlgorithm: 'SHA256withECDSA',
+          pemData: generateMockPem('Staging Environment CA', 'intermediate-ca-2a'),
         },
         {
           id: 'intermediate-ca-2b',
@@ -109,6 +126,7 @@ export const certificateAuthoritiesData: CA[] = [
           status: 'expired',
           keyAlgorithm: 'RSA 2048 bit',
           signatureAlgorithm: 'SHA256withRSA',
+          pemData: generateMockPem('QA Services CA (Expired)', 'intermediate-ca-2b'),
         }
     ]
   },
@@ -121,6 +139,7 @@ export const certificateAuthoritiesData: CA[] = [
     status: 'revoked',
     keyAlgorithm: 'RSA 2048 bit',
     signatureAlgorithm: 'SHA256withRSA',
+    pemData: generateMockPem('Old Partner Root CA (Revoked)', 'root-ca-3'),
   }
 ];
 
@@ -154,3 +173,6 @@ export function findCaById(id: string | undefined | null, cas: CA[]): CA | null 
   }
   return null;
 }
+
+// crypto needed for mock PEM generation
+import crypto from 'crypto';

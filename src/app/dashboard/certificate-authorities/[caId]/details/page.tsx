@@ -1,15 +1,16 @@
 
 'use client';
 
-import React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server } from "lucide-react";
+import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check } from "lucide-react";
 import { certificateAuthoritiesData, findCaById, getCaDisplayName, type CA } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 
 const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
   if (value === undefined || value === null || value === '') return null;
@@ -27,15 +28,31 @@ const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode; fu
 export default function CertificateAuthorityDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const caId = params.caId as string;
   const [caDetails, setCaDetails] = useState<CA | null>(null);
   const [placeholderSerial, setPlaceholderSerial] = useState<string>('');
+  const [pemCopied, setPemCopied] = useState(false);
 
   useEffect(() => {
     const foundCa = findCaById(caId, certificateAuthoritiesData);
     setCaDetails(foundCa);
     setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
   }, [caId]);
+
+  const handleCopyPem = async () => {
+    if (caDetails?.pemData) {
+      try {
+        await navigator.clipboard.writeText(caDetails.pemData);
+        setPemCopied(true);
+        toast({ title: "Copied!", description: "PEM certificate data copied to clipboard." });
+        setTimeout(() => setPemCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy PEM: ', err);
+        toast({ title: "Copy Failed", description: "Could not copy PEM data to clipboard.", variant: "destructive" });
+      }
+    }
+  };
 
   if (!caDetails) {
     return (
@@ -75,18 +92,18 @@ export default function CertificateAuthorityDetailsPage() {
       <Button variant="outline" onClick={() => router.back()} className="mb-4">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
       </Button>
-      <div className="w-full"> {/* Was Card */}
-        <div className="p-6"> {/* Was CardHeader - simplified or adjust padding as needed */}
+      <div className="w-full">
+        <div className="p-6">
           <div className="flex items-center space-x-3">
             <FileText className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1> {/* Was CardTitle */}
+            <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1.5"> {/* Was CardDescription */}
+          <p className="text-sm text-muted-foreground mt-1.5">
             Detailed information for Certificate Authority: <span className="font-semibold">{caDetails.name}</span> (ID: {caDetails.id}).
           </p>
         </div>
-        <div className="p-6 pt-0"> {/* Was CardContent */}
-          <Accordion type="multiple" defaultValue={['general', 'keyInfo']} className="w-full">
+        <div className="p-6 pt-0">
+          <Accordion type="multiple" defaultValue={['general', 'keyInfo', 'pemData']} className="w-full">
             <AccordionItem value="general">
               <AccordionTrigger className="text-lg">
                 <Info className="mr-2 h-5 w-5" /> General Information
@@ -117,6 +134,27 @@ export default function CertificateAuthorityDetailsPage() {
               </AccordionContent>
             </AccordionItem>
             
+            <AccordionItem value="pemData">
+              <AccordionTrigger className="text-lg">
+                <ScrollText className="mr-2 h-5 w-5" /> PEM Certificate Data
+              </AccordionTrigger>
+              <AccordionContent className="space-y-2">
+                {caDetails.pemData ? (
+                  <>
+                    <Button onClick={handleCopyPem} variant="outline" size="sm" className="mb-2">
+                      {pemCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Clipboard className="mr-2 h-4 w-4" />}
+                      {pemCopied ? 'Copied!' : 'Copy PEM'}
+                    </Button>
+                    <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/30">
+                      <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
+                    </ScrollArea>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No PEM data available for this CA.</p>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+
             <AccordionItem value="extensions">
               <AccordionTrigger className="text-lg">
                 <Lock className="mr-2 h-5 w-5" /> Certificate Extensions
