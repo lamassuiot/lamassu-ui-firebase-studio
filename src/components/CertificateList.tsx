@@ -83,23 +83,18 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
 
   if (certificates.length === 0) {
     return (
-      <div className="mt-8 w-full">
-        <div className="mb-4">
-          <h2 className="font-headline text-2xl font-semibold">Managed Certificates</h2>
-        </div>
+      <div className="mt-2 w-full"> {/* Reduced top margin */}
+        {/* Removed "Managed Certificates" heading */}
         <div>
-          <p className="text-muted-foreground">No certificates imported yet. Upload a certificate to get started.</p>
+          <p className="text-muted-foreground">No certificates imported yet. You would typically import them via a dedicated import page or function.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mt-8 w-full">
-      <div className="mb-4">
-        <h2 className="font-headline text-2xl font-semibold">Managed Certificates</h2>
-        <p className="text-sm text-muted-foreground mt-1.5">View and manage your imported X.509 certificates.</p>
-      </div>
+    <div className="mt-2 w-full"> {/* Reduced top margin */}
+      {/* Removed "Managed Certificates" heading and description */}
       <div>
         <Table>
           <TableHeader>

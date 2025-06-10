@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { CertificateImportForm } from '@/components/CertificateImportForm';
+// CertificateImportForm is no longer needed here
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
@@ -52,14 +52,15 @@ export default function CertificatesPage() {
     }
   }, [certificates, isClient]);
 
-  const handleCertificateImported = (newCertificate: CertificateData) => {
-    setCertificates((prevCerts) => {
-      if (prevCerts.some(c => c.fingerprintSha256 === newCertificate.fingerprintSha256 || c.pemData === newCertificate.pemData)) {
-        return prevCerts;
-      }
-      return [newCertificate, ...prevCerts];
-    });
-  };
+  // handleCertificateImported is no longer needed as the form is removed
+  // const handleCertificateImported = (newCertificate: CertificateData) => {
+  //   setCertificates((prevCerts) => {
+  //     if (prevCerts.some(c => c.fingerprintSha256 === newCertificate.fingerprintSha256 || c.pemData === newCertificate.pemData)) {
+  //       return prevCerts;
+  //     }
+  //     return [newCertificate, ...prevCerts];
+  //   });
+  // };
 
   const handleInspectCertificate = (certificate: CertificateData) => {
     setSelectedCertificate(certificate);
@@ -87,8 +88,8 @@ export default function CertificatesPage() {
   }
 
   return (
-    <div className="w-full space-y-10">
-      <CertificateImportForm onCertificateImported={handleCertificateImported} />
+    <div className="w-full space-y-6"> 
+      {/* CertificateImportForm removed from here */}
       <CertificateList 
         certificates={certificates} 
         onInspectCertificate={handleInspectCertificate}
