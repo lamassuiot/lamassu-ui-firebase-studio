@@ -1,7 +1,5 @@
 
 import React from 'react';
-// Removed useParams and useRouter imports from here
-
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -32,8 +30,7 @@ export async function generateStaticParams() {
 function IssueCertificateFormClient() {
   'use client'; 
 
-  // Moved useParams and useRouter imports here
-  const { useParams, useRouter } = require('next/navigation');
+  import { useParams, useRouter } from 'next/navigation'; // Moved imports here
   
   const params = useParams();
   const router = useRouter();

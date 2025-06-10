@@ -1,11 +1,11 @@
 
 // generateStaticParams and helper function must be at the top level for Server Components
-import type { CA } from '@/lib/ca-data';
-import { certificateAuthoritiesData } from '@/lib/ca-data';
+import type { CA as CAType } from '@/lib/ca-data'; // Renamed to avoid conflict with React.FC if any
+import { certificateAuthoritiesData as allCertificateAuthoritiesData } from '@/lib/ca-data'; // Use a distinct name
 
-function getAllCaIds(cas: CA[]): { caId: string }[] {
+function getAllCaIds(cas: CAType[]): { caId: string }[] {
   const ids: { caId: string }[] = [];
-  function recurse(currentCAs: CA[]) {
+  function recurse(currentCAs: CAType[]) {
     for (const ca of currentCAs) {
       ids.push({ caId: ca.id });
       if (ca.children) {
@@ -18,7 +18,7 @@ function getAllCaIds(cas: CA[]): { caId: string }[] {
 }
 
 export async function generateStaticParams() {
-  return getAllCaIds(certificateAuthoritiesData);
+  return getAllCaIds(allCertificateAuthoritiesData);
 }
 
 
@@ -26,20 +26,19 @@ export async function generateStaticParams() {
 function CertificateAuthorityDetailsClientContent() {
   'use client';
 
-  const React = require('react'); // Ensure React is in scope for 'use client'
-  const { useState, useEffect } = React;
-  const { useParams, useRouter } = require('next/navigation');
-  const { Button } = require("@/components/ui/button");
-  const { Accordion, AccordionContent, AccordionItem, AccordionTrigger } = require("@/components/ui/accordion");
-  const { ArrowLeft, FileText, Info, KeyRound, Lock, Link: LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check } = require("lucide-react");
-  const { findCaById, getCaDisplayName } = require('@/lib/ca-data');
-  const { Badge } = require('@/components/ui/badge');
-  const { Separator } = require('@/components/ui/separator');
-  const { ScrollArea } = require('@/components/ui/scroll-area');
-  const { useToast } = require('@/hooks/use-toast');
-  const { cn } = require('@/lib/utils');
+  import React, { useState, useEffect, FC } from 'react'; // Explicit React import
+  import { useParams, useRouter } from 'next/navigation';
+  import { Button } from "@/components/ui/button";
+  import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+  import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check } from "lucide-react";
+  import { findCaById, getCaDisplayName, type CA } from '@/lib/ca-data'; // certificateAuthoritiesData imported at top level
+  import { Badge } from '@/components/ui/badge';
+  import { Separator } from '@/components/ui/separator';
+  import { ScrollArea } from '@/components/ui/scroll-area';
+  import { useToast } from '@/hooks/use-toast';
+  import { cn } from '@/lib/utils';
   
-  const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
+  const DetailItem: FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
     if (value === undefined || value === null || value === '') return null;
     return (
       <div className={`py-2 ${fullWidthValue ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 items-baseline'}`}>
@@ -60,8 +59,10 @@ function CertificateAuthorityDetailsClientContent() {
   const [pemCopied, setPemCopied] = useState(false);
 
   useEffect(() => {
-    const foundCa = findCaById(caId, certificateAuthoritiesData);
+    // allCertificateAuthoritiesData is available from the outer scope
+    const foundCa = findCaById(caId, allCertificateAuthoritiesData);
     setCaDetails(foundCa);
+    // Generate placeholder serial only on client after mount
     setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
   }, [caId]);
 
@@ -137,7 +138,7 @@ function CertificateAuthorityDetailsClientContent() {
               <AccordionContent className="space-y-1 px-4">
                 <DetailItem label="Full Name" value={caDetails.name} />
                 <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
-                <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, certificateAuthoritiesData)} />
+                <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, allCertificateAuthoritiesData)} />
                 <DetailItem label="Status" value={<Badge variant={statusVariant} className={statusVariant !== 'outline' ? statusColorClass : ''}>{caDetails.status.toUpperCase()}</Badge>} />
                 <DetailItem label="Expires On" value={new Date(caDetails.expires).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
                 <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
@@ -243,7 +244,7 @@ function CertificateAuthorityDetailsClientContent() {
                         caDetails.issuer === 'Self-signed' ? 
                         <Badge variant="secondary">Self-signed Root CA</Badge> : 
                         <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => router.push(`/dashboard/certificate-authorities/${caDetails.issuer}/details`)}>
-                            {getCaDisplayName(caDetails.issuer, certificateAuthoritiesData)} (ID: {caDetails.issuer})
+                            {getCaDisplayName(caDetails.issuer, allCertificateAuthoritiesData)} (ID: {caDetails.issuer})
                         </Button>
                     } 
                 />
@@ -290,6 +291,5 @@ function CertificateAuthorityDetailsClientContent() {
 
 // Page component (Server Component)
 export default function CertificateAuthorityDetailsPage() {
-  // This component can fetch server-side data if needed and pass it to CertificateAuthorityDetailsClientContent
   return <CertificateAuthorityDetailsClientContent />;
 }
