@@ -14,11 +14,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
-  SidebarGroupLabel, // Added for section titles
+  SidebarGroupLabel,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog } from 'lucide-react'; // Added Router, ServerCog
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function CustomSidebarToggle() {
@@ -42,7 +42,6 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
 
-  // Define menu items for easier management, especially for isActive logic
   const homeItem = { href: '/dashboard', label: 'Home', icon: HomeIcon };
   const pkiItems = [
     { href: '/dashboard/certificates', label: 'Certificates', icon: FileText },
@@ -59,14 +58,18 @@ export default function DashboardLayout({
   return (
     <SidebarProvider defaultOpen>
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
-        <header className="flex h-14 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
-          {/* Removed activeLabel, App Icon/Name could go here if static title is needed */}
-          <div></div> {/* Placeholder for left side if no static title */}
+        <header className="flex h-12 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
+          <div className="flex items-center gap-2">
+            <Shield className="h-6 w-6" />
+            <span className="font-headline text-lg font-semibold">
+              LamassuIoT
+            </span>
+          </div>
           {/* Placeholder for other header actions like user menu */}
           <div></div>
         </header>
 
-        <div className="flex flex-1 overflow-hidden"> {/* Container for sidebar and main content */}
+        <div className="flex flex-1 overflow-hidden">
           <Sidebar collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
             <SidebarHeader className="p-4">
               <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
@@ -78,7 +81,6 @@ export default function DashboardLayout({
             </SidebarHeader>
             <SidebarContent className="p-2">
               <SidebarMenu>
-                {/* Home Item */}
                 <SidebarMenuItem key={homeItem.href}>
                   <SidebarMenuButton
                     asChild
@@ -92,7 +94,6 @@ export default function DashboardLayout({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* PKI Section */}
                 <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">PKI</SidebarGroupLabel>
                 {pkiItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
@@ -109,7 +110,6 @@ export default function DashboardLayout({
                   </SidebarMenuItem>
                 ))}
 
-                {/* IoT Section */}
                 <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">IoT</SidebarGroupLabel>
                 {iotItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
