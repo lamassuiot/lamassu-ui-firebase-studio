@@ -14,9 +14,9 @@ import { Separator } from '@/components/ui/separator';
 const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
   if (value === undefined || value === null || value === '') return null;
   return (
-    <div className={`py-2 ${fullWidthValue ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-3 gap-1'}`}>
+    <div className={`py-2 ${fullWidthValue ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 items-baseline'}`}>
       <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-      <dd className={`text-sm text-foreground ${fullWidthValue ? 'mt-1' : 'sm:col-span-2'}`}>
+      <dd className={`text-sm text-foreground ${fullWidthValue ? 'mt-1' : 'mt-1 sm:mt-0'}`}>
         {value}
       </dd>
     </div>
