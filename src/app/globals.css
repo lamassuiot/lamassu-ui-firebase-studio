@@ -48,8 +48,8 @@ body {
     --sidebar-foreground: 222 84% 5%;
     --sidebar-primary: 217 100% 53%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 155 60% 85%;
-    --sidebar-accent-foreground: 155 50% 25%;
+    --sidebar-accent: 195 63% 79%; /* Updated to #a8daeb HSL */
+    --sidebar-accent-foreground: 220 10% 20%; /* Updated for contrast with new sidebar-accent */
     --sidebar-border: 215 30% 80%;
     --sidebar-ring: 217 100% 53%;
   }
@@ -91,8 +91,8 @@ body {
     --sidebar-foreground: 210 40% 90%;
     --sidebar-primary: 217 90% 60%; /* Matches new main primary */
     --sidebar-primary-foreground: 0 0% 98%; /* Matches new main primary-foreground */
-    --sidebar-accent: 155 55% 55%; /* Adjusted sidebar accent */
-    --sidebar-accent-foreground: 155 50% 95%;
+    --sidebar-accent: 195 60% 55%; /* Updated blue for dark theme sidebar accent */
+    --sidebar-accent-foreground: 195 60% 95%; /* Updated for contrast with new dark sidebar-accent */
     --sidebar-border: 217 30% 18%; /* Darker border for darker sidebar */
   }
 }
