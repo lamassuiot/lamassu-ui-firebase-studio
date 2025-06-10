@@ -1,16 +1,14 @@
 
-'use client';
-
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea"; 
+import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, FilePlus2 } from "lucide-react";
 import { certificateAuthoritiesData, type CA } from '@/lib/ca-data';
 
-
+// Helper function to get all CA IDs (can be moved to a shared utils if used elsewhere)
 function getAllCaIds(cas: CA[]): { caId: string }[] {
   const ids: { caId: string }[] = [];
   function recurse(currentCAs: CA[]) {
@@ -29,7 +27,10 @@ export async function generateStaticParams() {
   return getAllCaIds(certificateAuthoritiesData);
 }
 
-export default function IssueCertificatePage() {
+// Client Component for the form
+function IssueCertificateFormClient() {
+  'use client'; // This directive applies only to IssueCertificateFormClient
+
   const params = useParams();
   const router = useRouter();
   const caId = params.caId as string;
@@ -38,6 +39,8 @@ export default function IssueCertificatePage() {
     event.preventDefault();
     console.log(`Issuing certificate from CA: ${caId} with form data...`);
     alert(`Mock issue certificate from CA ${caId}`);
+    // Potentially redirect or show a success message
+    // router.push(`/dashboard/certificate-authorities/${caId}/details`);
   };
 
   return (
@@ -45,17 +48,17 @@ export default function IssueCertificatePage() {
        <Button variant="outline" onClick={() => router.back()} className="mb-4">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to CA Details
       </Button>
-      <div className="w-full"> {/* Was Card */}
-        <div className="p-6"> {/* Was CardHeader */}
+      <div className="w-full">
+        <div className="p-6">
           <div className="flex items-center space-x-3">
             <FilePlus2 className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold">Issue Certificate from CA: {caId}</h1> {/* Was CardTitle */}
+            <h1 className="text-2xl font-headline font-semibold">Issue Certificate from CA: {caId}</h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1.5"> {/* Was CardDescription */}
+          <p className="text-sm text-muted-foreground mt-1.5">
             Fill out the details below to issue a new certificate signed by CA ID: {caId}.
           </p>
         </div>
-        <div className="p-6 pt-0"> {/* Was CardContent */}
+        <div className="p-6 pt-0">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <Label htmlFor="commonName">Common Name (CN)</Label>
@@ -86,4 +89,9 @@ export default function IssueCertificatePage() {
       </div>
     </div>
   );
+}
+
+// Page component (Server Component)
+export default function IssueCertificatePage() {
+  return <IssueCertificateFormClient />;
 }
