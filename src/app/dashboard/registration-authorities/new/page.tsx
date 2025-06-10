@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Cpu, HelpCircle, BadgeCheck } from "lucide-react";
+import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Cpu, HelpCircle } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -312,11 +312,13 @@ export default function CreateRegistrationAuthorityPage() {
             <div>
               <Label htmlFor="validationCAs">Validation CAs</Label>
               <Button type="button" variant="outline" onClick={() => setIsValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1">
-                {validationCAs.length > 0 ? `${validationCAs.length} CA(s) selected` : "Select Validation CAs..."}
+                {validationCAs.length > 0 ? `Selected ${validationCAs.length} CA(s) - Click to modify` : "Select Validation CAs..."}
               </Button>
               {validationCAs.length > 0 && 
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Selected: {validationCAs.map(ca => ca.name).join(', ')}
+                <div className="mt-2 space-y-2">
+                  {validationCAs.map(ca => (
+                    <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border" />
+                  ))}
                 </div>
               }
             </div>
@@ -371,11 +373,13 @@ export default function CreateRegistrationAuthorityPage() {
             <div>
               <Label htmlFor="additionalValidationCAs">Additional Validation CAs (for re-enrollment)</Label>
               <Button type="button" variant="outline" onClick={() => setIsAdditionalValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1">
-                {additionalValidationCAs.length > 0 ? `${additionalValidationCAs.length} CA(s) selected` : "Select Additional Validation CAs..."}
+                 {additionalValidationCAs.length > 0 ? `Selected ${additionalValidationCAs.length} CA(s) - Click to modify` : "Select Additional Validation CAs..."}
               </Button>
                {additionalValidationCAs.length > 0 && 
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Selected: {additionalValidationCAs.map(ca => ca.name).join(', ')}
+                <div className="mt-2 space-y-2">
+                  {additionalValidationCAs.map(ca => (
+                    <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border" />
+                  ))}
                 </div>
               }
             </div>
@@ -407,11 +411,13 @@ export default function CreateRegistrationAuthorityPage() {
              <div>
               <Label htmlFor="managedCAs">Managed CAs (for CA certs endpoint)</Label>
               <Button type="button" variant="outline" onClick={() => setIsManagedCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1">
-                {managedCAs.length > 0 ? `${managedCAs.length} CA(s) selected` : "Select Managed CAs..."}
+                {managedCAs.length > 0 ? `Selected ${managedCAs.length} CA(s) - Click to modify` : "Select Managed CAs..."}
               </Button>
               {managedCAs.length > 0 && 
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Selected: {managedCAs.map(ca => ca.name).join(', ')}
+                <div className="mt-2 space-y-2">
+                   {managedCAs.map(ca => (
+                    <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border" />
+                  ))}
                 </div>
               }
             </div>
@@ -471,3 +477,4 @@ export default function CreateRegistrationAuthorityPage() {
     </div>
   );
 }
+
