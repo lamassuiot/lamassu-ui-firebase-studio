@@ -3,8 +3,8 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
-import { useTheme } from 'next-themes'; 
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { useTheme } from 'next-themes';
 
 interface ChartData {
   name: string;
@@ -23,28 +23,14 @@ const certificateStatusData: ChartData[] = [
 const fallbackColors = {
     'hsl(var(--chart-2))': '#84cc16', // lime-500 for Active
     'hsl(var(--chart-3))': '#f97316', // orange-500 for About to expire
-    'hsl(var(--chart-5))': '#f43f5e', // rose-500 for Expired (was chart-5 -> pink/red)
+    'hsl(var(--chart-5))': '#f43f5e', // rose-500 for Expired
     'hsl(var(--destructive))': '#dc2626', // red-600 for Revoked
+    'hsl(var(--chart-4))': '#3b82f6', // blue-500 (example for a chart-4 if it was used)
 };
 
 
 export function CertificateStatusChartCard() {
   const { resolvedTheme } = useTheme();
-  
-  // Custom legend renderer
-  const renderLegend = (props: any) => {
-    const { payload } = props;
-    return (
-      <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-sm">
-        {payload.map((entry: any, index: number) => (
-          <li key={`item-${index}`} className="flex items-center">
-            <span style={{ backgroundColor: entry.color, width: '10px', height: '10px', marginRight: '5px', borderRadius: '50%', display: 'inline-block' }}></span>
-            {entry.value} ({entry.payload.value})
-          </li>
-        ))}
-      </ul>
-    );
-  };
 
   const RADIAN = Math.PI / 180;
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value }: any) => {
@@ -55,7 +41,7 @@ export function CertificateStatusChartCard() {
     if (percent < 0.05) return null; // Don't render label for very small slices
 
     return (
-      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs font-medium">
+      <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs font-medium">
         {`${name} (${(percent * 100).toFixed(0)}%)`}
       </text>
     );
@@ -63,10 +49,10 @@ export function CertificateStatusChartCard() {
 
 
   return (
-    <Card className="shadow-lg w-full bg-secondary">
+    <Card className="shadow-lg w-full bg-primary text-primary-foreground">
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Certificate Status Overview</CardTitle>
-        <CardDescription>A summary of all managed certificates by their current status.</CardDescription>
+        <CardDescription className="text-primary-foreground/80">A summary of all managed certificates by their current status.</CardDescription>
       </CardHeader>
       <CardContent>
         <div style={{ width: '100%', height: 400 }}>
@@ -79,10 +65,10 @@ export function CertificateStatusChartCard() {
                 labelLine={false}
                 label={renderCustomizedLabel}
                 outerRadius="80%"
-                innerRadius="60%" 
+                innerRadius="70%"
                 fill="#8884d8"
                 dataKey="value"
-                stroke={resolvedTheme === 'dark' ? 'hsl(var(--background))' : '#fff'} // Border for slices
+                stroke={'hsl(var(--primary))'} 
                 strokeWidth={2}
               >
                 {certificateStatusData.map((entry, index) => (
@@ -90,14 +76,14 @@ export function CertificateStatusChartCard() {
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{ 
-                    backgroundColor: resolvedTheme === 'dark' ? 'hsl(var(--popover))' : '#ffffff',
+                contentStyle={{
+                    backgroundColor: resolvedTheme === 'dark' ? 'hsl(var(--popover))' : 'hsl(var(--background))',
                     borderColor: 'hsl(var(--border))',
-                    borderRadius: 'var(--radius)' 
+                    borderRadius: 'var(--radius)',
+                    color: 'hsl(var(--popover-foreground))'
                 }}
-                itemStyle={{ color: resolvedTheme === 'dark' ? 'hsl(var(--popover-foreground))' : '#000000' }}
+                itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
               />
-              <Legend content={renderLegend} />
             </PieChart>
           </ResponsiveContainer>
         </div>
