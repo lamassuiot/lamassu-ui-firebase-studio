@@ -1,7 +1,17 @@
 
 // generateStaticParams and helper function must be at the top level for Server Components
-import type { CA as CAType } from '@/lib/ca-data'; // Renamed to avoid conflict with React.FC if any
-import { certificateAuthoritiesData as allCertificateAuthoritiesData } from '@/lib/ca-data'; // Use a distinct name
+import type { CA as CAType } from '@/lib/ca-data'; // Renamed to avoid conflict
+import { certificateAuthoritiesData as allCertificateAuthoritiesData, findCaById, getCaDisplayName, type CA } from '@/lib/ca-data'; // Use a distinct name
+import React, { useState, useEffect, FC } from 'react'; // Explicit React import
+import { useParams, useRouter } from 'next/navigation';
+import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check } from "lucide-react";
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 function getAllCaIds(cas: CAType[]): { caId: string }[] {
   const ids: { caId: string }[] = [];
@@ -26,30 +36,6 @@ export async function generateStaticParams() {
 function CertificateAuthorityDetailsClientContent() {
   'use client';
 
-  import React, { useState, useEffect, FC } from 'react'; // Explicit React import
-  import { useParams, useRouter } from 'next/navigation';
-  import { Button } from "@/components/ui/button";
-  import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-  import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check } from "lucide-react";
-  import { findCaById, getCaDisplayName, type CA } from '@/lib/ca-data'; // certificateAuthoritiesData imported at top level
-  import { Badge } from '@/components/ui/badge';
-  import { Separator } from '@/components/ui/separator';
-  import { ScrollArea } from '@/components/ui/scroll-area';
-  import { useToast } from '@/hooks/use-toast';
-  import { cn } from '@/lib/utils';
-  
-  const DetailItem: FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
-    if (value === undefined || value === null || value === '') return null;
-    return (
-      <div className={`py-2 ${fullWidthValue ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 items-baseline'}`}>
-        <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-        <dd className={`text-sm text-foreground ${fullWidthValue ? 'mt-1' : 'mt-1 sm:mt-0'}`}>
-          {value}
-        </dd>
-      </div>
-    );
-  };
-
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
@@ -65,6 +51,18 @@ function CertificateAuthorityDetailsClientContent() {
     // Generate placeholder serial only on client after mount
     setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
   }, [caId]);
+
+  const DetailItem: FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
+    if (value === undefined || value === null || value === '') return null;
+    return (
+      <div className={`py-2 ${fullWidthValue ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 items-baseline'}`}>
+        <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
+        <dd className={`text-sm text-foreground ${fullWidthValue ? 'mt-1' : 'mt-1 sm:mt-0'}`}>
+          {value}
+        </dd>
+      </div>
+    );
+  };
 
   const handleCopyPem = async () => {
     if (caDetails?.pemData) {

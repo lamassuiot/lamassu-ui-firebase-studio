@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useParams, useRouter } from 'next/navigation'; // Moved to top-level
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -29,8 +30,6 @@ export async function generateStaticParams() {
 // Client Component for the form
 function IssueCertificateFormClient() {
   'use client'; 
-
-  import { useParams, useRouter } from 'next/navigation'; // Moved imports here
   
   const params = useParams();
   const router = useRouter();
