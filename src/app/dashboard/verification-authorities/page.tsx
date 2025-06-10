@@ -17,6 +17,7 @@ import { ShieldCheck, Settings, FileText, ListChecks, Clock, Repeat, UploadCloud
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
+import { cn } from '@/lib/utils';
 
 interface VAConfig {
   caId: string;
@@ -291,6 +292,8 @@ export default function VerificationAuthoritiesPage() {
   
   const selectedCaDetails = selectedCaId ? findCaByIdRecursive(selectedCaId, allCAsList) : null;
 
+  const accordionTriggerStyle = "text-lg font-medium bg-muted/50 hover:bg-muted/60 data-[state=open]:bg-muted/75 px-4 py-4 rounded-md";
+
 
   if (!config && selectedCaId && selectedCaDetails) { 
     return <p>Loading configuration for {selectedCaDetails.name} ({selectedCaId})...</p>;
@@ -382,7 +385,7 @@ export default function VerificationAuthoritiesPage() {
 
                 <Accordion type="multiple" defaultValue={['crl', 'ocsp']} className="w-full">
                   <AccordionItem value="crl">
-                    <AccordionTrigger className="text-lg font-medium">
+                    <AccordionTrigger className={cn(accordionTriggerStyle)}>
                       <FileText className="mr-2 h-5 w-5" /> CRL Configuration
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 p-4">
@@ -476,7 +479,7 @@ export default function VerificationAuthoritiesPage() {
                   </AccordionItem>
 
                   <AccordionItem value="ocsp">
-                    <AccordionTrigger className="text-lg font-medium">
+                    <AccordionTrigger className={cn(accordionTriggerStyle)}>
                       <ListChecks className="mr-2 h-5 w-5" /> OCSP Configuration
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 p-4">
@@ -615,7 +618,7 @@ export default function VerificationAuthoritiesPage() {
                   </AccordionItem>
 
                   <AccordionItem value="advanced">
-                    <AccordionTrigger className="text-lg font-medium">
+                    <AccordionTrigger className={cn(accordionTriggerStyle)}>
                       <Settings className="mr-2 h-5 w-5" /> Advanced Options
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 p-4">

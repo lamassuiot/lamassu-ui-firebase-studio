@@ -17,6 +17,7 @@ import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
+import { cn } from '@/lib/utils';
 
 interface SelectableCaTreeItemProps {
   ca: CA;
@@ -222,6 +223,8 @@ export default function CreateRegistrationAuthorityPage() {
     </Dialog>
   )};
 
+  const accordionTriggerStyle = "text-lg font-semibold bg-muted/50 hover:bg-muted/60 data-[state=open]:bg-muted/75 px-4 py-4 rounded-md";
+
   return (
     <div className="w-full space-y-6 mb-8">
       <Button variant="outline" onClick={() => router.back()} className="mb-4">
@@ -242,7 +245,7 @@ export default function CreateRegistrationAuthorityPage() {
             
             <Accordion type="multiple" defaultValue={['dms-definition']} className="w-full space-y-2">
               <AccordionItem value="dms-definition" className="border-0">
-                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
                   <Settings className="mr-2 h-5 w-5 text-muted-foreground"/>Device Manufacturing Definition
                 </AccordionTrigger>
                 <AccordionContent className="border rounded-b-md mt-0">
@@ -260,7 +263,7 @@ export default function CreateRegistrationAuthorityPage() {
               </AccordionItem>
 
               <AccordionItem value="enrollment-device-registration" className="border-0">
-                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
                   <Cpu className="mr-2 h-5 w-5 text-muted-foreground" /> Enrollment Device Registration
                 </AccordionTrigger>
                 <AccordionContent className="border rounded-b-md mt-0">
@@ -284,7 +287,7 @@ export default function CreateRegistrationAuthorityPage() {
               </AccordionItem>
             
               <AccordionItem value="enrollment-settings" className="border-0">
-                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
                   <Key className="mr-2 h-5 w-5 text-muted-foreground"/>Enrollment Settings
                 </AccordionTrigger>
                 <AccordionContent className="border rounded-b-md mt-0">
@@ -361,7 +364,7 @@ export default function CreateRegistrationAuthorityPage() {
               </AccordionItem>
 
               <AccordionItem value="re-enrollment-settings" className="border-0">
-                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
                   <PackageCheck className="mr-2 h-5 w-5 text-muted-foreground"/>Re-Enrollment Settings
                 </AccordionTrigger>
                 <AccordionContent className="border rounded-b-md mt-0">
@@ -408,7 +411,7 @@ export default function CreateRegistrationAuthorityPage() {
               </AccordionItem>
 
               <AccordionItem value="key-generation-settings" className="border-0">
-                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
                    <Server className="mr-2 h-5 w-5 text-muted-foreground"/>Server Key Generation Settings
                 </AccordionTrigger>
                 <AccordionContent className="border rounded-b-md mt-0">
@@ -423,7 +426,7 @@ export default function CreateRegistrationAuthorityPage() {
               </AccordionItem>
             
               <AccordionItem value="ca-distribution" className="border-0">
-                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
                    <AlertTriangle className="mr-2 h-5 w-5 text-muted-foreground"/>CA Distribution
                 </AccordionTrigger>
                 <AccordionContent className="border rounded-b-md mt-0">

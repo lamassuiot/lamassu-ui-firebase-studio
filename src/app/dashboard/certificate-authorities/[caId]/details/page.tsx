@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
   if (value === undefined || value === null || value === '') return null;
@@ -86,6 +87,7 @@ export default function CertificateAuthorityDetailsPage() {
       statusVariant = 'outline';
   }
 
+  const accordionTriggerStyle = "text-lg bg-muted/50 hover:bg-muted/60 data-[state=open]:bg-muted/75 px-4 py-4 rounded-md";
 
   return (
     <div className="w-full space-y-6">
@@ -105,10 +107,10 @@ export default function CertificateAuthorityDetailsPage() {
         <div className="p-6 pt-0">
           <Accordion type="multiple" defaultValue={['general', 'keyInfo', 'pemData']} className="w-full">
             <AccordionItem value="general">
-              <AccordionTrigger className="text-lg">
+              <AccordionTrigger className={cn(accordionTriggerStyle)}>
                 <Info className="mr-2 h-5 w-5" /> General Information
               </AccordionTrigger>
-              <AccordionContent className="space-y-1">
+              <AccordionContent className="space-y-1 px-4">
                 <DetailItem label="Full Name" value={caDetails.name} />
                 <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
                 <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, certificateAuthoritiesData)} />
@@ -119,10 +121,10 @@ export default function CertificateAuthorityDetailsPage() {
             </AccordionItem>
 
             <AccordionItem value="keyInfo">
-              <AccordionTrigger className="text-lg">
+              <AccordionTrigger className={cn(accordionTriggerStyle)}>
                 <KeyRound className="mr-2 h-5 w-5" /> Key & Signature Information
               </AccordionTrigger>
-              <AccordionContent className="space-y-1">
+              <AccordionContent className="space-y-1 px-4">
                 <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
                 <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
                 {placeholderSerial && (
@@ -135,10 +137,10 @@ export default function CertificateAuthorityDetailsPage() {
             </AccordionItem>
             
             <AccordionItem value="pemData">
-              <AccordionTrigger className="text-lg">
+              <AccordionTrigger className={cn(accordionTriggerStyle)}>
                 <ScrollText className="mr-2 h-5 w-5" /> PEM Certificate Data
               </AccordionTrigger>
-              <AccordionContent className="space-y-2">
+              <AccordionContent className="space-y-2 px-4">
                 {caDetails.pemData ? (
                   <>
                     <Button onClick={handleCopyPem} variant="outline" size="sm" className="mb-2">
@@ -156,10 +158,10 @@ export default function CertificateAuthorityDetailsPage() {
             </AccordionItem>
 
             <AccordionItem value="extensions">
-              <AccordionTrigger className="text-lg">
+              <AccordionTrigger className={cn(accordionTriggerStyle)}>
                 <Lock className="mr-2 h-5 w-5" /> Certificate Extensions
               </AccordionTrigger>
-              <AccordionContent className="space-y-1">
+              <AccordionContent className="space-y-1 px-4">
                 <DetailItem label="Basic Constraints" value={
                     <div className="space-y-0.5">
                         <p>CA: <Badge variant={caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? "default" : "secondary"} className={(caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? 'bg-green-100 text-green-700' : '')}>TRUE</Badge></p>
@@ -187,10 +189,10 @@ export default function CertificateAuthorityDetailsPage() {
             </AccordionItem>
 
             <AccordionItem value="distribution">
-              <AccordionTrigger className="text-lg">
+              <AccordionTrigger className={cn(accordionTriggerStyle)}>
                 <LinkIcon className="mr-2 h-5 w-5" /> Distribution Points
               </AccordionTrigger>
-              <AccordionContent className="space-y-1">
+              <AccordionContent className="space-y-1 px-4">
                 <DetailItem label="CRL Distribution Points (CDP)" value={
                     <ul className="list-disc list-inside space-y-1">
                         <li>URI: http://crl.example.com/{caDetails.id.replace(/-/g,'')}.crl (placeholder)</li>
@@ -207,10 +209,10 @@ export default function CertificateAuthorityDetailsPage() {
             </AccordionItem>
 
              <AccordionItem value="hierarchy">
-              <AccordionTrigger className="text-lg">
+              <AccordionTrigger className={cn(accordionTriggerStyle)}>
                 <Server className="mr-2 h-5 w-5" /> Issuance Hierarchy
               </AccordionTrigger>
-              <AccordionContent className="space-y-1">
+              <AccordionContent className="space-y-1 px-4">
                 <DetailItem 
                     label="Issued By" 
                     value={
