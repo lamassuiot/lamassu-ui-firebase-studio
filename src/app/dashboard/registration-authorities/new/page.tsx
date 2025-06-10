@@ -244,7 +244,7 @@ export default function CreateRegistrationAuthorityPage() {
               <h3 className="text-lg font-semibold mb-3 border-b pb-2 flex items-center">
                 <Settings className="mr-2 h-5 w-5 text-muted-foreground"/>Device Manufacturing Definition
               </h3>
-              <div className="space-y-4 p-4 border rounded-md">
+              <div className="space-y-4 p-4">
                 <div>
                   <Label htmlFor="dmsName">DMS Name</Label>
                   <Input id="dmsName" value="ECS DMS" readOnly className="mt-1 bg-muted/50" />
@@ -262,7 +262,7 @@ export default function CreateRegistrationAuthorityPage() {
               <h3 className="text-lg font-semibold mb-3 border-b pb-2 flex items-center">
                 <Cpu className="mr-2 h-5 w-5 text-muted-foreground" /> Enrollment Device Registration
               </h3>
-              <div className="space-y-4 p-4 border rounded-md">
+              <div className="space-y-4 p-4">
                 <div>
                   <Label htmlFor="registrationMode">Registration Mode</Label>
                   <Select value={registrationMode} onValueChange={setRegistrationMode}>
@@ -286,7 +286,7 @@ export default function CreateRegistrationAuthorityPage() {
               <h3 className="text-lg font-semibold mb-3 border-b pb-2 flex items-center">
                 <Key className="mr-2 h-5 w-5 text-muted-foreground"/>Enrollment Settings
               </h3>
-              <div className="space-y-4 p-4 border rounded-md">
+              <div className="space-y-4 p-4">
                 <div>
                   <Label htmlFor="protocol">Protocol</Label>
                   <Select value={protocol} onValueChange={setProtocol}>
@@ -363,7 +363,7 @@ export default function CreateRegistrationAuthorityPage() {
               <h3 className="text-lg font-semibold mb-3 border-b pb-2 flex items-center">
                 <PackageCheck className="mr-2 h-5 w-5 text-muted-foreground"/>Re-Enrollment Settings
               </h3>
-              <div className="space-y-4 p-4 border rounded-md">
+              <div className="space-y-4 p-4">
                 <div className="flex items-center space-x-2">
                   <Switch id="revokeOnReEnroll" checked={revokeOnReEnroll} onCheckedChange={setRevokeOnReEnroll} />
                   <Label htmlFor="revokeOnReEnroll">Revoke On Re-Enroll</Label>
@@ -410,7 +410,7 @@ export default function CreateRegistrationAuthorityPage() {
               <h3 className="text-lg font-semibold mb-3 border-b pb-2 flex items-center">
                  <Server className="mr-2 h-5 w-5 text-muted-foreground"/>Server Key Generation Settings
               </h3>
-              <div className="space-y-4 p-4 border rounded-md">
+              <div className="space-y-4 p-4">
                 <p className="text-sm text-muted-foreground">Devices will be able to enroll using EST-defined ServerKeyGen endpoints if enabled.</p>
                 <div className="flex items-center space-x-2">
                   <Switch id="enableKeyGeneration" checked={enableKeyGeneration} onCheckedChange={setEnableKeyGeneration} />
@@ -425,7 +425,7 @@ export default function CreateRegistrationAuthorityPage() {
               <h3 className="text-lg font-semibold mb-3 border-b pb-2 flex items-center">
                  <AlertTriangle className="mr-2 h-5 w-5 text-muted-foreground"/>CA Distribution
               </h3>
-              <div className="space-y-4 p-4 border rounded-md">
+              <div className="space-y-4 p-4">
                 <div className="flex items-center space-x-2">
                   <Switch id="includeDownstreamCA" checked={includeDownstreamCA} onCheckedChange={setIncludeDownstreamCA} />
                   <Label htmlFor="includeDownstreamCA">Include 'Downstream' CA used by Lamassu</Label>
