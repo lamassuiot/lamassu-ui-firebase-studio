@@ -14,10 +14,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
-  useSidebar, // Import useSidebar
+  SidebarGroupLabel, // Added for section titles
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog } from 'lucide-react'; // Added Router, ServerCog
 import { cn } from '@/lib/utils';
 
 function CustomSidebarToggle() {
@@ -29,7 +30,7 @@ function CustomSidebarToggle() {
       tooltip={{ children: open ? "Collapse sidebar" : "Expand sidebar", side: 'right', align: 'center' }}
     >
       {open ? <ChevronsLeft /> : <ChevronsRight />}
-      <span className="ml-2 group-data-[collapsible=icon]:hidden">{open ? "Collapse" : ""}</span>
+      <span className="ml-2 group-data-[collapsible=icon]:hidden whitespace-nowrap">{open ? "Collapse" : ""}</span>
     </SidebarMenuButton>
   );
 }
@@ -41,33 +42,26 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
 
-  const navItems = [
-    { href: '/dashboard', label: 'Home', icon: HomeIcon },
+  // Define menu items for easier management, especially for isActive logic
+  const homeItem = { href: '/dashboard', label: 'Home', icon: HomeIcon };
+  const pkiItems = [
     { href: '/dashboard/certificates', label: 'Certificates', icon: FileText },
     { href: '/dashboard/certificate-authorities', label: 'Certificate Authorities', icon: Landmark },
     { href: '/dashboard/registration-authorities', label: 'Registration Authorities', icon: Users },
     { href: '/dashboard/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
   ];
+  const iotItems = [
+    { href: '/dashboard/devices', label: 'Devices', icon: Router },
+    { href: '/dashboard/device-groups', label: 'Device Groups', icon: ServerCog },
+  ];
 
-  let activeLabel = 'Dashboard';
-  const activeItem = navItems.find(item => 
-    item.href === pathname || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-  );
-  if (activeItem) {
-    activeLabel = activeItem.label;
-  } else if (pathname === '/dashboard') {
-    const homeItem = navItems.find(item => item.href === '/dashboard');
-    if (homeItem) activeLabel = homeItem.label;
-  }
 
   return (
     <SidebarProvider defaultOpen>
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
         <header className="flex h-14 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
-          <div className="flex items-center">
-            {/* App Icon/Name could go here if needed, for now title starts */}
-            <h1 className="text-xl font-semibold ml-2 md:ml-0">{activeLabel}</h1>
-          </div>
+          {/* Removed activeLabel, App Icon/Name could go here if static title is needed */}
+          <div></div> {/* Placeholder for left side if no static title */}
           {/* Placeholder for other header actions like user menu */}
           <div></div>
         </header>
@@ -84,7 +78,40 @@ export default function DashboardLayout({
             </SidebarHeader>
             <SidebarContent className="p-2">
               <SidebarMenu>
-                {navItems.map((item) => (
+                {/* Home Item */}
+                <SidebarMenuItem key={homeItem.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === homeItem.href}
+                    tooltip={{children: homeItem.label, side: 'right', align: 'center' }}
+                  >
+                    <Link href={homeItem.href} className="flex items-center w-full justify-start">
+                      <homeItem.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                      <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{homeItem.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* PKI Section */}
+                <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">PKI</SidebarGroupLabel>
+                {pkiItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
+                      tooltip={{children: item.label, side: 'right', align: 'center' }}
+                    >
+                      <Link href={item.href} className="flex items-center w-full justify-start">
+                        <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                        <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+
+                {/* IoT Section */}
+                <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">IoT</SidebarGroupLabel>
+                {iotItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       asChild
