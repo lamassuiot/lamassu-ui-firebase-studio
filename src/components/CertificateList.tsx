@@ -36,6 +36,11 @@ const StatusBadge: React.FC<{ status: VerificationStatus }> = ({ status }) => {
   }
 };
 
+const getCommonName = (subject: string): string => {
+  const cnMatch = subject.match(/CN=([^,]+)/);
+  return cnMatch ? cnMatch[1] : subject; // Fallback to full subject if CN not found
+};
+
 export function CertificateList({ certificates, onInspectCertificate, onCertificateUpdated }: CertificateListProps) {
   const [isVerifying, startVerifyingTransition] = useTransition();
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
@@ -78,11 +83,11 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
 
   if (certificates.length === 0) {
     return (
-      <div className="mt-8 w-full"> {/* Was Card */}
-        <div className="mb-4"> {/* Was CardHeader */}
-          <h2 className="font-headline text-2xl font-semibold">Managed Certificates</h2> {/* Was CardTitle */}
+      <div className="mt-8 w-full">
+        <div className="mb-4">
+          <h2 className="font-headline text-2xl font-semibold">Managed Certificates</h2>
         </div>
-        <div> {/* Was CardContent */}
+        <div>
           <p className="text-muted-foreground">No certificates imported yet. Upload a certificate to get started.</p>
         </div>
       </div>
@@ -90,17 +95,18 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
   }
 
   return (
-    <div className="mt-8 w-full"> {/* Was Card */}
-      <div className="mb-4"> {/* Was CardHeader */}
-        <h2 className="font-headline text-2xl font-semibold">Managed Certificates</h2> {/* Was CardTitle */}
-        <p className="text-sm text-muted-foreground mt-1.5">View and manage your imported X.509 certificates.</p> {/* Was CardDescription */}
+    <div className="mt-8 w-full">
+      <div className="mb-4">
+        <h2 className="font-headline text-2xl font-semibold">Managed Certificates</h2>
+        <p className="text-sm text-muted-foreground mt-1.5">View and manage your imported X.509 certificates.</p>
       </div>
-      <div> {/* Was CardContent */}
+      <div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Filename</TableHead>
-              <TableHead className="hidden md:table-cell">Subject</TableHead>
+              <TableHead>Common Name</TableHead>
+              <TableHead className="hidden md:table-cell">Serial Number</TableHead>
+              <TableHead className="hidden lg:table-cell">Issuer</TableHead>
               <TableHead>Expires</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -109,16 +115,17 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
           <TableBody>
             {certificates.map((cert) => (
               <TableRow key={cert.id}>
-                <TableCell className="font-medium truncate max-w-xs">{cert.fileName}</TableCell>
-                <TableCell className="hidden md:table-cell truncate max-w-xs">{cert.subject}</TableCell>
+                <TableCell className="font-medium truncate max-w-[200px] sm:max-w-xs">{getCommonName(cert.subject)}</TableCell>
+                <TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[150px]">{cert.serialNumber}</TableCell>
+                <TableCell className="hidden lg:table-cell truncate max-w-xs">{cert.issuer}</TableCell>
                 <TableCell>{format(new Date(cert.validTo), 'MMM dd, yyyy')}</TableCell>
                 <TableCell>
                   <StatusBadge status={cert.verificationStatus} />
                 </TableCell>
-                <TableCell className="text-right space-x-2">
+                <TableCell className="text-right space-x-1 sm:space-x-2">
                   <Button variant="outline" size="sm" onClick={() => onInspectCertificate(cert)} title="Inspect Certificate">
                     <Eye className="h-4 w-4" />
-                    <span className="sr-only sm:not-sr-only sm:ml-2">Inspect</span>
+                    <span className="sr-only sm:not-sr-only sm:ml-1">Inspect</span>
                   </Button>
                   <Button
                     variant="outline"
@@ -132,7 +139,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                     ) : (
                       <CheckCircle className="h-4 w-4" />
                     )}
-                    <span className="sr-only sm:not-sr-only sm:ml-2">Verify</span>
+                    <span className="sr-only sm:not-sr-only sm:ml-1">Verify</span>
                   </Button>
                 </TableCell>
               </TableRow>
