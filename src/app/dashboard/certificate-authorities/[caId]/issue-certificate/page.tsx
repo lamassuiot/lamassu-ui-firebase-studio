@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
+// Removed useParams and useRouter imports from here
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -29,8 +30,11 @@ export async function generateStaticParams() {
 
 // Client Component for the form
 function IssueCertificateFormClient() {
-  'use client'; // This directive applies only to IssueCertificateFormClient
+  'use client'; 
 
+  // Moved useParams and useRouter imports here
+  const { useParams, useRouter } = require('next/navigation');
+  
   const params = useParams();
   const router = useRouter();
   const caId = params.caId as string;
