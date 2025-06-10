@@ -3,7 +3,6 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
@@ -11,6 +10,7 @@ import { certificateAuthoritiesData, getCaDisplayName } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Keep Card for individual items
 
 const getExpiryTextAndStatus = (expires: string, status: CA['status']): { text: string; badgeVariant: "default" | "secondary" | "destructive" | "outline"; badgeClass: string } => {
   const expiryDate = parseISO(expires);
@@ -57,6 +57,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
     if (hasChildren) {
       setIsOpen(!isOpen);
     } else {
+      // If no children, clicking the card still takes to details, same as details button.
       handleDetailsClick(e);
     }
   };
@@ -82,8 +83,9 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
         
         <Card 
           className={cn(
-            "flex-1 transition-shadow w-full border-0", 
-            level === 0 ? "bg-card" : "bg-card/90" 
+            "flex-1 w-full", 
+            level === 0 ? "bg-card" : "bg-card/90",
+            "border-0 shadow-none" // Removed border and shadow
           )}
           onClick={handleToggleOpen} 
           role="button" tabIndex={0} 
@@ -136,20 +138,20 @@ export default function CertificateAuthoritiesPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <Card className="shadow-lg w-full">
-        <CardHeader>
-          <div className="flex items-center justify-between mb-2">
+      <div className="p-0"> {/* Replaced Card with div, removed shadow-lg, adjusted padding */}
+        <div className="p-0"> {/* Replaced CardHeader with div, adjusted padding */}
+          <div className="flex items-center justify-between mb-4"> {/* Increased bottom margin */}
             <div className="flex items-center space-x-3">
               <Landmark className="h-8 w-8 text-primary" />
-              <CardTitle className="text-2xl font-headline">Certificate Authorities</CardTitle>
+              <h1 className="text-2xl font-headline font-semibold">Certificate Authorities</h1> {/* Used h1 for title */}
             </div>
             <Button variant="default" onClick={handleCreateNewCAClick}>
               <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
             </Button>
           </div>
-          <CardDescription>Manage your Certificate Authority (CA) configurations and trust stores. Click on a CA card to expand/collapse if it has sub-CAs.</CardDescription>
-        </CardHeader>
-        <CardContent>
+          <p className="text-sm text-muted-foreground">Manage your Certificate Authority (CA) configurations and trust stores. Click on a CA card to expand/collapse if it has sub-CAs.</p> {/* Used p for description */}
+        </div>
+        <div className="pt-6"> {/* Replaced CardContent with div, adjusted padding */}
           {certificateAuthoritiesData.length > 0 ? (
             <ul className="space-y-2">
               {certificateAuthoritiesData.map((ca) => (
@@ -159,9 +161,8 @@ export default function CertificateAuthoritiesPage() {
           ) : (
             <p className="text-muted-foreground">No Certificate Authorities configured.</p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
-
