@@ -4,7 +4,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
-import { useTheme } from 'next-themes'; // To get theme for colors if needed, but we'll use HSL vars
+import { useTheme } from 'next-themes'; 
 
 interface ChartData {
   name: string;
@@ -13,22 +13,18 @@ interface ChartData {
 }
 
 const certificateStatusData: ChartData[] = [
-  { name: 'Verified', value: 50, color: 'hsl(var(--chart-2))' }, // Greenish
-  { name: 'Expired', value: 10, color: 'hsl(var(--chart-3))' }, // Orange
-  { name: 'Revoked', value: 5, color: 'hsl(var(--chart-5))' }, // Pink/Red
-  { name: 'Pending', value: 8, color: 'hsl(var(--chart-4))' }, // Changed from yellow-500 to chart-4 (purple-ish)
-  { name: 'Unverified', value: 20, color: 'hsl(var(--muted-foreground))' }, // Muted
-  { name: 'Error/Invalid', value: 2, color: 'hsl(var(--destructive))' }, // Destructive
+  { name: 'Active', value: 70, color: 'hsl(var(--chart-2))' },
+  { name: 'About to expire', value: 15, color: 'hsl(var(--chart-3))' },
+  { name: 'Expired', value: 10, color: 'hsl(var(--chart-5))' },
+  { name: 'Revoked', value: 5, color: 'hsl(var(--destructive))' },
 ];
 
 // Fallback colors for recharts if CSS variables are not directly picked up by SVG elements
 const fallbackColors = {
-    'hsl(var(--chart-2))': '#84cc16', // lime-500
-    'hsl(var(--chart-3))': '#f97316', // orange-500
-    'hsl(var(--chart-5))': '#ef4444', // red-500
-    'hsl(var(--chart-4))': '#9333ea', // purple-600 (example for chart-4)
-    'hsl(var(--muted-foreground))': '#71717a', // zinc-500
-    'hsl(var(--destructive))': '#dc2626', // red-600
+    'hsl(var(--chart-2))': '#84cc16', // lime-500 for Active
+    'hsl(var(--chart-3))': '#f97316', // orange-500 for About to expire
+    'hsl(var(--chart-5))': '#f43f5e', // rose-500 for Expired (was chart-5 -> pink/red)
+    'hsl(var(--destructive))': '#dc2626', // red-600 for Revoked
 };
 
 
@@ -67,7 +63,7 @@ export function CertificateStatusChartCard() {
 
 
   return (
-    <Card className="shadow-lg w-full">
+    <Card className="shadow-lg w-full bg-secondary">
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Certificate Status Overview</CardTitle>
         <CardDescription>A summary of all managed certificates by their current status.</CardDescription>
@@ -83,7 +79,7 @@ export function CertificateStatusChartCard() {
                 labelLine={false}
                 label={renderCustomizedLabel}
                 outerRadius="80%"
-                innerRadius="50%" 
+                innerRadius="60%" 
                 fill="#8884d8"
                 dataKey="value"
                 stroke={resolvedTheme === 'dark' ? 'hsl(var(--background))' : '#fff'} // Border for slices
@@ -109,3 +105,4 @@ export function CertificateStatusChartCard() {
     </Card>
   );
 }
+
