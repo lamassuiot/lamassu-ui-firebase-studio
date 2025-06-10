@@ -238,14 +238,14 @@ export default function CreateRegistrationAuthorityPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-0"> {/* Adjusted space-y */}
+          <form onSubmit={handleSubmit} className="space-y-0">
             
-            <Accordion type="multiple" defaultValue={['dms-definition']} className="w-full">
-              <AccordionItem value="dms-definition">
-                <AccordionTrigger className="text-lg font-semibold">
+            <Accordion type="multiple" defaultValue={['dms-definition']} className="w-full space-y-2">
+              <AccordionItem value="dms-definition" className="border-0">
+                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
                   <Settings className="mr-2 h-5 w-5 text-muted-foreground"/>Device Manufacturing Definition
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="border rounded-b-md mt-0">
                   <div className="space-y-4 p-4">
                     <div>
                       <Label htmlFor="dmsName">DMS Name</Label>
@@ -259,11 +259,11 @@ export default function CreateRegistrationAuthorityPage() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="enrollment-device-registration">
-                <AccordionTrigger className="text-lg font-semibold">
+              <AccordionItem value="enrollment-device-registration" className="border-0">
+                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
                   <Cpu className="mr-2 h-5 w-5 text-muted-foreground" /> Enrollment Device Registration
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="border rounded-b-md mt-0">
                   <div className="space-y-4 p-4">
                     <div>
                       <Label htmlFor="registrationMode">Registration Mode</Label>
@@ -283,11 +283,11 @@ export default function CreateRegistrationAuthorityPage() {
                 </AccordionContent>
               </AccordionItem>
             
-              <AccordionItem value="enrollment-settings">
-                <AccordionTrigger className="text-lg font-semibold">
+              <AccordionItem value="enrollment-settings" className="border-0">
+                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
                   <Key className="mr-2 h-5 w-5 text-muted-foreground"/>Enrollment Settings
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="border rounded-b-md mt-0">
                   <div className="space-y-4 p-4">
                     <div>
                       <Label htmlFor="protocol">Protocol</Label>
@@ -360,11 +360,11 @@ export default function CreateRegistrationAuthorityPage() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="re-enrollment-settings">
-                <AccordionTrigger className="text-lg font-semibold">
+              <AccordionItem value="re-enrollment-settings" className="border-0">
+                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
                   <PackageCheck className="mr-2 h-5 w-5 text-muted-foreground"/>Re-Enrollment Settings
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="border rounded-b-md mt-0">
                   <div className="space-y-4 p-4">
                     <div className="flex items-center space-x-2">
                       <Switch id="revokeOnReEnroll" checked={revokeOnReEnroll} onCheckedChange={setRevokeOnReEnroll} />
@@ -407,11 +407,11 @@ export default function CreateRegistrationAuthorityPage() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="key-generation-settings">
-                <AccordionTrigger className="text-lg font-semibold">
+              <AccordionItem value="key-generation-settings" className="border-0">
+                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
                    <Server className="mr-2 h-5 w-5 text-muted-foreground"/>Server Key Generation Settings
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="border rounded-b-md mt-0">
                   <div className="space-y-4 p-4">
                     <p className="text-sm text-muted-foreground">Devices will be able to enroll using EST-defined ServerKeyGen endpoints if enabled.</p>
                     <div className="flex items-center space-x-2">
@@ -422,11 +422,11 @@ export default function CreateRegistrationAuthorityPage() {
                 </AccordionContent>
               </AccordionItem>
             
-              <AccordionItem value="ca-distribution">
-                <AccordionTrigger className="text-lg font-semibold">
+              <AccordionItem value="ca-distribution" className="border-0">
+                <AccordionTrigger className="text-lg font-semibold hover:bg-muted/60 data-[state=open]:bg-muted/50 px-4 rounded-md">
                    <AlertTriangle className="mr-2 h-5 w-5 text-muted-foreground"/>CA Distribution
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="border rounded-b-md mt-0">
                   <div className="space-y-4 p-4">
                     <div className="flex items-center space-x-2">
                       <Switch id="includeDownstreamCA" checked={includeDownstreamCA} onCheckedChange={setIncludeDownstreamCA} />
@@ -454,7 +454,7 @@ export default function CreateRegistrationAuthorityPage() {
               </AccordionItem>
             </Accordion>
 
-            <div className="flex justify-end space-x-2 pt-6"> {/* Added pt-6 for spacing above buttons */}
+            <div className="flex justify-end space-x-2 pt-6">
                 <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
                 <Button type="submit">
                     <PlusCircle className="mr-2 h-4 w-4" /> Create RA
