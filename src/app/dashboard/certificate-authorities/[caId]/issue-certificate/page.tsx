@@ -8,6 +8,26 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea"; 
 import { ArrowLeft, FilePlus2 } from "lucide-react";
+import { certificateAuthoritiesData, type CA } from '@/lib/ca-data';
+
+
+function getAllCaIds(cas: CA[]): { caId: string }[] {
+  const ids: { caId: string }[] = [];
+  function recurse(currentCAs: CA[]) {
+    for (const ca of currentCAs) {
+      ids.push({ caId: ca.id });
+      if (ca.children) {
+        recurse(ca.children);
+      }
+    }
+  }
+  recurse(cas);
+  return ids;
+}
+
+export async function generateStaticParams() {
+  return getAllCaIds(certificateAuthoritiesData);
+}
 
 export default function IssueCertificatePage() {
   const params = useParams();

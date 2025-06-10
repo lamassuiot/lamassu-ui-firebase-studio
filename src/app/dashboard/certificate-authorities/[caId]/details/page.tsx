@@ -13,6 +13,24 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
+function getAllCaIds(cas: CA[]): { caId: string }[] {
+  const ids: { caId: string }[] = [];
+  function recurse(currentCAs: CA[]) {
+    for (const ca of currentCAs) {
+      ids.push({ caId: ca.id });
+      if (ca.children) {
+        recurse(ca.children);
+      }
+    }
+  }
+  recurse(cas);
+  return ids;
+}
+
+export async function generateStaticParams() {
+  return getAllCaIds(certificateAuthoritiesData);
+}
+
 const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
   if (value === undefined || value === null || value === '') return null;
   return (
