@@ -174,5 +174,20 @@ export function findCaById(id: string | undefined | null, cas: CA[]): CA | null 
   return null;
 }
 
+// Helper function to find a CA by its common name in the tree (recursively)
+export function findCaByCommonName(commonName: string | undefined | null, cas: CA[]): CA | null {
+  if (!commonName) return null;
+  for (const ca of cas) {
+    if (ca.name.toLowerCase() === commonName.toLowerCase()) return ca; // Case-insensitive comparison
+    if (ca.children) {
+      const found = findCaByCommonName(commonName, ca.children);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+
 // crypto needed for mock PEM generation
 import crypto from 'crypto';
+
