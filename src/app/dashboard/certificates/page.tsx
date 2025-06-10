@@ -4,10 +4,10 @@
 import React, { useState, useEffect } from 'react';
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
-import type { CertificateData } from '@/types/certificate';
-import { FileText } from 'lucide-react'; // Added icon import
+import type { CertificateData, VerificationStatus } from '@/types/certificate';
+import { FileText } from 'lucide-react';
+import crypto from 'crypto'; // For generating UUIDs for mock data
 
-// Loader2Icon to be defined or imported if needed elsewhere, kept local for now
 function Loader2Icon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -27,6 +27,67 @@ function Loader2Icon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+const generateMockPemData = (cn: string, issuer: string): string => {
+  return `-----BEGIN CERTIFICATE-----
+MII... (Mock PEM data for ${cn})
+Subject: CN=${cn}, O=LamassuIoT Devices
+Issuer: CN=${issuer}, O=LamassuIoT CAs
+...MII
+-----END CERTIFICATE-----`;
+};
+
+const mockCertificates: CertificateData[] = [
+  {
+    id: crypto.randomUUID(),
+    fileName: 'device-alpha-001.pem',
+    subject: 'CN=device-alpha-001.lamassu.internal, O=LamassuIoT Devices',
+    issuer: 'CN=Device Authentication CA EU West, O=LamassuIoT CAs',
+    serialNumber: '1A:2B:3C:4D:5E:6F:01',
+    validFrom: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(), // 100 days ago
+    validTo: new Date(Date.now() + 265 * 24 * 60 * 60 * 1000).toISOString(),   // 265 days from now
+    sans: ['dns:device-alpha-001.lamassu.internal', 'ip:192.168.1.101'],
+    pemData: generateMockPemData('device-alpha-001.lamassu.internal', 'Device Authentication CA EU West'),
+    verificationStatus: 'verified',
+    verificationDetails: 'Certificate chain verified successfully.',
+    publicKeyAlgorithm: 'RSA (2048 bits)',
+    signatureAlgorithm: 'SHA256withRSA',
+    fingerprintSha256: crypto.createHash('sha256').update(generateMockPemData('device-alpha-001.lamassu.internal', 'Device Authentication CA EU West')).digest('hex'),
+  },
+  {
+    id: crypto.randomUUID(),
+    fileName: 'sensor-beta-007.crt',
+    subject: 'CN=sensor-beta-007.lamassu.internal, O=LamassuIoT Sensors',
+    issuer: 'CN=Staging Environment CA, O=LamassuIoT Test CAs',
+    serialNumber: '7A:8B:9C:0D:1E:2F:02',
+    validFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+    validTo: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),     // 5 days from now (about to expire)
+    sans: ['dns:sensor-beta-007.lamassu.internal'],
+    pemData: generateMockPemData('sensor-beta-007.lamassu.internal', 'Staging Environment CA'),
+    verificationStatus: 'unverified',
+    verificationDetails: 'Certificate has not been verified yet.',
+    publicKeyAlgorithm: 'ECDSA (P-256)',
+    signatureAlgorithm: 'SHA256withECDSA',
+    fingerprintSha256: crypto.createHash('sha256').update(generateMockPemData('sensor-beta-007.lamassu.internal', 'Staging Environment CA')).digest('hex'),
+  },
+  {
+    id: crypto.randomUUID(),
+    fileName: 'legacy-device.pem',
+    subject: 'CN=legacy-device.old-infra, O=Old Systems',
+    issuer: 'CN=Old Partner Root CA (Revoked), O=Old CAs',
+    serialNumber: 'F1:E2:D3:C4:B5:A6:03',
+    validFrom: new Date(Date.now() - 500 * 24 * 60 * 60 * 1000).toISOString(), // 500 days ago
+    validTo: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(),   // Expired 100 days ago
+    sans: [],
+    pemData: generateMockPemData('legacy-device.old-infra', 'Old Partner Root CA (Revoked)'),
+    verificationStatus: 'expired',
+    verificationDetails: 'Certificate is expired.',
+    publicKeyAlgorithm: 'RSA (1024 bits)',
+    signatureAlgorithm: 'SHA1withRSA',
+    fingerprintSha256: crypto.createHash('sha256').update(generateMockPemData('legacy-device.old-infra', 'Old Partner Root CA (Revoked)')).digest('hex'),
+  },
+];
+
+
 export default function CertificatesPage() {
   const [certificates, setCertificates] = useState<CertificateData[]>([]);
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
@@ -38,11 +99,19 @@ export default function CertificatesPage() {
     const storedCerts = localStorage.getItem('lamassuIoT_certs');
     if (storedCerts) {
       try {
-        setCertificates(JSON.parse(storedCerts));
+        const parsedCerts = JSON.parse(storedCerts);
+        if (Array.isArray(parsedCerts) && parsedCerts.length > 0) {
+          setCertificates(parsedCerts);
+        } else {
+          setCertificates(mockCertificates); // Populate with mock if stored is empty array
+        }
       } catch (e) {
         console.error("Failed to parse stored certificates:", e);
         localStorage.removeItem('lamassuIoT_certs');
+        setCertificates(mockCertificates); // Populate with mock on error
       }
+    } else {
+      setCertificates(mockCertificates); // Populate with mock if nothing in storage
     }
   }, []);
 
@@ -99,4 +168,3 @@ export default function CertificatesPage() {
     </div>
   );
 }
-
