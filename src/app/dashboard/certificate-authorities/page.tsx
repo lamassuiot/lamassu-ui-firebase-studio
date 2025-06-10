@@ -1,16 +1,17 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree } from "lucide-react";
+import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData, getCaDisplayName } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Keep Card for individual items
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CaFilesystemView } from '@/components/dashboard/ca/CaFilesystemView';
 
 const getExpiryTextAndStatus = (expires: string, status: CA['status']): { text: string; badgeVariant: "default" | "secondary" | "destructive" | "outline"; badgeClass: string } => {
   const expiryDate = parseISO(expires);
@@ -57,7 +58,6 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
     if (hasChildren) {
       setIsOpen(!isOpen);
     } else {
-      // If no children, clicking the card still takes to details, same as details button.
       handleDetailsClick(e);
     }
   };
@@ -85,7 +85,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
           className={cn(
             "flex-1 w-full", 
             level === 0 ? "bg-card" : "bg-card/90",
-            "border-0 shadow-none" // Removed border and shadow
+            "border-0 shadow-none" 
           )}
           onClick={handleToggleOpen} 
           role="button" tabIndex={0} 
@@ -131,33 +131,48 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
 
 export default function CertificateAuthoritiesPage() {
   const router = useRouter(); 
+  const [viewMode, setViewMode] = useState<'list' | 'filesystem'>('list');
 
   const handleCreateNewCAClick = () => {
     router.push('/dashboard/certificate-authorities/new');
   };
 
+  const toggleViewMode = () => {
+    setViewMode(prevMode => prevMode === 'list' ? 'filesystem' : 'list');
+  };
+
   return (
     <div className="space-y-6 w-full">
-      <div className="p-0"> {/* Replaced Card with div, removed shadow-lg, adjusted padding */}
-        <div className="p-0"> {/* Replaced CardHeader with div, adjusted padding */}
-          <div className="flex items-center justify-between mb-4"> {/* Increased bottom margin */}
+      <div className="p-0"> 
+        <div className="p-0"> 
+          <div className="flex items-center justify-between mb-4"> 
             <div className="flex items-center space-x-3">
               <Landmark className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-headline font-semibold">Certificate Authorities</h1> {/* Used h1 for title */}
+              <h1 className="text-2xl font-headline font-semibold">Certificate Authorities</h1> 
             </div>
-            <Button variant="default" onClick={handleCreateNewCAClick}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" onClick={toggleViewMode} title={viewMode === 'list' ? "Switch to Filesystem View" : "Switch to List View"}>
+                {viewMode === 'list' ? <FolderKanban className="h-4 w-4" /> : <List className="h-4 w-4" />}
+                <span className="ml-2 hidden sm:inline">{viewMode === 'list' ? "Filesystem View" : "List View"}</span>
+              </Button>
+              <Button variant="default" onClick={handleCreateNewCAClick}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
+              </Button>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">Manage your Certificate Authority (CA) configurations and trust stores. Click on a CA card to expand/collapse if it has sub-CAs.</p> {/* Used p for description */}
+          <p className="text-sm text-muted-foreground">Manage your Certificate Authority (CA) configurations and trust stores. Click on a CA card to expand/collapse if it has sub-CAs.</p> 
         </div>
-        <div className="pt-6"> {/* Replaced CardContent with div, adjusted padding */}
+        <div className="pt-6"> 
           {certificateAuthoritiesData.length > 0 ? (
-            <ul className="space-y-2">
-              {certificateAuthoritiesData.map((ca) => (
-                <CaTreeItem key={ca.id} ca={ca} level={0} router={router} allCAs={certificateAuthoritiesData} />
-              ))}
-            </ul>
+            viewMode === 'list' ? (
+              <ul className="space-y-2">
+                {certificateAuthoritiesData.map((ca) => (
+                  <CaTreeItem key={ca.id} ca={ca} level={0} router={router} allCAs={certificateAuthoritiesData} />
+                ))}
+              </ul>
+            ) : (
+              <CaFilesystemView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
+            )
           ) : (
             <p className="text-muted-foreground">No Certificate Authorities configured.</p>
           )}
