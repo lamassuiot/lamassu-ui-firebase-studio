@@ -18,7 +18,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function CustomSidebarToggle() {
@@ -52,6 +52,9 @@ export default function DashboardLayout({
   const iotItems = [
     { href: '/dashboard/devices', label: 'Devices', icon: Router },
     { href: '/dashboard/device-groups', label: 'Device Groups', icon: ServerCog },
+  ];
+  const kmsItems = [
+    { href: '/dashboard/kms/keys', label: 'Keys', icon: KeyRound },
   ];
 
 
@@ -112,6 +115,22 @@ export default function DashboardLayout({
 
                 <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">IoT</SidebarGroupLabel>
                 {iotItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
+                      tooltip={{children: item.label, side: 'right', align: 'center' }}
+                    >
+                      <Link href={item.href} className="flex items-center w-full justify-start">
+                        <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                        <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+
+                <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
+                {kmsItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       asChild
