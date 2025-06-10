@@ -5,18 +5,40 @@ import React, { useState, useEffect, FC } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check } from "lucide-react";
+import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check, Users, Network } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { CA } from '@/lib/ca-data'; // Type import is fine
-import { findCaById, getCaDisplayName } from '@/lib/ca-data'; // Function imports are fine
+import type { CA } from '@/lib/ca-data';
+import { findCaById, getCaDisplayName } from '@/lib/ca-data';
+import { CaHierarchyPathNode } from './CaHierarchyPathNode'; // New import
 
 interface CertificateAuthorityDetailsClientProps {
   allCertificateAuthoritiesData: CA[];
 }
+
+const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] => {
+  if (!targetCaId) return [];
+  const path: CA[] = [];
+  let current: CA | null = findCaById(targetCaId, allCAs);
+  let safetyNet = 0; // To prevent infinite loops with bad data
+  while (current && safetyNet < 10) { // Max 10 levels deep for safety
+    path.unshift(current); // Add to the beginning so the root is first
+    if (current.issuer === 'Self-signed' || !current.issuer) {
+      break;
+    }
+    const parentCa = findCaById(current.issuer, allCAs);
+    if (!parentCa || path.some(p => p.id === parentCa.id)) { // Prevent loops
+        break;
+    }
+    current = parentCa;
+    safetyNet++;
+  }
+  return path;
+};
+
 
 // Client Component for the actual page content
 export default function CertificateAuthorityDetailsClient({ allCertificateAuthoritiesData }: CertificateAuthorityDetailsClientProps) {
@@ -24,13 +46,20 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
   const router = useRouter();
   const { toast } = useToast();
   const caId = params.caId as string;
+  
   const [caDetails, setCaDetails] = useState<CA | null>(null);
+  const [caPathToRoot, setCaPathToRoot] = useState<CA[]>([]);
   const [placeholderSerial, setPlaceholderSerial] = useState<string>('');
   const [pemCopied, setPemCopied] = useState(false);
 
   useEffect(() => {
     const foundCa = findCaById(caId, allCertificateAuthoritiesData);
     setCaDetails(foundCa);
+    if (foundCa) {
+      setCaPathToRoot(buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData));
+    } else {
+      setCaPathToRoot([]);
+    }
     setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
   }, [caId, allCertificateAuthoritiesData]);
 
@@ -110,7 +139,7 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
           </p>
         </div>
         <div className="p-6 pt-0">
-          <Accordion type="multiple" defaultValue={['general', 'keyInfo', 'pemData']} className="w-full">
+          <Accordion type="multiple" defaultValue={['general', 'keyInfo', 'pemData', 'hierarchy']} className="w-full">
             <AccordionItem value="general">
               <AccordionTrigger className={cn(accordionTriggerStyle)}>
                 <Info className="mr-2 h-5 w-5" /> General Information
@@ -215,22 +244,30 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
 
              <AccordionItem value="hierarchy">
               <AccordionTrigger className={cn(accordionTriggerStyle)}>
-                <Server className="mr-2 h-5 w-5" /> Issuance Hierarchy
+                <Network className="mr-2 h-5 w-5" /> Issuance Hierarchy & Chain of Trust
               </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-4">
-                <DetailItem 
-                    label="Issued By" 
-                    value={
-                        caDetails.issuer === 'Self-signed' ? 
-                        <Badge variant="secondary">Self-signed Root CA</Badge> : 
-                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => router.push(`/dashboard/certificate-authorities/${caDetails.issuer}/details`)}>
-                            {getCaDisplayName(caDetails.issuer, allCertificateAuthoritiesData)} (ID: {caDetails.issuer})
-                        </Button>
-                    } 
-                />
+              <AccordionContent className="space-y-4 p-4">
+                {caPathToRoot.length > 0 ? (
+                  <div className="flex flex-col items-center w-full">
+                    {caPathToRoot.map((caNode, index) => (
+                      <CaHierarchyPathNode
+                        key={caNode.id}
+                        ca={caNode}
+                        isCurrentCa={caNode.id === caDetails.id}
+                        hasNext={index < caPathToRoot.length - 1}
+                        isFirst={index === 0}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Hierarchy path not available.</p>
+                )}
+                
                 {caDetails.children && caDetails.children.length > 0 && (
-                  <DetailItem label="Issues Certificates To" value={
-                    <ul className="list-disc list-inside space-y-1">
+                  <>
+                    <Separator className="my-4"/>
+                    <h4 className="text-md font-semibold flex items-center"><Users className="mr-2 h-4 w-4 text-muted-foreground"/>Directly Issues To:</h4>
+                    <ul className="list-disc list-inside space-y-1 pl-4">
                       {caDetails.children.map(child => (
                         <li key={child.id}>
                            <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => router.push(`/dashboard/certificate-authorities/${child.id}/details`)}>
@@ -239,7 +276,7 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
                         </li>
                       ))}
                     </ul>
-                  } />
+                  </>
                 )}
               </AccordionContent>
             </AccordionItem>
@@ -267,3 +304,4 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
     </div>
   );
 }
+
