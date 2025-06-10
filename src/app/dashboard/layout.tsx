@@ -74,12 +74,12 @@ export default function DashboardLayout({
           </SidebarFooter>
         </Sidebar>
         <SidebarInset className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-background shadow-lg px-4 md:px-6">
-            <div className="md:hidden">
-              <SidebarTrigger />
+          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground shadow-lg px-4 md:px-6">
+            <div> {/* Removed md:hidden to make trigger always visible */}
+              <SidebarTrigger className="text-primary-foreground hover:bg-primary-foreground/10 focus-visible:ring-primary-foreground/50" />
             </div>
-            <div className="flex-1 text-left">
-              <h1 className="text-xl font-semibold ml-2 md:ml-0">
+            <div className="flex-1 text-left ml-2 md:ml-4"> {/* Added margin for spacing from trigger */}
+              <h1 className="text-xl font-semibold">
                 {navItems.find(item => pathname.startsWith(item.href))?.label || 'Dashboard'}
               </h1>
             </div>
