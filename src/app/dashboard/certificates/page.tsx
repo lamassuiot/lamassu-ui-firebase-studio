@@ -38,7 +38,7 @@ Issuer: CN=${issuer}, O=LamassuIoT CAs
 
 const mockCertificates: CertificateData[] = [
   {
-    id: crypto.randomUUID(),
+    id: globalThis.crypto.randomUUID(),
     fileName: 'device-alpha-001.pem',
     subject: 'CN=device-alpha-001.lamassu.internal, O=LamassuIoT Devices',
     issuer: 'CN=Device Authentication CA EU West, O=LamassuIoT CAs',
@@ -54,7 +54,7 @@ const mockCertificates: CertificateData[] = [
     fingerprintSha256: crypto.createHash('sha256').update(generateMockPemData('device-alpha-001.lamassu.internal', 'Device Authentication CA EU West')).digest('hex'),
   },
   {
-    id: crypto.randomUUID(),
+    id: globalThis.crypto.randomUUID(),
     fileName: 'sensor-beta-007.crt',
     subject: 'CN=sensor-beta-007.lamassu.internal, O=LamassuIoT Sensors',
     issuer: 'CN=Staging Environment CA, O=LamassuIoT Test CAs',
@@ -70,7 +70,7 @@ const mockCertificates: CertificateData[] = [
     fingerprintSha256: crypto.createHash('sha256').update(generateMockPemData('sensor-beta-007.lamassu.internal', 'Staging Environment CA')).digest('hex'),
   },
   {
-    id: crypto.randomUUID(),
+    id: globalThis.crypto.randomUUID(),
     fileName: 'legacy-device.pem',
     subject: 'CN=legacy-device.old-infra, O=Old Systems',
     issuer: 'CN=Old Partner Root CA (Revoked), O=Old CAs',
@@ -168,3 +168,4 @@ export default function CertificatesPage() {
     </div>
   );
 }
+
