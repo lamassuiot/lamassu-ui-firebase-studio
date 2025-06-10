@@ -5,14 +5,15 @@ import React, { useState, useEffect, FC } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check, Users, Network, Copy, Layers } from "lucide-react";
+import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Copy, Check, Users, Network, Layers } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { certificateAuthoritiesData as allCertificateAuthoritiesData, findCaById, getCaDisplayName } from '@/lib/ca-data';
+import { findCaById, getCaDisplayName } from '@/lib/ca-data'; // allCertificateAuthoritiesData removed as it's passed as prop
 import { CaHierarchyPathNode } from './CaHierarchyPathNode';
 
 const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] => {
@@ -36,7 +37,7 @@ const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] =
 };
 
 
-export default function CertificateAuthorityDetailsClient({ allCertificateAuthoritiesData: allCAs }: { allCertificateAuthoritiesData: CA[] }) {
+export default function CertificateAuthorityDetailsClient({ allCertificateAuthoritiesData }: { allCertificateAuthoritiesData: CA[] }) {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
@@ -47,17 +48,29 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
   const [placeholderSerial, setPlaceholderSerial] = useState<string>('');
   const [pemCopied, setPemCopied] = useState(false);
   const [fullChainCopied, setFullChainCopied] = useState(false);
+  const [fullChainPemString, setFullChainPemString] = useState<string>('');
 
   useEffect(() => {
-    const foundCa = findCaById(caId, allCAs);
+    const foundCa = findCaById(caId, allCertificateAuthoritiesData);
     setCaDetails(foundCa);
     if (foundCa) {
-      setCaPathToRoot(buildCaPathToRoot(foundCa.id, allCAs));
+      const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
+      setCaPathToRoot(path);
+
+      // Generate full chain PEM string
+      const chainInOrderForPem = [...path].reverse(); // Current CA first, then parents up to root
+      const chainPem = chainInOrderForPem
+        .map(caNode => caNode.pemData || '')
+        .filter(pem => pem.trim() !== '')
+        .join('\n\n'); // Standard separation for PEM chain
+      setFullChainPemString(chainPem);
+
     } else {
       setCaPathToRoot([]);
+      setFullChainPemString('');
     }
     setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
-  }, [caId, allCAs]);
+  }, [caId, allCertificateAuthoritiesData]);
 
   const DetailItem: FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
     if (value === undefined || value === null || value === '') return null;
@@ -86,31 +99,18 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
   };
 
   const handleCopyFullChainPem = async () => {
-    if (caPathToRoot.length > 0) {
-      // The caPathToRoot is [root, ..., intermediate, ..., currentCa]
-      // For a valid chain PEM, we need: currentCa PEM, then parent PEM, ..., up to root PEM
-      const chainInOrderForPem = [...caPathToRoot].reverse(); // Now [currentCa, ..., intermediate, ..., root]
-      const fullChainPem = chainInOrderForPem
-        .map(ca => ca.pemData || '') // Get PEM or empty string if undefined
-        .filter(pem => pem.trim() !== '') // Filter out empty PEMs
-        .join('\n\n'); // Join with double newline for separation between certs
-
-      if (fullChainPem.trim() === '') {
-        toast({ title: "Copy Failed", description: "No PEM data found to build the chain.", variant: "destructive" });
-        return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(fullChainPem);
-        setFullChainCopied(true);
-        toast({ title: "Copied!", description: "Full certificate chain PEM copied to clipboard." });
-        setTimeout(() => setFullChainCopied(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy full chain PEM: ', err);
-        toast({ title: "Copy Failed", description: "Could not copy full chain PEM data.", variant: "destructive" });
-      }
-    } else {
-      toast({ title: "Copy Failed", description: "Certificate path is empty, cannot build chain.", variant: "destructive" });
+    if (fullChainPemString.trim() === '') {
+      toast({ title: "Copy Failed", description: "No PEM data found to build the chain.", variant: "destructive" });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(fullChainPemString);
+      setFullChainCopied(true);
+      toast({ title: "Copied!", description: "Full certificate chain PEM copied to clipboard." });
+      setTimeout(() => setFullChainCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy full chain PEM: ', err);
+      toast({ title: "Copy Failed", description: "Could not copy full chain PEM data.", variant: "destructive" });
     }
   };
 
@@ -172,7 +172,7 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
               <AccordionContent className="space-y-1 px-4">
                 <DetailItem label="Full Name" value={caDetails.name} />
                 <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
-                <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, allCAs)} />
+                <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, allCertificateAuthoritiesData)} />
                 <DetailItem label="Status" value={<Badge variant={statusVariant} className={statusVariant !== 'outline' ? statusColorClass : ''}>{caDetails.status.toUpperCase()}</Badge>} />
                 <DetailItem label="Expires On" value={new Date(caDetails.expires).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
                 <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
@@ -199,33 +199,49 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
               <AccordionTrigger className={cn(accordionTriggerStyle)}>
                 <ScrollText className="mr-2 h-5 w-5" /> PEM Certificate Data
               </AccordionTrigger>
-              <AccordionContent className="space-y-2 px-4">
-                {caDetails.pemData ? (
-                  <>
-                    <div className="flex flex-wrap gap-2 mb-2">
+              <AccordionContent className="space-y-2 px-4 py-4">
+                <Tabs defaultValue="certificate" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="certificate">Certificate</TabsTrigger>
+                    <TabsTrigger value="fullChain">Full Chain</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="certificate" className="mt-4">
+                    <div className="flex justify-start mb-2">
                       <Button onClick={handleCopyPem} variant="outline" size="sm">
                         {pemCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
                         {pemCopied ? 'Certificate Copied!' : 'Copy Certificate PEM'}
                       </Button>
-                      <Button onClick={handleCopyFullChainPem} variant="outline" size="sm">
+                    </div>
+                    {caDetails.pemData ? (
+                      <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/30">
+                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
+                      </ScrollArea>
+                    ) : (
+                      <p className="text-sm text-muted-foreground p-4 text-center">No individual certificate PEM data available for this CA.</p>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="fullChain" className="mt-4">
+                    <div className="flex justify-start mb-2">
+                      <Button onClick={handleCopyFullChainPem} variant="outline" size="sm" disabled={!fullChainPemString.trim()}>
                         {fullChainCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Layers className="mr-2 h-4 w-4" />}
                         {fullChainCopied ? 'Chain Copied!' : 'Copy Full Chain PEM'}
                       </Button>
                     </div>
-                    <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/30">
-                      <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
-                    </ScrollArea>
-                    {caPathToRoot.length > 1 && (
-                        <div className="mt-2">
-                            <p className="text-xs text-muted-foreground">
-                                Full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
-                            </p>
-                        </div>
+                    {fullChainPemString.trim() ? (
+                      <>
+                        <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/30">
+                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString}</pre>
+                        </ScrollArea>
+                        <p className="text-xs text-muted-foreground mt-2">
+                            The full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
+                            The order is: Current CA, Intermediate CA(s) (if any), Root CA.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground p-4 text-center">No full chain PEM data available or could be constructed.</p>
                     )}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No PEM data available for this CA.</p>
-                )}
+                  </TabsContent>
+                </Tabs>
               </AccordionContent>
             </AccordionItem>
 
@@ -342,3 +358,4 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
     </div>
   );
 }
+
