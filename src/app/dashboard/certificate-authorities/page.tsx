@@ -28,15 +28,16 @@ const getExpiryTextAndStatus = (expires: string, status: CA['status']): { text: 
     badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
   } else {
     text = `Expires in ${formatDistanceToNowStrict(expiryDate)}`;
-    badgeVariant = "secondary";
+    badgeVariant = "secondary"; // Default to secondary for active, non-expired, non-revoked
     badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
   }
   
-  if (status === 'active' && !isPast(expiryDate) && status !== 'revoked') {
-     // Already handled by green
-  } else if (status === 'expired' && status !== 'revoked') {
-    // Already handled by orange
-  }
+  // These conditions are now more explicitly handled by the initial checks
+  // if (status === 'active' && !isPast(expiryDate) && status !== 'revoked') {
+  //    // Already handled by green
+  // } else if (status === 'expired' && status !== 'revoked') {
+  //   // Already handled by orange
+  // }
 
 
   return { text: `${status.toUpperCase()} \u00B7 ${text}`, badgeVariant, badgeClass };
@@ -64,6 +65,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
     if (hasChildren) {
       setIsOpen(!isOpen);
     } else {
+      // If no children, clicking the card still navigates to details (or an alternative primary action)
       handleDetailsClick(e);
     }
   };
@@ -88,7 +90,10 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
         </div>
         
         <Card 
-          className="flex-1 shadow-sm hover:shadow-md transition-shadow w-full" 
+          className={cn(
+            "flex-1 shadow-sm hover:shadow-md transition-shadow w-full border-0", // Added border-0
+            level === 0 ? "bg-card" : "bg-card/90" // Example: slightly different bg for nested items
+          )}
           onClick={handleToggleOpen} 
           role="button" tabIndex={0} 
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleToggleOpen(e as any);}}
