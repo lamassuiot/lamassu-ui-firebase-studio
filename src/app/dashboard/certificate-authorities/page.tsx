@@ -28,18 +28,10 @@ const getExpiryTextAndStatus = (expires: string, status: CA['status']): { text: 
     badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
   } else {
     text = `Expires in ${formatDistanceToNowStrict(expiryDate)}`;
-    badgeVariant = "secondary"; // Default to secondary for active, non-expired, non-revoked
+    badgeVariant = "secondary"; 
     badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
   }
   
-  // These conditions are now more explicitly handled by the initial checks
-  // if (status === 'active' && !isPast(expiryDate) && status !== 'revoked') {
-  //    // Already handled by green
-  // } else if (status === 'expired' && status !== 'revoked') {
-  //   // Already handled by orange
-  // }
-
-
   return { text: `${status.toUpperCase()} \u00B7 ${text}`, badgeVariant, badgeClass };
 };
 
@@ -65,7 +57,6 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
     if (hasChildren) {
       setIsOpen(!isOpen);
     } else {
-      // If no children, clicking the card still navigates to details (or an alternative primary action)
       handleDetailsClick(e);
     }
   };
@@ -77,8 +68,8 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
       {level > 0 && (
          <Minus className="h-3 w-3 absolute -left-[0.45rem] top-[calc(50%-0.375rem)] text-border transform rotate-90" />
       )}
-      <div className="flex items-start space-x-2"> {/* items-start for better alignment with multi-line content */}
-        <div className="flex-shrink-0 self-center pt-1"> {/* Aligns chevron with the card title line */}
+      <div className="flex items-start space-x-2"> 
+        <div className="flex-shrink-0 self-center pt-1"> 
           {hasChildren ? (
             <ChevronRight 
               className={`h-5 w-5 text-muted-foreground transition-transform duration-150 cursor-pointer ${isOpen ? 'rotate-90' : ''}`} 
@@ -91,8 +82,8 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
         
         <Card 
           className={cn(
-            "flex-1 shadow-sm hover:shadow-md transition-shadow w-full border-0", // Added border-0
-            level === 0 ? "bg-card" : "bg-card/90" // Example: slightly different bg for nested items
+            "flex-1 transition-shadow w-full border-0", 
+            level === 0 ? "bg-card" : "bg-card/90" 
           )}
           onClick={handleToggleOpen} 
           role="button" tabIndex={0} 
@@ -173,3 +164,4 @@ export default function CertificateAuthoritiesPage() {
     </div>
   );
 }
+
