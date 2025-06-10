@@ -15,15 +15,16 @@ import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Cpu, HelpCircle
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 
 interface SelectableCaTreeItemProps {
   ca: CA;
   level: number;
   onSelect: (ca: CA) => void;
-  isSelected?: boolean; // For single select dialog
-  isMultiSelected?: boolean; // For multi-select dialog
-  showCheckbox?: boolean; // For multi-select dialog
-  onMultiSelectToggle?: (ca: CA, isSelected: boolean) => void; // For multi-select dialog
+  isSelected?: boolean; 
+  isMultiSelected?: boolean; 
+  showCheckbox?: boolean; 
+  onMultiSelectToggle?: (ca: CA, isSelected: boolean) => void; 
 }
 
 const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({ 
@@ -59,7 +60,7 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
             type="checkbox" 
             checked={!!isMultiSelected} 
             onChange={(e) => {
-              e.stopPropagation(); // Prevent li click handler
+              e.stopPropagation(); 
               if (onMultiSelectToggle) onMultiSelectToggle(ca, e.target.checked);
             }} 
             className="h-4 w-4 mr-2 accent-primary" 
@@ -71,7 +72,7 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
             onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
           />
         )}
-        {!hasChildren && !showCheckbox && <div className="w-4"></div> /* Placeholder for alignment if no checkbox */}
+        {!hasChildren && !showCheckbox && <div className="w-4"></div>}
         {!hasChildren && showCheckbox && <div className="w-0"></div>}
         
         <FolderTree className="h-4 w-4 text-primary flex-shrink-0" />
@@ -87,8 +88,8 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
               ca={childCa} 
               level={level + 1} 
               onSelect={onSelect}
-              isSelected={isSelected && childCa.id === ca.id} // This logic might need adjustment for single select in tree
-              isMultiSelected={isMultiSelected && showCheckbox} // Pass down multi-select status if needed, or manage selections at top level
+              isSelected={isSelected && childCa.id === ca.id} 
+              isMultiSelected={!!(isMultiSelected && showCheckbox && currentMultiSelectedCAs?.some(sel => sel.id === childCa.id))}
               showCheckbox={showCheckbox}
               onMultiSelectToggle={onMultiSelectToggle}
             />
@@ -99,11 +100,11 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
   );
 };
 
+let currentMultiSelectedCAs: CA[] | undefined; // Helper for recursive calls
 
 export default function CreateRegistrationAuthorityPage() {
   const router = useRouter();
 
-  // State for form fields
   const [registrationMode, setRegistrationMode] = useState('JITP');
   const [tags, setTags] = useState('iot');
   const [protocol, setProtocol] = useState('EST');
@@ -128,7 +129,6 @@ export default function CreateRegistrationAuthorityPage() {
   const [includeEnrollmentCA, setIncludeEnrollmentCA] = useState(false);
   const [managedCAs, setManagedCAs] = useState<CA[]>([]);
 
-  // Dialog states
   const [isEnrollmentCaModalOpen, setIsEnrollmentCaModalOpen] = useState(false);
   const [isValidationCaModalOpen, setIsValidationCaModalOpen] = useState(false);
   const [isAdditionalValidationCaModalOpen, setIsAdditionalValidationCaModalOpen] = useState(false);
@@ -184,11 +184,13 @@ export default function CreateRegistrationAuthorityPage() {
     setIsOpen: (open: boolean) => void,
     title: string,
     description: string,
-    onSelect: (ca: CA) => void, // For single select
-    currentSingleSelectedCa?: CA | null, // For single select
-    onMultiSelectToggle?: (ca: CA, isSelected: boolean) => void, // For multi select
-    currentMultiSelectedCAs?: CA[] // For multi select
-  ) => (
+    onSelect: (ca: CA) => void, 
+    currentSingleSelectedCa?: CA | null, 
+    onMultiSelectToggle?: (ca: CA, isSelected: boolean) => void, 
+    _currentMultiSelectedCAs?: CA[] 
+  ) => {
+    currentMultiSelectedCAs = _currentMultiSelectedCAs; // Update helper for recursive calls
+    return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -202,10 +204,10 @@ export default function CreateRegistrationAuthorityPage() {
                 key={ca.id} 
                 ca={ca} 
                 level={0} 
-                onSelect={onSelect} // Used for single select or as fallback
-                isSelected={currentSingleSelectedCa?.id === ca.id} // For single select highlight
-                showCheckbox={!!onMultiSelectToggle} // Show checkbox if multi-select handler is provided
-                isMultiSelected={currentMultiSelectedCAs?.some(selCa => selCa.id === ca.id)}
+                onSelect={onSelect} 
+                isSelected={currentSingleSelectedCa?.id === ca.id}
+                showCheckbox={!!onMultiSelectToggle} 
+                isMultiSelected={_currentMultiSelectedCAs?.some(selCa => selCa.id === ca.id)}
                 onMultiSelectToggle={onMultiSelectToggle}
               />
             ))}
@@ -218,7 +220,7 @@ export default function CreateRegistrationAuthorityPage() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )};
 
 
   return (
@@ -228,7 +230,6 @@ export default function CreateRegistrationAuthorityPage() {
       </Button>
       
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Device Manufacturing Definition */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl font-headline">Device Manufacturing Definition</CardTitle>
@@ -245,7 +246,6 @@ export default function CreateRegistrationAuthorityPage() {
           </CardContent>
         </Card>
 
-        {/* Enrollment Device Registration */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl font-headline flex items-center">
@@ -270,7 +270,6 @@ export default function CreateRegistrationAuthorityPage() {
           </CardContent>
         </Card>
 
-        {/* Enrollment Settings */}
         <Card className="shadow-lg">
           <CardHeader><CardTitle className="text-xl font-headline">Enrollment Settings</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -289,6 +288,11 @@ export default function CreateRegistrationAuthorityPage() {
               <Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1">
                 {enrollmentCa ? enrollmentCa.name : "Select Enrollment CA..."}
               </Button>
+              {enrollmentCa && (
+                <div className="mt-2">
+                  <CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" />
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-2 pt-2">
               <Switch id="allowOverrideEnrollment" checked={allowOverrideEnrollment} onCheckedChange={setAllowOverrideEnrollment} />
@@ -337,7 +341,6 @@ export default function CreateRegistrationAuthorityPage() {
           </CardContent>
         </Card>
 
-        {/* ReEnrollment Settings */}
         <Card className="shadow-lg">
           <CardHeader><CardTitle className="text-xl font-headline">Re-Enrollment Settings</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -379,7 +382,6 @@ export default function CreateRegistrationAuthorityPage() {
           </CardContent>
         </Card>
 
-        {/* Server Key Generation Settings */}
         <Card className="shadow-lg">
           <CardHeader><CardTitle className="text-xl font-headline">Server Key Generation Settings</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -391,7 +393,6 @@ export default function CreateRegistrationAuthorityPage() {
           </CardContent>
         </Card>
 
-        {/* CA Distribution */}
         <Card className="shadow-lg">
           <CardHeader><CardTitle className="text-xl font-headline">CA Distribution</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -425,7 +426,6 @@ export default function CreateRegistrationAuthorityPage() {
         </div>
       </form>
 
-      {/* Dialogs for CA Selection */}
       {renderCaSelectionDialog(
         isEnrollmentCaModalOpen,
         setIsEnrollmentCaModalOpen,
@@ -440,7 +440,7 @@ export default function CreateRegistrationAuthorityPage() {
         setIsValidationCaModalOpen,
         "Select Validation CAs",
         "Choose CAs to validate client certificates during enrollment.",
-        () => {}, // Single select not used here
+        () => {}, 
         null,
         (ca, isSelected) => toggleSelection(ca, validationCAs, setValidationCAs),
         validationCAs
@@ -471,4 +471,3 @@ export default function CreateRegistrationAuthorityPage() {
     </div>
   );
 }
-

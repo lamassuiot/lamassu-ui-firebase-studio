@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ShieldCheck, Settings, FileText, ListChecks, Clock, Repeat, UploadCloud, KeyRound, Bell, TestTube2, Terminal, ChevronDown, ChevronUp, Plus, Trash2, FolderTree, Minus, ChevronRight } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
+import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 
 interface VAConfig {
   caId: string;
@@ -112,7 +113,7 @@ const getDefaultVAConfig = (caId: string): VAConfig => ({
     alertOnFailure: true,
     alertOnCriticalEvent: true,
     automatedTestingEnabled: false,
-    automatedTestingSchedule: '0 0 * * *', // every day at midnight
+    automatedTestingSchedule: '0 0 * * *', 
     apiEndpoint: `https://api.example.com/va/${caId}/config`,
   },
 });
@@ -174,10 +175,9 @@ export default function VerificationAuthoritiesPage() {
   const [selectedCaId, setSelectedCaId] = useState<string | undefined>(undefined);
   const [config, setConfig] = useState<VAConfig | null>(null);
   const [isCaSelectModalOpen, setIsCaSelectModalOpen] = useState(false);
-  const [allCAsList, setAllCAsList] = useState<CA[]>([]); // This will store the original hierarchical data
+  const [allCAsList, setAllCAsList] = useState<CA[]>([]); 
 
   useEffect(() => {
-    // We use certificateAuthoritiesData directly as it's already hierarchical
     setAllCAsList(certificateAuthoritiesData);
   }, []);
 
@@ -292,8 +292,8 @@ export default function VerificationAuthoritiesPage() {
   const selectedCaDetails = selectedCaId ? findCaByIdRecursive(selectedCaId, allCAsList) : null;
 
 
-  if (!config && selectedCaId) {
-    return <p>Loading configuration for {selectedCaId}...</p>;
+  if (!config && selectedCaId && selectedCaDetails) { // ensure selectedCaDetails is also available
+    return <p>Loading configuration for {selectedCaDetails.name} ({selectedCaId})...</p>;
   }
   
   return (
@@ -347,9 +347,15 @@ export default function VerificationAuthoritiesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          
+          {selectedCaDetails && (
+            <div className="my-4">
+              <CaVisualizerCard ca={selectedCaDetails} className="shadow-md border-primary" />
+            </div>
+          )}
 
           {config && selectedCaDetails && (
-            <Card className="border-primary shadow-md">
+            <Card className="border-primary/50 shadow-md mt-4">
               <CardHeader>
                 <CardTitle className="text-xl flex items-center">
                   <Settings className="mr-2 h-6 w-6 text-primary" />
@@ -358,7 +364,6 @@ export default function VerificationAuthoritiesPage() {
                 <CardDescription>Customize CRL, OCSP, and advanced validation parameters for this CA.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* General Settings */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg">General Validation Methods</CardTitle>
@@ -376,7 +381,6 @@ export default function VerificationAuthoritiesPage() {
                 </Card>
 
                 <Accordion type="multiple" defaultValue={['crl', 'ocsp']} className="w-full">
-                  {/* CRL Configuration */}
                   <AccordionItem value="crl">
                     <AccordionTrigger className="text-lg font-medium">
                       <FileText className="mr-2 h-5 w-5" /> CRL Configuration
@@ -471,7 +475,6 @@ export default function VerificationAuthoritiesPage() {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* OCSP Configuration */}
                   <AccordionItem value="ocsp">
                     <AccordionTrigger className="text-lg font-medium">
                       <ListChecks className="mr-2 h-5 w-5" /> OCSP Configuration
@@ -611,7 +614,6 @@ export default function VerificationAuthoritiesPage() {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* Advanced Options */}
                   <AccordionItem value="advanced">
                     <AccordionTrigger className="text-lg font-medium">
                       <Settings className="mr-2 h-5 w-5" /> Advanced Options
@@ -680,5 +682,3 @@ export default function VerificationAuthoritiesPage() {
     </div>
   );
 }
-
-    
