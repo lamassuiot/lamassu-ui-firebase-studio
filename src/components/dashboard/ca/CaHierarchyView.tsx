@@ -16,7 +16,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
     <div className="w-full overflow-x-auto p-4 space-y-12"> {/* Allow horizontal scrolling */}
       {cas.map((rootCa) => (
         <div key={rootCa.id} className="flex justify-center"> {/* Center each root CA's tree */}
-          <CaHierarchyNode ca={rootCa} router={router} allCAs={allCAs} />
+          <CaHierarchyNode ca={rootCa} router={router} allCAs={allCAs} isRoot={true} />
         </div>
       ))}
       {cas.length === 0 && (

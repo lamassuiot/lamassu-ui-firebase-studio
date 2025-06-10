@@ -14,6 +14,7 @@ interface CaHierarchyNodeProps {
   ca: CA;
   router: ReturnType<typeof import('next/navigation').useRouter>;
   allCAs: CA[];
+  isRoot?: boolean;
 }
 
 const getExpiryTextAndStatusVisuals = (expires: string, status: CA['status']): { text: string; badgeVariant: "default" | "secondary" | "destructive" | "outline"; badgeClass: string } => {
@@ -38,7 +39,7 @@ const getExpiryTextAndStatusVisuals = (expires: string, status: CA['status']): {
   return { text: `${status.toUpperCase()} \u00B7 ${text}`, badgeVariant, badgeClass };
 };
 
-export const CaHierarchyNode: React.FC<CaHierarchyNodeProps> = ({ ca, router, allCAs }) => {
+export const CaHierarchyNode: React.FC<CaHierarchyNodeProps> = ({ ca, router, allCAs, isRoot = false }) => {
   const { text: statusText, badgeVariant, badgeClass } = getExpiryTextAndStatusVisuals(ca.expires, ca.status);
 
   const handleDetailsClick = (e: React.MouseEvent) => {
@@ -55,7 +56,12 @@ export const CaHierarchyNode: React.FC<CaHierarchyNodeProps> = ({ ca, router, al
 
   return (
     <div className="inline-flex flex-col items-center p-1 relative group"> {/* Node container */}
-      {/* CA Card */}
+      {!isRoot && (
+        // Upward connector line: from this node to its parent's children row.
+        // Positioned `top-[-32px]` relative to this node's container, with `h-8` (32px).
+        <div className="absolute left-1/2 transform -translate-x-1/2 top-[-32px] w-[1px] h-8 bg-slate-400 dark:bg-slate-600 group-hover:bg-primary transition-colors duration-150 ease-in-out"></div>
+      )}
+      
       <Card className="min-w-[180px] max-w-[200px] w-auto shadow-md hover:shadow-lg transition-shadow bg-card z-10">
         <CardHeader className="p-2 border-b">
           <div className="flex items-center space-x-1.5">
@@ -78,15 +84,16 @@ export const CaHierarchyNode: React.FC<CaHierarchyNodeProps> = ({ ca, router, al
 
       {/* Children Rendering Area */}
       {hasChildren && (
+        // The `mt-8` here creates the space for the children's upward lines AND this parent's downward line.
         <div className="mt-8 flex flex-row flex-wrap justify-center items-start gap-x-6 gap-y-8 relative"> {/* Children container */}
-          {/* Simple line from parent to this container - centered above */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 top-[-32px] w-px h-8 bg-border group-hover:bg-primary transition-colors"></div>
+          {/* Downward connector line: from parent card to the center of this children container. */}
+          {/* Positioned `top-[-32px]` relative to THIS children container, with `h-8` (32px). */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 top-[-32px] w-[1px] h-8 bg-slate-400 dark:bg-slate-600 group-hover:bg-primary transition-colors duration-150 ease-in-out"></div>
 
           {ca.children.map((childCa) => (
             <div key={childCa.id} className="relative">
-              {/* Simple line from top of this div to this child node (from its parent group) */}
-               <div className="absolute left-1/2 transform -translate-x-1/2 top-[-32px] w-px h-8 bg-border group-hover:bg-primary transition-colors"></div>
-              <CaHierarchyNode ca={childCa} router={router} allCAs={allCAs} />
+              {/* Each child node will draw its own upward connector if it's not a root (which it won't be here) */}
+              <CaHierarchyNode ca={childCa} router={router} allCAs={allCAs} isRoot={false} />
             </div>
           ))}
         </div>
