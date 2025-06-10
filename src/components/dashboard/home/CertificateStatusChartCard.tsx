@@ -13,7 +13,7 @@ interface ChartData {
 }
 
 const certificateStatusData: ChartData[] = [
-  { name: 'Active', value: 70, color: 'hsl(var(--chart-1))' }, // Using chart-1 (primary blue for active on primary bg)
+  { name: 'Active', value: 70, color: '#008000' }, // Changed to specific green
   { name: 'About to expire', value: 15, color: 'hsl(var(--chart-3))' }, // Orange/Amber
   { name: 'Expired', value: 10, color: 'hsl(var(--chart-5))' }, // Reddish/Pinkish
   { name: 'Revoked', value: 5, color: 'hsl(var(--destructive))' }, // Destructive Red
@@ -21,7 +21,8 @@ const certificateStatusData: ChartData[] = [
 
 // Fallback colors for recharts if CSS variables are not directly picked up by SVG elements
 const fallbackColors = {
-    'hsl(var(--chart-1))': 'hsl(217 100% 53%)', // primary blue
+    // Note: '#008000' for Active will be used directly as it's not a CSS var key.
+    'hsl(var(--chart-1))': 'hsl(217 100% 53%)', // Retained for reference, but Active now uses #008000
     'hsl(var(--chart-3))': 'hsl(30 80% 55%)', // orange
     'hsl(var(--chart-5))': 'hsl(340 75% 55%)', // pinkish-red
     'hsl(var(--destructive))': 'hsl(0 72% 51%)', // destructive red
