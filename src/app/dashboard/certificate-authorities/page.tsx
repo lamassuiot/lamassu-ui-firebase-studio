@@ -12,6 +12,7 @@ import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import dynamic from 'next/dynamic';
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const CaFilesystemView = dynamic(() => 
   import('@/components/dashboard/ca/CaFilesystemView').then(mod => mod.CaFilesystemView), 
@@ -165,29 +166,16 @@ export default function CertificateAuthoritiesPage() {
     router.push('/dashboard/certificate-authorities/new');
   };
 
-  const toggleViewMode = () => {
-    setViewMode(prevMode => {
-      if (prevMode === 'list') return 'filesystem';
-      if (prevMode === 'filesystem') return 'hierarchy';
-      return 'list'; // Cycle from hierarchy back to list
-    });
+  const handleViewModeChange = (newMode: string) => {
+    if (newMode && (newMode === 'list' || newMode === 'filesystem' || newMode === 'hierarchy')) {
+      setViewMode(newMode as ViewMode);
+    }
   };
   
-  let nextViewIcon = <List className="h-4 w-4" />;
-  let nextViewText = "List View";
   let currentViewTitle = "List View";
-
-  if (viewMode === 'list') {
-    nextViewIcon = <FolderKanban className="h-4 w-4" />;
-    nextViewText = "Filesystem View";
-    currentViewTitle = "List View";
-  } else if (viewMode === 'filesystem') {
-    nextViewIcon = <Network className="h-4 w-4" />;
-    nextViewText = "Hierarchy View";
+  if (viewMode === 'filesystem') {
     currentViewTitle = "Filesystem View";
   } else if (viewMode === 'hierarchy') {
-    nextViewIcon = <List className="h-4 w-4" />;
-    nextViewText = "List View";
     currentViewTitle = "Hierarchy View";
   }
 
@@ -202,10 +190,20 @@ export default function CertificateAuthoritiesPage() {
               <h1 className="text-2xl font-headline font-semibold">Certificate Authorities</h1> 
             </div>
             <div className="flex items-center space-x-2">
-              <Button variant="outline" onClick={toggleViewMode} title={`Switch to ${nextViewText}`}>
-                {nextViewIcon}
-                <span className="ml-2 hidden sm:inline">{nextViewText}</span>
-              </Button>
+              <ToggleGroup type="single" value={viewMode} onValueChange={handleViewModeChange} variant="outline" aria-label="View mode">
+                <ToggleGroupItem value="list" aria-label="List view">
+                  <List className="h-4 w-4 mr-0 sm:mr-2" />
+                  <span className="hidden sm:inline">List</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="filesystem" aria-label="Filesystem view">
+                  <FolderKanban className="h-4 w-4 mr-0 sm:mr-2" />
+                   <span className="hidden sm:inline">Filesystem</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="hierarchy" aria-label="Hierarchy view">
+                  <Network className="h-4 w-4 mr-0 sm:mr-2" />
+                   <span className="hidden sm:inline">Hierarchy</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
               <Button variant="default" onClick={handleCreateNewCAClick}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
               </Button>
