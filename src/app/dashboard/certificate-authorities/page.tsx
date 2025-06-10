@@ -4,15 +4,40 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network, Loader2 } from "lucide-react"; // Added Network and Loader2
+import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network, Loader2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData, getCaDisplayName } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CaFilesystemView } from '@/components/dashboard/ca/CaFilesystemView';
-import { CaHierarchyView } from '@/components/dashboard/ca/CaHierarchyView';
+import dynamic from 'next/dynamic';
+
+const CaFilesystemView = dynamic(() => 
+  import('@/components/dashboard/ca/CaFilesystemView').then(mod => mod.CaFilesystemView), 
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg">Loading Filesystem View...</p>
+      </div>
+    )
+  }
+);
+
+const CaHierarchyView = dynamic(() => 
+  import('@/components/dashboard/ca/CaHierarchyView').then(mod => mod.CaHierarchyView), 
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg">Loading Hierarchy View...</p>
+      </div>
+    )
+  }
+);
 
 type ViewMode = 'list' | 'filesystem' | 'hierarchy';
 
@@ -88,7 +113,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
           className={cn(
             "flex-1 w-full", 
             level === 0 ? "bg-card" : "bg-card/90",
-            "border-0 shadow-none cursor-pointer" // Added cursor-pointer
+            "border-0 shadow-none cursor-pointer" 
           )}
           onClick={handleToggleOpen} 
           role="button" tabIndex={0} 
@@ -135,11 +160,6 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
 export default function CertificateAuthoritiesPage() {
   const router = useRouter(); 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const handleCreateNewCAClick = () => {
     router.push('/dashboard/certificate-authorities/new');
@@ -195,24 +215,21 @@ export default function CertificateAuthoritiesPage() {
         </div>
         <div className="pt-6"> 
           {certificateAuthoritiesData.length > 0 ? (
-            isClient ? (
-              viewMode === 'list' ? (
+            <>
+              {viewMode === 'list' && (
                 <ul className="space-y-2">
                   {certificateAuthoritiesData.map((ca) => (
                     <CaTreeItem key={ca.id} ca={ca} level={0} router={router} allCAs={certificateAuthoritiesData} />
                   ))}
                 </ul>
-              ) : viewMode === 'filesystem' ? (
+              )}
+              {viewMode === 'filesystem' && (
                 <CaFilesystemView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
-              ) : ( // hierarchy view
+              )}
+              {viewMode === 'hierarchy' && (
                 <CaHierarchyView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
-              )
-            ) : (
-                <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                    <p className="text-lg">Loading CA View...</p>
-                </div>
-            )
+              )}
+            </>
           ) : (
             <p className="text-muted-foreground">No Certificate Authorities configured.</p>
           )}
