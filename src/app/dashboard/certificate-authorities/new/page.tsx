@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus } from "lucide-react";
+import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, HardDrive, KeyRound, Settings, Info, CalendarDays } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
+import { Separator } from '@/components/ui/separator';
 
 interface SelectableCaTreeItemProps {
   ca: CA;
@@ -22,13 +23,9 @@ interface SelectableCaTreeItemProps {
 }
 
 const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({ ca, level, onSelect, currentParentId }) => {
-  const [isOpen, setIsOpen] = useState(level < 1); // Expand first level by default
+  const [isOpen, setIsOpen] = useState(level < 1);
   const hasChildren = ca.children && ca.children.length > 0;
-
-  // Root CAs cannot be children of other CAs (unless we allow cross-signing, which is advanced)
-  // For simplicity, any CA can be a parent for now.
-  // You might want to filter this to only allow selection of Root or Intermediate CAs.
-  const isSelectable = true; 
+  const isSelectable = true;
 
   const handleSelect = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -44,15 +41,15 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({ ca, level, 
       )}
       <div className="flex items-center space-x-2">
         {hasChildren && (
-          <ChevronRight 
+          <ChevronRight
             className={`h-4 w-4 text-muted-foreground transition-transform duration-150 cursor-pointer ${isOpen ? 'rotate-90' : ''}`}
             onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
           />
         )}
         {!hasChildren && <div className="w-4 h-4"></div>} {/* Placeholder for alignment */}
-        
+
         <FolderTree className="h-4 w-4 text-primary flex-shrink-0" />
-        <span 
+        <span
           className={`flex-1 text-sm ${isSelectable ? 'cursor-pointer hover:underline' : 'text-muted-foreground'} ${currentParentId === ca.id ? 'font-bold text-primary': ''}`}
           onClick={isSelectable ? handleSelect : undefined}
         >
@@ -70,26 +67,73 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({ ca, level, 
   );
 };
 
+const keyTypes = [
+  { value: 'RSA', label: 'RSA' },
+  { value: 'ECDSA', label: 'ECDSA' },
+];
+
+const rsaKeySizes = [
+  { value: '2048', label: '2048 bit' },
+  { value: '3072', label: '3072 bit' },
+  { value: '4096', label: '4096 bit' },
+];
+
+const ecdsaKeySizes = [
+  { value: 'P-256', label: 'P-256' },
+  { value: 'P-384', label: 'P-384' },
+  { value: 'P-521', label: 'P-521' },
+];
+
 
 export default function CreateCertificateAuthorityPage() {
   const router = useRouter();
-  const [caName, setCaName] = useState('');
-  const [caType, setCaType] = useState('root');
+  const [caType, setCaType] = useState('root'); // 'root' or 'intermediate'
+  const [cryptoEngine, setCryptoEngine] = useState('Local Software KeyStore');
   const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
-  const [validityYears, setValidityYears] = useState(caType === 'root' ? 10 : 5);
-  const [keyAlgorithm, setKeyAlgorithm] = useState('RSA_2048');
-  const [signatureAlgorithm, setSignatureAlgorithm] = useState('SHA256_WITH_RSA');
+  const [caId, setCaId] = useState('');
+  const [caName, setCaName] = useState(''); // This will be Subject CN
+
+  const [keyType, setKeyType] = useState('RSA');
+  const [keySize, setKeySize] = useState('2048');
+
+  // Subject DN components
+  const [country, setCountry] = useState(''); // C
+  const [stateProvince, setStateProvince] = useState(''); // ST
+  const [locality, setLocality] = useState(''); // L
+  const [organization, setOrganization] = useState(''); // O
+  const [organizationalUnit, setOrganizationalUnit] = useState(''); // OU
+
+  const [caExpirationDuration, setCaExpirationDuration] = useState('10y');
+  const [issuanceExpirationDuration, setIssuanceExpirationDuration] = useState('1y');
+
   const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
+
+  useEffect(() => {
+    setCaId(crypto.randomUUID());
+  }, []);
 
   const handleCaTypeChange = (value: string) => {
     setCaType(value);
-    setSelectedParentCa(null); // Reset parent CA selection
+    setSelectedParentCa(null);
     if (value === 'root') {
-      setValidityYears(10);
+      setCaExpirationDuration('10y');
+      setIssuanceExpirationDuration('1y');
     } else {
-      setValidityYears(5);
+      setCaExpirationDuration('5y');
+      setIssuanceExpirationDuration('90d');
     }
   };
+
+  const handleKeyTypeChange = (value: string) => {
+    setKeyType(value);
+    if (value === 'RSA') {
+      setKeySize('2048');
+    } else if (value === 'ECDSA') {
+      setKeySize('P-256');
+    }
+  };
+
+  const currentKeySizeOptions = keyType === 'RSA' ? rsaKeySizes : ecdsaKeySizes;
 
   const handleParentCaSelect = (ca: CA) => {
     setSelectedParentCa(ca);
@@ -102,23 +146,39 @@ export default function CreateCertificateAuthorityPage() {
       alert('Please select a Parent CA for intermediate CAs.');
       return;
     }
+    if (!caName.trim()) {
+        alert('CA Name (Common Name) cannot be empty.');
+        return;
+    }
+
+    const subjectDN = {
+        C: country,
+        ST: stateProvince,
+        L: locality,
+        O: organization,
+        OU: organizationalUnit,
+        CN: caName,
+    };
 
     const formData = {
-      caName,
       caType,
-      issuerId: caType === 'root' ? 'Self-signed' : selectedParentCa?.id,
-      issuerDisplayName: caType === 'root' ? 'Self-signed' : selectedParentCa?.name,
-      validityYears,
-      keyAlgorithm,
-      signatureAlgorithm,
+      cryptoEngine,
+      parentCaId: caType === 'root' ? 'Self-signed' : selectedParentCa?.id,
+      parentCaName: caType === 'root' ? 'Self-signed' : selectedParentCa?.name,
+      caId,
+      subjectDN,
+      keyType,
+      keySize,
+      caExpirationDuration,
+      issuanceExpirationDuration,
     };
     console.log('Creating new CA with data:', formData);
-    alert(`Mock CA Creation Successful for: ${caName}\nType: ${caType}\nIssuer: ${formData.issuerDisplayName}\nValidity: ${validityYears} years`);
-    router.push('/dashboard/certificate-authorities'); 
+    alert(`Mock CA Creation Successful for: ${caName}\nType: ${caType}\nDetails in console.`);
+    router.push('/dashboard/certificate-authorities');
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 mb-8">
       <Button variant="outline" onClick={() => router.back()} className="mb-4">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
       </Button>
@@ -133,107 +193,173 @@ export default function CreateCertificateAuthorityPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <Label htmlFor="caName">CA Name</Label>
-              <Input
-                id="caName"
-                value={caName}
-                onChange={(e) => setCaName(e.target.value)}
-                placeholder="e.g., LamassuIoT Secure Services CA"
-                required
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-8">
 
-            <div>
-              <Label htmlFor="caType">CA Type</Label>
-              <Select value={caType} onValueChange={handleCaTypeChange}>
-                <SelectTrigger id="caType">
-                  <SelectValue placeholder="Select CA type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="root">Root CA</SelectItem>
-                  <SelectItem value="intermediate">Intermediate CA</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* CA Settings Section */}
+            <section>
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
+              <div className="space-y-4 p-4 border rounded-md">
+                <div>
+                  <Label htmlFor="caType">CA Type</Label>
+                  <Select value={caType} onValueChange={handleCaTypeChange}>
+                    <SelectTrigger id="caType"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="root">Root CA</SelectItem>
+                      <SelectItem value="intermediate">Intermediate CA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {caType === 'intermediate' && (
-              <div>
-                <Label htmlFor="parentCa">Parent CA</Label>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsParentCaModalOpen(true)}
-                  className="w-full justify-start text-left font-normal mt-1"
-                  id="parentCa"
-                >
-                  {selectedParentCa ? selectedParentCa.name : "Select Parent CA..."}
-                </Button>
-                {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected.</p>}
+                <div>
+                  <Label htmlFor="cryptoEngine">Crypto Engine</Label>
+                  <Select value={cryptoEngine} onValueChange={setCryptoEngine}>
+                    <SelectTrigger id="cryptoEngine"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Local Software KeyStore">Local Software KeyStore</SelectItem>
+                      <SelectItem value="AWS KMS">AWS KMS (mock)</SelectItem>
+                      <SelectItem value="Azure Key Vault">Azure Key Vault (mock)</SelectItem>
+                      <SelectItem value="Hardware HSM">Hardware HSM (mock)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {caType === 'intermediate' && (
+                  <div>
+                    <Label htmlFor="parentCa">Parent CA</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsParentCaModalOpen(true)}
+                      className="w-full justify-start text-left font-normal mt-1"
+                      id="parentCa"
+                    >
+                      {selectedParentCa ? selectedParentCa.name : "Select Parent CA..."}
+                    </Button>
+                    {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected for intermediate CAs.</p>}
+                  </div>
+                )}
+                 {caType === 'root' && (
+                     <div>
+                        <Label htmlFor="issuerName">Issuer</Label>
+                        <Input id="issuerName" value="Self-signed" disabled className="mt-1 bg-muted/50" />
+                        <p className="text-xs text-muted-foreground mt-1">Root CAs are self-signed.</p>
+                     </div>
+                )}
+
+
+                <div>
+                  <Label htmlFor="caId">CA ID</Label>
+                  <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
+                </div>
+
+                <div>
+                  <Label htmlFor="caName">CA Name (Subject Common Name)</Label>
+                  <Input
+                    id="caName"
+                    value={caName}
+                    onChange={(e) => setCaName(e.target.value)}
+                    placeholder="e.g., LamassuIoT Secure Services CA"
+                    required
+                    className="mt-1"
+                  />
+                  {!caName.trim() && <p className="text-xs text-destructive mt-1">CA Name (Common Name) cannot be empty.</p>}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="keyType">Key Type</Label>
+                    <Select value={keyType} onValueChange={handleKeyTypeChange}>
+                      <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="keySize">Key Size</Label>
+                    <Select value={keySize} onValueChange={setKeySize}>
+                      <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {currentKeySizeOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            )}
+            </section>
 
-            {caType === 'root' && (
-                 <div>
-                    <Label htmlFor="issuerName">Issuer Name</Label>
-                    <Input
-                        id="issuerName"
-                        value="Self-signed"
-                        disabled
-                        className="mt-1"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Root CAs are self-signed.</p>
-                 </div>
-            )}
+            <Separator />
 
+            {/* Subject Section */}
+            <section>
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />Subject Distinguished Name (DN)</h3>
+              <div className="space-y-4 p-4 border rounded-md">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="country">Country (C)</Label>
+                    <Input id="country" value={country} onChange={e => setCountry(e.target.value)} placeholder="e.g., US (2-letter code)" maxLength={2} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="stateProvince">State / Province (ST)</Label>
+                    <Input id="stateProvince" value={stateProvince} onChange={e => setStateProvince(e.target.value)} placeholder="e.g., California" className="mt-1" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="locality">Locality (L)</Label>
+                    <Input id="locality" value={locality} onChange={e => setLocality(e.target.value)} placeholder="e.g., San Francisco" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="organization">Organization (O)</Label>
+                    <Input id="organization" value={organization} onChange={e => setOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" className="mt-1" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
+                  <Input id="organizationalUnit" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)} placeholder="e.g., Secure Devices Division" className="mt-1" />
+                </div>
+                 <p className="text-xs text-muted-foreground">The "CA Name" entered in CA Settings will be used as the Common Name (CN) for the subject.</p>
+              </div>
+            </section>
 
-            <div>
-              <Label htmlFor="validityYears">Validity (Years)</Label>
-              <Input
-                id="validityYears"
-                type="number"
-                value={validityYears}
-                onChange={(e) => setValidityYears(parseInt(e.target.value, 10))}
-                min="1"
-                required
-              />
+            <Separator />
+
+            {/* Expiration Settings */}
+            <section>
+                 <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md">
+                    <div>
+                        <Label htmlFor="caExpirationDuration" className="font-medium">CA Certificate Expiration</Label>
+                        <Input
+                            id="caExpirationDuration"
+                            value={caExpirationDuration}
+                            onChange={(e) => setCaExpirationDuration(e.target.value)}
+                            placeholder="e.g., 10y, 365d"
+                            required
+                            className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Duration (valid units: y/w/d/h/m/s).</p>
+                    </div>
+                    <div>
+                        <Label htmlFor="issuanceExpirationDuration" className="font-medium">Default End-Entity Certificate Issuance Expiration</Label>
+                        <Input
+                            id="issuanceExpirationDuration"
+                            value={issuanceExpirationDuration}
+                            onChange={(e) => setIssuanceExpirationDuration(e.target.value)}
+                            placeholder="e.g., 1y, 90d"
+                            required
+                            className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Duration for certs issued by this CA.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div className="flex justify-end pt-4">
+              <Button type="submit" size="lg">
+                <PlusCircle className="mr-2 h-5 w-5" /> Create CA
+              </Button>
             </div>
-            
-            <div>
-              <Label htmlFor="keyAlgorithm">Key Algorithm</Label>
-              <Select value={keyAlgorithm} onValueChange={setKeyAlgorithm}>
-                <SelectTrigger id="keyAlgorithm">
-                  <SelectValue placeholder="Select key algorithm" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="RSA_2048">RSA 2048-bit</SelectItem>
-                  <SelectItem value="RSA_4096">RSA 4096-bit</SelectItem>
-                  <SelectItem value="ECDSA_P256">ECDSA P-256</SelectItem>
-                  <SelectItem value="ECDSA_P384">ECDSA P-384</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="signatureAlgorithm">Signature Algorithm</Label>
-              <Select value={signatureAlgorithm} onValueChange={setSignatureAlgorithm}>
-                <SelectTrigger id="signatureAlgorithm">
-                  <SelectValue placeholder="Select signature algorithm" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SHA256_WITH_RSA">SHA256 with RSA</SelectItem>
-                  <SelectItem value="SHA384_WITH_RSA">SHA384 with RSA</SelectItem>
-                  <SelectItem value="SHA512_WITH_RSA">SHA512 with RSA</SelectItem>
-                  <SelectItem value="SHA256_WITH_ECDSA">SHA256 with ECDSA</SelectItem>
-                  <SelectItem value="SHA384_WITH_ECDSA">SHA384 with ECDSA</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button type="submit" className="w-full sm:w-auto">
-              Create CA
-            </Button>
           </form>
         </CardContent>
       </Card>
@@ -248,11 +374,11 @@ export default function CreateCertificateAuthorityPage() {
           </DialogHeader>
           <ScrollArea className="h-72 my-4">
             <ul className="space-y-1 pr-2">
-              {certificateAuthoritiesData.map((ca) => (
-                <SelectableCaTreeItem 
-                  key={ca.id} 
-                  ca={ca} 
-                  level={0} 
+              {certificateAuthoritiesData.filter(ca => ca.status === 'active').map((ca) => ( // Only show active CAs as potential parents
+                <SelectableCaTreeItem
+                  key={ca.id}
+                  ca={ca}
+                  level={0}
                   onSelect={handleParentCaSelect}
                   currentParentId={selectedParentCa?.id}
                 />
