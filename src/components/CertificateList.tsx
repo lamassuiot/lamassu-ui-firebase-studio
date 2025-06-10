@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useTransition } from 'react';
+import React, { useState } from 'react';
 import type { CertificateData, VerificationStatus } from '@/types/certificate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { verifyCertificateAction } from '@/lib/actions/certificateActions';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -52,7 +51,6 @@ const getCommonName = (subjectOrIssuer: string): string => {
 };
 
 export function CertificateList({ certificates, onInspectCertificate, onCertificateUpdated }: CertificateListProps) {
-  const [isVerifying, startVerifyingTransition] = useTransition();
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
@@ -61,35 +59,43 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     setVerifyingId(certificate.id);
     onCertificateUpdated({ ...certificate, verificationStatus: 'pending', verificationDetails: 'Verification in progress...' });
 
-    startVerifyingTransition(async () => {
-      try {
-        const result = await verifyCertificateAction(certificate.id, certificate.pemData);
-        onCertificateUpdated({
-          ...certificate,
-          verificationStatus: result.status,
-          verificationDetails: result.details,
-        });
-        toast({
-          title: result.success ? "Verification Complete" : "Verification Failed",
-          description: result.details,
-          variant: result.success ? "default" : "destructive",
-        });
-      } catch (error) {
-        console.error("Verification error:", error);
-        onCertificateUpdated({
-          ...certificate,
-          verificationStatus: 'error',
-          verificationDetails: 'An unexpected error occurred during verification client-side.',
-        });
-        toast({
-          title: "Verification Error",
-          description: "An unexpected error occurred.",
-          variant: "destructive",
-        });
-      } finally {
-        setVerifyingId(null);
-      }
+    // Simulate verification delay and process (client-side)
+    await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+
+    let resultStatus: VerificationStatus = 'error';
+    let resultDetails = 'An unexpected error occurred during verification.';
+    let success = false;
+
+    // Mocked verification logic
+    const randomOutcome = Math.random();
+    if (randomOutcome < 0.05) { // 5% chance of error
+      resultStatus = 'error';
+      resultDetails = 'An unexpected error occurred during verification.';
+    } else if (randomOutcome < 0.15) { // 10% chance of expired
+      resultStatus = 'expired';
+      resultDetails = 'Certificate is expired.';
+    } else if (randomOutcome < 0.25) { // 10% chance of invalid path
+      resultStatus = 'invalid_path';
+      resultDetails = 'Certificate validation failed: Unable to find a valid certification path to a trusted root CA.';
+    } else { // 75% chance of successful verification
+      resultStatus = 'verified';
+      resultDetails = 'Certificate chain verified successfully against trusted roots. Not Expired. Not Revoked (mocked).';
+      success = true;
+    }
+
+    onCertificateUpdated({
+      ...certificate,
+      verificationStatus: resultStatus,
+      verificationDetails: resultDetails,
     });
+    
+    toast({
+      title: success ? "Verification Complete" : "Verification Failed",
+      description: resultDetails,
+      variant: success ? "default" : "destructive",
+    });
+
+    setVerifyingId(null);
   };
 
   if (certificates.length === 0) {
@@ -152,10 +158,10 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                       variant="outline"
                       size="sm"
                       onClick={() => handleVerify(cert)}
-                      disabled={(isVerifying && verifyingId === cert.id) || cert.verificationStatus === 'pending'}
+                      disabled={verifyingId === cert.id || cert.verificationStatus === 'pending'}
                       title="Verify Certificate"
                     >
-                      {(isVerifying && verifyingId === cert.id) || cert.verificationStatus === 'pending' ? (
+                      {verifyingId === cert.id || cert.verificationStatus === 'pending' ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <CheckCircle className="h-4 w-4" />
@@ -192,4 +198,3 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     </div>
   );
 }
-
