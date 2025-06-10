@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban } from "lucide-react";
+import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network } from "lucide-react"; // Added Network
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData, getCaDisplayName } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,9 @@ import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CaFilesystemView } from '@/components/dashboard/ca/CaFilesystemView';
+import { CaHierarchyView } from '@/components/dashboard/ca/CaHierarchyView'; // New Import
+
+type ViewMode = 'list' | 'filesystem' | 'hierarchy'; // Added 'hierarchy'
 
 const getExpiryTextAndStatus = (expires: string, status: CA['status']): { text: string; badgeVariant: "default" | "secondary" | "destructive" | "outline"; badgeClass: string } => {
   const expiryDate = parseISO(expires);
@@ -58,7 +61,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
     if (hasChildren) {
       setIsOpen(!isOpen);
     } else {
-      handleDetailsClick(e);
+      handleDetailsClick(e); // If no children, clicking the card goes to details
     }
   };
   
@@ -85,7 +88,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
           className={cn(
             "flex-1 w-full", 
             level === 0 ? "bg-card" : "bg-card/90",
-            "border-0 shadow-none" 
+            "border-0 shadow-none cursor-pointer" // Added cursor-pointer
           )}
           onClick={handleToggleOpen} 
           role="button" tabIndex={0} 
@@ -131,15 +134,38 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
 
 export default function CertificateAuthoritiesPage() {
   const router = useRouter(); 
-  const [viewMode, setViewMode] = useState<'list' | 'filesystem'>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const handleCreateNewCAClick = () => {
     router.push('/dashboard/certificate-authorities/new');
   };
 
   const toggleViewMode = () => {
-    setViewMode(prevMode => prevMode === 'list' ? 'filesystem' : 'list');
+    setViewMode(prevMode => {
+      if (prevMode === 'list') return 'filesystem';
+      if (prevMode === 'filesystem') return 'hierarchy';
+      return 'list'; // Cycle from hierarchy back to list
+    });
   };
+  
+  let nextViewIcon = <List className="h-4 w-4" />;
+  let nextViewText = "List View";
+  let currentViewTitle = "List View";
+
+  if (viewMode === 'list') {
+    nextViewIcon = <FolderKanban className="h-4 w-4" />;
+    nextViewText = "Filesystem View";
+    currentViewTitle = "List View";
+  } else if (viewMode === 'filesystem') {
+    nextViewIcon = <Network className="h-4 w-4" />;
+    nextViewText = "Hierarchy View";
+    currentViewTitle = "Filesystem View";
+  } else if (viewMode === 'hierarchy') {
+    nextViewIcon = <List className="h-4 w-4" />;
+    nextViewText = "List View";
+    currentViewTitle = "Hierarchy View";
+  }
+
 
   return (
     <div className="space-y-6 w-full">
@@ -151,16 +177,16 @@ export default function CertificateAuthoritiesPage() {
               <h1 className="text-2xl font-headline font-semibold">Certificate Authorities</h1> 
             </div>
             <div className="flex items-center space-x-2">
-              <Button variant="outline" onClick={toggleViewMode} title={viewMode === 'list' ? "Switch to Filesystem View" : "Switch to List View"}>
-                {viewMode === 'list' ? <FolderKanban className="h-4 w-4" /> : <List className="h-4 w-4" />}
-                <span className="ml-2 hidden sm:inline">{viewMode === 'list' ? "Filesystem View" : "List View"}</span>
+              <Button variant="outline" onClick={toggleViewMode} title={`Switch to ${nextViewText}`}>
+                {nextViewIcon}
+                <span className="ml-2 hidden sm:inline">{nextViewText}</span>
               </Button>
               <Button variant="default" onClick={handleCreateNewCAClick}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
               </Button>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">Manage your Certificate Authority (CA) configurations and trust stores. Click on a CA card to expand/collapse if it has sub-CAs.</p> 
+          <p className="text-sm text-muted-foreground">Currently viewing CAs in: <span className="font-semibold">{currentViewTitle}</span>. Manage your Certificate Authority configurations and trust stores.</p> 
         </div>
         <div className="pt-6"> 
           {certificateAuthoritiesData.length > 0 ? (
@@ -170,8 +196,10 @@ export default function CertificateAuthoritiesPage() {
                   <CaTreeItem key={ca.id} ca={ca} level={0} router={router} allCAs={certificateAuthoritiesData} />
                 ))}
               </ul>
-            ) : (
+            ) : viewMode === 'filesystem' ? (
               <CaFilesystemView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
+            ) : (
+              <CaHierarchyView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
             )
           ) : (
             <p className="text-muted-foreground">No Certificate Authorities configured.</p>
@@ -181,3 +209,4 @@ export default function CertificateAuthoritiesPage() {
     </div>
   );
 }
+
