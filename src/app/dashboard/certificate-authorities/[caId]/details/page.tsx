@@ -1,17 +1,7 @@
 
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check } from "lucide-react";
-import { certificateAuthoritiesData, findCaById, getCaDisplayName, type CA } from '@/lib/ca-data';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+// generateStaticParams and helper function must be at the top level for Server Components
+import type { CA } from '@/lib/ca-data';
+import { certificateAuthoritiesData } from '@/lib/ca-data';
 
 function getAllCaIds(cas: CA[]): { caId: string }[] {
   const ids: { caId: string }[] = [];
@@ -31,20 +21,36 @@ export async function generateStaticParams() {
   return getAllCaIds(certificateAuthoritiesData);
 }
 
-const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
-  if (value === undefined || value === null || value === '') return null;
-  return (
-    <div className={`py-2 ${fullWidthValue ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 items-baseline'}`}>
-      <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-      <dd className={`text-sm text-foreground ${fullWidthValue ? 'mt-1' : 'mt-1 sm:mt-0'}`}>
-        {value}
-      </dd>
-    </div>
-  );
-};
 
+// Client Component for the actual page content
+function CertificateAuthorityDetailsClientContent() {
+  'use client';
 
-export default function CertificateAuthorityDetailsPage() {
+  const React = require('react'); // Ensure React is in scope for 'use client'
+  const { useState, useEffect } = React;
+  const { useParams, useRouter } = require('next/navigation');
+  const { Button } = require("@/components/ui/button");
+  const { Accordion, AccordionContent, AccordionItem, AccordionTrigger } = require("@/components/ui/accordion");
+  const { ArrowLeft, FileText, Info, KeyRound, Lock, Link: LinkIcon, ListChecks, Server, ScrollText, Clipboard, Check } = require("lucide-react");
+  const { findCaById, getCaDisplayName } = require('@/lib/ca-data');
+  const { Badge } = require('@/components/ui/badge');
+  const { Separator } = require('@/components/ui/separator');
+  const { ScrollArea } = require('@/components/ui/scroll-area');
+  const { useToast } = require('@/hooks/use-toast');
+  const { cn } = require('@/lib/utils');
+  
+  const DetailItem: React.FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
+    if (value === undefined || value === null || value === '') return null;
+    return (
+      <div className={`py-2 ${fullWidthValue ? 'grid grid-cols-1' : 'grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 items-baseline'}`}>
+        <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
+        <dd className={`text-sm text-foreground ${fullWidthValue ? 'mt-1' : 'mt-1 sm:mt-0'}`}>
+          {value}
+        </dd>
+      </div>
+    );
+  };
+
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
@@ -279,4 +285,11 @@ export default function CertificateAuthorityDetailsPage() {
       </div>
     </div>
   );
+}
+
+
+// Page component (Server Component)
+export default function CertificateAuthorityDetailsPage() {
+  // This component can fetch server-side data if needed and pass it to CertificateAuthorityDetailsClientContent
+  return <CertificateAuthorityDetailsClientContent />;
 }
