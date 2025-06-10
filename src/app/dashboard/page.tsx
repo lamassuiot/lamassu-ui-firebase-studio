@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -5,8 +6,9 @@ import { CertificateStatusChartCard } from '@/components/dashboard/home/Certific
 
 export default function DashboardHomePage() {
   return (
-    <div className="w-full">
+    <div className="w-full flex justify-center">
       <CertificateStatusChartCard />
     </div>
   );
 }
+

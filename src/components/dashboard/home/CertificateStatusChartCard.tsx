@@ -49,13 +49,13 @@ export function CertificateStatusChartCard() {
 
 
   return (
-    <Card className="shadow-lg w-full bg-primary text-primary-foreground">
+    <Card className="shadow-lg w-full bg-primary text-primary-foreground max-w-lg">
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Certificate Status Overview</CardTitle>
         <CardDescription className="text-primary-foreground/80">A summary of all managed certificates by their current status.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div style={{ width: '100%', height: 400 }}>
+        <div style={{ width: '100%', height: 300 }}>
           <ResponsiveContainer>
             <PieChart>
               <Pie
