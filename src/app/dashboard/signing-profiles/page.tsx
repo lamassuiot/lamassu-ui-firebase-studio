@@ -5,7 +5,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollTextIcon, PlusCircle, Settings2, Clock, Fingerprint, BookText, Eye, Edit } from "lucide-react";
+import { ScrollTextIcon, PlusCircle, Settings2, Clock, Fingerprint, BookText, Eye, Edit, KeyRound, ShieldCheck, PenTool } from "lucide-react";
 import { useRouter } from 'next/navigation';
 
 interface SigningProfile {
@@ -81,9 +81,7 @@ export default function SigningProfilesPage() {
   const router = useRouter();
 
   const handleCreateNewProfile = () => {
-    // Placeholder for navigating to a new profile creation page
-    alert('Navigate to Create New Signing Profile page (placeholder)');
-    // router.push('/dashboard/signing-profiles/new');
+    router.push('/dashboard/signing-profiles/new');
   };
 
   const handleEditProfile = (profileId: string) => {
@@ -165,26 +163,3 @@ export default function SigningProfilesPage() {
     </div>
   );
 }
-// Helper Lucide icons, assuming they might not be auto-imported sometimes
-// If not already available in lucide-react, these would need to be handled.
-// For this mock, we assume PenTool and ShieldCheck are available or can be substituted.
-const PenTool = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M12 20h9"/>
-    <path d="M16.3761 3.22386L19.5563 6.40406C20.4632 7.31093 20.5222 8.79813 19.6951 9.78853L9.16202 21.2547C8.9634 21.4727 8.68903 21.6033 8.39266 21.6033H3V17.2107C3 16.9143 3.12732 16.6399 3.34533 16.4413L13.8784 4.9751C14.8688 4.14805 16.208 4.08907 17.1148 4.99594C17.1148 4.99594 17.1148 4.99594 17.1148 4.99594L16.3761 3.22386Z"/>
-    <path d="M14.5 6.5L18 10"/>
-  </svg>
-);
-const KeyRound = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M21 10h-3.38a3 3 0 0 1-2.28-5.18l1.32-1.92A1.94 1.94 0 0 0 15 1H9a6 6 0 0 0-6 6v6a6 6 0 0 0 6 6h2"/>
-    <circle cx="16.5" cy="16.5" r="2.5"/>
-  </svg>
-);
-const ShieldCheck = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-    <path d="m9 12 2 2 4-4"/>
-  </svg>
-);
-
