@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { KeyRound, PlusCircle, MoreVertical, Eye, Settings2, Trash2, Power, PowerOff } from "lucide-react";
+import { KeyRound, PlusCircle, MoreVertical, Eye, FilePlus2, PenTool, ShieldCheck } from "lucide-react"; // Added new icons
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -83,28 +83,6 @@ export default function KmsKeysPage() {
     alert('Navigate to Create New KMS Key form (placeholder)');
   };
 
-  const toggleKeyStatus = (keyId: string) => {
-    setKeys(prevKeys =>
-      prevKeys.map(key => {
-        if (key.id === keyId) {
-          if (key.status === 'Enabled') return { ...key, status: 'Disabled' as KmsKey['status'] };
-          if (key.status === 'Disabled') return { ...key, status: 'Enabled' as KmsKey['status'] };
-        }
-        return key;
-      })
-    );
-    alert(`Toggled status for key ${keyId} (mock)`);
-  };
-
-  const scheduleKeyDeletion = (keyId: string) => {
-     setKeys(prevKeys =>
-      prevKeys.map(key => 
-        key.id === keyId && key.status !== 'PendingDeletion' ? { ...key, status: 'PendingDeletion' as KmsKey['status'] } : key
-      )
-    );
-    alert(`Scheduled deletion for key ${keyId} (mock)`);
-  };
-
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
@@ -156,23 +134,14 @@ export default function KmsKeysPage() {
                         <DropdownMenuItem onClick={() => alert(`View details for key: ${key.alias}`)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Manage policy for key: ${key.alias}`)}>
-                          <Settings2 className="mr-2 h-4 w-4" /> Manage Policy
+                        <DropdownMenuItem onClick={() => alert(`Generate CSR for key: ${key.alias} (placeholder)`)}>
+                          <FilePlus2 className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => toggleKeyStatus(key.id)}
-                          disabled={key.status === 'PendingDeletion'}
-                        >
-                          {key.status === 'Enabled' ? <PowerOff className="mr-2 h-4 w-4" /> : <Power className="mr-2 h-4 w-4" />}
-                          {key.status === 'Enabled' ? 'Disable Key' : 'Enable Key'}
+                        <DropdownMenuItem onClick={() => alert(`Sign with key: ${key.alias} (placeholder)`)}>
+                          <PenTool className="mr-2 h-4 w-4" /> Sign
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => scheduleKeyDeletion(key.id)}
-                          disabled={key.status === 'PendingDeletion'}
-                          className={cn(key.status !== 'PendingDeletion' && "text-destructive focus:text-destructive focus:bg-destructive/10")}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Schedule Deletion
+                        <DropdownMenuItem onClick={() => alert(`Verify with key: ${key.alias} (placeholder)`)}>
+                          <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -196,4 +165,3 @@ export default function KmsKeysPage() {
     </div>
   );
 }
-
