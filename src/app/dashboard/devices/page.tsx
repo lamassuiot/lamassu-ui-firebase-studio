@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Router as RouterIcon, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
