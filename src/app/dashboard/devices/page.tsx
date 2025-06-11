@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon } from "lucide-react";
+import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -112,15 +112,17 @@ export default function DevicesPage() {
   const [devices, setDevices] = useState<DeviceData[]>([]);
   const [isLoadingApi, setIsLoadingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [currentViewBookmark, setCurrentViewBookmark] = useState<string | null>(null);
 
-  const fetchDevices = useCallback(async (bookmarkForThisFetch: string | null = null) => {
+  // Pagination state
+  const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]); // Initialize with null for the first page
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0); // Points to the current bookmark in bookmarkStack
+  const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null); // Token for the *actual* next page from API
+
+  const fetchDevices = useCallback(async (bookmarkToFetch: string | null) => {
     if (authLoading || !isAuthenticated() || !user?.access_token) {
       if (!authLoading && !isAuthenticated()) {
         setDevices([]);
-        setNextPageToken(null);
-        setCurrentViewBookmark(null);
+        setNextTokenFromApi(null);
       }
       return;
     }
@@ -132,10 +134,10 @@ export default function DevicesPage() {
       const params = new URLSearchParams({
         sort_by: 'creation_timestamp',
         sort_mode: 'desc',
-        page_size: '10', // Adjust as needed
+        page_size: '10',
       });
-      if (bookmarkForThisFetch) {
-        params.append('bookmark', bookmarkForThisFetch);
+      if (bookmarkToFetch) {
+        params.append('bookmark', bookmarkToFetch);
       }
       const url = `${baseUrl}?${params.toString()}`;
 
@@ -163,14 +165,13 @@ export default function DevicesPage() {
       }));
 
       setDevices(transformedDevices);
-      setNextPageToken(data.next);
-      setCurrentViewBookmark(bookmarkForThisFetch); 
+      setNextTokenFromApi(data.next);
+      setApiError(null);
     } catch (error: any) {
       console.error("Failed to fetch devices:", error);
       setApiError(error.message || "An unknown error occurred while fetching devices.");
       setDevices([]); 
-      setNextPageToken(null);
-      // Keep currentViewBookmark as is, so refresh tries the same page
+      setNextTokenFromApi(null);
     } finally {
       setIsLoadingApi(false);
     }
@@ -178,8 +179,11 @@ export default function DevicesPage() {
 
 
   useEffect(() => {
-    fetchDevices(null); // Initial fetch for the first page
-  }, [fetchDevices]);
+    // Initial fetch using the first bookmark in the stack (which is null)
+    if (bookmarkStack.length > 0 && currentPageIndex < bookmarkStack.length) {
+        fetchDevices(bookmarkStack[currentPageIndex]);
+    }
+  }, [fetchDevices]); // fetchDevices is memoized, so this runs on initial mount / when auth state changes
 
 
   const handleCreateNewDevice = () => {
@@ -196,23 +200,49 @@ export default function DevicesPage() {
 
   const handleDeleteDevice = (deviceId: string) => {
     if(confirm(`Are you sure you want to delete device ${deviceId}? This action cannot be undone.`)){
+        // This is a mock delete. In a real app, you'd call an API and then refetch or update state.
         setDevices(prev => prev.filter(d => d.id !== deviceId)); 
         alert(`Device ${deviceId} deleted (mock - API call not implemented).`);
     }
   };
 
   const handleRefresh = () => {
-    fetchDevices(currentViewBookmark);
-  };
-
-  const handleNextPage = () => {
-    if (nextPageToken) {
-      fetchDevices(nextPageToken);
+    if (currentPageIndex < bookmarkStack.length) {
+        fetchDevices(bookmarkStack[currentPageIndex]);
     }
   };
 
+  const handleNextPage = () => {
+    if (isLoadingApi) return;
 
-  if (authLoading && !devices.length) { // Show auth loading only if no devices are displayed yet
+    const potentialNextPageIndex = currentPageIndex + 1;
+    // If there's a page in our history stack forward from current
+    if (potentialNextPageIndex < bookmarkStack.length) {
+        setCurrentPageIndex(potentialNextPageIndex);
+        fetchDevices(bookmarkStack[potentialNextPageIndex]);
+    }
+    // Else, if API gave us a token for a new next page
+    else if (nextTokenFromApi) {
+        const newPageBookmark = nextTokenFromApi;
+        // If we had gone back and are now branching to a new "next" path,
+        // trim the old future path.
+        const newStack = bookmarkStack.slice(0, currentPageIndex + 1);
+
+        setBookmarkStack([...newStack, newPageBookmark]);
+        setCurrentPageIndex(newStack.length);
+        fetchDevices(newPageBookmark);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (isLoadingApi || currentPageIndex === 0) return;
+    const prevIndex = currentPageIndex - 1;
+    setCurrentPageIndex(prevIndex);
+    fetchDevices(bookmarkStack[prevIndex]);
+  };
+
+
+  if (authLoading && !devices.length) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -242,7 +272,7 @@ export default function DevicesPage() {
         Overview of all registered IoT devices, their status, and associated groups.
       </p>
 
-      {isLoadingApi && !devices.length && ( // Show general loading if API is loading and no devices yet
+      {isLoadingApi && !devices.length && ( 
          <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
             <p className="text-lg text-muted-foreground">Loading devices...</p>
@@ -323,15 +353,30 @@ export default function DevicesPage() {
               </TableBody>
             </Table>
           </div>
-          {nextPageToken && (
-            <div className="flex justify-center mt-4">
-              <Button onClick={handleNextPage} disabled={isLoadingApi}>
-                Next Page <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </>
       )}
+
+      {/* Pagination Controls */}
+      {!apiError && (devices.length > 0 || isLoadingApi) && (
+        <div className="flex justify-end items-center mt-4 space-x-2">
+            <Button 
+                onClick={handlePreviousPage} 
+                disabled={isLoadingApi || currentPageIndex === 0}
+                variant="outline"
+            >
+                <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+            </Button>
+            <Button 
+                onClick={handleNextPage} 
+                disabled={isLoadingApi || !(currentPageIndex < bookmarkStack.length - 1 || nextTokenFromApi)}
+                variant="outline"
+            >
+                Next <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+        </div>
+      )}
+
+
       {!apiError && !isLoadingApi && devices.length === 0 && (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">No Devices Registered</h3>
@@ -346,3 +391,4 @@ export default function DevicesPage() {
     </div>
   );
 }
+
