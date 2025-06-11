@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp09, ArrowDown90, Search, ChevronsUpDown } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronsUpDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -177,7 +177,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     const isSorted = sortConfig?.column === column;
     const Icon = isSorted ? (sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ) : ChevronsUpDown;
     if (column === 'expires') {
-         const DateIcon = isSorted ? (sortConfig?.direction === 'asc' ? ArrowUp09 : ArrowDown90) : ChevronsUpDown;
+         const DateIcon = isSorted ? (sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10) : ChevronsUpDown;
          return (
             <TableHead className={cn("cursor-pointer hover:bg-muted/50", className)} onClick={() => requestSort(column)}>
                 <div className="flex items-center gap-1">
