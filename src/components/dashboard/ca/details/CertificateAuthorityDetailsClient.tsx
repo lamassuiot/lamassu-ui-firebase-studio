@@ -50,6 +50,8 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
   const [fullChainCopied, setFullChainCopied] = useState(false);
   const [fullChainPemString, setFullChainPemString] = useState<string>('');
   const [metadataCopied, setMetadataCopied] = useState(false);
+  const [activeCertificateSubTab, setActiveCertificateSubTab] = useState('single-certificate');
+
 
   const mockLamassuMetadata = {
     lamassuInternalId: `lm_ca_${caId.replace(/-/g, '_')}`,
@@ -171,7 +173,6 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
         <Button variant="outline" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
         </Button>
-        {/* Placeholder for future global actions related to the CA list itself */}
       </div>
       
       <div className="w-full">
@@ -215,7 +216,6 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
                   <DetailItem label="Full Name" value={caDetails.name} />
                   <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
                   <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, allCertificateAuthoritiesData)} />
-                  {/* Status moved to header */}
                   <DetailItem label="Expires On" value={new Date(caDetails.expires).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
                   <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
                 </AccordionContent>
@@ -330,49 +330,79 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
           </TabsContent>
 
           <TabsContent value="certificate">
-            <div className="space-y-2 py-4">
-              <Tabs defaultValue="single-certificate" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="single-certificate">This Certificate</TabsTrigger>
-                  <TabsTrigger value="full-chain">Full Chain</TabsTrigger>
-                </TabsList>
-                <TabsContent value="single-certificate" className="mt-4">
-                  <div className="flex justify-start mb-2">
-                    <Button onClick={() => handleCopyText(caDetails.pemData || '', 'Certificate')} variant="outline" size="sm">
-                      {pemCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                      {pemCopied ? 'Copied!' : 'Copy PEM'}
-                    </Button>
-                  </div>
-                  {caDetails.pemData ? (
-                    <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
-                      <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
-                    </ScrollArea>
-                  ) : (
-                    <p className="text-sm text-muted-foreground p-4 text-center">No individual certificate PEM data available for this CA.</p>
-                  )}
-                </TabsContent>
-                <TabsContent value="full-chain" className="mt-4">
-                  <div className="flex justify-start mb-2">
-                    <Button onClick={() => handleCopyText(fullChainPemString, 'Full Chain')} variant="outline" size="sm" disabled={!fullChainPemString.trim()}>
-                      {fullChainCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Layers className="mr-2 h-4 w-4" />}
-                      {fullChainCopied ? 'Copied!' : 'Copy Chain PEM'}
-                    </Button>
-                  </div>
-                  {fullChainPemString.trim() ? (
-                    <>
+            <div className="flex flex-col md:flex-row gap-6 py-4">
+              <div className="flex-grow md:w-2/3 xl:w-3/4"> {/* Left Column: PEM Data with Sub-Tabs */}
+                <Tabs value={activeCertificateSubTab} onValueChange={setActiveCertificateSubTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="single-certificate">This Certificate</TabsTrigger>
+                    <TabsTrigger value="full-chain">Full Chain</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="single-certificate" className="mt-4">
+                    <div className="flex justify-start mb-2">
+                      <Button onClick={() => handleCopyText(caDetails.pemData || '', 'Certificate')} variant="outline" size="sm">
+                        {pemCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                        {pemCopied ? 'Copied!' : 'Copy PEM'}
+                      </Button>
+                    </div>
+                    {caDetails.pemData ? (
                       <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
-                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString}</pre>
+                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
                       </ScrollArea>
-                      <p className="text-xs text-muted-foreground mt-2">
-                          The full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
-                          The order is: Current CA, Intermediate CA(s) (if any), Root CA.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground p-4 text-center">No full chain PEM data available or could be constructed.</p>
-                  )}
-                </TabsContent>
-              </Tabs>
+                    ) : (
+                      <p className="text-sm text-muted-foreground p-4 text-center">No individual certificate PEM data available for this CA.</p>
+                    )}
+                  </TabsContent>
+                  <TabsContent value="full-chain" className="mt-4">
+                    <div className="flex justify-start mb-2">
+                      <Button onClick={() => handleCopyText(fullChainPemString, 'Full Chain')} variant="outline" size="sm" disabled={!fullChainPemString.trim()}>
+                        {fullChainCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Layers className="mr-2 h-4 w-4" />}
+                        {fullChainCopied ? 'Copied!' : 'Copy Chain PEM'}
+                      </Button>
+                    </div>
+                    {fullChainPemString.trim() ? (
+                      <>
+                        <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
+                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString}</pre>
+                        </ScrollArea>
+                        <p className="text-xs text-muted-foreground mt-2">
+                            The full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
+                            The order is: Current CA, Intermediate CA(s) (if any), Root CA.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground p-4 text-center">No full chain PEM data available or could be constructed.</p>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
+
+              <div className="flex-shrink-0 md:w-1/3 xl:w-1/4"> {/* Right Column: Issuance Hierarchy */}
+                <h4 className="text-md font-semibold mb-3 flex items-center">
+                  <Network className="mr-2 h-5 w-5 text-muted-foreground" />
+                  Issuance Path
+                </h4>
+                {caPathToRoot.length > 0 ? (
+                    <ScrollArea className="h-96 border rounded-md p-2 bg-muted/10">
+                        <div className="flex flex-col items-center w-full">
+                        {caPathToRoot.map((caNode, index) => (
+                            <CaHierarchyPathNode
+                            key={caNode.id}
+                            ca={caNode}
+                            isCurrentCa={caNode.id === caDetails.id}
+                            hasNext={index < caPathToRoot.length - 1}
+                            isFirst={index === 0}
+                            isDimmed={
+                                activeCertificateSubTab === 'single-certificate' &&
+                                caNode.id !== caDetails.id
+                            }
+                            />
+                        ))}
+                        </div>
+                    </ScrollArea>
+                ) : (
+                  <p className="text-sm text-muted-foreground p-4 text-center border rounded-md bg-muted/20">Hierarchy path not available.</p>
+                )}
+              </div>
             </div>
           </TabsContent>
 
@@ -406,20 +436,6 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
             </div>
           </TabsContent>
         </Tabs>
-          
-        <div className="mt-8 p-6 border-t">
-            <h3 className="text-lg font-semibold text-muted-foreground flex items-center mb-3">
-            <ListChecks className="mr-2 h-5 w-5" />
-            Additional Actions
-            </h3>
-            <div className="space-x-2">
-            <Button variant="secondary" onClick={() => router.push(`/dashboard/certificate-authorities/${caDetails.id}/issue-certificate`)}>
-                Issue New Certificate from this CA
-            </Button>
-            {/* Add more related actions specific to this CA here */}
-            </div>
-        </div>
-
       </div>
     </div>
   );
