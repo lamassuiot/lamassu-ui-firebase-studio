@@ -16,9 +16,9 @@ const createUserManager = (): UserManager | null => {
     return new UserManager({
       authority: 'https://lab.lamassu.io/auth/realms/lamassu', // No .well-known needed here
       client_id: 'frontend',
-      redirect_uri: `${CANONICAL_ORIGIN}/signin-callback`,
-      silent_redirect_uri: `${CANONICAL_ORIGIN}/silent-renew-callback`,
-      post_logout_redirect_uri: `${CANONICAL_ORIGIN}/signout-callback`,
+      redirect_uri: `${CANONICAL_ORIGIN}/signin-callback.html`,
+      silent_redirect_uri: `${CANONICAL_ORIGIN}/silent-renew-callback.html`,
+      post_logout_redirect_uri: `${CANONICAL_ORIGIN}/signout-callback.html`,
       response_type: 'code',
       scope: 'openid profile email', // Standard scopes
       automaticSilentRenew: true,
