@@ -19,14 +19,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION';
 
 interface DeviceData {
-  id: string; 
-  displayId: string; 
+  id: string;
+  displayId: string;
   iconType: 'router' | 'globe' | 'unknown';
   status: DeviceStatus;
   deviceGroup: string;
-  createdAt: string; 
+  createdAt: string;
   tags: string[];
-  lastSeen?: string; 
+  lastSeen?: string;
   ipAddress?: string;
   firmwareVersion?: string;
 }
@@ -42,12 +42,12 @@ interface ApiDeviceIdentity {
 interface ApiDevice {
   id: string;
   tags: string[];
-  status: string; 
-  icon: string; 
+  status: string;
+  icon: string;
   icon_color: string;
-  creation_timestamp: string; 
+  creation_timestamp: string;
   metadata: Record<string, any>;
-  dms_owner: string; 
+  dms_owner: string;
   identity: ApiDeviceIdentity;
   slots: Record<string, any>;
   events: Record<string, { type: string; description: string }>;
@@ -100,7 +100,7 @@ const DeviceIcon: React.FC<{ type: DeviceData['iconType'] }> = ({ type }) => {
     iconColorClass = "text-teal-500";
     bgColorClass = "bg-teal-100 dark:bg-teal-900/30";
   }
-  
+
   return (
     <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center", bgColorClass)}>
       <IconComponent className={cn("h-5 w-5", iconColorClass)} />
@@ -127,7 +127,7 @@ export default function DevicesPage() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedDeviceIdFilter(deviceIdFilter);
-    }, 500); 
+    }, 500);
 
     return () => {
       clearTimeout(handler);
@@ -179,7 +179,7 @@ export default function DevicesPage() {
       }
 
       const data: ApiResponse = await response.json();
-      
+
       const transformedDevices: DeviceData[] = data.list.map(apiDevice => ({
         id: apiDevice.id,
         displayId: apiDevice.id,
@@ -196,7 +196,7 @@ export default function DevicesPage() {
     } catch (error: any) {
       console.error("Failed to fetch devices:", error);
       setApiError(error.message || "An unknown error occurred while fetching devices.");
-      setDevices([]); 
+      setDevices([]);
       setNextTokenFromApi(null);
     } finally {
       setIsLoadingApi(false);
@@ -217,14 +217,14 @@ export default function DevicesPage() {
   const handleViewDetails = (deviceId: string) => {
     alert(`View details for device ID: ${deviceId} (placeholder)`);
   };
-  
+
   const handleEditDevice = (deviceId: string) => {
     alert(`Edit device ID: ${deviceId} (placeholder)`);
   };
 
   const handleDeleteDevice = (deviceId: string) => {
     if(confirm(`Are you sure you want to delete device ${deviceId}? This action cannot be undone.`)){
-        setDevices(prev => prev.filter(d => d.id !== deviceId)); 
+        setDevices(prev => prev.filter(d => d.id !== deviceId));
         alert(`Device ${deviceId} deleted (mock - API call not implemented).`);
     }
   };
@@ -244,9 +244,9 @@ export default function DevicesPage() {
     }
     else if (nextTokenFromApi) {
         const newPageBookmark = nextTokenFromApi;
-        const newStack = bookmarkStack.slice(0, currentPageIndex + 1); 
+        const newStack = bookmarkStack.slice(0, currentPageIndex + 1);
         setBookmarkStack([...newStack, newPageBookmark]);
-        setCurrentPageIndex(newStack.length); 
+        setCurrentPageIndex(newStack.length);
     }
   };
 
@@ -299,28 +299,10 @@ export default function DevicesPage() {
             disabled={isLoadingApi || authLoading}
           />
         </div>
-        <div className="flex items-center space-x-2 w-full sm:w-auto sm:justify-end">
-          <Label htmlFor="pageSizeSelect" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
-          <Select
-            value={pageSize}
-            onValueChange={(value) => setPageSize(value)}
-            disabled={isLoadingApi || authLoading}
-          >
-            <SelectTrigger id="pageSizeSelect" className="w-full sm:w-[80px]">
-              <SelectValue placeholder="Page size" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10</SelectItem>
-              <SelectItem value="25">25</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
 
-      {isLoadingApi && !devices.length && ( 
+      {isLoadingApi && !devices.length && (
          <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
             <p className="text-lg text-muted-foreground">Loading devices...</p>
@@ -387,7 +369,7 @@ export default function DevicesPage() {
                             <Edit className="mr-2 h-4 w-4" /> Edit Device
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                               onClick={() => handleDeleteDevice(device.id)}
                               className="text-destructive focus:text-destructive focus:bg-destructive/10"
                           >
@@ -405,21 +387,41 @@ export default function DevicesPage() {
       )}
 
       {!apiError && (devices.length > 0 || isLoadingApi || debouncedDeviceIdFilter !== '' || pageSize !== '10') && (
-        <div className="flex justify-end items-center mt-4 space-x-2">
-            <Button 
-                onClick={handlePreviousPage} 
-                disabled={isLoadingApi || currentPageIndex === 0}
-                variant="outline"
-            >
-                <ChevronLeft className="mr-2 h-4 w-4" /> Previous
-            </Button>
-            <Button 
-                onClick={handleNextPage} 
-                disabled={isLoadingApi || !(currentPageIndex < bookmarkStack.length - 1 || nextTokenFromApi)}
-                variant="outline"
-            >
-                Next <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
+        <div className="flex justify-between items-center mt-4">
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="pageSizeSelectBottom" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
+              <Select
+                value={pageSize}
+                onValueChange={(value) => setPageSize(value)}
+                disabled={isLoadingApi || authLoading}
+              >
+                <SelectTrigger id="pageSizeSelectBottom" className="w-[80px]">
+                  <SelectValue placeholder="Page size" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+                <Button
+                    onClick={handlePreviousPage}
+                    disabled={isLoadingApi || currentPageIndex === 0}
+                    variant="outline"
+                >
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                </Button>
+                <Button
+                    onClick={handleNextPage}
+                    disabled={isLoadingApi || !(currentPageIndex < bookmarkStack.length - 1 || nextTokenFromApi)}
+                    variant="outline"
+                >
+                    Next <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+            </div>
         </div>
       )}
 
@@ -430,8 +432,8 @@ export default function DevicesPage() {
             {debouncedDeviceIdFilter ? `No Devices Found Matching "${debouncedDeviceIdFilter}"` : "No Devices Registered"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {debouncedDeviceIdFilter 
-              ? "Try adjusting your filter or clear it to see all devices." 
+            {debouncedDeviceIdFilter
+              ? "Try adjusting your filter or clear it to see all devices."
               : "There are no devices registered in the system yet."
             }
           </p>
