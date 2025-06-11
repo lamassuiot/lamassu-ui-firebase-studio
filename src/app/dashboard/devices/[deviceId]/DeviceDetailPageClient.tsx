@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ArrowLeft, Edit, PlusCircle, RefreshCw, Trash2, ShieldCheck, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, HelpCircle } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/dashboard/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict } from 'date-fns';
+import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
