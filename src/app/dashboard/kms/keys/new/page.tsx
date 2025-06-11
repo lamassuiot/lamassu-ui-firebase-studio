@@ -214,7 +214,7 @@ export default function CreateKmsKeyPage() {
           <form onSubmit={handleSubmit} className="space-y-8">
             <section>
               <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />Key Configuration</h3>
-              <div className="space-y-4 p-4 border rounded-md">
+              <div className="space-y-4">
                 <div>
                   <Label htmlFor="keyId">Key ID (generated)</Label>
                   <Input id="keyId" value={keyId} readOnly className="mt-1 bg-muted/50" />
@@ -258,7 +258,7 @@ export default function CreateKmsKeyPage() {
             {selectedMode === 'newKeyPair' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground" />Key Generation Parameters</h3>
-                <div className="space-y-4 p-4 border rounded-md">
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="keyType">Key Type</Label>
@@ -286,7 +286,7 @@ export default function CreateKmsKeyPage() {
             {selectedMode === 'importKeyPair' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><FileKey className="mr-2 h-5 w-5 text-muted-foreground" />Import Key Pair Material</h3>
-                <div className="space-y-4 p-4 border rounded-md">
+                <div className="space-y-4">
                   <div>
                     <Label htmlFor="privateKeyPem">Private Key (PEM format)</Label>
                     <Textarea
@@ -330,7 +330,7 @@ export default function CreateKmsKeyPage() {
             {selectedMode === 'importPublicKey' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Import Public Key Material</h3>
-                <div className="space-y-4 p-4 border rounded-md">
+                <div className="space-y-4">
                   <div>
                     <Label htmlFor="publicKeyPem">Public Key (PEM format)</Label>
                     <Textarea
@@ -363,3 +363,5 @@ export default function CreateKmsKeyPage() {
   );
 }
 
+
+    
