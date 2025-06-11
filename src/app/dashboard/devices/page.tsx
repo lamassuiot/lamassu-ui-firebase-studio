@@ -337,7 +337,7 @@ export default function DevicesPage() {
 
       {!apiError && devices.length > 0 && (
         <>
-          <div className={cn("overflow-x-auto transition-opacity duration-300", isLoadingApi && "opacity-50 pointer-events-none")}>
+          <div className={cn("overflow-x-auto overflow-y-auto max-h-[60vh] transition-opacity duration-300", isLoadingApi && devices.length > 0 && "opacity-50 pointer-events-none")}>
             <Table>
               <TableHeader>
                 <TableRow>
