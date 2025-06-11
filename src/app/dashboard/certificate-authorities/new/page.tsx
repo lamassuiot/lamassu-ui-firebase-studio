@@ -322,7 +322,7 @@ export default function CreateCertificateAuthorityPage() {
                         className="w-full justify-start text-left font-normal mt-1"
                         id="parentCa"
                       >
-                        {selectedParentCa ? `Change Parent CA: ${selectedParentCa.name}` : "Select Parent CA..."}
+                        {selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
                       </Button>
                       {selectedParentCa && (
                         <div className="mt-2">
@@ -433,7 +433,7 @@ export default function CreateCertificateAuthorityPage() {
             {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />Subject Distinguished Name (DN)</h3>
-                <div className="space-y-4 p-4 border rounded-md">
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="country">Country (C)</Label>
