@@ -10,7 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const VerifySignatureInputSchema = z.object({
+const VerifySignatureInputSchema = z.object({
   keyAlias: z.string().describe("The alias of the key (implying public key) to use for verification."),
   originalData: z.string().describe("The original data that was signed (plain text or base64 for actual implementation)."),
   signature: z.string().describe("The signature to verify (base64 encoded string for actual implementation)."),
@@ -18,7 +18,7 @@ export const VerifySignatureInputSchema = z.object({
 });
 export type VerifySignatureInput = z.infer<typeof VerifySignatureInputSchema>;
 
-export const VerifySignatureOutputSchema = z.object({
+const VerifySignatureOutputSchema = z.object({
   isValid: z.boolean().describe("True if the signature is valid, false otherwise."),
   details: z.string().describe("Details about the verification result.")
 });

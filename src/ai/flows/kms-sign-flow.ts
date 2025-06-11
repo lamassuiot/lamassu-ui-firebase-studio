@@ -10,14 +10,14 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const SignDataInputSchema = z.object({
+const SignDataInputSchema = z.object({
   keyAlias: z.string().describe("The alias of the key to use for signing."),
   dataToSign: z.string().describe("The data to be signed (plain text or base64 for actual implementation)."),
   algorithm: z.string().describe("The signature algorithm to use (e.g., SHA256withRSA).")
 });
 export type SignDataInput = z.infer<typeof SignDataInputSchema>;
 
-export const SignDataOutputSchema = z.object({
+const SignDataOutputSchema = z.object({
   signature: z.string().describe("The generated signature (base64 encoded string for actual implementation).")
 });
 export type SignDataOutput = z.infer<typeof SignDataOutputSchema>;
