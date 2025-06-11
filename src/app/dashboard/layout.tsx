@@ -3,7 +3,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useParams } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -20,6 +20,9 @@ import {
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
+import type { CA } from '@/lib/ca-data';
+import { certificateAuthoritiesData, findCaById } from '@/lib/ca-data';
 
 function CustomSidebarToggle() {
   const { open, toggleSidebar } = useSidebar();
@@ -35,12 +38,61 @@ function CustomSidebarToggle() {
   );
 }
 
+const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
+  'certificates': "Certificates",
+  'certificate-authorities': "Certificate Authorities",
+  'registration-authorities': "Registration Authorities",
+  'verification-authorities': "Verification Authorities",
+  'new': "New",
+  'details': "Details",
+  'issue-certificate': "Issue Certificate",
+  'kms': "KMS",
+  'keys': "Keys",
+  'devices': "Devices",
+  'device-groups': "Device Groups",
+};
+
+function generateBreadcrumbs(pathname: string, params: ReturnType<typeof useParams>, allCAs: CA[]): BreadcrumbItem[] {
+  const pathSegments = pathname.split('/').filter(segment => segment);
+  const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/dashboard' }];
+
+  if (pathname === '/dashboard') {
+    return [{ label: 'Home' }]; // Only "Home" for the dashboard root
+  }
+
+  let currentHref = '/dashboard';
+
+  // Start from the first segment after 'dashboard'
+  for (let i = 1; i < pathSegments.length; i++) {
+    const segment = pathSegments[i];
+    const isLastSegment = i === pathSegments.length - 1;
+    let label = PATH_SEGMENT_TO_LABEL_MAP[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
+    
+    currentHref += `/${segment}`;
+
+    // Handle dynamic CA ID segment
+    if (params.caId && segment === params.caId && pathSegments[i-1] === 'certificate-authorities') {
+      const ca = findCaById(segment, allCAs);
+      label = ca ? ca.name : segment; // Use CA name if found, else use ID
+    }
+
+    if (isLastSegment) {
+      breadcrumbItems.push({ label });
+    } else {
+      breadcrumbItems.push({ label, href: currentHref });
+    }
+  }
+  return breadcrumbItems;
+}
+
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const params = useParams();
 
   const homeItem = { href: '/dashboard', label: 'Home', icon: HomeIcon };
   const pkiItems = [
@@ -57,6 +109,10 @@ export default function DashboardLayout({
     { href: '/dashboard/kms/keys', label: 'Keys', icon: KeyRound },
   ];
 
+  const breadcrumbItems = React.useMemo(() => {
+    return generateBreadcrumbs(pathname, params, certificateAuthoritiesData);
+  }, [pathname, params]);
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -68,7 +124,6 @@ export default function DashboardLayout({
               LamassuIoT
             </span>
           </div>
-          {/* Placeholder for other header actions like user menu */}
           <div></div>
         </header>
 
@@ -158,6 +213,7 @@ export default function DashboardLayout({
           </Sidebar>
 
           <SidebarInset className="flex-1 overflow-y-auto p-4 md:p-6">
+            {breadcrumbItems.length > 1 && <Breadcrumbs items={breadcrumbItems} />}
             {children}
           </SidebarInset>
         </div>
