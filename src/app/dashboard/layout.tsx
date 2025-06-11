@@ -141,9 +141,9 @@ export default function DashboardLayout({
             {isAuthenticated() && user?.profile?.name && (
               <div className="flex items-center gap-2">
                 <span className="text-sm hidden sm:inline">Welcome, {user.profile.name}</span>
-                {user.profile.roles && Array.isArray(user.profile.roles) && user.profile.roles.length > 0 && (
+                {user.profile.realm_access && user.profile.realm_access.roles && Array.isArray(user.profile.realm_access.roles) && user.profile.realm_access.roles.length > 0 && (
                   <div className="hidden sm:flex items-center gap-1 ml-1">
-                    {(user.profile.roles as string[]).map((role: string, index: number) => (
+                    {(user.profile.realm_access.roles as string[]).map((role: string, index: number) => (
                       <Badge
                         key={index}
                         variant="outline"
