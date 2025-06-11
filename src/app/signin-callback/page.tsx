@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect }_ from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getClientUserManager } from '@/contexts/AuthContext'; // Helper to get UserManager instance
 import { Loader2 } from 'lucide-react';
@@ -40,3 +40,4 @@ export default function SigninCallbackPage() {
     </div>
   );
 }
+
