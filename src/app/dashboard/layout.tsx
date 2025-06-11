@@ -18,11 +18,14 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData, findCaById } from '@/lib/ca-data';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+
 
 function CustomSidebarToggle() {
   const { open, toggleSidebar } = useSidebar();
@@ -58,12 +61,11 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
   const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/dashboard' }];
 
   if (pathname === '/dashboard') {
-    return [{ label: 'Home' }]; // Only "Home" for the dashboard root
+    return [{ label: 'Home' }]; 
   }
 
   let currentHref = '/dashboard';
 
-  // Start from the first segment after 'dashboard'
   for (let i = 1; i < pathSegments.length; i++) {
     const segment = pathSegments[i];
     const isLastSegment = i === pathSegments.length - 1;
@@ -71,10 +73,9 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
     
     currentHref += `/${segment}`;
 
-    // Handle dynamic CA ID segment
     if (params.caId && segment === params.caId && pathSegments[i-1] === 'certificate-authorities') {
       const ca = findCaById(segment, allCAs);
-      label = ca ? ca.name : segment; // Use CA name if found, else use ID
+      label = ca ? ca.name : segment;
     }
 
     if (isLastSegment) {
@@ -94,6 +95,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const params = useParams();
+  const { user, isLoading, login, logout, isAuthenticated } = useAuth();
 
   const homeItem = { href: '/dashboard', label: 'Home', icon: HomeIcon };
   const pkiItems = [
@@ -115,6 +117,14 @@ export default function DashboardLayout({
     return generateBreadcrumbs(pathname, params, certificateAuthoritiesData);
   }, [pathname, params]);
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+        <p className="mt-6 text-lg text-muted-foreground">Loading authentication status...</p>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider defaultOpen>
@@ -126,101 +136,126 @@ export default function DashboardLayout({
               LamassuIoT
             </span>
           </div>
-          <div></div>
+          <div className="flex items-center gap-3">
+            {isAuthenticated() && user?.profile?.name && (
+              <span className="text-sm hidden sm:inline">Welcome, {user.profile.name}</span>
+            )}
+            {isAuthenticated() ? (
+              <Button variant="ghost" size="sm" onClick={logout} className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
+                <LogOut className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Logout</span>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={login} className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
+                <LogIn className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Login</span>
+              </Button>
+            )}
+          </div>
         </header>
 
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
-            <SidebarHeader className="p-4">
-              <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-                <Shield className="h-8 w-8 text-primary flex-shrink-0" />
-                <h2 className="font-headline text-xl font-semibold text-primary group-data-[collapsible=icon]:hidden whitespace-nowrap">
-                  LamassuIoT
-                </h2>
-              </div>
-            </SidebarHeader>
-            <SidebarContent className="p-2">
-              <SidebarMenu>
-                <SidebarMenuItem key={homeItem.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === homeItem.href}
-                    tooltip={{children: homeItem.label, side: 'right', align: 'center' }}
-                  >
-                    <Link href={homeItem.href} className="flex items-center w-full justify-start">
-                      <homeItem.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                      <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{homeItem.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">PKI</SidebarGroupLabel>
-                {pkiItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
+        {isAuthenticated() ? (
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
+              <SidebarHeader className="p-4">
+                <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+                  <Shield className="h-8 w-8 text-primary flex-shrink-0" />
+                  <h2 className="font-headline text-xl font-semibold text-primary group-data-[collapsible=icon]:hidden whitespace-nowrap">
+                    LamassuIoT
+                  </h2>
+                </div>
+              </SidebarHeader>
+              <SidebarContent className="p-2">
+                <SidebarMenu>
+                  <SidebarMenuItem key={homeItem.href}>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
-                      tooltip={{children: item.label, side: 'right', align: 'center' }}
+                      isActive={pathname === homeItem.href}
+                      tooltip={{children: homeItem.label, side: 'right', align: 'center' }}
                     >
-                      <Link href={item.href} className="flex items-center w-full justify-start">
-                        <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                        <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                      <Link href={homeItem.href} className="flex items-center w-full justify-start">
+                        <homeItem.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                        <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{homeItem.label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                ))}
 
-                <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">IoT</SidebarGroupLabel>
-                {iotItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
-                      tooltip={{children: item.label, side: 'right', align: 'center' }}
-                    >
-                      <Link href={item.href} className="flex items-center w-full justify-start">
-                        <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                        <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">PKI</SidebarGroupLabel>
+                  {pkiItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
+                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                      >
+                        <Link href={item.href} className="flex items-center w-full justify-start">
+                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
 
-                <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
-                {kmsItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
-                      tooltip={{children: item.label, side: 'right', align: 'center' }}
-                    >
-                      <Link href={item.href} className="flex items-center w-full justify-start">
-                        <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                        <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarContent>
-            <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
-              <CustomSidebarToggle />
-              <div className="group-data-[collapsible=icon]:hidden w-full">
-                  <ThemeToggle />
-              </div>
-              <div className="hidden group-data-[collapsible=icon]:flex justify-center w-full">
-                  <ThemeToggle />
-              </div>
-            </SidebarFooter>
-          </Sidebar>
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">IoT</SidebarGroupLabel>
+                  {iotItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
+                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                      >
+                        <Link href={item.href} className="flex items-center w-full justify-start">
+                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
 
-          <SidebarInset className="flex-1 overflow-y-auto p-4 md:p-6">
-            {breadcrumbItems.length > 1 && <Breadcrumbs items={breadcrumbItems} />}
-            {children}
-          </SidebarInset>
-        </div>
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
+                  {kmsItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
+                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                      >
+                        <Link href={item.href} className="flex items-center w-full justify-start">
+                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarContent>
+              <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
+                <CustomSidebarToggle />
+                <div className="group-data-[collapsible=icon]:hidden w-full">
+                    <ThemeToggle />
+                </div>
+                <div className="hidden group-data-[collapsible=icon]:flex justify-center w-full">
+                    <ThemeToggle />
+                </div>
+              </SidebarFooter>
+            </Sidebar>
+
+            <SidebarInset className="flex-1 overflow-y-auto p-4 md:p-6">
+              {breadcrumbItems.length > 1 && <Breadcrumbs items={breadcrumbItems} />}
+              {children}
+            </SidebarInset>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+            <ShieldCheck className="h-16 w-16 text-primary mb-6" />
+            <h1 className="text-3xl font-bold mb-3">Welcome to LamassuIoT</h1>
+            <p className="text-lg text-muted-foreground mb-8 max-w-md">
+              Securely manage your X.509 certificates and IoT device identities. Please log in to access the dashboard.
+            </p>
+            <Button onClick={login} size="lg" className="px-8 py-6 text-lg">
+              <LogIn className="mr-2 h-5 w-5" /> Login with Lamassu Identity
+            </Button>
+          </div>
+        )}
       </div>
     </SidebarProvider>
   );
 }
-
