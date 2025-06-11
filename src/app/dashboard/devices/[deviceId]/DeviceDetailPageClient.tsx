@@ -8,71 +8,57 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Edit, PlusCircle, RefreshCw, Trash2, ShieldCheck, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
-import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/dashboard/devices/page'; // Reusing from devices list
+import { ArrowLeft, Edit, PlusCircle, RefreshCw, Trash2, ShieldCheck, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, HelpCircle } from 'lucide-react';
+import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/dashboard/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
+import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
+import { TimelineEventItem, type TimelineEventDisplayData } from '@/components/dashboard/devices/TimelineEventItem';
+
 
 interface ApiDeviceIdentity {
   status: string;
   active_version: number;
   type: string;
-  versions: Record<string, string>; // version_num: certificate_serial_or_hash
+  versions: Record<string, string>; 
   events: Record<string, { type: string; description: string }>;
 }
 
 interface ApiDevice {
   id: string;
   tags: string[];
-  status: string; // Device status
+  status: string; 
   icon: string;
   icon_color: string;
   creation_timestamp: string;
   metadata: Record<string, any>;
   dms_owner: string;
-  identity: ApiDeviceIdentity | null; // Can be null if no identity
+  identity: ApiDeviceIdentity | null;
   slots: Record<string, any>;
   events: Record<string, { type: string; description: string }>;
 }
 
 interface CertificateHistoryEntry {
-  version: string; // Changed to string to match identity.versions keys
+  version: string; 
   serialNumber: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'REVOKED_SOON' ; // Simplified
+  status: 'ACTIVE' | 'INACTIVE' | 'REVOKED_SOON' | 'REVOKED' | 'EXPIRED_SUPERCEDED'; 
   commonName: string;
   ca: string;
   validFrom: string;
   validTo: string;
   lifespan: string;
   revocationStatus: string;
+  supersededTimestamp?: string; 
 }
-
-const mapDeviceStatusToBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
-  switch (status.toUpperCase()) {
-    case 'ACTIVE': return 'default'; // Green
-    case 'INACTIVE': return 'secondary'; // Grey
-    case 'NO_IDENTITY': return 'outline'; // Blueish
-    case 'PENDING_ACTIVATION': return 'default'; // Orangeish - using default for now
-    default: return 'outline';
-  }
-};
-const mapDeviceStatusToBadgeClass = (status: string): string => {
-    switch (status.toUpperCase()) {
-      case 'ACTIVE': return "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
-      case 'INACTIVE': return "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
-      case 'NO_IDENTITY': return "bg-sky-100 text-sky-700 dark:bg-sky-700/30 dark:text-sky-300 border-sky-300 dark:border-sky-700";
-      case 'PENDING_ACTIVATION': return "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
-      default: return "bg-muted text-muted-foreground border-border";
-    }
-  };
 
 
 const CertificateStatusBadge: React.FC<{ status: CertificateHistoryEntry['status'] }> = ({ status }) => {
   let badgeClass = "bg-muted text-muted-foreground border-border";
   let Icon = Info;
+  let text = status.replace('_', ' ').toLowerCase();
+
   switch (status) {
     case 'ACTIVE':
       badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
@@ -82,12 +68,22 @@ const CertificateStatusBadge: React.FC<{ status: CertificateHistoryEntry['status
       badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
       Icon = Clock;
       break;
-    case 'REVOKED_SOON': // Example for a future state
+    case 'REVOKED_SOON':
       badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
       Icon = AlertTriangle;
       break;
+    case 'REVOKED':
+      badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
+      Icon = XCircle;
+      text = "Revoked";
+      break;
+    case 'EXPIRED_SUPERCEDED':
+      badgeClass = "bg-rose-100 text-rose-700 dark:bg-rose-700/30 dark:text-rose-300 border-rose-300 dark:border-rose-700";
+      Icon = XCircle;
+      text = "Expired & Superseded";
+      break;
   }
-  return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}><Icon className="mr-1 h-3 w-3" />{status.replace('_', ' ').toLowerCase()}</Badge>;
+  return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}><Icon className="mr-1 h-3 w-3" />{text}</Badge>;
 };
 
 
@@ -102,6 +98,7 @@ export default function DeviceDetailPageClient() {
   const [errorDevice, setErrorDevice] = useState<string | null>(null);
   
   const [certificateHistory, setCertificateHistory] = useState<CertificateHistoryEntry[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEventDisplayData[]>([]);
 
 
   useEffect(() => {
@@ -125,27 +122,136 @@ export default function DeviceDetailPageClient() {
         const data: ApiDevice = await response.json();
         setDevice(data);
 
-        // Mock certificate history based on identity versions
         const history: CertificateHistoryEntry[] = [];
         if (data.identity && data.identity.versions) {
-          Object.entries(data.identity.versions).forEach(([versionKey, serial]) => {
+          const sortedVersions = Object.keys(data.identity.versions).sort((a, b) => parseInt(b) - parseInt(a));
+          
+          sortedVersions.forEach((versionKey, index) => {
+            const serial = data.identity!.versions[versionKey];
             const isActiveVersion = parseInt(versionKey) === data.identity?.active_version;
+            const certValidTo = new Date(Date.now() + (Math.random() * 300 + (isActiveVersion ? 60 : -180)) * 24 * 60 * 60 * 1000); // Active certs last longer
+            const certValidFrom = new Date(certValidTo.getTime() - (365 + Math.random() * 100) * 24 * 60 * 60 * 1000);
+            
+            let certStatus: CertificateHistoryEntry['status'] = isActiveVersion ? 'ACTIVE' : 'INACTIVE';
+            let revocationStatus = '-';
+            let supersededTimestamp;
+
+            if (!isActiveVersion && index > 0) { // Previous versions are superseded
+                 // Mock some superseded certs to be also "revoked" or "expired"
+                if (Math.random() < 0.3) {
+                    certStatus = 'REVOKED';
+                    revocationStatus = 'REVOKED (Superseded)';
+                } else if (isPast(certValidTo)) {
+                    certStatus = 'EXPIRED_SUPERCEDED';
+                    revocationStatus = 'EXPIRED (Superseded)';
+                } else {
+                    revocationStatus = 'Superseded';
+                }
+                // find the event that made this version inactive - the next version's provisioning
+                const nextVersionKey = sortedVersions[index -1];
+                const provisioningEvents = Object.entries(data.identity?.events || {})
+                    .filter(([ts, event]) => event.description.includes(`New Active Version set to ${nextVersionKey}`));
+                if(provisioningEvents.length > 0) {
+                     supersededTimestamp = provisioningEvents[0][0]; // Timestamp of the event that superseded this cert
+                }
+            } else if (isActiveVersion && isPast(certValidTo)) {
+                certStatus = 'EXPIRED_SUPERCEDED'; // Active but expired
+                revocationStatus = 'EXPIRED';
+            }
+
+
             history.push({
               version: versionKey,
               serialNumber: serial,
-              status: isActiveVersion ? 'ACTIVE' : 'INACTIVE',
-              commonName: data.id, // Or derive from cert if possible
-              ca: 'Lamassu IoT Device CA G1 (mock)', // Placeholder
-              validFrom: new Date(Date.now() - (Math.random() * 30 + 30) * 24 * 60 * 60 * 1000).toISOString(),
-              validTo: new Date(Date.now() + (Math.random() * 300 + 60) * 24 * 60 * 60 * 1000).toISOString(),
-              lifespan: `${Math.floor(Math.random()*10)+2} months`,
-              revocationStatus: '-',
+              status: certStatus,
+              commonName: data.id, 
+              ca: 'Lamassu IoT Device CA G1 (mock)', 
+              validFrom: certValidFrom.toISOString(),
+              validTo: certValidTo.toISOString(),
+              lifespan: formatDistanceStrict(certValidTo, certValidFrom),
+              revocationStatus: revocationStatus,
+              supersededTimestamp: supersededTimestamp,
             });
           });
-          // Sort by version descending for display
-           history.sort((a, b) => parseInt(b.version) - parseInt(a.version));
         }
         setCertificateHistory(history);
+
+        // Process events for timeline
+        const combinedRawEvents: { timestampStr: string; type: string; description: string; source: 'device' | 'identity' }[] = [];
+        Object.entries(data.events || {}).forEach(([ts, event]) => {
+          combinedRawEvents.push({ timestampStr: ts, ...event, source: 'device' });
+        });
+        if (data.identity?.events) {
+          Object.entries(data.identity.events).forEach(([ts, event]) => {
+            combinedRawEvents.push({ timestampStr: ts, ...event, source: 'identity' });
+          });
+        }
+
+        combinedRawEvents.sort((a, b) => parseISO(b.timestampStr).getTime() - parseISO(a.timestampStr).getTime()); // Newest first
+
+        const processedTimelineEvents: TimelineEventDisplayData[] = combinedRawEvents.map((rawEvent, index, arr) => {
+          const timestamp = parseISO(rawEvent.timestampStr);
+          let title = rawEvent.description || rawEvent.type;
+          let detailsNode: React.ReactNode = null;
+          
+          if (rawEvent.type === 'PROVISIONED' || rawEvent.type === 'RE-PROVISIONED') {
+            title = rawEvent.description || `Device ${rawEvent.type.toLowerCase()}`;
+            let versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
+            let currentVersion = versionSetMatch ? versionSetMatch[1] : (rawEvent.type === 'PROVISIONED' ? data.identity?.active_version.toString() : null);
+
+            // If RE-PROVISIONED and description is empty, try to construct title
+            if (rawEvent.type === 'RE-PROVISIONED' && !rawEvent.description && currentVersion) {
+                 title = `New Active Version set to ${currentVersion}`;
+            }
+
+
+            if (currentVersion && data.identity?.versions[currentVersion]) {
+              const serial = data.identity.versions[currentVersion];
+              const certEntry = history.find(h => h.version === currentVersion && h.serialNumber === serial);
+              detailsNode = (
+                <>
+                  <p className="text-xs font-semibold">{data.id}</p>
+                  <p className="text-xs text-muted-foreground font-mono">Serial: {serial}</p>
+                  {certEntry && (
+                    <>
+                      {certEntry.status !== 'ACTIVE' && certEntry.revocationStatus.startsWith('REVOKED') && (
+                         <Badge variant="destructive" className="text-xs mt-1">
+                            REVOKED - Superseded {certEntry.supersededTimestamp ? format(parseISO(certEntry.supersededTimestamp), 'dd/MM/yyyy HH:mm') : ''}
+                            ({certEntry.supersededTimestamp ? formatDistanceToNowStrict(parseISO(certEntry.supersededTimestamp)) : ''} ago)
+                        </Badge>
+                      )}
+                       {certEntry.status === 'ACTIVE' && !isPast(parseISO(certEntry.validTo)) && (
+                         <p className="text-xs text-green-600 dark:text-green-400">Expires in {formatDistanceToNowStrict(parseISO(certEntry.validTo))}</p>
+                       )}
+                       {isPast(parseISO(certEntry.validTo)) && certEntry.status !== 'REVOKED' && (
+                         <Badge variant="destructive" className="text-xs mt-1 bg-orange-500 hover:bg-orange-600">
+                            EXPIRED - {formatDistanceToNowStrict(parseISO(certEntry.validTo))} ago
+                        </Badge>
+                       )}
+                    </>
+                  )}
+                </>
+              );
+            }
+          } else if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
+             title = rawEvent.description; // e.g. "Status updated from 'NO_IDENTITY' to 'ACTIVE'"
+          }
+
+
+          const prevTimestamp = index < arr.length - 1 ? parseISO(arr[index + 1].timestampStr) : null;
+          
+          return {
+            id: rawEvent.timestampStr,
+            timestamp,
+            eventType: rawEvent.type,
+            title,
+            details: detailsNode,
+            relativeTime: formatDistanceToNowStrict(timestamp) + ' ago',
+            secondaryRelativeTime: prevTimestamp ? formatDistanceStrict(timestamp, prevTimestamp) + ' later' : undefined,
+          };
+        });
+        setTimelineEvents(processedTimelineEvents);
+
 
       } catch (err: any) {
         setErrorDevice(err.message || 'Failed to load device details.');
@@ -209,13 +315,12 @@ export default function DeviceDetailPageClient() {
         </Button>
       </div>
 
-      {/* Header Section without Card */}
-      <div className="mb-6"> {/* Added margin-bottom for spacing */}
+      <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div className="flex items-center space-x-3">
             <DeviceIcon type={deviceIconType} />
             <div>
-              <h1 className="text-2xl font-bold">{device.id}</h1> {/* Changed CardTitle to h1 for semantic clarity */}
+              <h1 className="text-2xl font-bold">{device.id}</h1>
               <div className="flex items-center space-x-2 mt-1">
                 <DeviceStatusBadge status={device.status as any} />
                 <span className="text-xs text-muted-foreground">
@@ -236,35 +341,6 @@ export default function DeviceDetailPageClient() {
         )}
       </div>
 
-      {/* Identity Summary Section */}
-      {device.identity && (
-         <Card>
-            <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Slot Active Version: <span className="font-semibold text-foreground">{device.identity.active_version}</span></p>
-                            <p className="text-sm text-muted-foreground">Status: <Badge variant={mapDeviceStatusToBadgeVariant(device.identity.status)} className={cn("capitalize", mapDeviceStatusToBadgeClass(device.identity.status))}>{device.identity.status.toLowerCase()}</Badge></p>
-                        </div>
-                    </div>
-                     <p className="text-sm text-muted-foreground">Serial Number: <span className="font-mono text-xs text-foreground">{device.identity.versions[device.identity.active_version.toString()] || 'N/A'}</span></p>
-                </div>
-            </CardContent>
-         </Card>
-      )}
-       {!device.identity && (
-         <Card>
-            <CardContent className="p-4 text-center">
-                <p className="text-sm text-muted-foreground">No identity assigned to this device.</p>
-            </CardContent>
-         </Card>
-      )}
-
-
-      {/* Tabs Section */}
       <Tabs defaultValue="certificatesHistory" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-3">
           <TabsTrigger value="certificatesHistory"><History className="mr-2 h-4 w-4" />Certificates History</TabsTrigger>
@@ -325,9 +401,29 @@ export default function DeviceDetailPageClient() {
 
         <TabsContent value="timeline">
           <Card>
-            <CardHeader><CardTitle>Device Event Timeline</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Device event timeline will be displayed here. (Under Construction)</p>
+            <CardHeader>
+                <CardTitle>Device Event Timeline</CardTitle>
+                <CardDescription>Chronological record of significant events for this device and its identity.</CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 sm:px-2 md:px-4 lg:px-6">
+              {timelineEvents.length > 0 ? (
+                <div className="relative pl-4"> {/* Container for the main vertical line and items */}
+                  {/* Main vertical line - styled to be behind the dots */}
+                  <div className="absolute left-[calc(0.75rem-1px)] top-2 bottom-2 w-0.5 bg-border -translate-x-1/2 z-0"></div>
+                  
+                  <ul className="space-y-0">
+                    {timelineEvents.map((event, index) => (
+                      <TimelineEventItem 
+                        key={event.id} 
+                        event={event} 
+                        isLastItem={index === timelineEvents.length -1} 
+                      />
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No events recorded for this device.</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
