@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -113,12 +113,27 @@ export default function DevicesPage() {
   const [isLoadingApi, setIsLoadingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Pagination state
-  const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]); // Initialize with null for the first page
-  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0); // Points to the current bookmark in bookmarkStack
-  const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null); // Token for the *actual* next page from API
+  const [deviceIdFilter, setDeviceIdFilter] = useState<string>('');
+  const [debouncedDeviceIdFilter, setDebouncedDeviceIdFilter] = useState<string>('');
 
-  const fetchDevices = useCallback(async (bookmarkToFetch: string | null) => {
+  const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
+  const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedDeviceIdFilter(deviceIdFilter);
+      // Reset pagination when the actual filter term changes, as it's a new query
+      setBookmarkStack([null]);
+      setCurrentPageIndex(0);
+    }, 500); // 500ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [deviceIdFilter]);
+
+  const fetchDevices = useCallback(async (bookmarkToFetch: string | null, currentFilter: string) => {
     if (authLoading || !isAuthenticated() || !user?.access_token) {
       if (!authLoading && !isAuthenticated()) {
         setDevices([]);
@@ -138,6 +153,9 @@ export default function DevicesPage() {
       });
       if (bookmarkToFetch) {
         params.append('bookmark', bookmarkToFetch);
+      }
+      if (currentFilter.trim() !== '') {
+        params.append('filter', `id[contains]${currentFilter.trim()}`);
       }
       const url = `${baseUrl}?${params.toString()}`;
 
@@ -177,13 +195,11 @@ export default function DevicesPage() {
     }
   }, [user?.access_token, authLoading, isAuthenticated]);
 
-
   useEffect(() => {
-    // Initial fetch using the first bookmark in the stack (which is null)
     if (bookmarkStack.length > 0 && currentPageIndex < bookmarkStack.length) {
-        fetchDevices(bookmarkStack[currentPageIndex]);
+        fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter);
     }
-  }, [fetchDevices]); // fetchDevices is memoized, so this runs on initial mount / when auth state changes
+  }, [fetchDevices, currentPageIndex, bookmarkStack, debouncedDeviceIdFilter]);
 
 
   const handleCreateNewDevice = () => {
@@ -200,7 +216,6 @@ export default function DevicesPage() {
 
   const handleDeleteDevice = (deviceId: string) => {
     if(confirm(`Are you sure you want to delete device ${deviceId}? This action cannot be undone.`)){
-        // This is a mock delete. In a real app, you'd call an API and then refetch or update state.
         setDevices(prev => prev.filter(d => d.id !== deviceId)); 
         alert(`Device ${deviceId} deleted (mock - API call not implemented).`);
     }
@@ -208,7 +223,7 @@ export default function DevicesPage() {
 
   const handleRefresh = () => {
     if (currentPageIndex < bookmarkStack.length) {
-        fetchDevices(bookmarkStack[currentPageIndex]);
+        fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter);
     }
   };
 
@@ -216,21 +231,16 @@ export default function DevicesPage() {
     if (isLoadingApi) return;
 
     const potentialNextPageIndex = currentPageIndex + 1;
-    // If there's a page in our history stack forward from current
     if (potentialNextPageIndex < bookmarkStack.length) {
         setCurrentPageIndex(potentialNextPageIndex);
-        fetchDevices(bookmarkStack[potentialNextPageIndex]);
+        fetchDevices(bookmarkStack[potentialNextPageIndex], debouncedDeviceIdFilter);
     }
-    // Else, if API gave us a token for a new next page
     else if (nextTokenFromApi) {
         const newPageBookmark = nextTokenFromApi;
-        // If we had gone back and are now branching to a new "next" path,
-        // trim the old future path.
         const newStack = bookmarkStack.slice(0, currentPageIndex + 1);
-
         setBookmarkStack([...newStack, newPageBookmark]);
         setCurrentPageIndex(newStack.length);
-        fetchDevices(newPageBookmark);
+        fetchDevices(newPageBookmark, debouncedDeviceIdFilter);
     }
   };
 
@@ -238,7 +248,7 @@ export default function DevicesPage() {
     if (isLoadingApi || currentPageIndex === 0) return;
     const prevIndex = currentPageIndex - 1;
     setCurrentPageIndex(prevIndex);
-    fetchDevices(bookmarkStack[prevIndex]);
+    fetchDevices(bookmarkStack[prevIndex], debouncedDeviceIdFilter);
   };
 
 
@@ -271,6 +281,18 @@ export default function DevicesPage() {
       <p className="text-sm text-muted-foreground">
         Overview of all registered IoT devices, their status, and associated groups.
       </p>
+
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+        <Input
+          type="text"
+          placeholder="Filter by Device ID..."
+          value={deviceIdFilter}
+          onChange={(e) => setDeviceIdFilter(e.target.value)}
+          className="w-full pl-10"
+          disabled={isLoadingApi || authLoading}
+        />
+      </div>
 
       {isLoadingApi && !devices.length && ( 
          <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
@@ -356,8 +378,7 @@ export default function DevicesPage() {
         </>
       )}
 
-      {/* Pagination Controls */}
-      {!apiError && (devices.length > 0 || isLoadingApi) && (
+      {!apiError && (devices.length > 0 || isLoadingApi || debouncedDeviceIdFilter !== '') && (
         <div className="flex justify-end items-center mt-4 space-x-2">
             <Button 
                 onClick={handlePreviousPage} 
@@ -379,9 +400,14 @@ export default function DevicesPage() {
 
       {!apiError && !isLoadingApi && devices.length === 0 && (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-          <h3 className="text-lg font-semibold text-muted-foreground">No Devices Registered</h3>
+          <h3 className="text-lg font-semibold text-muted-foreground">
+            {debouncedDeviceIdFilter ? `No Devices Found Matching "${debouncedDeviceIdFilter}"` : "No Devices Registered"}
+          </h3>
           <p className="text-sm text-muted-foreground">
-            There are no devices registered in the system yet, or none matched your current filters.
+            {debouncedDeviceIdFilter 
+              ? "Try adjusting your filter or clear it to see all devices." 
+              : "There are no devices registered in the system yet."
+            }
           </p>
           <Button onClick={handleCreateNewDevice} className="mt-4">
             <PlusCircle className="mr-2 h-4 w-4" /> Register New Device
@@ -391,4 +417,3 @@ export default function DevicesPage() {
     </div>
   );
 }
-
