@@ -21,24 +21,21 @@ interface StatusDisplayInfo {
 
 const getStatusDisplayInfo = (ca: CA): StatusDisplayInfo => {
   const expiryDate = parseISO(ca.expires);
-  let statusLabel = ca.status.toUpperCase();
-  let detailText = '';
+  let statusText = '';
   let badgeClass = '';
 
   if (ca.status === 'revoked') {
-    detailText = 'Revoked';
-    badgeClass = "bg-red-500 text-white hover:bg-red-500/90 border-transparent";
+    statusText = `Revoked`;
+    badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
   } else if (isPast(expiryDate)) {
-    statusLabel = 'EXPIRED';
-    detailText = `Expired ${formatDistanceToNowStrict(expiryDate)} ago`;
-    badgeClass = "bg-orange-100 text-orange-700 hover:bg-orange-100/90 border-orange-300 dark:bg-orange-700/30 dark:text-orange-300 dark:border-orange-700";
+    statusText = `Expired ${formatDistanceToNowStrict(expiryDate)} ago`;
+    badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
   } else {
-    statusLabel = 'ACTIVE';
-    detailText = `in ${formatDistanceToNowStrict(expiryDate)}`;
-    badgeClass = "bg-green-500 text-white hover:bg-green-500/90 border-transparent";
+    statusText = `Expires in ${formatDistanceToNowStrict(expiryDate)}`;
+    badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
   }
   
-  return { text: `${statusLabel} - ${detailText}`, badgeClass };
+  return { text: `${ca.status.toUpperCase()} \u00B7 ${statusText}`, badgeClass };
 };
 
 export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, className, onClick }) => {
@@ -46,7 +43,7 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
 
   const cardInnerContent = (
     <>
-      <div className="flex-shrink-0 p-3 bg-blue-100 dark:bg-sky-700/40 rounded-lg">
+      <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
         <KeyRound className="h-6 w-6 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
@@ -54,7 +51,7 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
         <p className="text-xs text-muted-foreground truncate" title={`ID: ${ca.id}`}>
           ID: <span className="font-mono">{ca.id}</span>
         </p>
-        <Badge variant="default" className={cn("mt-1.5 text-xs py-1 px-2.5", statusBadgeStyling)}>
+        <Badge variant="outline" className={cn("mt-1.5 text-xs py-1 px-2.5", statusBadgeStyling)}>
           {statusBadgeText}
         </Badge>
       </div>
