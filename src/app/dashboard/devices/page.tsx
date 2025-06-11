@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -115,6 +118,7 @@ export default function DevicesPage() {
 
   const [deviceIdFilter, setDeviceIdFilter] = useState<string>('');
   const [debouncedDeviceIdFilter, setDebouncedDeviceIdFilter] = useState<string>('');
+  const [pageSize, setPageSize] = useState<string>('10');
 
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
@@ -123,17 +127,21 @@ export default function DevicesPage() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedDeviceIdFilter(deviceIdFilter);
-      // Reset pagination when the actual filter term changes, as it's a new query
-      setBookmarkStack([null]);
-      setCurrentPageIndex(0);
-    }, 500); // 500ms debounce delay
+    }, 500); 
 
     return () => {
       clearTimeout(handler);
     };
   }, [deviceIdFilter]);
 
-  const fetchDevices = useCallback(async (bookmarkToFetch: string | null, currentFilter: string) => {
+  // Effect to reset pagination when filter or page size changes
+  useEffect(() => {
+    setBookmarkStack([null]);
+    setCurrentPageIndex(0);
+  }, [debouncedDeviceIdFilter, pageSize]);
+
+
+  const fetchDevices = useCallback(async (bookmarkToFetch: string | null, currentFilter: string, currentPageSize: string) => {
     if (authLoading || !isAuthenticated() || !user?.access_token) {
       if (!authLoading && !isAuthenticated()) {
         setDevices([]);
@@ -149,7 +157,7 @@ export default function DevicesPage() {
       const params = new URLSearchParams({
         sort_by: 'creation_timestamp',
         sort_mode: 'desc',
-        page_size: '10',
+        page_size: currentPageSize,
       });
       if (bookmarkToFetch) {
         params.append('bookmark', bookmarkToFetch);
@@ -197,9 +205,9 @@ export default function DevicesPage() {
 
   useEffect(() => {
     if (bookmarkStack.length > 0 && currentPageIndex < bookmarkStack.length) {
-        fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter);
+        fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter, pageSize);
     }
-  }, [fetchDevices, currentPageIndex, bookmarkStack, debouncedDeviceIdFilter]);
+  }, [fetchDevices, currentPageIndex, bookmarkStack, debouncedDeviceIdFilter, pageSize]);
 
 
   const handleCreateNewDevice = () => {
@@ -223,7 +231,7 @@ export default function DevicesPage() {
 
   const handleRefresh = () => {
     if (currentPageIndex < bookmarkStack.length) {
-        fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter);
+        fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter, pageSize);
     }
   };
 
@@ -233,14 +241,15 @@ export default function DevicesPage() {
     const potentialNextPageIndex = currentPageIndex + 1;
     if (potentialNextPageIndex < bookmarkStack.length) {
         setCurrentPageIndex(potentialNextPageIndex);
-        fetchDevices(bookmarkStack[potentialNextPageIndex], debouncedDeviceIdFilter);
+        // fetchDevices(bookmarkStack[potentialNextPageIndex], debouncedDeviceIdFilter, pageSize); // This will be handled by the effect
     }
     else if (nextTokenFromApi) {
         const newPageBookmark = nextTokenFromApi;
-        const newStack = bookmarkStack.slice(0, currentPageIndex + 1);
+        // Trim any "future" bookmarks if we took a different path (e.g., filter change, then next)
+        const newStack = bookmarkStack.slice(0, currentPageIndex + 1); 
         setBookmarkStack([...newStack, newPageBookmark]);
-        setCurrentPageIndex(newStack.length);
-        fetchDevices(newPageBookmark, debouncedDeviceIdFilter);
+        setCurrentPageIndex(newStack.length); // This will cause the effect to fetch
+        // fetchDevices(newPageBookmark, debouncedDeviceIdFilter, pageSize); // This will be handled by the effect
     }
   };
 
@@ -248,7 +257,7 @@ export default function DevicesPage() {
     if (isLoadingApi || currentPageIndex === 0) return;
     const prevIndex = currentPageIndex - 1;
     setCurrentPageIndex(prevIndex);
-    fetchDevices(bookmarkStack[prevIndex], debouncedDeviceIdFilter);
+    // fetchDevices(bookmarkStack[prevIndex], debouncedDeviceIdFilter, pageSize); // This will be handled by the effect
   };
 
 
@@ -282,17 +291,38 @@ export default function DevicesPage() {
         Overview of all registered IoT devices, their status, and associated groups.
       </p>
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-        <Input
-          type="text"
-          placeholder="Filter by Device ID..."
-          value={deviceIdFilter}
-          onChange={(e) => setDeviceIdFilter(e.target.value)}
-          className="w-full pl-10"
-          disabled={isLoadingApi || authLoading}
-        />
+      <div className="flex flex-col sm:flex-row gap-2 items-center">
+        <div className="relative flex-grow w-full sm:w-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+          <Input
+            type="text"
+            placeholder="Filter by Device ID..."
+            value={deviceIdFilter}
+            onChange={(e) => setDeviceIdFilter(e.target.value)}
+            className="w-full pl-10"
+            disabled={isLoadingApi || authLoading}
+          />
+        </div>
+        <div className="flex items-center space-x-2 w-full sm:w-auto sm:justify-end">
+          <Label htmlFor="pageSizeSelect" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
+          <Select
+            value={pageSize}
+            onValueChange={(value) => setPageSize(value)}
+            disabled={isLoadingApi || authLoading}
+          >
+            <SelectTrigger id="pageSizeSelect" className="w-full sm:w-[80px]">
+              <SelectValue placeholder="Page size" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
 
       {isLoadingApi && !devices.length && ( 
          <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
@@ -378,7 +408,7 @@ export default function DevicesPage() {
         </>
       )}
 
-      {!apiError && (devices.length > 0 || isLoadingApi || debouncedDeviceIdFilter !== '') && (
+      {!apiError && (devices.length > 0 || isLoadingApi || debouncedDeviceIdFilter !== '' || pageSize !== '10') && (
         <div className="flex justify-end items-center mt-4 space-x-2">
             <Button 
                 onClick={handlePreviousPage} 
@@ -417,3 +447,4 @@ export default function DevicesPage() {
     </div>
   );
 }
+
