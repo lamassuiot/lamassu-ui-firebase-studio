@@ -6,8 +6,8 @@ import { User, UserManager, WebStorageStateStore, Log } from 'oidc-client-ts';
 import { useRouter } from 'next/navigation';
 
 // Optional: Configure oidc-client-ts logging
-// Log.setLogger(console);
-// Log.setLevel(Log.DEBUG);
+Log.setLogger(console);
+Log.setLevel(Log.DEBUG);
 
 const CANONICAL_ORIGIN = 'https://lab.lamassu.io'; // Define the correct public-facing origin
 
