@@ -5,19 +5,32 @@ import React from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Tree, TreeNode } from 'react-organizational-chart';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { CaNodeCard } from './CaNodeCard';
+import { CaVisualizerCard } from '@/components/CaVisualizerCard'; // Updated import
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 interface CaHierarchyViewProps {
   cas: CA[];
   router: ReturnType<typeof import('next/navigation').useRouter>;
-  allCAs: CA[];
+  allCAs: CA[]; // allCAs might still be needed if children nodes need context for display later
 }
 
 const renderTreeNodes = (ca: CA, router: ReturnType<typeof import('next/navigation').useRouter>, allCAs: CA[]): React.ReactNode => {
+  const handleNodeClick = (selectedCa: CA) => {
+    router.push(`/dashboard/certificate-authorities/${selectedCa.id}/details`);
+  };
+
   return (
-    <TreeNode key={ca.id} label={<CaNodeCard ca={ca} router={router} allCAs={allCAs} />}>
+    <TreeNode
+      key={ca.id}
+      label={
+        <CaVisualizerCard
+          ca={ca}
+          onClick={handleNodeClick}
+          className="!inline-block mx-auto w-auto min-w-[230px] max-w-[280px]"
+        />
+      }
+    >
       {ca.children && ca.children.map(child => renderTreeNodes(child, router, allCAs))}
     </TreeNode>
   );
@@ -29,6 +42,11 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
       <p className="text-muted-foreground text-center p-4">No Certificate Authorities to display in hierarchy view.</p>
     );
   }
+
+  const handleRootNodeClick = (selectedCa: CA) => {
+    router.push(`/dashboard/certificate-authorities/${selectedCa.id}/details`);
+  };
+
   return (
     <div className="w-full h-[calc(100vh-200px)] border rounded-md relative overflow-hidden">
       <TransformWrapper
@@ -62,7 +80,13 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
                     lineWidth={'2px'}
                     lineColor={'hsl(var(--primary))'}
                     lineBorderRadius={'5px'}
-                    label={<CaNodeCard ca={rootCa} router={router} allCAs={allCAs} />}
+                    label={
+                      <CaVisualizerCard
+                        ca={rootCa}
+                        onClick={handleRootNodeClick}
+                        className="!inline-block mx-auto w-auto min-w-[230px] max-w-[280px]"
+                      />
+                    }
                   >
                     {rootCa.children && rootCa.children.map(child => renderTreeNodes(child, router, allCAs))}
                   </Tree>
@@ -75,4 +99,3 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
     </div>
   );
 };
-
