@@ -12,9 +12,6 @@ import { KeyRound, PlusCircle, MoreVertical, Eye, FilePlus2, PenTool, ShieldChec
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { SignDataModal } from '@/components/dashboard/kms/SignDataModal';
-import { VerifySignatureModal } from '@/components/dashboard/kms/VerifySignatureModal';
-import { GenerateCsrModal } from '@/components/dashboard/kms/GenerateCsrModal';
 
 
 interface KmsKey {
@@ -87,10 +84,11 @@ export default function KmsKeysPage() {
   const [keyToDelete, setKeyToDelete] = useState<KmsKey | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const [isSignModalOpen, setIsSignModalOpen] = useState(false);
-  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
-  const [isGenerateCsrModalOpen, setIsGenerateCsrModalOpen] = useState(false);
-  const [selectedKeyForAction, setSelectedKeyForAction] = useState<KmsKey | null>(null);
+  // Removed state for Sign, Verify, Generate CSR modals
+  // const [isSignModalOpen, setIsSignModalOpen] = useState(false);
+  // const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  // const [isGenerateCsrModalOpen, setIsGenerateCsrModalOpen] = useState(false);
+  // const [selectedKeyForAction, setSelectedKeyForAction] = useState<KmsKey | null>(null);
 
   const handleCreateNewKey = () => {
     router.push('/dashboard/kms/keys/new');
@@ -113,20 +111,21 @@ export default function KmsKeysPage() {
     setKeyToDelete(null);
   };
 
-  const handleOpenSignModal = (key: KmsKey) => {
-    setSelectedKeyForAction(key);
-    setIsSignModalOpen(true);
-  };
+  // Removed handlers for Sign, Verify, Generate CSR modals
+  // const handleOpenSignModal = (key: KmsKey) => {
+  //   setSelectedKeyForAction(key);
+  //   setIsSignModalOpen(true);
+  // };
 
-  const handleOpenVerifyModal = (key: KmsKey) => {
-    setSelectedKeyForAction(key);
-    setIsVerifyModalOpen(true);
-  };
+  // const handleOpenVerifyModal = (key: KmsKey) => {
+  //   setSelectedKeyForAction(key);
+  //   setIsVerifyModalOpen(true);
+  // };
   
-  const handleOpenGenerateCsrModal = (key: KmsKey) => {
-    setSelectedKeyForAction(key);
-    setIsGenerateCsrModalOpen(true);
-  };
+  // const handleOpenGenerateCsrModal = (key: KmsKey) => {
+  //   setSelectedKeyForAction(key);
+  //   setIsGenerateCsrModalOpen(true);
+  // };
 
   return (
     <div className="space-y-6 w-full">
@@ -179,6 +178,8 @@ export default function KmsKeysPage() {
                         <DropdownMenuItem onClick={() => alert(`View details for key: ${key.alias}`)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
+                        {/* Removed Generate CSR, Sign, Verify actions */}
+                        {/* 
                         <DropdownMenuItem onClick={() => handleOpenGenerateCsrModal(key)}>
                           <FilePlus2 className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
@@ -187,7 +188,8 @@ export default function KmsKeysPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenVerifyModal(key)}>
                           <ShieldCheck className="mr-2 h-4 w-4" /> Verify
-                        </DropdownMenuItem>
+                        </DropdownMenuItem> 
+                        */}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => confirmDeleteKey(key)}
@@ -234,6 +236,8 @@ export default function KmsKeysPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Removed modal instantiations for Sign, Verify, Generate CSR */}
+      {/* 
       {selectedKeyForAction && (
         <>
           <SignDataModal 
@@ -252,7 +256,8 @@ export default function KmsKeysPage() {
             keyAlias={selectedKeyForAction.alias}
           />
         </>
-      )}
+      )} 
+      */}
     </div>
   );
 }
