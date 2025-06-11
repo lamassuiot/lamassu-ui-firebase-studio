@@ -166,8 +166,8 @@ export default function DashboardLayout({
                     {userRoles.map((role: string, index: number) => (
                       <Badge
                         key={index}
-                        variant="outline"
-                        className="text-xs px-1.5 py-0.5 border-primary-foreground/30 text-primary-foreground bg-primary-foreground/10 hover:bg-primary-foreground/20"
+                        variant="default" // Using default variant and overriding styles
+                        className="text-xs px-1.5 py-0.5 border-primary text-primary bg-primary-foreground hover:bg-primary-foreground/80"
                       >
                         {role}
                       </Badge>
