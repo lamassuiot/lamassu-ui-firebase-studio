@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, PlusCircle, Settings2 } from "lucide-react";
+import { ArrowLeft, PlusCircle, Settings2, KeyRound } from "lucide-react"; // Added KeyRound here
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 
