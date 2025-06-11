@@ -469,7 +469,7 @@ export default function CreateCertificateAuthorityPage() {
             {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && (
               <section>
                    <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                           <Label htmlFor="caExpirationDuration" className="font-medium">CA Certificate Expiration</Label>
                           <Input
