@@ -9,14 +9,16 @@ import { useRouter } from 'next/navigation';
 // Log.setLogger(console);
 // Log.setLevel(Log.DEBUG);
 
+const CANONICAL_ORIGIN = 'https://lab.lamassu.io'; // Define the correct public-facing origin
+
 const createUserManager = (): UserManager | null => {
   if (typeof window !== 'undefined') {
     return new UserManager({
       authority: 'https://lab.lamassu.io/auth/realms/lamassu', // No .well-known needed here
       client_id: 'frontend',
-      redirect_uri: `${window.location.origin}/signin-callback`,
-      silent_redirect_uri: `${window.location.origin}/silent-renew-callback`,
-      post_logout_redirect_uri: `${window.location.origin}/signout-callback`,
+      redirect_uri: `${CANONICAL_ORIGIN}/signin-callback`,
+      silent_redirect_uri: `${CANONICAL_ORIGIN}/silent-renew-callback`,
+      post_logout_redirect_uri: `${CANONICAL_ORIGIN}/signout-callback`,
       response_type: 'code',
       scope: 'openid profile email', // Standard scopes
       automaticSilentRenew: true,
