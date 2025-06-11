@@ -27,6 +27,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { jwtDecode } from 'jwt-decode'; // Import jwt-decode
+import Image from 'next/image'
+import Logo from './lamassu_full_white.svg'
 
 interface DecodedAccessToken {
   realm_access?: {
@@ -155,10 +157,11 @@ export default function DashboardLayout({
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
         <header className="flex h-12 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6" />
-            <span className="font-headline text-lg font-semibold">
-              LamassuIoT
-            </span>
+            <Image 
+              src={Logo}
+              height={30}
+              alt="Picture of the author"
+            />
           </div>
           <div className="flex items-center gap-3">
             {isAuthenticated() && user?.profile?.name && (
