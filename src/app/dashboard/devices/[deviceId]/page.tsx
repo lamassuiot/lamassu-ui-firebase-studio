@@ -15,7 +15,8 @@ export async function generateStaticParams() {
   // navigation to other IDs not listed here.
   return [
     { deviceId: 'example.com' },
-    { deviceId: 'd716e00d-0285-4798-b06b-f8c0d68cdbca' } // Added this new deviceId
+    { deviceId: 'd716e00d-0285-4798-b06b-f8c0d68cdbca' },
+    { deviceId: 'caf-ikl-2222' } // Added this new deviceId
   ];
 }
 
