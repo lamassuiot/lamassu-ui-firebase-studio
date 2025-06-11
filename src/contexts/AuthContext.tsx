@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 Log.setLogger(console);
 Log.setLevel(Log.DEBUG);
 
-const CANONICAL_ORIGIN =  window.location.origin; // Define the correct public-facing origin
+const CANONICAL_ORIGIN = 'https://lab.lamassu.io'; // Define the correct public-facing origin
 
 const createUserManager = (): UserManager | null => {
   if (typeof window !== 'undefined') {

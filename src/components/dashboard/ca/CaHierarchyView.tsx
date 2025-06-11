@@ -27,7 +27,7 @@ const renderTreeNodes = (ca: CA, router: ReturnType<typeof import('next/navigati
         <CaVisualizerCard
           ca={ca}
           onClick={handleNodeClick}
-          className="!inline-block mx-auto w-auto min-w-[230px] max-w-[280px]"
+          className="mx-auto w-auto min-w-[330px] max-w-[380px]"
         />
       }
     >
@@ -84,7 +84,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
                       <CaVisualizerCard
                         ca={rootCa}
                         onClick={handleRootNodeClick}
-                        className="!inline-block mx-auto w-auto min-w-[230px] max-w-[280px]"
+                        className="mx-auto w-auto min-w-[230px] max-w-[380px]"
                       />
                     }
                   >
