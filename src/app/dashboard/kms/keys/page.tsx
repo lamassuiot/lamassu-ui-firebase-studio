@@ -3,13 +3,19 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { KeyRound, PlusCircle, MoreVertical, Eye, Settings2, Trash2, Power, PowerOff } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { KeyRound, PlusCircle, MoreVertical, Eye, FilePlus2, PenTool, ShieldCheck, Trash2, AlertTriangle } from "lucide-react";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { SignDataModal } from '@/components/dashboard/kms/SignDataModal';
+import { VerifySignatureModal } from '@/components/dashboard/kms/VerifySignatureModal';
+import { GenerateCsrModal } from '@/components/dashboard/kms/GenerateCsrModal';
+
 
 interface KmsKey {
   id: string;
@@ -76,33 +82,50 @@ const StatusBadge: React.FC<{ status: KmsKey['status'] }> = ({ status }) => {
 
 export default function KmsKeysPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [keys, setKeys] = useState<KmsKey[]>(mockKmsKeysData);
+  const [keyToDelete, setKeyToDelete] = useState<KmsKey | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const [isSignModalOpen, setIsSignModalOpen] = useState(false);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [isGenerateCsrModalOpen, setIsGenerateCsrModalOpen] = useState(false);
+  const [selectedKeyForAction, setSelectedKeyForAction] = useState<KmsKey | null>(null);
 
   const handleCreateNewKey = () => {
-    // router.push('/dashboard/kms/keys/new');
-    alert('Navigate to Create New KMS Key form (placeholder)');
+    router.push('/dashboard/kms/keys/new');
   };
 
-  const toggleKeyStatus = (keyId: string) => {
-    setKeys(prevKeys =>
-      prevKeys.map(key => {
-        if (key.id === keyId) {
-          if (key.status === 'Enabled') return { ...key, status: 'Disabled' as KmsKey['status'] };
-          if (key.status === 'Disabled') return { ...key, status: 'Enabled' as KmsKey['status'] };
-        }
-        return key;
-      })
-    );
-    alert(`Toggled status for key ${keyId} (mock)`);
+  const confirmDeleteKey = (key: KmsKey) => {
+    setKeyToDelete(key);
+    setIsDeleteDialogOpen(true);
   };
 
-  const scheduleKeyDeletion = (keyId: string) => {
-     setKeys(prevKeys =>
-      prevKeys.map(key => 
-        key.id === keyId && key.status !== 'PendingDeletion' ? { ...key, status: 'PendingDeletion' as KmsKey['status'] } : key
-      )
-    );
-    alert(`Scheduled deletion for key ${keyId} (mock)`);
+  const handleDeleteKey = () => {
+    if (keyToDelete) {
+      setKeys(prevKeys => prevKeys.filter(k => k.id !== keyToDelete.id));
+      toast({
+        title: "Key Deleted (Mock)",
+        description: `Key "${keyToDelete.alias}" has been removed from the list.`,
+      });
+    }
+    setIsDeleteDialogOpen(false);
+    setKeyToDelete(null);
+  };
+
+  const handleOpenSignModal = (key: KmsKey) => {
+    setSelectedKeyForAction(key);
+    setIsSignModalOpen(true);
+  };
+
+  const handleOpenVerifyModal = (key: KmsKey) => {
+    setSelectedKeyForAction(key);
+    setIsVerifyModalOpen(true);
+  };
+  
+  const handleOpenGenerateCsrModal = (key: KmsKey) => {
+    setSelectedKeyForAction(key);
+    setIsGenerateCsrModalOpen(true);
   };
 
   return (
@@ -156,23 +179,21 @@ export default function KmsKeysPage() {
                         <DropdownMenuItem onClick={() => alert(`View details for key: ${key.alias}`)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Manage policy for key: ${key.alias}`)}>
-                          <Settings2 className="mr-2 h-4 w-4" /> Manage Policy
+                        <DropdownMenuItem onClick={() => handleOpenGenerateCsrModal(key)}>
+                          <FilePlus2 className="mr-2 h-4 w-4" /> Generate CSR
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenSignModal(key)}>
+                          <PenTool className="mr-2 h-4 w-4" /> Sign
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenVerifyModal(key)}>
+                          <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() => toggleKeyStatus(key.id)}
-                          disabled={key.status === 'PendingDeletion'}
+                          onClick={() => confirmDeleteKey(key)}
+                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
                         >
-                          {key.status === 'Enabled' ? <PowerOff className="mr-2 h-4 w-4" /> : <Power className="mr-2 h-4 w-4" />}
-                          {key.status === 'Enabled' ? 'Disable Key' : 'Enable Key'}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => scheduleKeyDeletion(key.id)}
-                          disabled={key.status === 'PendingDeletion'}
-                          className={cn(key.status !== 'PendingDeletion' && "text-destructive focus:text-destructive focus:bg-destructive/10")}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Schedule Deletion
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete Key
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -192,6 +213,45 @@ export default function KmsKeysPage() {
             <PlusCircle className="mr-2 h-4 w-4" /> Create New Key
           </Button>
         </div>
+      )}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="mr-2 h-6 w-6 text-destructive" />
+              Confirm Deletion
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the key "<strong>{keyToDelete?.alias}</strong>"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setKeyToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteKey} className={buttonVariants({ variant: "destructive" })}>
+              Delete Key
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {selectedKeyForAction && (
+        <>
+          <SignDataModal 
+            isOpen={isSignModalOpen} 
+            onOpenChange={setIsSignModalOpen} 
+            keyAlias={selectedKeyForAction.alias} 
+          />
+          <VerifySignatureModal 
+            isOpen={isVerifyModalOpen} 
+            onOpenChange={setIsVerifyModalOpen} 
+            keyAlias={selectedKeyForAction.alias} 
+          />
+          <GenerateCsrModal
+            isOpen={isGenerateCsrModalOpen}
+            onOpenChange={setIsGenerateCsrModalOpen}
+            keyAlias={selectedKeyForAction.alias}
+          />
+        </>
       )}
     </div>
   );

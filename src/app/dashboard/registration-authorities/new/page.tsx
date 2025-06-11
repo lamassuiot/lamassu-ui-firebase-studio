@@ -334,9 +334,9 @@ export default function CreateRegistrationAuthorityPage() {
                         {validationCAs.length > 0 ? `Selected ${validationCAs.length} CA(s) - Click to modify` : "Select Validation CAs..."}
                       </Button>
                       {validationCAs.length > 0 && 
-                        <div className="mt-2 space-y-2">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           {validationCAs.map(ca => (
-                            <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border" />
+                            <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" />
                           ))}
                         </div>
                       }
@@ -399,9 +399,9 @@ export default function CreateRegistrationAuthorityPage() {
                         {additionalValidationCAs.length > 0 ? `Selected ${additionalValidationCAs.length} CA(s) - Click to modify` : "Select Additional Validation CAs..."}
                       </Button>
                       {additionalValidationCAs.length > 0 && 
-                        <div className="mt-2 space-y-2">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           {additionalValidationCAs.map(ca => (
-                            <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border" />
+                            <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" />
                           ))}
                         </div>
                       }
@@ -445,9 +445,9 @@ export default function CreateRegistrationAuthorityPage() {
                         {managedCAs.length > 0 ? `Selected ${managedCAs.length} CA(s) - Click to modify` : "Select Managed CAs..."}
                       </Button>
                       {managedCAs.length > 0 && 
-                        <div className="mt-2 space-y-2">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           {managedCAs.map(ca => (
-                            <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border" />
+                            <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" />
                           ))}
                         </div>
                       }

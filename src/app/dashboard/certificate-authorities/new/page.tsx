@@ -14,7 +14,9 @@ import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from '@/lib/utils';
+import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 
 interface SelectableCaTreeItemProps {
   ca: CA;
@@ -280,7 +282,7 @@ export default function CreateCertificateAuthorityPage() {
             {selectedMode !== 'importCertOnly' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
-                <div className="space-y-4 p-4 border rounded-md">
+                <div className={cn("space-y-4", ['newKeyPair', 'reuseKeyPair', 'importFull'].includes(selectedMode || '') ? "" : "p-4 border rounded-md")}>
                   <div>
                     <Label htmlFor="caType">CA Type</Label>
                     <Select value={caType} onValueChange={handleCaTypeChange} disabled={selectedMode === 'importFull'}>
@@ -320,8 +322,13 @@ export default function CreateCertificateAuthorityPage() {
                         className="w-full justify-start text-left font-normal mt-1"
                         id="parentCa"
                       >
-                        {selectedParentCa ? selectedParentCa.name : "Select Parent CA..."}
+                        {selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
                       </Button>
+                      {selectedParentCa && (
+                        <div className="mt-2">
+                          <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" />
+                        </div>
+                      )}
                       {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected for intermediate CAs.</p>}
                     </div>
                   )}
@@ -397,7 +404,7 @@ export default function CreateCertificateAuthorityPage() {
             {selectedMode === 'importCertOnly' && (
                  <section>
                     <h3 className="text-lg font-semibold mb-3 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Import CA Certificate</h3>
-                    <div className="space-y-4 p-4 border rounded-md">
+                    <div className="space-y-4">
                         <div>
                             <Label htmlFor="caCertPem">CA Certificate (PEM format)</Label>
                             <Textarea id="caCertPem" placeholder="Paste the CA certificate PEM here..." rows={6} required className="mt-1 font-mono"/>
@@ -426,7 +433,7 @@ export default function CreateCertificateAuthorityPage() {
             {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />Subject Distinguished Name (DN)</h3>
-                <div className="space-y-4 p-4 border rounded-md">
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="country">Country (C)</Label>
@@ -462,7 +469,7 @@ export default function CreateCertificateAuthorityPage() {
             {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && (
               <section>
                    <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                           <Label htmlFor="caExpirationDuration" className="font-medium">CA Certificate Expiration</Label>
                           <Input
