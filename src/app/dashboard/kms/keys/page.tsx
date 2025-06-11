@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants import
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -12,6 +12,9 @@ import { KeyRound, PlusCircle, MoreVertical, Eye, FilePlus2, PenTool, ShieldChec
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { SignDataModal } from '@/components/dashboard/kms/SignDataModal';
+import { VerifySignatureModal } from '@/components/dashboard/kms/VerifySignatureModal';
+
 
 interface KmsKey {
   id: string;
@@ -83,6 +86,10 @@ export default function KmsKeysPage() {
   const [keyToDelete, setKeyToDelete] = useState<KmsKey | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+  const [isSignModalOpen, setIsSignModalOpen] = useState(false);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [selectedKeyForAction, setSelectedKeyForAction] = useState<KmsKey | null>(null);
+
   const handleCreateNewKey = () => {
     router.push('/dashboard/kms/keys/new');
   };
@@ -102,6 +109,16 @@ export default function KmsKeysPage() {
     }
     setIsDeleteDialogOpen(false);
     setKeyToDelete(null);
+  };
+
+  const handleOpenSignModal = (key: KmsKey) => {
+    setSelectedKeyForAction(key);
+    setIsSignModalOpen(true);
+  };
+
+  const handleOpenVerifyModal = (key: KmsKey) => {
+    setSelectedKeyForAction(key);
+    setIsVerifyModalOpen(true);
   };
 
   return (
@@ -158,10 +175,10 @@ export default function KmsKeysPage() {
                         <DropdownMenuItem onClick={() => alert(`Generate CSR for key: ${key.alias} (placeholder)`)}>
                           <FilePlus2 className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Sign with key: ${key.alias} (placeholder)`)}>
+                        <DropdownMenuItem onClick={() => handleOpenSignModal(key)}>
                           <PenTool className="mr-2 h-4 w-4" /> Sign
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Verify with key: ${key.alias} (placeholder)`)}>
+                        <DropdownMenuItem onClick={() => handleOpenVerifyModal(key)}>
                           <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -209,7 +226,21 @@ export default function KmsKeysPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {selectedKeyForAction && (
+        <>
+          <SignDataModal 
+            isOpen={isSignModalOpen} 
+            onOpenChange={setIsSignModalOpen} 
+            keyAlias={selectedKeyForAction.alias} 
+          />
+          <VerifySignatureModal 
+            isOpen={isVerifyModalOpen} 
+            onOpenChange={setIsVerifyModalOpen} 
+            keyAlias={selectedKeyForAction.alias} 
+          />
+        </>
+      )}
     </div>
   );
 }
-
