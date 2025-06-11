@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+// Removed Card, CardContent, CardHeader, CardTitle, CardDescription from imports
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -231,16 +231,16 @@ export default function CreateRegistrationAuthorityPage() {
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to RAs
       </Button>
       
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-xl font-headline flex items-center">
+      <div> {/* Replaces Card wrapper */}
+        <div className="flex flex-col space-y-1.5 p-6"> {/* Replaces CardHeader */}
+          <h1 className="text-xl font-headline flex items-center font-semibold leading-none tracking-tight"> {/* Replaces CardTitle */}
             <PlusCircle className="mr-2 h-6 w-6 text-primary" /> Create New Registration Authority
-          </CardTitle>
-          <CardDescription>
+          </h1>
+          <p className="text-sm text-muted-foreground"> {/* Replaces CardDescription */}
             Configure all settings for the new Registration Authority below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="p-6 pt-0"> {/* Replaces CardContent */}
           <form onSubmit={handleSubmit} className="space-y-0">
             
             <Accordion type="multiple" defaultValue={['dms-definition']} className="w-full space-y-2">
@@ -464,8 +464,8 @@ export default function CreateRegistrationAuthorityPage() {
                 </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {renderCaSelectionDialog(
         isEnrollmentCaModalOpen,
