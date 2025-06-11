@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Router as RouterIcon, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2 } from "lucide-react"; // Renamed RouterIcon to RouterIconLucide to avoid conflict
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -162,9 +162,25 @@ const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
 };
 
 const DeviceIcon: React.FC<{ type: DeviceData['iconType'] }> = ({ type }) => {
-  if (type === 'router') return <RouterIcon className="h-5 w-5 text-red-500" />;
-  if (type === 'globe') return <Globe className="h-5 w-5 text-teal-500" />;
-  return <HelpCircle className="h-5 w-5 text-amber-500" />; // Fallback for 'unknown' or other types
+  let IconComponent = HelpCircle;
+  let iconColorClass = "text-amber-500";
+  let bgColorClass = "bg-amber-100 dark:bg-amber-900/30";
+
+  if (type === 'router') {
+    IconComponent = RouterIconLucide;
+    iconColorClass = "text-red-500";
+    bgColorClass = "bg-red-100 dark:bg-red-900/30";
+  } else if (type === 'globe') {
+    IconComponent = Globe;
+    iconColorClass = "text-teal-500";
+    bgColorClass = "bg-teal-100 dark:bg-teal-900/30";
+  }
+  
+  return (
+    <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center", bgColorClass)}>
+      <IconComponent className={cn("h-5 w-5", iconColorClass)} />
+    </div>
+  );
 };
 
 
@@ -199,7 +215,7 @@ export default function DevicesPage() {
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <RouterIcon className="h-8 w-8 text-primary" />
+          <RouterIconLucide className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-headline font-semibold">Managed Devices</h1>
         </div>
         <Button onClick={handleCreateNewDevice}>
@@ -227,7 +243,7 @@ export default function DevicesPage() {
               {devices.map((device) => (
                 <TableRow key={device.id}>
                   <TableCell>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3"> {/* Increased space-x for icon and text */}
                       <DeviceIcon type={device.iconType} />
                       <span className="font-medium truncate" title={device.displayId}>{device.displayId}</span>
                     </div>
@@ -289,3 +305,4 @@ export default function DevicesPage() {
     </div>
   );
 }
+
