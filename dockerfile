@@ -1,0 +1,7 @@
+listen 80 default_server;
+root /var/www/html;
+index index.html;
+
+location / {
+    try_files $uri $uri/ =404;
+}
