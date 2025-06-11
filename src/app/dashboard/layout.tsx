@@ -115,7 +115,7 @@ export default function DashboardLayout({
     { href: '/dashboard/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
   ];
   const iotItems = [
-    { href: '/dashboard/devices', label: 'Devices', icon: RouterIcon }, // Changed icon
+    { href: '/dashboard/devices', label: 'Devices', icon: Router }, // Changed icon
     { href: '/dashboard/device-groups', label: 'Device Groups', icon: ServerCog },
   ];
   const kmsItems = [
