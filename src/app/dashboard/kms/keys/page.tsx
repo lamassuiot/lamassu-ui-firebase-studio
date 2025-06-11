@@ -23,11 +23,11 @@ interface KmsKey {
 const mockKmsKeysData: KmsKey[] = [
   {
     id: 'key-1234abcd-12ab-34cd-56ef-1234567890ab',
-    alias: 'lamassu/prod/root-ca-key',
+    alias: 'pkcs11:token-id=filesystem-1;id=414b4944;type=private',
     keyTypeDisplay: 'RSA 4096',
     status: 'Enabled',
     creationDate: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Primary signing key for the LamassuIoT Global Root CA G1.',
+    description: 'Primary signing key for the LamassuIoT Global Root CA G1, referenced via PKCS11 URI.',
   },
   {
     id: 'key-5678efgh-56ef-78gh-90ij-5678901234cd',
@@ -137,8 +137,8 @@ export default function KmsKeysPage() {
               {keys.map((key) => (
                 <TableRow key={key.id}>
                   <TableCell className="font-medium">
-                    <p className="truncate max-w-[200px] sm:max-w-xs" title={key.alias}>{key.alias}</p>
-                    {key.description && <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-xs" title={key.description}>{key.description}</p>}
+                    <p className="truncate max-w-[200px] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl" title={key.alias}>{key.alias}</p>
+                    {key.description && <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl" title={key.description}>{key.description}</p>}
                   </TableCell>
                   <TableCell className="font-mono text-xs hidden md:table-cell" title={key.id}>{key.id.substring(0, 12)}...</TableCell>
                   <TableCell>{key.keyTypeDisplay}</TableCell>
@@ -196,3 +196,4 @@ export default function KmsKeysPage() {
     </div>
   );
 }
+
