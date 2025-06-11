@@ -16,6 +16,7 @@ import {
   SidebarInset,
   SidebarGroupLabel,
   useSidebar,
+  SidebarTrigger, // Added import
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2 } from 'lucide-react';
@@ -157,6 +158,7 @@ export default function DashboardLayout({
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
         <header className="flex h-12 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-2">
+            <SidebarTrigger className="md:hidden text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" />
             <Image 
               src={Logo}
               height={30}
