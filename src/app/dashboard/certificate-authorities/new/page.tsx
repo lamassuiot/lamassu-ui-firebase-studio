@@ -282,7 +282,7 @@ export default function CreateCertificateAuthorityPage() {
             {selectedMode !== 'importCertOnly' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
-                <div className={cn("space-y-4", selectedMode === 'newKeyPair' ? "" : "p-4 border rounded-md")}>
+                <div className={cn("space-y-4", ['newKeyPair', 'reuseKeyPair', 'importFull'].includes(selectedMode || '') ? "" : "p-4 border rounded-md")}>
                   <div>
                     <Label htmlFor="caType">CA Type</Label>
                     <Select value={caType} onValueChange={handleCaTypeChange} disabled={selectedMode === 'importFull'}>
@@ -404,7 +404,7 @@ export default function CreateCertificateAuthorityPage() {
             {selectedMode === 'importCertOnly' && (
                  <section>
                     <h3 className="text-lg font-semibold mb-3 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Import CA Certificate</h3>
-                    <div className="space-y-4 p-4 border rounded-md">
+                    <div className="space-y-4">
                         <div>
                             <Label htmlFor="caCertPem">CA Certificate (PEM format)</Label>
                             <Textarea id="caCertPem" placeholder="Paste the CA certificate PEM here..." rows={6} required className="mt-1 font-mono"/>
