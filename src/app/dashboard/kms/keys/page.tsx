@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { SignDataModal } from '@/components/dashboard/kms/SignDataModal';
 import { VerifySignatureModal } from '@/components/dashboard/kms/VerifySignatureModal';
+import { GenerateCsrModal } from '@/components/dashboard/kms/GenerateCsrModal';
 
 
 interface KmsKey {
@@ -88,6 +89,7 @@ export default function KmsKeysPage() {
 
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [isGenerateCsrModalOpen, setIsGenerateCsrModalOpen] = useState(false);
   const [selectedKeyForAction, setSelectedKeyForAction] = useState<KmsKey | null>(null);
 
   const handleCreateNewKey = () => {
@@ -119,6 +121,11 @@ export default function KmsKeysPage() {
   const handleOpenVerifyModal = (key: KmsKey) => {
     setSelectedKeyForAction(key);
     setIsVerifyModalOpen(true);
+  };
+  
+  const handleOpenGenerateCsrModal = (key: KmsKey) => {
+    setSelectedKeyForAction(key);
+    setIsGenerateCsrModalOpen(true);
   };
 
   return (
@@ -172,7 +179,7 @@ export default function KmsKeysPage() {
                         <DropdownMenuItem onClick={() => alert(`View details for key: ${key.alias}`)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Generate CSR for key: ${key.alias} (placeholder)`)}>
+                        <DropdownMenuItem onClick={() => handleOpenGenerateCsrModal(key)}>
                           <FilePlus2 className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenSignModal(key)}>
@@ -239,8 +246,14 @@ export default function KmsKeysPage() {
             onOpenChange={setIsVerifyModalOpen} 
             keyAlias={selectedKeyForAction.alias} 
           />
+          <GenerateCsrModal
+            isOpen={isGenerateCsrModalOpen}
+            onOpenChange={setIsGenerateCsrModalOpen}
+            keyAlias={selectedKeyForAction.alias}
+          />
         </>
       )}
     </div>
   );
 }
+
