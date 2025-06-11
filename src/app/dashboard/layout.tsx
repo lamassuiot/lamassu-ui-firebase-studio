@@ -167,7 +167,7 @@ export default function DashboardLayout({
                       <Badge
                         key={index}
                         variant="default" // Using default variant and overriding styles
-                        className="text-xs px-1.5 py-0.5 border-primary text-black bg-primary-foreground hover:bg-primary-foreground/80"
+                        className="text-xs font-normal px-1.5 py-0.5 border-primary text-black bg-primary-foreground hover:bg-primary-foreground/80"
                       >
                         {role}
                       </Badge>
@@ -295,3 +295,4 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
+
