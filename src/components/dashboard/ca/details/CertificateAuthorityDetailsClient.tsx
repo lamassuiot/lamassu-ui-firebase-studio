@@ -5,7 +5,7 @@ import React, { useState, useEffect, FC } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Copy, Check, Users, Network, Layers } from "lucide-react";
+import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Copy, Check, Users, Network, Layers, Download, ShieldAlert, RefreshCw, Edit, Code2, Database } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, getCaDisplayName } from '@/lib/ca-data'; // allCertificateAuthoritiesData removed as it's passed as prop
+import { findCaById, getCaDisplayName } from '@/lib/ca-data';
 import { CaHierarchyPathNode } from './CaHierarchyPathNode';
 
 const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] => {
@@ -49,6 +49,31 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
   const [pemCopied, setPemCopied] = useState(false);
   const [fullChainCopied, setFullChainCopied] = useState(false);
   const [fullChainPemString, setFullChainPemString] = useState<string>('');
+  const [metadataCopied, setMetadataCopied] = useState(false);
+
+  const mockLamassuMetadata = {
+    lamassuInternalId: `lm_ca_${caId.replace(/-/g, '_')}`,
+    provisioningProfile: "Default IoT Device Profile",
+    associatedDeviceGroups: ["group_thermostats_emea", "group_sensors_floor_1"],
+    customPoliciesApplied: [
+      { policyId: "pol_strict_key_usage", version: "1.2" },
+      { policyId: "pol_geo_fence_eu", version: "1.0" }
+    ],
+    lastAuditDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+    monitoringEndpoints: {
+      status: `https://monitoring.lamassu.io/ca/${caId}/status`,
+      crl_health: `https://monitoring.lamassu.io/ca/${caId}/crl_health`
+    },
+    tags: ["production", "iot", "device-auth"],
+    operationalNotes: "Standard CA for production device authentication. Monitored by Ops Team X.",
+    backupFrequency: "daily",
+    kmsIntegration: {
+        enabled: true,
+        keyId: `arn:aws:kms:eu-west-1:123456789012:key/mock-kms-${caId}`
+    }
+  };
+  const lamassuMetadataString = JSON.stringify(mockLamassuMetadata, null, 2);
+
 
   useEffect(() => {
     const foundCa = findCaById(caId, allCertificateAuthoritiesData);
@@ -57,12 +82,11 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
       const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
       setCaPathToRoot(path);
 
-      // Generate full chain PEM string
-      const chainInOrderForPem = [...path].reverse(); // Current CA first, then parents up to root
+      const chainInOrderForPem = [...path].reverse(); 
       const chainPem = chainInOrderForPem
         .map(caNode => caNode.pemData || '')
         .filter(pem => pem.trim() !== '')
-        .join('\n\n'); // Standard separation for PEM chain
+        .join('\n\n'); 
       setFullChainPemString(chainPem);
 
     } else {
@@ -84,35 +108,28 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
     );
   };
 
-  const handleCopyPem = async () => {
-    if (caDetails?.pemData) {
-      try {
-        await navigator.clipboard.writeText(caDetails.pemData);
-        setPemCopied(true);
-        toast({ title: "Copied!", description: "Certificate PEM data copied to clipboard." });
-        setTimeout(() => setPemCopied(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy PEM: ', err);
-        toast({ title: "Copy Failed", description: "Could not copy certificate PEM data.", variant: "destructive" });
-      }
-    }
-  };
-
-  const handleCopyFullChainPem = async () => {
-    if (fullChainPemString.trim() === '') {
-      toast({ title: "Copy Failed", description: "No PEM data found to build the chain.", variant: "destructive" });
+  const handleCopyText = async (textToCopy: string, type: 'Certificate' | 'Full Chain' | 'Metadata') => {
+    if (!textToCopy.trim()) {
+      toast({ title: "Copy Failed", description: `No ${type.toLowerCase()} data found to copy.`, variant: "destructive" });
       return;
     }
     try {
-      await navigator.clipboard.writeText(fullChainPemString);
-      setFullChainCopied(true);
-      toast({ title: "Copied!", description: "Full certificate chain PEM copied to clipboard." });
-      setTimeout(() => setFullChainCopied(false), 2000);
+      await navigator.clipboard.writeText(textToCopy);
+      if (type === 'Certificate') setPemCopied(true);
+      if (type === 'Full Chain') setFullChainCopied(true);
+      if (type === 'Metadata') setMetadataCopied(true);
+      toast({ title: "Copied!", description: `${type} data copied to clipboard.` });
+      setTimeout(() => {
+        if (type === 'Certificate') setPemCopied(false);
+        if (type === 'Full Chain') setFullChainCopied(false);
+        if (type === 'Metadata') setMetadataCopied(false);
+      }, 2000);
     } catch (err) {
-      console.error('Failed to copy full chain PEM: ', err);
-      toast({ title: "Copy Failed", description: "Could not copy full chain PEM data.", variant: "destructive" });
+      console.error(`Failed to copy ${type.toLowerCase()}: `, err);
+      toast({ title: "Copy Failed", description: `Could not copy ${type.toLowerCase()} data.`, variant: "destructive" });
     }
   };
+
 
   if (!caDetails) {
     return (
@@ -146,214 +163,263 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
       statusVariant = 'outline';
   }
 
-  const accordionTriggerStyle = "text-lg bg-muted/50 hover:bg-muted/60 data-[state=open]:bg-muted/75 px-4 py-4 rounded-md";
+  const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
 
   return (
     <div className="w-full space-y-6">
-      <Button variant="outline" onClick={() => router.back()} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
-      </Button>
+      <div className="flex justify-between items-center mb-4">
+        <Button variant="outline" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+        </Button>
+        {/* Placeholder for future global actions related to the CA list itself */}
+      </div>
+      
       <div className="w-full">
-        <div className="p-6">
-          <div className="flex items-center space-x-3">
-            <FileText className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            Detailed information for Certificate Authority: <span className="font-semibold">{caDetails.name}</span> (ID: {caDetails.id}).
-          </p>
-        </div>
-        <div className="p-6 pt-0">
-          <Accordion type="multiple" defaultValue={['general', 'keyInfo', 'pemData', 'hierarchy']} className="w-full">
-            <AccordionItem value="general">
-              <AccordionTrigger className={cn(accordionTriggerStyle)}>
-                <Info className="mr-2 h-5 w-5" /> General Information
-              </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-4">
-                <DetailItem label="Full Name" value={caDetails.name} />
-                <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
-                <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, allCertificateAuthoritiesData)} />
-                <DetailItem label="Status" value={<Badge variant={statusVariant} className={statusVariant !== 'outline' ? statusColorClass : ''}>{caDetails.status.toUpperCase()}</Badge>} />
-                <DetailItem label="Expires On" value={new Date(caDetails.expires).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
-                <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="keyInfo">
-              <AccordionTrigger className={cn(accordionTriggerStyle)}>
-                <KeyRound className="mr-2 h-5 w-5" /> Key & Signature Information
-              </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-4">
-                <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
-                <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
-                {placeholderSerial && (
-                  <>
-                    <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[0]}:... (placeholder)</span>} />
-                    <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[1]}:... (placeholder)</span>} />
-                  </>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-            
-            <AccordionItem value="pemData">
-              <AccordionTrigger className={cn(accordionTriggerStyle)}>
-                <ScrollText className="mr-2 h-5 w-5" /> PEM Certificate Data
-              </AccordionTrigger>
-              <AccordionContent className="space-y-2 px-4 py-4">
-                <Tabs defaultValue="certificate" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="certificate">Certificate</TabsTrigger>
-                    <TabsTrigger value="fullChain">Full Chain</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="certificate" className="mt-4">
-                    <div className="flex justify-start mb-2">
-                      <Button onClick={handleCopyPem} variant="outline" size="sm">
-                        {pemCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
-                        {pemCopied ? 'Certificate Copied!' : 'Copy Certificate PEM'}
-                      </Button>
-                    </div>
-                    {caDetails.pemData ? (
-                      <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/30">
-                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
-                      </ScrollArea>
-                    ) : (
-                      <p className="text-sm text-muted-foreground p-4 text-center">No individual certificate PEM data available for this CA.</p>
-                    )}
-                  </TabsContent>
-                  <TabsContent value="fullChain" className="mt-4">
-                    <div className="flex justify-start mb-2">
-                      <Button onClick={handleCopyFullChainPem} variant="outline" size="sm" disabled={!fullChainPemString.trim()}>
-                        {fullChainCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Layers className="mr-2 h-4 w-4" />}
-                        {fullChainCopied ? 'Chain Copied!' : 'Copy Full Chain PEM'}
-                      </Button>
-                    </div>
-                    {fullChainPemString.trim() ? (
-                      <>
-                        <ScrollArea className="h-64 w-full rounded-md border p-3 bg-muted/30">
-                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString}</pre>
-                        </ScrollArea>
-                        <p className="text-xs text-muted-foreground mt-2">
-                            The full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
-                            The order is: Current CA, Intermediate CA(s) (if any), Root CA.
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground p-4 text-center">No full chain PEM data available or could be constructed.</p>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="extensions">
-              <AccordionTrigger className={cn(accordionTriggerStyle)}>
-                <Lock className="mr-2 h-5 w-5" /> Certificate Extensions
-              </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-4">
-                <DetailItem label="Basic Constraints" value={
-                    <div className="space-y-0.5">
-                        <p>CA: <Badge variant={caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? "default" : "secondary"} className={(caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? 'bg-green-100 text-green-700' : '')}>TRUE</Badge></p>
-                        <p>Path Length Constraint: {caDetails.issuer === 'Self-signed' ? 'None' : (caDetails.children && caDetails.children.length > 0 ? '1 (placeholder)' : '0 (placeholder)')}</p>
-                    </div>
-                } />
-                <Separator className="my-2"/>
-                <DetailItem label="Key Usage" value={
-                    <div className="flex flex-wrap gap-1">
-                        <Badge variant="outline">Certificate Signing</Badge>
-                        <Badge variant="outline">CRL Signing</Badge>
-                        <Badge variant="outline">Digital Signature</Badge>
-                    </div>
-                } />
-                 <Separator className="my-2"/>
-                <DetailItem label="Extended Key Usage" value={
-                     <div className="flex flex-wrap gap-1">
-                        <Badge variant="outline">Server Authentication (placeholder)</Badge>
-                        <Badge variant="outline">Client Authentication (placeholder)</Badge>
-                    </div>
-                }/>
-                 <Separator className="my-2"/>
-                <DetailItem label="Certificate Policies" value={"Policy ID: 2.5.29.32.0 (anyPolicy) (placeholder)"} />
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="distribution">
-              <AccordionTrigger className={cn(accordionTriggerStyle)}>
-                <LinkIcon className="mr-2 h-5 w-5" /> Distribution Points
-              </AccordionTrigger>
-              <AccordionContent className="space-y-1 px-4">
-                <DetailItem label="CRL Distribution Points (CDP)" value={
-                    <ul className="list-disc list-inside space-y-1">
-                        <li>URI: http://crl.example.com/{caDetails.id.replace(/-/g,'')}.crl (placeholder)</li>
-                    </ul>
-                } fullWidthValue />
-                 <Separator className="my-2"/>
-                <DetailItem label="Authority Information Access (AIA)" value={
-                    <ul className="list-disc list-inside space-y-1">
-                        <li>OCSP - URI: http://ocsp.example.com/{caDetails.id.replace(/-/g,'')} (placeholder)</li>
-                        <li>CA Issuers - URI: http://crt.example.com/{caDetails.issuer.replace(/-/g,'')}.crt (placeholder)</li>
-                    </ul>
-                } fullWidthValue />
-              </AccordionContent>
-            </AccordionItem>
-
-             <AccordionItem value="hierarchy">
-              <AccordionTrigger className={cn(accordionTriggerStyle)}>
-                <Network className="mr-2 h-5 w-5" /> Issuance Hierarchy & Chain of Trust
-              </AccordionTrigger>
-              <AccordionContent className="space-y-4 p-4">
-                {caPathToRoot.length > 0 ? (
-                  <div className="flex flex-col items-center w-full">
-                    {caPathToRoot.map((caNode, index) => (
-                      <CaHierarchyPathNode
-                        key={caNode.id}
-                        ca={caNode}
-                        isCurrentCa={caNode.id === caDetails.id}
-                        hasNext={index < caPathToRoot.length - 1}
-                        isFirst={index === 0}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Hierarchy path not available.</p>
-                )}
-                
-                {caDetails.children && caDetails.children.length > 0 && (
-                  <>
-                    <Separator className="my-4"/>
-                    <h4 className="text-md font-semibold flex items-center"><Users className="mr-2 h-4 w-4 text-muted-foreground"/>Directly Issues To:</h4>
-                    <ul className="list-disc list-inside space-y-1 pl-4">
-                      {caDetails.children.map(child => (
-                        <li key={child.id}>
-                           <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => router.push(`/dashboard/certificate-authorities/${child.id}/details`)}>
-                               {child.name} (ID: {child.id})
-                           </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-          
-          <div className="mt-6 p-4 border-2 border-dashed border-border rounded-lg bg-muted/20">
-              <h3 className="text-lg font-semibold text-muted-foreground flex items-center">
-                <ListChecks className="mr-2 h-5 w-5" />
-                Actions & Related Information
-              </h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Further actions related to this CA, such as viewing issued certificates, CRLs, or initiating renewal.
+        <div className="p-6 border-b">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center space-x-3">
+                <FileText className="h-8 w-8 text-primary" />
+                <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                CA ID: {caDetails.id}
               </p>
-              <div className="space-x-2">
-                <Button variant="secondary" onClick={() => alert(`Viewing issued certificates for ${caDetails.name} (placeholder)`)}>View Issued Certificates</Button>
-                <Button variant="secondary" onClick={() => alert(`Viewing CRLs for ${caDetails.name} (placeholder)`)}>View CRLs</Button>
-                 <Button variant="default" onClick={() => router.push(`/dashboard/certificate-authorities/${caDetails.id}/issue-certificate`)}>
-                    Issue New Certificate
+            </div>
+             <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
+          </div>
+        </div>
+
+        <div className="p-6 space-x-2 border-b">
+          <Button variant="outline" onClick={() => alert('Download CRL (placeholder)')}><Download className="mr-2 h-4 w-4" /> Download CRL</Button>
+          <Button variant="outline" onClick={() => alert('Revoke CA (placeholder)')}><ShieldAlert className="mr-2 h-4 w-4" /> Revoke CA</Button>
+          <Button variant="outline" onClick={() => alert('Renew CA (placeholder)')}><RefreshCw className="mr-2 h-4 w-4" /> Renew CA</Button>
+          <Button variant="outline" onClick={() => alert('Edit Configuration (placeholder)')}><Edit className="mr-2 h-4 w-4" /> Edit Configuration</Button>
+        </div>
+
+        <Tabs defaultValue="information" className="w-full p-6">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+            <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Information</TabsTrigger>
+            <TabsTrigger value="certificate"><ScrollText className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Certificate</TabsTrigger>
+            <TabsTrigger value="metadata"><Code2 className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Lamassu Metadata</TabsTrigger>
+            <TabsTrigger value="issued"><Database className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Issued Certificates</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="information">
+            <Accordion type="multiple" defaultValue={['general', 'hierarchy']} className="w-full space-y-3">
+              <AccordionItem value="general" className="border-b-0">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
+                  <Info className="mr-2 h-5 w-5" /> General Information
+                </AccordionTrigger>
+                <AccordionContent className="space-y-1 px-4 pt-3">
+                  <DetailItem label="Full Name" value={caDetails.name} />
+                  <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
+                  <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, allCertificateAuthoritiesData)} />
+                  {/* Status moved to header */}
+                  <DetailItem label="Expires On" value={new Date(caDetails.expires).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
+                  <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="keyInfo" className="border-b-0">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
+                  <KeyRound className="mr-2 h-5 w-5" /> Key & Signature Information
+                </AccordionTrigger>
+                <AccordionContent className="space-y-1 px-4 pt-3">
+                  <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
+                  <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
+                  {placeholderSerial && (
+                    <>
+                      <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[0]}:... (placeholder)</span>} />
+                      <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[1]}:... (placeholder)</span>} />
+                    </>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="extensions" className="border-b-0">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
+                  <Lock className="mr-2 h-5 w-5" /> Certificate Extensions
+                </AccordionTrigger>
+                <AccordionContent className="space-y-1 px-4 pt-3">
+                  <DetailItem label="Basic Constraints" value={
+                      <div className="space-y-0.5">
+                          <p>CA: <Badge variant={caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? "default" : "secondary"} className={(caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? 'bg-green-100 text-green-700' : '')}>TRUE</Badge></p>
+                          <p>Path Length Constraint: {caDetails.issuer === 'Self-signed' ? 'None' : (caDetails.children && caDetails.children.length > 0 ? '1 (placeholder)' : '0 (placeholder)')}</p>
+                      </div>
+                  } />
+                  <Separator className="my-2"/>
+                  <DetailItem label="Key Usage" value={
+                      <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline">Certificate Signing</Badge>
+                          <Badge variant="outline">CRL Signing</Badge>
+                          <Badge variant="outline">Digital Signature</Badge>
+                      </div>
+                  } />
+                   <Separator className="my-2"/>
+                  <DetailItem label="Extended Key Usage" value={
+                       <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline">Server Authentication (placeholder)</Badge>
+                          <Badge variant="outline">Client Authentication (placeholder)</Badge>
+                      </div>
+                  }/>
+                   <Separator className="my-2"/>
+                  <DetailItem label="Certificate Policies" value={"Policy ID: 2.5.29.32.0 (anyPolicy) (placeholder)"} />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="distribution" className="border-b-0">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
+                  <LinkIcon className="mr-2 h-5 w-5" /> Distribution Points
+                </AccordionTrigger>
+                <AccordionContent className="space-y-1 px-4 pt-3">
+                  <DetailItem label="CRL Distribution Points (CDP)" value={
+                      <ul className="list-disc list-inside space-y-1">
+                          <li>URI: http://crl.example.com/{caDetails.id.replace(/-/g,'')}.crl (placeholder)</li>
+                      </ul>
+                  } fullWidthValue />
+                   <Separator className="my-2"/>
+                  <DetailItem label="Authority Information Access (AIA)" value={
+                      <ul className="list-disc list-inside space-y-1">
+                          <li>OCSP - URI: http://ocsp.example.com/{caDetails.id.replace(/-/g,'')} (placeholder)</li>
+                          <li>CA Issuers - URI: http://crt.example.com/{caDetails.issuer.replace(/-/g,'')}.crt (placeholder)</li>
+                      </ul>
+                  } fullWidthValue />
+                </AccordionContent>
+              </AccordionItem>
+
+               <AccordionItem value="hierarchy" className="border-b-0">
+                <AccordionTrigger className={cn(accordionTriggerStyle)}>
+                  <Network className="mr-2 h-5 w-5" /> Issuance Hierarchy & Chain of Trust
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 p-4 pt-3">
+                  {caPathToRoot.length > 0 ? (
+                    <div className="flex flex-col items-center w-full">
+                      {caPathToRoot.map((caNode, index) => (
+                        <CaHierarchyPathNode
+                          key={caNode.id}
+                          ca={caNode}
+                          isCurrentCa={caNode.id === caDetails.id}
+                          hasNext={index < caPathToRoot.length - 1}
+                          isFirst={index === 0}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Hierarchy path not available.</p>
+                  )}
+                  
+                  {caDetails.children && caDetails.children.length > 0 && (
+                    <>
+                      <Separator className="my-4"/>
+                      <h4 className="text-md font-semibold flex items-center"><Users className="mr-2 h-4 w-4 text-muted-foreground"/>Directly Issues To:</h4>
+                      <ul className="list-disc list-inside space-y-1 pl-4">
+                        {caDetails.children.map(child => (
+                          <li key={child.id}>
+                             <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => router.push(`/dashboard/certificate-authorities/${child.id}/details`)}>
+                                 {child.name} (ID: {child.id})
+                             </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </TabsContent>
+
+          <TabsContent value="certificate">
+            <div className="space-y-2 py-4">
+              <Tabs defaultValue="single-certificate" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="single-certificate">This Certificate</TabsTrigger>
+                  <TabsTrigger value="full-chain">Full Chain</TabsTrigger>
+                </TabsList>
+                <TabsContent value="single-certificate" className="mt-4">
+                  <div className="flex justify-start mb-2">
+                    <Button onClick={() => handleCopyText(caDetails.pemData || '', 'Certificate')} variant="outline" size="sm">
+                      {pemCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                      {pemCopied ? 'Copied!' : 'Copy PEM'}
+                    </Button>
+                  </div>
+                  {caDetails.pemData ? (
+                    <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
+                      <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground p-4 text-center">No individual certificate PEM data available for this CA.</p>
+                  )}
+                </TabsContent>
+                <TabsContent value="full-chain" className="mt-4">
+                  <div className="flex justify-start mb-2">
+                    <Button onClick={() => handleCopyText(fullChainPemString, 'Full Chain')} variant="outline" size="sm" disabled={!fullChainPemString.trim()}>
+                      {fullChainCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Layers className="mr-2 h-4 w-4" />}
+                      {fullChainCopied ? 'Copied!' : 'Copy Chain PEM'}
+                    </Button>
+                  </div>
+                  {fullChainPemString.trim() ? (
+                    <>
+                      <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
+                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString}</pre>
+                      </ScrollArea>
+                      <p className="text-xs text-muted-foreground mt-2">
+                          The full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
+                          The order is: Current CA, Intermediate CA(s) (if any), Root CA.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground p-4 text-center">No full chain PEM data available or could be constructed.</p>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="metadata">
+            <div className="space-y-4 py-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">LamassuIoT Specific Metadata</h3>
+                <Button onClick={() => handleCopyText(lamassuMetadataString, 'Metadata')} variant="outline" size="sm">
+                  {metadataCopied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                  {metadataCopied ? 'Copied!' : 'Copy JSON'}
                 </Button>
               </div>
+              <ScrollArea className="h-96 w-full rounded-md border p-4 bg-muted/30">
+                <pre className="text-xs whitespace-pre-wrap break-all font-code">{lamassuMetadataString}</pre>
+              </ScrollArea>
+              <p className="text-xs text-muted-foreground">This is mock metadata specific to LamassuIoT internal systems.</p>
             </div>
+          </TabsContent>
 
+          <TabsContent value="issued">
+             <div className="space-y-4 py-4">
+                <h3 className="text-lg font-semibold">Certificates Issued by this CA</h3>
+                <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
+                    <p className="text-sm text-muted-foreground mb-4">
+                        A list of certificates directly issued by <strong>{caDetails.name}</strong> would be displayed here.
+                    </p>
+                    <Button variant="secondary" onClick={() => alert(`Viewing/Managing issued certificates for ${caDetails.name} (placeholder)`)}>
+                        View/Manage Issued Certificates
+                    </Button>
+                </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+          
+        <div className="mt-8 p-6 border-t">
+            <h3 className="text-lg font-semibold text-muted-foreground flex items-center mb-3">
+            <ListChecks className="mr-2 h-5 w-5" />
+            Additional Actions
+            </h3>
+            <div className="space-x-2">
+            <Button variant="secondary" onClick={() => router.push(`/dashboard/certificate-authorities/${caDetails.id}/issue-certificate`)}>
+                Issue New Certificate from this CA
+            </Button>
+            {/* Add more related actions specific to this CA here */}
+            </div>
         </div>
+
       </div>
     </div>
   );
