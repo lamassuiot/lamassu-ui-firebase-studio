@@ -26,6 +26,14 @@ import { certificateAuthoritiesData, findCaById } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { jwtDecode } from 'jwt-decode'; // Import jwt-decode
+
+interface DecodedAccessToken {
+  realm_access?: {
+    roles?: string[];
+  };
+  // Add other claims you might need from the access token
+}
 
 
 function CustomSidebarToggle() {
@@ -118,6 +126,18 @@ export default function DashboardLayout({
     return generateBreadcrumbs(pathname, params, certificateAuthoritiesData);
   }, [pathname, params]);
 
+  let userRoles: string[] = [];
+  if (isAuthenticated() && user?.access_token) {
+    try {
+      const decodedToken = jwtDecode<DecodedAccessToken>(user.access_token);
+      if (decodedToken.realm_access && Array.isArray(decodedToken.realm_access.roles)) {
+        userRoles = decodedToken.realm_access.roles;
+      }
+    } catch (error) {
+      console.error("Error decoding access token:", error);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
@@ -141,9 +161,9 @@ export default function DashboardLayout({
             {isAuthenticated() && user?.profile?.name && (
               <div className="flex items-center gap-2">
                 <span className="text-sm hidden sm:inline">Welcome, {user.profile.name}</span>
-                {user.profile.realm_access && user.profile.realm_access.roles && Array.isArray(user.profile.realm_access.roles) && user.profile.realm_access.roles.length > 0 && (
+                {userRoles.length > 0 && (
                   <div className="hidden sm:flex items-center gap-1 ml-1">
-                    {(user.profile.realm_access.roles as string[]).map((role: string, index: number) => (
+                    {userRoles.map((role: string, index: number) => (
                       <Badge
                         key={index}
                         variant="outline"
