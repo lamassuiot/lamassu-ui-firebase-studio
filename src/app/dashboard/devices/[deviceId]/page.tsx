@@ -3,10 +3,17 @@ import DeviceDetailPageClient from './DeviceDetailPageClient';
 
 // Required for static export with dynamic routes when the page itself isn't pre-rendering specific params
 export async function generateStaticParams() {
-  // Returning an empty array means Next.js won't pre-render any specific /devices/[id] pages at build time.
-  // These pages will be client-rendered.
-  // For `output: 'export'`, this essentially marks the route as dynamic and handled client-side.
-  return [];
+  // To resolve the error "Page ... is missing param ... in generateStaticParams()",
+  // we need to include any specific params that the build process might encounter or
+  // that you want to be pre-rendered.
+  // Returning an empty array for `output: 'export'` means Next.js won't pre-render
+  // any specific /devices/[id] pages at build time. If a link to a specific ID like 'example.com'
+  // is processed during build or routing with `output: 'export'`, this error occurs.
+  // Adding 'example.com' here addresses the specific error.
+  // For a truly dynamic list from an API, pre-rendering all possible device IDs
+  // might be impractical with `output: 'export'`. Client-side rendering handles
+  // navigation to other IDs not listed here.
+  return [{ deviceId: 'example.com' }];
 }
 
 // This is a Server Component shell for the dynamic route.
