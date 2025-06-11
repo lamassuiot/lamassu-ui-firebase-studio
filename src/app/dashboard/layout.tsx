@@ -25,6 +25,7 @@ import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData, findCaById } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 
 function CustomSidebarToggle() {
@@ -138,7 +139,22 @@ export default function DashboardLayout({
           </div>
           <div className="flex items-center gap-3">
             {isAuthenticated() && user?.profile?.name && (
-              <span className="text-sm hidden sm:inline">Welcome, {user.profile.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm hidden sm:inline">Welcome, {user.profile.name}</span>
+                {user.profile.roles && Array.isArray(user.profile.roles) && user.profile.roles.length > 0 && (
+                  <div className="hidden sm:flex items-center gap-1 ml-1">
+                    {(user.profile.roles as string[]).map((role: string, index: number) => (
+                      <Badge
+                        key={index}
+                        variant="outline"
+                        className="text-xs px-1.5 py-0.5 border-primary-foreground/30 text-primary-foreground bg-primary-foreground/10 hover:bg-primary-foreground/20"
+                      >
+                        {role}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {isAuthenticated() ? (
               <Button variant="ghost" size="sm" onClick={logout} className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
