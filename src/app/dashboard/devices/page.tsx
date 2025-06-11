@@ -241,15 +241,12 @@ export default function DevicesPage() {
     const potentialNextPageIndex = currentPageIndex + 1;
     if (potentialNextPageIndex < bookmarkStack.length) {
         setCurrentPageIndex(potentialNextPageIndex);
-        // fetchDevices(bookmarkStack[potentialNextPageIndex], debouncedDeviceIdFilter, pageSize); // This will be handled by the effect
     }
     else if (nextTokenFromApi) {
         const newPageBookmark = nextTokenFromApi;
-        // Trim any "future" bookmarks if we took a different path (e.g., filter change, then next)
         const newStack = bookmarkStack.slice(0, currentPageIndex + 1); 
         setBookmarkStack([...newStack, newPageBookmark]);
-        setCurrentPageIndex(newStack.length); // This will cause the effect to fetch
-        // fetchDevices(newPageBookmark, debouncedDeviceIdFilter, pageSize); // This will be handled by the effect
+        setCurrentPageIndex(newStack.length); 
     }
   };
 
@@ -257,7 +254,6 @@ export default function DevicesPage() {
     if (isLoadingApi || currentPageIndex === 0) return;
     const prevIndex = currentPageIndex - 1;
     setCurrentPageIndex(prevIndex);
-    // fetchDevices(bookmarkStack[prevIndex], debouncedDeviceIdFilter, pageSize); // This will be handled by the effect
   };
 
 
@@ -341,7 +337,7 @@ export default function DevicesPage() {
 
       {!apiError && devices.length > 0 && (
         <>
-          <div className="overflow-x-auto">
+          <div className={cn("overflow-x-auto transition-opacity duration-300", isLoadingApi && "opacity-50 pointer-events-none")}>
             <Table>
               <TableHeader>
                 <TableRow>
