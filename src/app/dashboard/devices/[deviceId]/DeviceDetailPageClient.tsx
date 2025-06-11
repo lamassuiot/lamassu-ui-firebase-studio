@@ -207,38 +207,34 @@ export default function DeviceDetailPageClient() {
         <Button variant="outline" onClick={() => router.push('/dashboard/devices')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
         </Button>
-        {/* Placeholder for future actions like Edit */}
       </div>
 
-      {/* Header Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-            <div className="flex items-center space-x-3">
-              <DeviceIcon type={deviceIconType} />
-              <div>
-                <CardTitle className="text-2xl">{device.id}</CardTitle>
-                <div className="flex items-center space-x-2 mt-1">
-                  <DeviceStatusBadge status={device.status as any} />
-                  <span className="text-xs text-muted-foreground">
-                    Created: {format(creationDate, 'dd MMM yyyy, HH:mm')} ({formatDistanceToNowStrict(creationDate)} ago)
-                  </span>
-                </div>
+      {/* Header Section without Card */}
+      <div className="mb-6"> {/* Added margin-bottom for spacing */}
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+          <div className="flex items-center space-x-3">
+            <DeviceIcon type={deviceIconType} />
+            <div>
+              <h1 className="text-2xl font-bold">{device.id}</h1> {/* Changed CardTitle to h1 for semantic clarity */}
+              <div className="flex items-center space-x-2 mt-1">
+                <DeviceStatusBadge status={device.status as any} />
+                <span className="text-xs text-muted-foreground">
+                  Created: {format(creationDate, 'dd MMM yyyy, HH:mm')} ({formatDistanceToNowStrict(creationDate)} ago)
+                </span>
               </div>
             </div>
-            <div className="flex space-x-2">
-              <Button variant="outline"><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
-              <Button><PlusCircle className="mr-2 h-4 w-4" /> Assign Identity</Button>
-              {/* Add Dropdown for more actions if needed */}
-            </div>
           </div>
-          {device.tags && device.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1">
-              {device.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
-            </div>
-          )}
-        </CardHeader>
-      </Card>
+          <div className="flex space-x-2">
+            <Button variant="outline"><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
+            <Button><PlusCircle className="mr-2 h-4 w-4" /> Assign Identity</Button>
+          </div>
+        </div>
+        {device.tags && device.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1">
+            {device.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+          </div>
+        )}
+      </div>
 
       {/* Identity Summary Section */}
       {device.identity && (
@@ -358,3 +354,4 @@ export default function DeviceDetailPageClient() {
     </div>
   );
 }
+
