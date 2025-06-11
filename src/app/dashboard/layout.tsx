@@ -18,7 +18,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import type { CA } from '@/lib/ca-data';
@@ -41,6 +41,7 @@ function CustomSidebarToggle() {
 const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'certificates': "Certificates",
   'certificate-authorities': "Certificate Authorities",
+  'signing-profiles': "Signing Profiles",
   'registration-authorities': "Registration Authorities",
   'verification-authorities': "Verification Authorities",
   'new': "New",
@@ -98,6 +99,7 @@ export default function DashboardLayout({
   const pkiItems = [
     { href: '/dashboard/certificates', label: 'Certificates', icon: FileText },
     { href: '/dashboard/certificate-authorities', label: 'Certificate Authorities', icon: Landmark },
+    { href: '/dashboard/signing-profiles', label: 'Signing Profiles', icon: ScrollTextIcon },
     { href: '/dashboard/registration-authorities', label: 'Registration Authorities', icon: Users },
     { href: '/dashboard/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
   ];
