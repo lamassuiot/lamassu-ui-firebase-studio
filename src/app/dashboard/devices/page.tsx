@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search } from "lucide-react";
+import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,6 +58,22 @@ interface ApiResponse {
   list: ApiDevice[];
 }
 
+type SortableColumn = 'id' | 'status' | 'deviceGroup' | 'createdAt';
+type SortDirection = 'asc' | 'desc';
+
+interface SortConfig {
+  column: SortableColumn;
+  direction: SortDirection;
+}
+
+const statusSortOrder: Record<DeviceStatus, number> = {
+  'ACTIVE': 0,
+  'PENDING_ACTIVATION': 1,
+  'INACTIVE': 2,
+  'NO_IDENTITY': 3,
+};
+
+
 export const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
   let badgeClass = "";
   switch (status) {
@@ -83,8 +99,6 @@ export const mapApiIconToIconType = (apiIcon: string): DeviceData['iconType'] =>
   if (apiIcon === 'CgSmartphoneChip') {
     return 'router';
   }
-  // Add more mappings if other icons are introduced
-  // if (apiIcon === 'someOtherApiIcon') return 'globe';
   return 'unknown';
 };
 
@@ -121,6 +135,7 @@ export default function DevicesPage() {
   const [deviceIdFilter, setDeviceIdFilter] = useState<string>('');
   const [debouncedDeviceIdFilter, setDebouncedDeviceIdFilter] = useState<string>('');
   const [pageSize, setPageSize] = useState<string>('10');
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
@@ -156,7 +171,7 @@ export default function DevicesPage() {
     try {
       const baseUrl = 'https://lab.lamassu.io/api/devmanager/v1/devices';
       const params = new URLSearchParams({
-        sort_by: 'creation_timestamp',
+        sort_by: 'creation_timestamp', // API default sort, client-side sorting will refine this
         sort_mode: 'desc',
         page_size: currentPageSize,
       });
@@ -185,11 +200,10 @@ export default function DevicesPage() {
         id: apiDevice.id,
         displayId: apiDevice.id,
         iconType: mapApiIconToIconType(apiDevice.icon),
-        status: apiDevice.status as DeviceStatus, // Assuming API status matches DeviceStatus
+        status: apiDevice.status as DeviceStatus, 
         deviceGroup: apiDevice.dms_owner,
         createdAt: apiDevice.creation_timestamp,
         tags: apiDevice.tags || [],
-        // lastSeen, ipAddress, firmwareVersion are not in the provided API response for the list
       }));
 
       setDevices(transformedDevices);
@@ -211,6 +225,82 @@ export default function DevicesPage() {
     }
   }, [fetchDevices, currentPageIndex, bookmarkStack, debouncedDeviceIdFilter, pageSize]);
 
+  const requestSort = (column: SortableColumn) => {
+    let direction: SortDirection = 'asc';
+    if (sortConfig && sortConfig.column === column && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ column, direction });
+  };
+
+  const sortedAndFilteredDevices = useMemo(() => {
+    let processed = [...devices]; // Use the fetched devices
+
+    // Filtering is already handled by API through debouncedDeviceIdFilter,
+    // but if we had client-side filters, they'd go here.
+
+    if (sortConfig) {
+      processed.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.column) {
+          case 'id':
+            aValue = a.id.toLowerCase();
+            bValue = b.id.toLowerCase();
+            break;
+          case 'status':
+            aValue = statusSortOrder[a.status];
+            bValue = statusSortOrder[b.status];
+            break;
+          case 'deviceGroup':
+            aValue = a.deviceGroup.toLowerCase();
+            bValue = b.deviceGroup.toLowerCase();
+            break;
+          case 'createdAt':
+            aValue = parseISO(a.createdAt).getTime();
+            bValue = parseISO(b.createdAt).getTime();
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return processed;
+  }, [devices, sortConfig]);
+
+
+  const SortableTableHeader: React.FC<{ column: SortableColumn; title: string; className?: string }> = ({ column, title, className }) => {
+    const isSorted = sortConfig?.column === column;
+    let Icon = ChevronsUpDown;
+    if (isSorted) {
+      if (column === 'createdAt') {
+        Icon = sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10;
+      } else { // For text-based columns
+        Icon = sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ;
+      }
+    } else if (column === 'createdAt') {
+         Icon = ChevronsUpDown; // Default for non-sorted date
+    }
+
+
+    return (
+      <TableHead className={cn("cursor-pointer hover:bg-muted/60", className)} onClick={() => requestSort(column)}>
+        <div className="flex items-center gap-1">
+          {title} <Icon className={cn("h-4 w-4", isSorted ? "text-primary" : "text-muted-foreground/50")} />
+        </div>
+      </TableHead>
+    );
+  };
+
 
   const handleCreateNewDevice = () => {
     alert('Navigate to Create New Device form (placeholder)');
@@ -226,12 +316,8 @@ export default function DevicesPage() {
 
   const handleDeleteDevice = (deviceId: string) => {
     if(confirm(`Are you sure you want to delete device ${deviceId}? This action cannot be undone.`)){
-        // Mock deletion - In a real app, call an API then update state or re-fetch.
         setDevices(prev => prev.filter(d => d.id !== deviceId));
         alert(`Device ${deviceId} deleted (mock - API call not implemented).`);
-        // If API supports deletion and you want to ensure the current page reflects it accurately,
-        // you might re-fetch the current page:
-        // fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter, pageSize);
     }
   };
 
@@ -243,19 +329,15 @@ export default function DevicesPage() {
 
   const handleNextPage = () => {
     if (isLoadingApi) return;
-
     const potentialNextPageIndex = currentPageIndex + 1;
     if (potentialNextPageIndex < bookmarkStack.length) {
-        // We have a stored "next" bookmark (user went back, now going forward again)
         setCurrentPageIndex(potentialNextPageIndex);
     }
-    // Else, if there's a next token from the API for the current page, fetch a new page
     else if (nextTokenFromApi) {
         const newPageBookmark = nextTokenFromApi;
-        // Trim any "future" bookmarks if we are creating a new path forward
         const newStack = bookmarkStack.slice(0, currentPageIndex + 1);
         setBookmarkStack([...newStack, newPageBookmark]);
-        setCurrentPageIndex(newStack.length); // This will be newStack.length since index is 0-based
+        setCurrentPageIndex(newStack.length); 
     }
   };
 
@@ -266,7 +348,7 @@ export default function DevicesPage() {
   };
 
 
-  if (authLoading && !devices.length) { // Only show auth loading if no devices are loaded yet
+  if (authLoading && !sortedAndFilteredDevices.length) { 
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -296,7 +378,6 @@ export default function DevicesPage() {
         Overview of all registered IoT devices, their status, and associated groups.
       </p>
 
-      {/* Filter and Page Size */}
       <div className="flex flex-col sm:flex-row gap-2 items-center">
         <div className="relative flex-grow w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
@@ -305,22 +386,19 @@ export default function DevicesPage() {
             placeholder="Filter by Device ID..."
             value={deviceIdFilter}
             onChange={(e) => setDeviceIdFilter(e.target.value)}
-            className="w-full pl-10" // Padding left for the icon
+            className="w-full pl-10"
             disabled={isLoadingApi || authLoading}
           />
         </div>
       </div>
 
-
-      {/* Loading state for API call when no devices are yet shown */}
-      {isLoadingApi && !devices.length && (
+      {isLoadingApi && !sortedAndFilteredDevices.length && (
          <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
             <p className="text-lg text-muted-foreground">Loading devices...</p>
         </div>
       )}
 
-      {/* API Error Message */}
       {apiError && (
         <Alert variant="destructive" className="mt-4">
           <AlertCircleIcon className="h-4 w-4" />
@@ -329,23 +407,22 @@ export default function DevicesPage() {
         </Alert>
       )}
 
-      {/* Table Section - only render if no API error and (devices exist OR we are loading with existing devices) */}
-      {!apiError && devices.length > 0 && (
+      {!apiError && sortedAndFilteredDevices.length > 0 && (
         <>
-          <div className={cn("overflow-x-auto overflow-y-auto max-h-[60vh] transition-opacity duration-300", isLoadingApi && devices.length > 0 && "opacity-50 pointer-events-none")}>
+          <div className={cn("overflow-x-auto overflow-y-auto max-h-[60vh] transition-opacity duration-300", isLoadingApi && sortedAndFilteredDevices.length > 0 && "opacity-50 pointer-events-none")}>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[250px]">ID</TableHead>
-                  <TableHead className="w-[120px]">Status</TableHead>
-                  <TableHead className="w-[180px]">Device Group</TableHead>
-                  <TableHead className="w-[180px]">Created At</TableHead>
+                  <SortableTableHeader column="id" title="ID" className="w-[250px]" />
+                  <SortableTableHeader column="status" title="Status" className="w-[120px]" />
+                  <SortableTableHeader column="deviceGroup" title="Device Group" className="w-[180px]" />
+                  <SortableTableHeader column="createdAt" title="Created At" className="w-[180px]" />
                   <TableHead>Tags</TableHead>
                   <TableHead className="text-right w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {devices.map((device) => (
+                {sortedAndFilteredDevices.map((device) => (
                   <TableRow key={device.id}>
                     <TableCell>
                       <div className="flex items-center space-x-3">
@@ -406,10 +483,8 @@ export default function DevicesPage() {
         </>
       )}
 
-      {/* Pagination and Page Size Controls - Render if no error AND (devices exist OR loading with devices OR filter is active OR page size changed) */}
-      {!apiError && (devices.length > 0 || isLoadingApi || debouncedDeviceIdFilter !== '' || pageSize !== '10') && (
+      {!apiError && (sortedAndFilteredDevices.length > 0 || isLoadingApi || debouncedDeviceIdFilter !== '' || pageSize !== '10') && (
         <div className="flex justify-between items-center mt-4">
-            {/* Page Size Selector - Bottom Left */}
             <div className="flex items-center space-x-2">
               <Label htmlFor="pageSizeSelectBottom" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
               <Select
@@ -429,7 +504,6 @@ export default function DevicesPage() {
               </Select>
             </div>
 
-            {/* Pagination Buttons - Bottom Right */}
             <div className="flex items-center space-x-2">
                 <Button
                     onClick={handlePreviousPage}
@@ -449,9 +523,7 @@ export default function DevicesPage() {
         </div>
       )}
 
-
-      {/* No Devices Message (if applicable) */}
-      {!apiError && !isLoadingApi && devices.length === 0 && (
+      {!apiError && !isLoadingApi && sortedAndFilteredDevices.length === 0 && (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">
             {debouncedDeviceIdFilter ? `No Devices Found Matching "${debouncedDeviceIdFilter}"` : "No Devices Registered"}
