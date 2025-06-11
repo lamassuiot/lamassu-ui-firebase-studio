@@ -85,7 +85,10 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
     if (params.caId && segment === params.caId && pathSegments[i-1] === 'certificate-authorities') {
       const ca = findCaById(segment, allCAs);
       label = ca ? ca.name : segment;
+    } else if (params.deviceId && segment === params.deviceId && pathSegments[i-1] === 'devices') {
+      label = `Device: ${segment}`; // Or fetch device name if available
     }
+
 
     if (isLastSegment) {
       breadcrumbItems.push({ label });
@@ -115,7 +118,7 @@ export default function DashboardLayout({
     { href: '/dashboard/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
   ];
   const iotItems = [
-    { href: '/dashboard/devices', label: 'Devices', icon: Router }, // Changed icon
+    { href: '/dashboard/devices', label: 'Devices', icon: Router },
     { href: '/dashboard/device-groups', label: 'Device Groups', icon: ServerCog },
   ];
   const kmsItems = [

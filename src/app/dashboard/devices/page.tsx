@@ -48,7 +48,7 @@ interface ApiDevice {
   creation_timestamp: string;
   metadata: Record<string, any>;
   dms_owner: string;
-  identity: ApiDeviceIdentity;
+  identity: ApiDeviceIdentity | null;
   slots: Record<string, any>;
   events: Record<string, { type: string; description: string }>;
 }
@@ -58,7 +58,7 @@ interface ApiResponse {
   list: ApiDevice[];
 }
 
-const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
+export const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
   let badgeClass = "";
   switch (status) {
     case 'ACTIVE':
@@ -79,14 +79,16 @@ const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
   return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}>{status.replace('_', ' ').toLowerCase()}</Badge>;
 };
 
-const mapApiIconToIconType = (apiIcon: string): DeviceData['iconType'] => {
+export const mapApiIconToIconType = (apiIcon: string): DeviceData['iconType'] => {
   if (apiIcon === 'CgSmartphoneChip') {
     return 'router';
   }
+  // Add more mappings if other icons are introduced
+  // if (apiIcon === 'someOtherApiIcon') return 'globe';
   return 'unknown';
 };
 
-const DeviceIcon: React.FC<{ type: DeviceData['iconType'] }> = ({ type }) => {
+export const DeviceIcon: React.FC<{ type: DeviceData['iconType'] }> = ({ type }) => {
   let IconComponent = HelpCircle;
   let iconColorClass = "text-amber-500";
   let bgColorClass = "bg-amber-100 dark:bg-amber-900/30";
@@ -134,7 +136,6 @@ export default function DevicesPage() {
     };
   }, [deviceIdFilter]);
 
-  // Effect to reset pagination when filter or page size changes
   useEffect(() => {
     setBookmarkStack([null]);
     setCurrentPageIndex(0);
@@ -184,10 +185,11 @@ export default function DevicesPage() {
         id: apiDevice.id,
         displayId: apiDevice.id,
         iconType: mapApiIconToIconType(apiDevice.icon),
-        status: apiDevice.status as DeviceStatus,
+        status: apiDevice.status as DeviceStatus, // Assuming API status matches DeviceStatus
         deviceGroup: apiDevice.dms_owner,
         createdAt: apiDevice.creation_timestamp,
         tags: apiDevice.tags || [],
+        // lastSeen, ipAddress, firmwareVersion are not in the provided API response for the list
       }));
 
       setDevices(transformedDevices);
@@ -215,7 +217,7 @@ export default function DevicesPage() {
   };
 
   const handleViewDetails = (deviceId: string) => {
-    alert(`View details for device ID: ${deviceId} (placeholder)`);
+    router.push(`/dashboard/devices/${deviceId}`);
   };
 
   const handleEditDevice = (deviceId: string) => {
@@ -224,8 +226,12 @@ export default function DevicesPage() {
 
   const handleDeleteDevice = (deviceId: string) => {
     if(confirm(`Are you sure you want to delete device ${deviceId}? This action cannot be undone.`)){
+        // Mock deletion - In a real app, call an API then update state or re-fetch.
         setDevices(prev => prev.filter(d => d.id !== deviceId));
         alert(`Device ${deviceId} deleted (mock - API call not implemented).`);
+        // If API supports deletion and you want to ensure the current page reflects it accurately,
+        // you might re-fetch the current page:
+        // fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter, pageSize);
     }
   };
 
@@ -240,13 +246,16 @@ export default function DevicesPage() {
 
     const potentialNextPageIndex = currentPageIndex + 1;
     if (potentialNextPageIndex < bookmarkStack.length) {
+        // We have a stored "next" bookmark (user went back, now going forward again)
         setCurrentPageIndex(potentialNextPageIndex);
     }
+    // Else, if there's a next token from the API for the current page, fetch a new page
     else if (nextTokenFromApi) {
         const newPageBookmark = nextTokenFromApi;
+        // Trim any "future" bookmarks if we are creating a new path forward
         const newStack = bookmarkStack.slice(0, currentPageIndex + 1);
         setBookmarkStack([...newStack, newPageBookmark]);
-        setCurrentPageIndex(newStack.length);
+        setCurrentPageIndex(newStack.length); // This will be newStack.length since index is 0-based
     }
   };
 
@@ -257,7 +266,7 @@ export default function DevicesPage() {
   };
 
 
-  if (authLoading && !devices.length) {
+  if (authLoading && !devices.length) { // Only show auth loading if no devices are loaded yet
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -287,6 +296,7 @@ export default function DevicesPage() {
         Overview of all registered IoT devices, their status, and associated groups.
       </p>
 
+      {/* Filter and Page Size */}
       <div className="flex flex-col sm:flex-row gap-2 items-center">
         <div className="relative flex-grow w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
@@ -295,13 +305,14 @@ export default function DevicesPage() {
             placeholder="Filter by Device ID..."
             value={deviceIdFilter}
             onChange={(e) => setDeviceIdFilter(e.target.value)}
-            className="w-full pl-10"
+            className="w-full pl-10" // Padding left for the icon
             disabled={isLoadingApi || authLoading}
           />
         </div>
       </div>
 
 
+      {/* Loading state for API call when no devices are yet shown */}
       {isLoadingApi && !devices.length && (
          <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -309,6 +320,7 @@ export default function DevicesPage() {
         </div>
       )}
 
+      {/* API Error Message */}
       {apiError && (
         <Alert variant="destructive" className="mt-4">
           <AlertCircleIcon className="h-4 w-4" />
@@ -317,6 +329,7 @@ export default function DevicesPage() {
         </Alert>
       )}
 
+      {/* Table Section - only render if no API error and (devices exist OR we are loading with existing devices) */}
       {!apiError && devices.length > 0 && (
         <>
           <div className={cn("overflow-x-auto overflow-y-auto max-h-[60vh] transition-opacity duration-300", isLoadingApi && devices.length > 0 && "opacity-50 pointer-events-none")}>
@@ -337,7 +350,14 @@ export default function DevicesPage() {
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <DeviceIcon type={device.iconType} />
-                        <span className="font-medium truncate" title={device.displayId}>{device.displayId}</span>
+                        <Button
+                          variant="link"
+                          className="font-medium truncate p-0 h-auto text-left"
+                          onClick={() => handleViewDetails(device.id)}
+                          title={`View details for ${device.displayId}`}
+                        >
+                          {device.displayId}
+                        </Button>
                       </div>
                     </TableCell>
                     <TableCell><StatusBadge status={device.status} /></TableCell>
@@ -386,8 +406,10 @@ export default function DevicesPage() {
         </>
       )}
 
+      {/* Pagination and Page Size Controls - Render if no error AND (devices exist OR loading with devices OR filter is active OR page size changed) */}
       {!apiError && (devices.length > 0 || isLoadingApi || debouncedDeviceIdFilter !== '' || pageSize !== '10') && (
         <div className="flex justify-between items-center mt-4">
+            {/* Page Size Selector - Bottom Left */}
             <div className="flex items-center space-x-2">
               <Label htmlFor="pageSizeSelectBottom" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
               <Select
@@ -406,6 +428,8 @@ export default function DevicesPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Pagination Buttons - Bottom Right */}
             <div className="flex items-center space-x-2">
                 <Button
                     onClick={handlePreviousPage}
@@ -426,6 +450,7 @@ export default function DevicesPage() {
       )}
 
 
+      {/* No Devices Message (if applicable) */}
       {!apiError && !isLoadingApi && devices.length === 0 && (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">
