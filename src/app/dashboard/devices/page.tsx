@@ -1,37 +1,33 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2 } from "lucide-react";
+import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle as AlertCircleIcon } from "lucide-react";
-
 
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION';
 
 interface DeviceData {
-  id: string; // Will use API's id
-  displayId: string; // Will use API's id
+  id: string; 
+  displayId: string; 
   iconType: 'router' | 'globe' | 'unknown';
   status: DeviceStatus;
   deviceGroup: string;
-  createdAt: string; // ISO Date string
+  createdAt: string; 
   tags: string[];
-  // These fields are not directly available in the provided API root, keeping structure for now
   lastSeen?: string; 
   ipAddress?: string;
   firmwareVersion?: string;
 }
 
-// API Response Structures (based on provided example)
 interface ApiDeviceIdentity {
   status: string;
   active_version: number;
@@ -43,12 +39,12 @@ interface ApiDeviceIdentity {
 interface ApiDevice {
   id: string;
   tags: string[];
-  status: string; // e.g., "ACTIVE"
-  icon: string; // e.g., "CgSmartphoneChip"
+  status: string; 
+  icon: string; 
   icon_color: string;
-  creation_timestamp: string; // ISO Date string
+  creation_timestamp: string; 
   metadata: Record<string, any>;
-  dms_owner: string; // Maps to deviceGroup
+  dms_owner: string; 
   identity: ApiDeviceIdentity;
   slots: Record<string, any>;
   events: Record<string, { type: string; description: string }>;
@@ -84,8 +80,6 @@ const mapApiIconToIconType = (apiIcon: string): DeviceData['iconType'] => {
   if (apiIcon === 'CgSmartphoneChip') {
     return 'router';
   }
-  // Add more mappings if other icons are expected from the API
-  // e.g. if (apiIcon === 'SomeOtherIconFromApi') return 'globe';
   return 'unknown';
 };
 
@@ -118,91 +112,111 @@ export default function DevicesPage() {
   const [devices, setDevices] = useState<DeviceData[]>([]);
   const [isLoadingApi, setIsLoadingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  // Pagination state (for future use)
-  // const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [currentViewBookmark, setCurrentViewBookmark] = useState<string | null>(null);
 
-
-  useEffect(() => {
+  const fetchDevices = useCallback(async (bookmarkForThisFetch: string | null = null) => {
     if (authLoading || !isAuthenticated() || !user?.access_token) {
-      // If auth is still loading, or user not authenticated, or no token, don't fetch.
-      // If not authenticated and auth is done loading, AuthContext in layout should handle UI.
       if (!authLoading && !isAuthenticated()) {
-          setDevices([]); // Clear devices if user logs out
+        setDevices([]);
+        setNextPageToken(null);
+        setCurrentViewBookmark(null);
       }
       return;
     }
 
-    const fetchDevices = async () => {
-      setIsLoadingApi(true);
-      setApiError(null);
-      try {
-        const response = await fetch('https://lab.lamassu.io/api/devmanager/v1/devices?sort_by=creation_timestamp&sort_mode=desc&page_size=10', {
-          headers: {
-            'Authorization': `Bearer ${user.access_token}`,
-          },
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: "Failed to fetch devices. Invalid response from server."}));
-          throw new Error(errorData.message || `HTTP error ${response.status}`);
-        }
-
-        const data: ApiResponse = await response.json();
-        
-        const transformedDevices: DeviceData[] = data.list.map(apiDevice => ({
-          id: apiDevice.id, // Using API ID for React key and internal ID
-          displayId: apiDevice.id, // Displaying API ID
-          iconType: mapApiIconToIconType(apiDevice.icon),
-          status: apiDevice.status as DeviceStatus, // Assuming API status matches type
-          deviceGroup: apiDevice.dms_owner,
-          createdAt: apiDevice.creation_timestamp,
-          tags: apiDevice.tags || [],
-          // lastSeen, ipAddress, firmwareVersion are not directly available in the provided API root
-        }));
-
-        setDevices(transformedDevices);
-        // setNextPageToken(data.next); // For future pagination
-      } catch (error: any) {
-        console.error("Failed to fetch devices:", error);
-        setApiError(error.message || "An unknown error occurred while fetching devices.");
-        setDevices([]); // Clear devices on error
-      } finally {
-        setIsLoadingApi(false);
+    setIsLoadingApi(true);
+    setApiError(null);
+    try {
+      const baseUrl = 'https://lab.lamassu.io/api/devmanager/v1/devices';
+      const params = new URLSearchParams({
+        sort_by: 'creation_timestamp',
+        sort_mode: 'desc',
+        page_size: '10', // Adjust as needed
+      });
+      if (bookmarkForThisFetch) {
+        params.append('bookmark', bookmarkForThisFetch);
       }
-    };
+      const url = `${baseUrl}?${params.toString()}`;
 
-    fetchDevices();
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${user.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Failed to fetch devices. Invalid response from server."}));
+        throw new Error(errorData.message || `HTTP error ${response.status}`);
+      }
+
+      const data: ApiResponse = await response.json();
+      
+      const transformedDevices: DeviceData[] = data.list.map(apiDevice => ({
+        id: apiDevice.id,
+        displayId: apiDevice.id,
+        iconType: mapApiIconToIconType(apiDevice.icon),
+        status: apiDevice.status as DeviceStatus,
+        deviceGroup: apiDevice.dms_owner,
+        createdAt: apiDevice.creation_timestamp,
+        tags: apiDevice.tags || [],
+      }));
+
+      setDevices(transformedDevices);
+      setNextPageToken(data.next);
+      setCurrentViewBookmark(bookmarkForThisFetch); 
+    } catch (error: any) {
+      console.error("Failed to fetch devices:", error);
+      setApiError(error.message || "An unknown error occurred while fetching devices.");
+      setDevices([]); 
+      setNextPageToken(null);
+      // Keep currentViewBookmark as is, so refresh tries the same page
+    } finally {
+      setIsLoadingApi(false);
+    }
   }, [user?.access_token, authLoading, isAuthenticated]);
+
+
+  useEffect(() => {
+    fetchDevices(null); // Initial fetch for the first page
+  }, [fetchDevices]);
 
 
   const handleCreateNewDevice = () => {
     alert('Navigate to Create New Device form (placeholder)');
-    // router.push('/dashboard/devices/new');
   };
 
   const handleViewDetails = (deviceId: string) => {
     alert(`View details for device ID: ${deviceId} (placeholder)`);
-    // router.push(`/dashboard/devices/${deviceId}/details`);
   };
   
   const handleEditDevice = (deviceId: string) => {
     alert(`Edit device ID: ${deviceId} (placeholder)`);
-    // router.push(`/dashboard/devices/${deviceId}/edit`);
   };
 
   const handleDeleteDevice = (deviceId: string) => {
     if(confirm(`Are you sure you want to delete device ${deviceId}? This action cannot be undone.`)){
-        // Future: API call to delete device
-        setDevices(prev => prev.filter(d => d.id !== deviceId)); // Optimistic UI update
+        setDevices(prev => prev.filter(d => d.id !== deviceId)); 
         alert(`Device ${deviceId} deleted (mock - API call not implemented).`);
     }
   };
 
-  if (authLoading || isLoadingApi) {
+  const handleRefresh = () => {
+    fetchDevices(currentViewBookmark);
+  };
+
+  const handleNextPage = () => {
+    if (nextPageToken) {
+      fetchDevices(nextPageToken);
+    }
+  };
+
+
+  if (authLoading && !devices.length) { // Show auth loading only if no devices are displayed yet
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">{authLoading ? "Authenticating..." : "Loading devices..."}</p>
+        <p className="text-lg text-muted-foreground">Authenticating...</p>
       </div>
     );
   }
@@ -210,18 +224,30 @@ export default function DevicesPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center space-x-3">
           <RouterIconLucide className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-headline font-semibold">Managed Devices</h1>
         </div>
-        <Button onClick={handleCreateNewDevice}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Register New Device
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button onClick={handleRefresh} variant="outline" disabled={isLoadingApi}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && "animate-spin")} /> Refresh
+          </Button>
+          <Button onClick={handleCreateNewDevice} disabled={isLoadingApi}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Register New Device
+          </Button>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         Overview of all registered IoT devices, their status, and associated groups.
       </p>
+
+      {isLoadingApi && !devices.length && ( // Show general loading if API is loading and no devices yet
+         <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-lg text-muted-foreground">Loading devices...</p>
+        </div>
+      )}
 
       {apiError && (
         <Alert variant="destructive" className="mt-4">
@@ -232,70 +258,79 @@ export default function DevicesPage() {
       )}
 
       {!apiError && devices.length > 0 && (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[250px]">ID</TableHead>
-                <TableHead className="w-[120px]">Status</TableHead>
-                <TableHead className="w-[180px]">Device Group</TableHead>
-                <TableHead className="w-[180px]">Created At</TableHead>
-                <TableHead>Tags</TableHead>
-                <TableHead className="text-right w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {devices.map((device) => (
-                <TableRow key={device.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <DeviceIcon type={device.iconType} />
-                      <span className="font-medium truncate" title={device.displayId}>{device.displayId}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell><StatusBadge status={device.status} /></TableCell>
-                  <TableCell><Badge variant="secondary" className="truncate" title={device.deviceGroup}>{device.deviceGroup}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                        <span className="text-xs">{format(parseISO(device.createdAt), 'dd/MM/yyyy HH:mm')}</span>
-                        <span className="text-xs text-muted-foreground">{formatDistanceToNowStrict(parseISO(device.createdAt))} ago</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {device.tags.map(tag => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
-                          <span className="sr-only">Device Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewDetails(device.id)}>
-                          <Eye className="mr-2 h-4 w-4" /> View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditDevice(device.id)}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit Device
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                            onClick={() => handleDeleteDevice(device.id)}
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete Device
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+        <>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[250px]">ID</TableHead>
+                  <TableHead className="w-[120px]">Status</TableHead>
+                  <TableHead className="w-[180px]">Device Group</TableHead>
+                  <TableHead className="w-[180px]">Created At</TableHead>
+                  <TableHead>Tags</TableHead>
+                  <TableHead className="text-right w-[100px]">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {devices.map((device) => (
+                  <TableRow key={device.id}>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        <DeviceIcon type={device.iconType} />
+                        <span className="font-medium truncate" title={device.displayId}>{device.displayId}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell><StatusBadge status={device.status} /></TableCell>
+                    <TableCell><Badge variant="secondary" className="truncate" title={device.deviceGroup}>{device.deviceGroup}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                          <span className="text-xs">{format(parseISO(device.createdAt), 'dd/MM/yyyy HH:mm')}</span>
+                          <span className="text-xs text-muted-foreground">{formatDistanceToNowStrict(parseISO(device.createdAt))} ago</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {device.tags.map(tag => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Device Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewDetails(device.id)}>
+                            <Eye className="mr-2 h-4 w-4" /> View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditDevice(device.id)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit Device
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                              onClick={() => handleDeleteDevice(device.id)}
+                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Device
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {nextPageToken && (
+            <div className="flex justify-center mt-4">
+              <Button onClick={handleNextPage} disabled={isLoadingApi}>
+                Next Page <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
       {!apiError && !isLoadingApi && devices.length === 0 && (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
