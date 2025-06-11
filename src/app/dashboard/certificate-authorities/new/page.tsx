@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Settings, Info, CalendarDays } from "lucide-react";
+import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Settings, Info, CalendarDays, KeyRound, Repeat, UploadCloud, FileText } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData } from '@/lib/ca-data';
 import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface SelectableCaTreeItemProps {
   ca: CA;
@@ -83,24 +85,52 @@ const ecdsaKeySizes = [
   { value: 'P-521', label: 'P-521' },
 ];
 
+const creationModes = [
+  {
+    id: 'newKeyPair',
+    title: 'Create New CA (new Key Pair)',
+    description: 'Provision a new Root or Intermediate CA. A new cryptographic key pair will be generated and managed by LamassuIoT.',
+    icon: <KeyRound className="h-8 w-8 text-primary" />,
+  },
+  {
+    id: 'reuseKeyPair',
+    title: 'Create CA (reuse Key Pair)',
+    description: "Provision a new Root or Intermediate CA using an existing cryptographic key pair stored securely in LamassuIoT's KMS or an external HSM.",
+    icon: <Repeat className="h-8 w-8 text-primary" />,
+  },
+  {
+    id: 'importFull',
+    title: 'Import External CA (with Private Key)',
+    description: 'Import an existing CA certificate along with its private key. This CA will be fully managed by LamassuIoT.',
+    icon: <UploadCloud className="h-8 w-8 text-primary" />,
+  },
+  {
+    id: 'importCertOnly',
+    title: 'Import Certificate Only (no Private Key)',
+    description: "Import an existing CA certificate (public key only) for trust anchor or reference purposes. LamassuIoT will not be able to sign certificates with this CA.",
+    icon: <FileText className="h-8 w-8 text-primary" />,
+  },
+];
+
 
 export default function CreateCertificateAuthorityPage() {
   const router = useRouter();
-  const [caType, setCaType] = useState('root'); // 'root' or 'intermediate'
+  const [selectedMode, setSelectedMode] = useState<string | null>(null);
+
+  const [caType, setCaType] = useState('root');
   const [cryptoEngine, setCryptoEngine] = useState('Local Software KeyStore');
   const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
   const [caId, setCaId] = useState('');
-  const [caName, setCaName] = useState(''); // This will be Subject CN
+  const [caName, setCaName] = useState('');
 
   const [keyType, setKeyType] = useState('RSA');
   const [keySize, setKeySize] = useState('2048');
 
-  // Subject DN components
-  const [country, setCountry] = useState(''); // C
-  const [stateProvince, setStateProvince] = useState(''); // ST
-  const [locality, setLocality] = useState(''); // L
-  const [organization, setOrganization] = useState(''); // O
-  const [organizationalUnit, setOrganizationalUnit] = useState(''); // OU
+  const [country, setCountry] = useState('');
+  const [stateProvince, setStateProvince] = useState('');
+  const [locality, setLocality] = useState('');
+  const [organization, setOrganization] = useState('');
+  const [organizationalUnit, setOrganizationalUnit] = useState('');
 
   const [caExpirationDuration, setCaExpirationDuration] = useState('10y');
   const [issuanceExpirationDuration, setIssuanceExpirationDuration] = useState('1y');
@@ -141,222 +171,333 @@ export default function CreateCertificateAuthorityPage() {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (caType === 'intermediate' && !selectedParentCa) {
+    if (selectedMode !== 'importCertOnly' && caType === 'intermediate' && !selectedParentCa) {
       alert('Please select a Parent CA for intermediate CAs.');
       return;
     }
-    if (!caName.trim()) {
+    if (selectedMode !== 'importCertOnly' && !caName.trim()) {
         alert('CA Name (Common Name) cannot be empty.');
         return;
     }
 
     const subjectDN = {
-        C: country,
-        ST: stateProvince,
-        L: locality,
-        O: organization,
-        OU: organizationalUnit,
-        CN: caName,
+        C: country, ST: stateProvince, L: locality, O: organization, OU: organizationalUnit, CN: caName,
     };
 
     const formData = {
-      caType,
-      cryptoEngine,
-      parentCaId: caType === 'root' ? 'Self-signed' : selectedParentCa?.id,
-      parentCaName: caType === 'root' ? 'Self-signed' : selectedParentCa?.name,
+      creationMode: selectedMode,
+      caType: selectedMode === 'importCertOnly' ? 'external_public' : caType, // Adapt based on mode
+      cryptoEngine: selectedMode === 'importCertOnly' ? 'N/A' : cryptoEngine,
+      parentCaId: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.id,
+      parentCaName: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.name,
       caId,
       subjectDN,
-      keyType,
-      keySize,
-      caExpirationDuration,
-      issuanceExpirationDuration,
+      keyType: selectedMode === 'importCertOnly' ? 'N/A' : keyType,
+      keySize: selectedMode === 'importCertOnly' ? 'N/A' : keySize,
+      caExpirationDuration: selectedMode === 'importCertOnly' ? 'N/A (external)' : caExpirationDuration,
+      issuanceExpirationDuration: selectedMode === 'importCertOnly' ? 'N/A (external)' : issuanceExpirationDuration,
     };
-    console.log('Creating new CA with data:', formData);
-    alert(`Mock CA Creation Successful for: ${caName}\nType: ${caType}\nDetails in console.`);
+    console.log(`Creating CA (Mode: ${selectedMode}) with data:`, formData);
+    alert(`Mock CA Creation Successful (Mode: ${selectedModeDetails?.title})\nDetails in console.`);
     router.push('/dashboard/certificate-authorities');
   };
 
+  const selectedModeDetails = creationModes.find(m => m.id === selectedMode);
+
+  if (!selectedMode) {
+    return (
+      <div className="w-full space-y-8 mb-8">
+        <Button variant="outline" onClick={() => router.back()} className="mb-0">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+        </Button>
+        <div className="text-center">
+          <h1 className="text-3xl font-headline font-semibold">Choose CA Creation Method</h1>
+          <p className="text-muted-foreground mt-2">Select how you want to create or import your Certificate Authority.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {creationModes.map(mode => (
+            <Card 
+              key={mode.id} 
+              className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col group"
+              onClick={() => setSelectedMode(mode.id)}
+            >
+              <CardHeader className="flex-grow">
+                <div className="flex items-start space-x-4">
+                  <div className="mt-1">{mode.icon}</div>
+                  <div>
+                    <CardTitle className="text-xl group-hover:text-primary transition-colors">{mode.title}</CardTitle>
+                    <CardDescription className="mt-1 text-sm">{mode.description}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardFooter>
+                  <Button variant="default" className="w-full">
+                      Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Render the form UI
   return (
     <div className="w-full space-y-6 mb-8">
-      <Button variant="outline" onClick={() => router.back()} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
-      </Button>
-      <div className="w-full"> {/* Was Card */}
-        <div className="p-6"> {/* Was CardHeader - simplified to p-6 or adjust as needed */}
+      <div className="flex justify-between items-center">
+        <Button variant="outline" onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+        </Button>
+        <Button variant="ghost" onClick={() => setSelectedMode(null)} className="text-primary hover:text-primary/80">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Change Creation Method
+        </Button>
+      </div>
+      
+      <div className="w-full">
+        <div className="p-6">
           <div className="flex items-center space-x-3">
-            <PlusCircle className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold">Create New Certificate Authority</h1> {/* Was CardTitle */}
+            {selectedModeDetails?.icon ? React.cloneElement(selectedModeDetails.icon, {className: "h-8 w-8 text-primary"}) : <PlusCircle className="h-8 w-8 text-primary" />}
+            <h1 className="text-2xl font-headline font-semibold">
+              {selectedModeDetails ? selectedModeDetails.title : "Configure Certificate Authority"}
+            </h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1.5"> {/* Was CardDescription, added mt-1.5 for spacing */}
-            Fill in the details below to provision a new Certificate Authority.
+          <p className="text-sm text-muted-foreground mt-1.5">
+            {selectedModeDetails
+              ? `Fill in the details for: ${selectedModeDetails.title}.`
+              : "Fill in the details below to provision a new Certificate Authority."}
           </p>
+           {selectedMode === 'importCertOnly' && (
+            <p className="text-sm text-amber-600 dark:text-amber-400 mt-2 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-md">
+              Note: For 'Import Certificate Only', many fields like key generation and CA expiration are not applicable as these are defined by the external CA. You are primarily providing metadata and the public certificate.
+            </p>
+          )}
         </div>
-        <div className="p-6 pt-0"> {/* Was CardContent */}
+        <div className="p-6 pt-0">
           <form onSubmit={handleSubmit} className="space-y-8">
 
-            {/* CA Settings Section */}
-            <section>
-              <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
-              <div className="space-y-4 p-4 border rounded-md">
-                <div>
-                  <Label htmlFor="caType">CA Type</Label>
-                  <Select value={caType} onValueChange={handleCaTypeChange}>
-                    <SelectTrigger id="caType"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="root">Root CA</SelectItem>
-                      <SelectItem value="intermediate">Intermediate CA</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="cryptoEngine">Crypto Engine</Label>
-                  <Select value={cryptoEngine} onValueChange={setCryptoEngine}>
-                    <SelectTrigger id="cryptoEngine"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Local Software KeyStore">Local Software KeyStore</SelectItem>
-                      <SelectItem value="AWS KMS">AWS KMS (mock)</SelectItem>
-                      <SelectItem value="Azure Key Vault">Azure Key Vault (mock)</SelectItem>
-                      <SelectItem value="Hardware HSM">Hardware HSM (mock)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {caType === 'intermediate' && (
+            {/* CA Settings Section - Conditionally render fields based on mode */}
+            {selectedMode !== 'importCertOnly' && (
+              <section>
+                <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
+                <div className="space-y-4 p-4 border rounded-md">
                   <div>
-                    <Label htmlFor="parentCa">Parent CA</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsParentCaModalOpen(true)}
-                      className="w-full justify-start text-left font-normal mt-1"
-                      id="parentCa"
-                    >
-                      {selectedParentCa ? selectedParentCa.name : "Select Parent CA..."}
-                    </Button>
-                    {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected for intermediate CAs.</p>}
+                    <Label htmlFor="caType">CA Type</Label>
+                    <Select value={caType} onValueChange={handleCaTypeChange} disabled={selectedMode === 'importFull'}>
+                      <SelectTrigger id="caType"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="root">Root CA</SelectItem>
+                        <SelectItem value="intermediate">Intermediate CA</SelectItem>
+                      </SelectContent>
+                    </Select>
+                     {selectedMode === 'importFull' && <p className="text-xs text-muted-foreground mt-1">CA type will be determined from the imported certificate.</p>}
                   </div>
-                )}
-                 {caType === 'root' && (
+
+                  {selectedMode !== 'importFull' && ( // Crypto Engine not relevant for full import if we assume it's external
+                    <div>
+                      <Label htmlFor="cryptoEngine">Crypto Engine</Label>
+                      <Select value={cryptoEngine} onValueChange={setCryptoEngine} disabled={selectedMode === 'reuseKeyPair'}>
+                        <SelectTrigger id="cryptoEngine"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Local Software KeyStore">Local Software KeyStore</SelectItem>
+                          <SelectItem value="AWS KMS">AWS KMS (mock)</SelectItem>
+                          <SelectItem value="Azure Key Vault">Azure Key Vault (mock)</SelectItem>
+                          <SelectItem value="Hardware HSM">Hardware HSM (mock)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                       {selectedMode === 'reuseKeyPair' && <p className="text-xs text-muted-foreground mt-1">Crypto engine will be based on the selected existing key.</p>}
+                    </div>
+                  )}
+
+
+                  {caType === 'intermediate' && selectedMode !== 'importFull' && ( // Parent CA selection for non-imported intermediates
+                    <div>
+                      <Label htmlFor="parentCa">Parent CA</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsParentCaModalOpen(true)}
+                        className="w-full justify-start text-left font-normal mt-1"
+                        id="parentCa"
+                      >
+                        {selectedParentCa ? selectedParentCa.name : "Select Parent CA..."}
+                      </Button>
+                      {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected for intermediate CAs.</p>}
+                    </div>
+                  )}
+                  {caType === 'root' && selectedMode !== 'importFull' && (
+                       <div>
+                          <Label htmlFor="issuerName">Issuer</Label>
+                          <Input id="issuerName" value="Self-signed" disabled className="mt-1 bg-muted/50" />
+                          <p className="text-xs text-muted-foreground mt-1">Root CAs are self-signed.</p>
+                       </div>
+                  )}
+                  
+                  {selectedMode === 'importFull' && (
                      <div>
-                        <Label htmlFor="issuerName">Issuer</Label>
-                        <Input id="issuerName" value="Self-signed" disabled className="mt-1 bg-muted/50" />
-                        <p className="text-xs text-muted-foreground mt-1">Root CAs are self-signed.</p>
+                        <Label htmlFor="importedCaPem">CA Certificate & Private Key (PEM)</Label>
+                        <Textarea id="importedCaPem" placeholder="Paste the CA certificate PEM, optionally followed by its private key PEM..." rows={8} required className="mt-1 font-mono"/>
+                        <p className="text-xs text-muted-foreground mt-1">Include both the certificate and the encrypted or unencrypted private key.</p>
                      </div>
-                )}
+                  )}
 
-
-                <div>
-                  <Label htmlFor="caId">CA ID</Label>
-                  <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
-                </div>
-
-                <div>
-                  <Label htmlFor="caName">CA Name (Subject Common Name)</Label>
-                  <Input
-                    id="caName"
-                    value={caName}
-                    onChange={(e) => setCaName(e.target.value)}
-                    placeholder="e.g., LamassuIoT Secure Services CA"
-                    required
-                    className="mt-1"
-                  />
-                  {!caName.trim() && <p className="text-xs text-destructive mt-1">CA Name (Common Name) cannot be empty.</p>}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="keyType">Key Type</Label>
-                    <Select value={keyType} onValueChange={handleKeyTypeChange}>
-                      <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="caId">CA ID (generated)</Label>
+                    <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
                   </div>
-                  <div>
-                    <Label htmlFor="keySize">Key Size</Label>
-                    <Select value={keySize} onValueChange={setKeySize}>
-                      <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {currentKeySizeOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </section>
 
-            <Separator />
+                  <div>
+                    <Label htmlFor="caName">CA Name (Subject Common Name)</Label>
+                    <Input
+                      id="caName"
+                      value={caName}
+                      onChange={(e) => setCaName(e.target.value)}
+                      placeholder="e.g., LamassuIoT Secure Services CA"
+                      required={selectedMode !== 'importFull'} 
+                      disabled={selectedMode === 'importFull'}
+                      className="mt-1"
+                    />
+                    {selectedMode === 'importFull' && <p className="text-xs text-muted-foreground mt-1">Common Name will be extracted from the imported certificate.</p>}
+                    {!caName.trim() && selectedMode !== 'importFull' && <p className="text-xs text-destructive mt-1">CA Name (Common Name) cannot be empty.</p>}
+                  </div>
 
-            {/* Subject Section */}
-            <section>
-              <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />Subject Distinguished Name (DN)</h3>
-              <div className="space-y-4 p-4 border rounded-md">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="country">Country (C)</Label>
-                    <Input id="country" value={country} onChange={e => setCountry(e.target.value)} placeholder="e.g., US (2-letter code)" maxLength={2} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="stateProvince">State / Province (ST)</Label>
-                    <Input id="stateProvince" value={stateProvince} onChange={e => setStateProvince(e.target.value)} placeholder="e.g., California" className="mt-1" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="locality">Locality (L)</Label>
-                    <Input id="locality" value={locality} onChange={e => setLocality(e.target.value)} placeholder="e.g., San Francisco" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="organization">Organization (O)</Label>
-                    <Input id="organization" value={organization} onChange={e => setOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" className="mt-1" />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
-                  <Input id="organizationalUnit" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)} placeholder="e.g., Secure Devices Division" className="mt-1" />
-                </div>
-                 <p className="text-xs text-muted-foreground">The "CA Name" entered in CA Settings will be used as the Common Name (CN) for the subject.</p>
-              </div>
-            </section>
-
-            <Separator />
-
-            {/* Expiration Settings */}
-            <section>
-                 <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md">
+                  {selectedMode === 'newKeyPair' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="keyType">Key Type</Label>
+                        <Select value={keyType} onValueChange={handleKeyTypeChange}>
+                          <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="keySize">Key Size</Label>
+                        <Select value={keySize} onValueChange={setKeySize}>
+                          <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {currentKeySizeOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                   {selectedMode === 'reuseKeyPair' && (
                     <div>
-                        <Label htmlFor="caExpirationDuration" className="font-medium">CA Certificate Expiration</Label>
-                        <Input
-                            id="caExpirationDuration"
-                            value={caExpirationDuration}
-                            onChange={(e) => setCaExpirationDuration(e.target.value)}
-                            placeholder="e.g., 10y, 365d"
+                        <Label htmlFor="existingKeyId">Existing Key ID (from KMS)</Label>
+                        <Input id="existingKeyId" placeholder="Enter existing Key ID from your KMS" required className="mt-1"/>
+                        <p className="text-xs text-muted-foreground mt-1">Key type and size will be determined by the existing key.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+            
+            {selectedMode === 'importCertOnly' && (
+                 <section>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Import CA Certificate</h3>
+                    <div className="space-y-4 p-4 border rounded-md">
+                        <div>
+                            <Label htmlFor="caCertPem">CA Certificate (PEM format)</Label>
+                            <Textarea id="caCertPem" placeholder="Paste the CA certificate PEM here..." rows={6} required className="mt-1 font-mono"/>
+                            <p className="text-xs text-muted-foreground mt-1">Only the public certificate is needed for this import type.</p>
+                        </div>
+                         <div>
+                            <Label htmlFor="caNameImportOnly">CA Name (for display)</Label>
+                            <Input
+                            id="caNameImportOnly"
+                            value={caName}
+                            onChange={(e) => setCaName(e.target.value)}
+                            placeholder="e.g., External Partner Root CA"
                             required
                             className="mt-1"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Duration (valid units: y/w/d/h/m/s).</p>
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Provide a descriptive name. Subject details will be read from the cert if possible.</p>
+                        </div>
+                    </div>
+                 </section>
+            )}
+
+
+            {selectedMode !== 'importCertOnly' && <Separator />}
+
+            {/* Subject Section - Conditionally render fields */}
+            {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && (
+              <section>
+                <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />Subject Distinguished Name (DN)</h3>
+                <div className="space-y-4 p-4 border rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="country">Country (C)</Label>
+                      <Input id="country" value={country} onChange={e => setCountry(e.target.value)} placeholder="e.g., US (2-letter code)" maxLength={2} className="mt-1" />
                     </div>
                     <div>
-                        <Label htmlFor="issuanceExpirationDuration" className="font-medium">Default End-Entity Certificate Issuance Expiration</Label>
-                        <Input
-                            id="issuanceExpirationDuration"
-                            value={issuanceExpirationDuration}
-                            onChange={(e) => setIssuanceExpirationDuration(e.target.value)}
-                            placeholder="e.g., 1y, 90d"
-                            required
-                            className="mt-1"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Duration for certs issued by this CA.</p>
+                      <Label htmlFor="stateProvince">State / Province (ST)</Label>
+                      <Input id="stateProvince" value={stateProvince} onChange={e => setStateProvince(e.target.value)} placeholder="e.g., California" className="mt-1" />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="locality">Locality (L)</Label>
+                      <Input id="locality" value={locality} onChange={e => setLocality(e.target.value)} placeholder="e.g., San Francisco" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="organization">Organization (O)</Label>
+                      <Input id="organization" value={organization} onChange={e => setOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" className="mt-1" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
+                    <Input id="organizationalUnit" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)} placeholder="e.g., Secure Devices Division" className="mt-1" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">The "CA Name" entered in CA Settings will be used as the Common Name (CN) for the subject.</p>
                 </div>
-            </section>
+              </section>
+            )}
+            {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && <Separator />}
+
+
+            {/* Expiration Settings - Conditionally render fields */}
+            {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && (
+              <section>
+                   <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md">
+                      <div>
+                          <Label htmlFor="caExpirationDuration" className="font-medium">CA Certificate Expiration</Label>
+                          <Input
+                              id="caExpirationDuration"
+                              value={caExpirationDuration}
+                              onChange={(e) => setCaExpirationDuration(e.target.value)}
+                              placeholder="e.g., 10y, 365d"
+                              required
+                              className="mt-1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Duration (valid units: y/w/d/h/m/s).</p>
+                      </div>
+                      <div>
+                          <Label htmlFor="issuanceExpirationDuration" className="font-medium">Default End-Entity Certificate Issuance Expiration</Label>
+                          <Input
+                              id="issuanceExpirationDuration"
+                              value={issuanceExpirationDuration}
+                              onChange={(e) => setIssuanceExpirationDuration(e.target.value)}
+                              placeholder="e.g., 1y, 90d"
+                              required
+                              className="mt-1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Duration for certs issued by this CA.</p>
+                      </div>
+                  </div>
+              </section>
+            )}
+            
 
             <div className="flex justify-end pt-4">
               <Button type="submit" size="lg">
-                <PlusCircle className="mr-2 h-5 w-5" /> Create CA
+                <PlusCircle className="mr-2 h-5 w-5" /> 
+                {selectedMode === 'importCertOnly' ? 'Import Certificate' : 
+                 selectedMode === 'importFull' ? 'Import CA' :
+                 'Create CA'}
               </Button>
             </div>
           </form>
@@ -373,7 +514,7 @@ export default function CreateCertificateAuthorityPage() {
           </DialogHeader>
           <ScrollArea className="h-72 my-4">
             <ul className="space-y-1 pr-2">
-              {certificateAuthoritiesData.filter(ca => ca.status === 'active').map((ca) => ( // Only show active CAs as potential parents
+              {certificateAuthoritiesData.filter(ca => ca.status === 'active').map((ca) => (
                 <SelectableCaTreeItem
                   key={ca.id}
                   ca={ca}
@@ -391,7 +532,7 @@ export default function CreateCertificateAuthorityPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
+
