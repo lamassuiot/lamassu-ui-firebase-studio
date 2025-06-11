@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, PlusCircle, Settings2, KeyRound } from "lucide-react"; // Added KeyRound here
+import { ArrowLeft, PlusCircle, Settings2, KeyRound, ListChecks } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 
@@ -23,6 +23,18 @@ const signatureAlgorithms = [
   "SHA256withRSA", "SHA384withRSA", "SHA512withRSA",
   "SHA256withECDSA", "SHA384withECDSA", "SHA512withECDSA"
 ] as const;
+
+const keyUsageOptions = [
+  "digitalSignature", "nonRepudiation", "keyEncipherment", "dataEncipherment",
+  "keyAgreement", "keyCertSign", "cRLSign", "encipherOnly", "decipherOnly"
+] as const;
+type KeyUsageOption = typeof keyUsageOptions[number];
+
+const extendedKeyUsageOptions = [
+  "serverAuth", "clientAuth", "codeSigning", "emailProtection",
+  "timeStamping", "ocspSigning", "anyExtendedKeyUsage"
+] as const;
+type ExtendedKeyUsageOption = typeof extendedKeyUsageOptions[number];
 
 const signingProfileSchema = z.object({
   profileName: z.string().min(3, "Profile name must be at least 3 characters long."),
@@ -35,9 +47,11 @@ const signingProfileSchema = z.object({
   rsaKeyStrength: z.enum(rsaKeyStrengths).optional(),
   ecdsaCurve: z.enum(ecdsaCurves).optional(),
   defaultSignatureAlgorithm: z.enum(signatureAlgorithms).optional(),
+  keyUsages: z.array(z.enum(keyUsageOptions)).optional().default([]),
+  extendedKeyUsages: z.array(z.enum(extendedKeyUsageOptions)).optional().default([]),
 }).refine(data => data.allowRsa || data.allowEcdsa, {
   message: "At least one key type (RSA or ECDSA) must be allowed.",
-  path: ["allowRsa"], // You can point to any of the fields involved
+  path: ["allowRsa"], 
 }).refine(data => data.allowRsa ? !!data.rsaKeyStrength : true, {
     message: "RSA Key Strength is required if RSA is allowed.",
     path: ["rsaKeyStrength"],
@@ -47,6 +61,14 @@ const signingProfileSchema = z.object({
 });
 
 type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
+
+// Helper to format camelCase to Title Case
+const toTitleCase = (str: string) => {
+  return str
+    .replace(/([A-Z])/g, ' $1') // insert a space before all caps
+    .replace(/^./, (s) => s.toUpperCase()); // uppercase the first character
+};
+
 
 export default function CreateSigningProfilePage() {
   const router = useRouter();
@@ -63,6 +85,8 @@ export default function CreateSigningProfilePage() {
       allowRsa: true,
       allowEcdsa: false,
       rsaKeyStrength: "2048",
+      keyUsages: ['digitalSignature', 'keyEncipherment'], // Example default
+      extendedKeyUsages: ['clientAuth'], // Example default
     },
   });
 
@@ -289,6 +313,100 @@ export default function CreateSigningProfilePage() {
                     </FormItem>
                   )}
                 />
+
+              <Separator />
+              <h3 className="text-lg font-semibold flex items-center"><ListChecks className="mr-2 h-5 w-5 text-muted-foreground"/>Certificate Usage Policies</h3>
+              
+              <FormField
+                control={form.control}
+                name="keyUsages"
+                render={() => ( // Main render for the group
+                  <FormItem>
+                    <FormLabel>Key Usage</FormLabel>
+                    <FormDescription>Select the allowed key usages for certificates signed with this profile.</FormDescription>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 mt-2 border p-3 rounded-md shadow-sm">
+                      {keyUsageOptions.map((item) => (
+                        <FormField
+                          key={item}
+                          control={form.control}
+                          name="keyUsages" // The array field
+                          render={({ field }) => {
+                            return (
+                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item)}
+                                    onCheckedChange={(checked) => {
+                                      const currentValue = field.value || [];
+                                      return checked
+                                        ? field.onChange([...currentValue, item])
+                                        : field.onChange(
+                                            currentValue.filter(
+                                              (value) => value !== item
+                                            )
+                                          );
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-sm font-normal cursor-pointer">
+                                  {toTitleCase(item)}
+                                </FormLabel>
+                              </FormItem>
+                            );
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="extendedKeyUsages"
+                render={() => ( // Main render for the group
+                  <FormItem>
+                    <FormLabel>Extended Key Usage</FormLabel>
+                    <FormDescription>Select the allowed extended key usages (EKUs).</FormDescription>
+                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 mt-2 border p-3 rounded-md shadow-sm">
+                      {extendedKeyUsageOptions.map((item) => (
+                        <FormField
+                          key={item}
+                          control={form.control}
+                          name="extendedKeyUsages" // The array field
+                          render={({ field }) => {
+                            return (
+                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item)}
+                                    onCheckedChange={(checked) => {
+                                      const currentValue = field.value || [];
+                                      return checked
+                                        ? field.onChange([...currentValue, item])
+                                        : field.onChange(
+                                            currentValue.filter(
+                                              (value) => value !== item
+                                            )
+                                          );
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-sm font-normal cursor-pointer">
+                                   {toTitleCase(item)}
+                                </FormLabel>
+                              </FormItem>
+                            );
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
 
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => router.push('/dashboard/signing-profiles')}>
