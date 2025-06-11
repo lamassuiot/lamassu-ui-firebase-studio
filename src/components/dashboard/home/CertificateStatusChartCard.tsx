@@ -45,13 +45,14 @@ export function CertificateStatusChartCard() {
     const ey = my;
     const textAnchor = cos >= 0 ? 'start' : 'end';
 
-    const labelColor = resolvedTheme === 'dark' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--primary-foreground))';
+    const labelColor = 'hsl(var(--primary-foreground))';
+    const lineColor = 'hsl(var(--primary-foreground))';
 
 
     return (
       <g>
-        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
-        <circle cx={sx} cy={sy} r={2} fill={fill} stroke="none" />
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={lineColor} fill="none" />
+        <circle cx={sx} cy={sy} r={2} fill={fill} stroke={lineColor} strokeWidth={1}/>
         <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey} textAnchor={textAnchor} fill={labelColor} dy={'.35em'} className="text-xs font-medium">
           {`${(percent * 100).toFixed(0)}% (${value})`}
         </text>
@@ -108,3 +109,4 @@ export function CertificateStatusChartCard() {
     </Card>
   );
 }
+
