@@ -115,7 +115,7 @@ export default function DashboardLayout({
     { href: '/dashboard/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
   ];
   const iotItems = [
-    { href: '/dashboard/devices', label: 'Devices', icon: Router },
+    { href: '/dashboard/devices', label: 'Devices', icon: RouterIcon }, // Changed icon
     { href: '/dashboard/device-groups', label: 'Device Groups', icon: ServerCog },
   ];
   const kmsItems = [
@@ -166,7 +166,7 @@ export default function DashboardLayout({
                     {userRoles.map((role: string, index: number) => (
                       <Badge
                         key={index}
-                        variant="default" // Using default variant and overriding styles
+                        variant="default" 
                         className="text-xs font-normal px-1.5 py-0.5 border-primary text-black bg-primary-foreground hover:bg-primary-foreground/80"
                       >
                         {role}
