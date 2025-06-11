@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, Sector } from 'recharts';
 import { useTheme } from 'next-themes';
 
 interface ChartData {
@@ -13,18 +13,16 @@ interface ChartData {
 }
 
 const certificateStatusData: ChartData[] = [
-  { name: 'Active', value: 70, color: 'rgb(34, 197, 94)' }, // Updated color
-  { name: 'About to expire', value: 15, color: 'hsl(var(--chart-3))' }, // Orange/Amber
-  { name: 'Expired', value: 10, color: 'hsl(var(--chart-5))' }, // Reddish/Pinkish
-  { name: 'Revoked', value: 5, color: 'hsl(var(--destructive))' }, // Destructive Red
+  { name: 'Active', value: 70, color: 'rgb(34, 197, 94)' }, 
+  { name: 'About to expire', value: 15, color: 'hsl(var(--chart-3))' }, 
+  { name: 'Expired', value: 10, color: 'hsl(var(--chart-5))' }, 
+  { name: 'Revoked', value: 5, color: 'hsl(var(--destructive))' }, 
 ];
 
-// Fallback colors for recharts if CSS variables are not directly picked up by SVG elements
 const fallbackColors = {
-    // Note: 'rgb(34, 197, 94)' for Active will be used directly as it's not a CSS var key.
-    'hsl(var(--chart-3))': 'hsl(30 80% 55%)', // orange
-    'hsl(var(--chart-5))': 'hsl(340 75% 55%)', // pinkish-red
-    'hsl(var(--destructive))': 'hsl(0 72% 51%)', // destructive red
+    'hsl(var(--chart-3))': 'hsl(30 80% 55%)', 
+    'hsl(var(--chart-5))': 'hsl(340 75% 55%)', 
+    'hsl(var(--destructive))': 'hsl(0 72% 51%)', 
 };
 
 
@@ -32,17 +30,32 @@ export function CertificateStatusChartCard() {
   const { resolvedTheme } = useTheme();
 
   const RADIAN = Math.PI / 180;
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value }: any) => {
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const renderCustomizedLabel = (props: any) => {
+    const { cx, cy, midAngle, outerRadius, startAngle, endAngle, fill, payload, percent, value, name } = props;
+    
+    if (percent < 0.03) return null; // Don't render label for very small slices
 
-    if (percent < 0.05) return null; // Don't render label for very small slices
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const sx = cx + (outerRadius + 0) * cos; // Start line slightly inside the outer edge
+    const sy = cy + (outerRadius + 0) * sin;
+    const mx = cx + (outerRadius + 20) * cos; // Mid-point for the first line segment
+    const my = cy + (outerRadius + 20) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 22; // End-point for the horizontal line
+    const ey = my;
+    const textAnchor = cos >= 0 ? 'start' : 'end';
+
+    const labelColor = resolvedTheme === 'dark' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--primary-foreground))';
+
 
     return (
-      <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs font-medium">
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
+      <g>
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
+        <circle cx={sx} cy={sy} r={2} fill={fill} stroke="none" />
+        <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey} textAnchor={textAnchor} fill={labelColor} dy={'.35em'} className="text-xs font-medium">
+          {`${(percent * 100).toFixed(0)}% (${value})`}
+        </text>
+      </g>
     );
   };
 
@@ -63,8 +76,8 @@ export function CertificateStatusChartCard() {
                 cy="50%"
                 labelLine={false}
                 label={renderCustomizedLabel}
-                outerRadius="80%"
-                innerRadius="70%" 
+                outerRadius="75%" 
+                innerRadius="60%" 
                 fill="#8884d8"
                 dataKey="value"
                 stroke={'hsl(var(--primary))'} 
