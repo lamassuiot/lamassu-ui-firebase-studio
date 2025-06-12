@@ -37,6 +37,7 @@ const creationModes = [
 const keyTypes = [
   { value: 'RSA', label: 'RSA' },
   { value: 'ECDSA', label: 'ECDSA' },
+  { value: 'ML-DSA', label: 'ML-DSA (Post-Quantum)' },
 ];
 
 const rsaKeySizes = [
@@ -49,6 +50,12 @@ const ecdsaKeyCurves = [
   { value: 'P-256', label: 'P-256 (NIST P-256, secp256r1)' },
   { value: 'P-384', label: 'P-384 (NIST P-384, secp384r1)' },
   { value: 'P-521', label: 'P-521 (NIST P-521, secp521r1)' },
+];
+
+const mlDsaSecurityLevels = [
+  { value: 'ML-DSA-44', label: 'ML-DSA-44 (Security Level 1 - ~AES-128)' },
+  { value: 'ML-DSA-65', label: 'ML-DSA-65 (Security Level 3 - ~AES-192)' },
+  { value: 'ML-DSA-87', label: 'ML-DSA-87 (Security Level 5 - ~AES-256)' },
 ];
 
 export default function CreateKmsKeyPage() {
@@ -65,6 +72,8 @@ export default function CreateKmsKeyPage() {
   const [keyType, setKeyType] = useState('RSA');
   const [rsaKeySize, setRsaKeySize] = useState('2048');
   const [ecdsaCurve, setEcdsaCurve] = useState('P-256');
+  const [mlDsaSecurityLevel, setMlDsaSecurityLevel] = useState('ML-DSA-65');
+
 
   // Import Key Pair mode fields
   const [privateKeyPem, setPrivateKeyPem] = useState('');
@@ -86,10 +95,38 @@ export default function CreateKmsKeyPage() {
       setRsaKeySize('2048');
     } else if (value === 'ECDSA') {
       setEcdsaCurve('P-256');
+    } else if (value === 'ML-DSA') {
+      setMlDsaSecurityLevel('ML-DSA-65');
     }
   };
 
-  const currentKeySizeOrCurveOptions = keyType === 'RSA' ? rsaKeySizes : ecdsaKeyCurves;
+  const currentKeySpecOptions = (() => {
+    if (keyType === 'RSA') return rsaKeySizes;
+    if (keyType === 'ECDSA') return ecdsaKeyCurves;
+    if (keyType === 'ML-DSA') return mlDsaSecurityLevels;
+    return [];
+  })();
+
+  const keySpecLabel = (() => {
+    if (keyType === 'RSA') return 'RSA Key Size';
+    if (keyType === 'ECDSA') return 'ECDSA Curve';
+    if (keyType === 'ML-DSA') return 'ML-DSA Security Level';
+    return 'Key Specification';
+  })();
+
+  const currentKeySpecValue = (() => {
+    if (keyType === 'RSA') return rsaKeySize;
+    if (keyType === 'ECDSA') return ecdsaCurve;
+    if (keyType === 'ML-DSA') return mlDsaSecurityLevel;
+    return '';
+  })();
+
+  const handleKeySpecChange = (value: string) => {
+    if (keyType === 'RSA') setRsaKeySize(value);
+    else if (keyType === 'ECDSA') setEcdsaCurve(value);
+    else if (keyType === 'ML-DSA') setMlDsaSecurityLevel(value);
+  };
+
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -107,10 +144,15 @@ export default function CreateKmsKeyPage() {
     };
 
     if (selectedMode === 'newKeyPair') {
+      let keySpecValue = '';
+      if (keyType === 'RSA') keySpecValue = rsaKeySize;
+      else if (keyType === 'ECDSA') keySpecValue = ecdsaCurve;
+      else if (keyType === 'ML-DSA') keySpecValue = mlDsaSecurityLevel;
+      
       formData = {
         ...formData,
         keyType,
-        keySpec: keyType === 'RSA' ? rsaKeySize : ecdsaCurve,
+        keySpec: keySpecValue,
       };
     } else if (selectedMode === 'importKeyPair') {
       if (!privateKeyPem.trim()) {
@@ -270,11 +312,11 @@ export default function CreateKmsKeyPage() {
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="keySpec">{keyType === 'RSA' ? 'RSA Key Size' : 'ECDSA Curve'}</Label>
-                      <Select value={keyType === 'RSA' ? rsaKeySize : ecdsaCurve} onValueChange={keyType === 'RSA' ? setRsaKeySize : setEcdsaCurve}>
+                      <Label htmlFor="keySpec">{keySpecLabel}</Label>
+                      <Select value={currentKeySpecValue} onValueChange={handleKeySpecChange}>
                         <SelectTrigger id="keySpec" className="mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {currentKeySizeOrCurveOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
+                          {currentKeySpecOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

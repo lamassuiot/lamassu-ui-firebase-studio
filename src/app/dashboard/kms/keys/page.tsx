@@ -41,6 +41,14 @@ const mockKmsKeysData: KmsKey[] = [
     description: 'Signing key for the Development Intermediate CA.',
   },
   {
+    id: 'key-pq-dilithium2-aes',
+    alias: 'lamassu/prod/firmware-signing-mldsa65',
+    keyTypeDisplay: 'ML-DSA-65',
+    status: 'Enabled',
+    creationDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    description: 'Post-quantum signature key for critical firmware (ML-DSA Level 3).',
+  },
+  {
     id: 'key-9012ijkl-90ij-12kl-34mn-9012345678ef',
     alias: 'lamassu/archive/old-codesigning-key',
     keyTypeDisplay: 'RSA 2048',
@@ -84,12 +92,6 @@ export default function KmsKeysPage() {
   const [keyToDelete, setKeyToDelete] = useState<KmsKey | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  // Removed state for Sign, Verify, Generate CSR modals
-  // const [isSignModalOpen, setIsSignModalOpen] = useState(false);
-  // const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
-  // const [isGenerateCsrModalOpen, setIsGenerateCsrModalOpen] = useState(false);
-  // const [selectedKeyForAction, setSelectedKeyForAction] = useState<KmsKey | null>(null);
-
   const handleCreateNewKey = () => {
     router.push('/dashboard/kms/keys/new');
   };
@@ -110,22 +112,6 @@ export default function KmsKeysPage() {
     setIsDeleteDialogOpen(false);
     setKeyToDelete(null);
   };
-
-  // Removed handlers for Sign, Verify, Generate CSR modals
-  // const handleOpenSignModal = (key: KmsKey) => {
-  //   setSelectedKeyForAction(key);
-  //   setIsSignModalOpen(true);
-  // };
-
-  // const handleOpenVerifyModal = (key: KmsKey) => {
-  //   setSelectedKeyForAction(key);
-  //   setIsVerifyModalOpen(true);
-  // };
-  
-  // const handleOpenGenerateCsrModal = (key: KmsKey) => {
-  //   setSelectedKeyForAction(key);
-  //   setIsGenerateCsrModalOpen(true);
-  // };
 
   return (
     <div className="space-y-6 w-full">
@@ -178,18 +164,15 @@ export default function KmsKeysPage() {
                         <DropdownMenuItem onClick={() => alert(`View details for key: ${key.alias}`)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        {/* Removed Generate CSR, Sign, Verify actions */}
-                        {/* 
-                        <DropdownMenuItem onClick={() => handleOpenGenerateCsrModal(key)}>
+                        <DropdownMenuItem onClick={() => alert(`Generate CSR for key: ${key.alias} (placeholder)`)}>
                           <FilePlus2 className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenSignModal(key)}>
+                        <DropdownMenuItem onClick={() => alert(`Sign with key: ${key.alias} (placeholder)`)}>
                           <PenTool className="mr-2 h-4 w-4" /> Sign
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenVerifyModal(key)}>
+                        <DropdownMenuItem onClick={() => alert(`Verify with key: ${key.alias} (placeholder)`)}>
                           <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem> 
-                        */}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => confirmDeleteKey(key)}
@@ -236,29 +219,6 @@ export default function KmsKeysPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Removed modal instantiations for Sign, Verify, Generate CSR */}
-      {/* 
-      {selectedKeyForAction && (
-        <>
-          <SignDataModal 
-            isOpen={isSignModalOpen} 
-            onOpenChange={setIsSignModalOpen} 
-            keyAlias={selectedKeyForAction.alias} 
-          />
-          <VerifySignatureModal 
-            isOpen={isVerifyModalOpen} 
-            onOpenChange={setIsVerifyModalOpen} 
-            keyAlias={selectedKeyForAction.alias} 
-          />
-          <GenerateCsrModal
-            isOpen={isGenerateCsrModalOpen}
-            onOpenChange={setIsGenerateCsrModalOpen}
-            keyAlias={selectedKeyForAction.alias}
-          />
-        </>
-      )} 
-      */}
     </div>
   );
 }
-
