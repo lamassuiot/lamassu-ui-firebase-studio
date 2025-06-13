@@ -2,7 +2,7 @@
 'use client';
 
 import type React from 'react';
-import { KeyRound, Award } from 'lucide-react'; // Added Award icon for self-signed
+import { KeyRound, IterationCcw } from 'lucide-react'; // Changed Award to IterationCcw
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import type { CA } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +12,7 @@ interface CaVisualizerCardProps {
   ca: CA;
   className?: string;
   onClick?: (ca: CA) => void;
-  showKmsKeyId?: boolean; // New prop
-  // kmsKeyId prop is now derived from ca.kmsKeyId
+  showKmsKeyId?: boolean;
 }
 
 interface StatusDisplayInfo {
@@ -49,7 +48,7 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
 
   const cardInnerContent = (
     <>
-      <div className={cn("flex items-center space-x-3 p-3", isSelfSigned ? "border-b-2 border-amber-400 dark:border-amber-600" : "")}>
+      <div className={cn("flex items-center space-x-3 p-3")}> {/* Removed self-signed specific border class */}
         <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
           <KeyRound className="h-6 w-6 text-primary" />
         </div>
@@ -64,7 +63,7 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
             </Badge>
             {isSelfSigned && (
               <Badge variant="secondary" className="text-xs py-1 px-2 bg-amber-100 text-amber-700 dark:bg-amber-700/20 dark:text-amber-300 border-amber-300 dark:border-amber-700">
-                <Award className="h-3 w-3 mr-1" /> Self-Signed
+                <IterationCcw className="h-3 w-3 mr-1" /> Self-Signed {/* Changed icon to IterationCcw */}
               </Badge>
             )}
           </div>
@@ -100,3 +99,4 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
     </div>
   );
 };
+
