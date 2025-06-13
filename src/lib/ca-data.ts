@@ -9,7 +9,8 @@ export interface CA {
   status: 'active' | 'expired' | 'revoked';
   keyAlgorithm: string;
   signatureAlgorithm: string;
-  pemData?: string; // Added PEM data field
+  kmsKeyId?: string; // Added KMS Key ID
+  pemData?: string; 
   children?: CA[];
 }
 
@@ -21,17 +22,18 @@ const generateMockPem = (name: string, id: string): string => {
   return `${header}\n${body}\n${footer}`;
 };
 
-// Mock CA data with static serial numbers and PEM data
+// Mock CA data with static serial numbers, PEM data, and KMS Key IDs
 export const certificateAuthoritiesData: CA[] = [
   {
     id: 'root-ca-1',
     name: 'LamassuIoT Global Root CA G1',
-    issuer: 'Self-signed',
+    issuer: 'Self-signed', // Self-signed
     expires: '2045-12-31',
     serialNumber: '0A1B2C3D4E5F67890123',
     status: 'active',
     keyAlgorithm: 'RSA 4096 bit',
     signatureAlgorithm: 'SHA512withRSA',
+    kmsKeyId: 'key-pkcs11-global-root-g1', // KMS Key for this Root CA
     pemData: generateMockPem('LamassuIoT Global Root CA G1', 'root-ca-1'),
     children: [
       {
@@ -43,6 +45,7 @@ export const certificateAuthoritiesData: CA[] = [
         status: 'active',
         keyAlgorithm: 'RSA 2048 bit',
         signatureAlgorithm: 'SHA256withRSA',
+        kmsKeyId: 'key-services-ca-eu', // KMS Key for this Intermediate CA
         pemData: generateMockPem('LamassuIoT Regional Services CA EU', 'intermediate-ca-1a'),
         children: [
           {
@@ -54,6 +57,7 @@ export const certificateAuthoritiesData: CA[] = [
             status: 'active',
             keyAlgorithm: 'ECDSA P-256',
             signatureAlgorithm: 'SHA256withECDSA',
+            kmsKeyId: 'key-device-auth-eu-west', // KMS Key for this Signing CA
             pemData: generateMockPem('Device Authentication CA EU West', 'signing-ca-1a1'),
           },
           {
@@ -65,6 +69,7 @@ export const certificateAuthoritiesData: CA[] = [
             status: 'active',
             keyAlgorithm: 'RSA 2048 bit',
             signatureAlgorithm: 'SHA256withRSA',
+            kmsKeyId: 'key-secure-update-eu-central', // KMS Key
             pemData: generateMockPem('Secure Update Service CA EU Central', 'signing-ca-1a2'),
           },
         ],
@@ -78,6 +83,7 @@ export const certificateAuthoritiesData: CA[] = [
         status: 'active',
         keyAlgorithm: 'RSA 3072 bit',
         signatureAlgorithm: 'SHA384withRSA',
+        kmsKeyId: 'key-manufacturing-ca-us', // KMS Key
         pemData: generateMockPem('LamassuIoT Manufacturing CA US', 'intermediate-ca-1b'),
         children: [
            {
@@ -89,21 +95,36 @@ export const certificateAuthoritiesData: CA[] = [
             status: 'active',
             keyAlgorithm: 'RSA 2048 bit',
             signatureAlgorithm: 'SHA256withRSA',
+            kmsKeyId: 'key-factory-a-provisioning', // KMS Key
             pemData: generateMockPem('Factory A Provisioning CA', 'signing-ca-1b1'),
           }
         ]
       },
+      // Example of key reuse: another intermediate signed by root-ca-1 but using same key as intermediate-ca-1a
+      {
+        id: 'intermediate-ca-1c-keyreuse',
+        name: 'LamassuIoT Special Projects CA (Key Reuse Demo)',
+        issuer: 'root-ca-1',
+        expires: '2042-01-01',
+        serialNumber: '1C2D3E4F5A6B7C8D9E0F',
+        status: 'active',
+        keyAlgorithm: 'RSA 2048 bit',
+        signatureAlgorithm: 'SHA256withRSA',
+        kmsKeyId: 'key-services-ca-eu', // Reusing key from intermediate-ca-1a
+        pemData: generateMockPem('LamassuIoT Special Projects CA', 'intermediate-ca-1c-keyreuse'),
+      }
     ],
   },
   {
     id: 'root-ca-2',
     name: 'LamassuIoT Test & Development Root CA',
-    issuer: 'Self-signed',
+    issuer: 'Self-signed', // Self-signed
     expires: '2030-01-01',
     serialNumber: '6A7B8C9D0E1F23456789',
     status: 'active',
     keyAlgorithm: 'ECDSA P-384',
     signatureAlgorithm: 'SHA384withECDSA',
+    kmsKeyId: 'key-test-dev-root', // KMS Key
     pemData: generateMockPem('LamassuIoT Test & Development Root CA', 'root-ca-2'),
     children: [
         {
@@ -115,6 +136,7 @@ export const certificateAuthoritiesData: CA[] = [
           status: 'active',
           keyAlgorithm: 'ECDSA P-256',
           signatureAlgorithm: 'SHA256withECDSA',
+          kmsKeyId: 'key-staging-env-ca', // KMS Key
           pemData: generateMockPem('Staging Environment CA', 'intermediate-ca-2a'),
         },
         {
@@ -126,6 +148,7 @@ export const certificateAuthoritiesData: CA[] = [
           status: 'expired',
           keyAlgorithm: 'RSA 2048 bit',
           signatureAlgorithm: 'SHA256withRSA',
+          kmsKeyId: 'key-qa-services-ca-expired', // KMS Key
           pemData: generateMockPem('QA Services CA (Expired)', 'intermediate-ca-2b'),
         }
     ]
@@ -133,12 +156,13 @@ export const certificateAuthoritiesData: CA[] = [
   {
     id: 'root-ca-3',
     name: 'Old Partner Root CA (Revoked)',
-    issuer: 'Self-signed',
+    issuer: 'Self-signed', // Self-signed
     expires: '2025-05-05',
     serialNumber: '9A0B1C2D3E4F56789012',
     status: 'revoked',
     keyAlgorithm: 'RSA 2048 bit',
     signatureAlgorithm: 'SHA256withRSA',
+    kmsKeyId: 'key-old-partner-root-revoked', // KMS Key
     pemData: generateMockPem('Old Partner Root CA (Revoked)', 'root-ca-3'),
   }
 ];

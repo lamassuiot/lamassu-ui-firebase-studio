@@ -1,101 +1,128 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react'; // Added useState
 import type { CA } from '@/lib/ca-data';
 import { Tree, TreeNode } from 'react-organizational-chart';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { CaVisualizerCard } from '@/components/CaVisualizerCard'; // Updated import
+import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Switch } from '@/components/ui/switch'; // Added Switch import
+import { Label } from '@/components/ui/label'; // Added Label import
+import { ZoomIn, ZoomOut, RotateCcw, Key } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CaHierarchyViewProps {
   cas: CA[];
   router: ReturnType<typeof import('next/navigation').useRouter>;
-  allCAs: CA[]; // allCAs might still be needed if children nodes need context for display later
+  allCAs: CA[];
 }
 
-const renderTreeNodes = (ca: CA, router: ReturnType<typeof import('next/navigation').useRouter>, allCAs: CA[]): React.ReactNode => {
-  const handleNodeClick = (selectedCa: CA) => {
-    router.push(`/dashboard/certificate-authorities/${selectedCa.id}/details`);
-  };
-
-  return (
-    <TreeNode
-      key={ca.id}
-      label={
-        <CaVisualizerCard
-          ca={ca}
-          onClick={handleNodeClick}
-          className="mx-auto w-auto min-w-[330px] max-w-[380px]"
-        />
-      }
-    >
-      {ca.children && ca.children.map(child => renderTreeNodes(child, router, allCAs))}
-    </TreeNode>
-  );
-};
-
 export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, allCAs }) => {
+  const [showKmsKeyIds, setShowKmsKeyIds] = useState(false); // State for toggle
+
   if (cas.length === 0) {
     return (
       <p className="text-muted-foreground text-center p-4">No Certificate Authorities to display in hierarchy view.</p>
     );
   }
 
+  const renderTreeNodes = (ca: CA, currentRouter: ReturnType<typeof import('next/navigation').useRouter>, currentAllCAs: CA[]): React.ReactNode => {
+    const handleNodeClick = (selectedCa: CA) => {
+      currentRouter.push(`/dashboard/certificate-authorities/${selectedCa.id}/details`);
+    };
+
+    return (
+      <TreeNode
+        key={ca.id}
+        label={
+          <CaVisualizerCard
+            ca={ca}
+            onClick={handleNodeClick}
+            className="mx-auto w-auto min-w-[330px] max-w-[380px]"
+            showKmsKeyId={showKmsKeyIds} // Pass toggle state
+            // kmsKeyId is now taken from ca.kmsKeyId internally by CaVisualizerCard
+          />
+        }
+      >
+        {ca.children && ca.children.map(child => renderTreeNodes(child, currentRouter, currentAllCAs))}
+      </TreeNode>
+    );
+  };
+
   const handleRootNodeClick = (selectedCa: CA) => {
     router.push(`/dashboard/certificate-authorities/${selectedCa.id}/details`);
   };
 
   return (
-    <div className="w-full h-[calc(100vh-200px)] border rounded-md relative overflow-hidden">
-      <TransformWrapper
-        initialScale={1}
-        minScale={0.2}
-        maxScale={3}
-        centerOnInit
-        limitToBounds={false}
-      >
-        {({ zoomIn, zoomOut, resetTransform, ...rest }) => (
-          <>
-            <div className="absolute top-2 left-2 z-10 space-x-1">
-              <Button variant="outline" size="icon" onClick={() => zoomIn()} title="Zoom In">
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => zoomOut()} title="Zoom Out">
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => resetTransform()} title="Reset View">
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-            </div>
-            <TransformComponent
-              wrapperStyle={{ width: '100%', height: '100%' }}
-              contentStyle={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
-            >
-              <div className="flex flex-row items-start space-x-12">
-                {cas.map((rootCa) => (
-                  <Tree
-                    key={rootCa.id}
-                    lineWidth={'2px'}
-                    lineColor={'hsl(var(--primary))'}
-                    lineBorderRadius={'5px'}
-                    label={
-                      <CaVisualizerCard
-                        ca={rootCa}
-                        onClick={handleRootNodeClick}
-                        className="mx-auto w-auto min-w-[230px] max-w-[380px]"
-                      />
-                    }
-                  >
-                    {rootCa.children && rootCa.children.map(child => renderTreeNodes(child, router, allCAs))}
-                  </Tree>
-                ))}
+    <div className="w-full h-[calc(100vh-200px)] border rounded-md relative overflow-hidden flex flex-col">
+      <div className="p-2 border-b bg-muted/30 flex items-center justify-between">
+         <div className="flex items-center space-x-1">
+            {/* Zoom and Reset Controls will be added by TransformWrapper's controls prop or manually */}
+        </div>
+        <div className="flex items-center space-x-2">
+          <Key className="h-4 w-4 text-muted-foreground" />
+          <Label htmlFor="showKmsKeysToggle" className="text-sm font-medium text-muted-foreground">
+            Show KMS Key IDs
+          </Label>
+          <Switch
+            id="showKmsKeysToggle"
+            checked={showKmsKeyIds}
+            onCheckedChange={setShowKmsKeyIds}
+            aria-label="Toggle KMS Key ID visibility"
+          />
+        </div>
+      </div>
+      <div className="flex-grow relative">
+        <TransformWrapper
+          initialScale={1}
+          minScale={0.2}
+          maxScale={3}
+          centerOnInit
+          limitToBounds={false}
+        >
+          {({ zoomIn, zoomOut, resetTransform, ...rest }) => (
+            <>
+              <div className="absolute top-2 left-2 z-10 space-x-1">
+                <Button variant="outline" size="icon" onClick={() => zoomIn()} title="Zoom In">
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => zoomOut()} title="Zoom Out">
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => resetTransform()} title="Reset View">
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
               </div>
-            </TransformComponent>
-          </>
-        )}
-      </TransformWrapper>
+              <TransformComponent
+                wrapperStyle={{ width: '100%', height: '100%' }}
+                contentStyle={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '60px 20px 20px 20px' }} // Added more top padding
+              >
+                <div className="flex flex-row items-start space-x-12">
+                  {cas.map((rootCa) => (
+                    <Tree
+                      key={rootCa.id}
+                      lineWidth={'2px'}
+                      lineColor={'hsl(var(--border))'} // Use border color for lines
+                      lineBorderRadius={'5px'}
+                      label={
+                        <CaVisualizerCard
+                          ca={rootCa}
+                          onClick={handleRootNodeClick}
+                          className="mx-auto w-auto min-w-[330px] max-w-[380px]"
+                          showKmsKeyId={showKmsKeyIds} // Pass toggle state
+                        />
+                      }
+                    >
+                      {rootCa.children && rootCa.children.map(child => renderTreeNodes(child, router, allCAs))}
+                    </Tree>
+                  ))}
+                </div>
+              </TransformComponent>
+            </>
+          )}
+        </TransformWrapper>
+      </div>
     </div>
   );
 };
