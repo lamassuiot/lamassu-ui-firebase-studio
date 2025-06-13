@@ -100,7 +100,6 @@ export const certificateAuthoritiesData: CA[] = [
           }
         ]
       },
-      // Example of key reuse: another intermediate signed by root-ca-1 but using same key as intermediate-ca-1a
       {
         id: 'intermediate-ca-1c-keyreuse',
         name: 'LamassuIoT Special Projects CA (Key Reuse Demo)',
@@ -112,20 +111,33 @@ export const certificateAuthoritiesData: CA[] = [
         signatureAlgorithm: 'SHA256withRSA',
         kmsKeyId: 'key-services-ca-eu', // Reusing key from intermediate-ca-1a
         pemData: generateMockPem('LamassuIoT Special Projects CA', 'intermediate-ca-1c-keyreuse'),
+      },
+      {
+        id: 'cross-cert-for-test-root-by-g1',
+        name: 'LamassuIoT Test &amp; Development CA (Cross-Cert by Global G1)',
+        issuer: 'root-ca-1', // Issued by Global Root CA G1
+        expires: '2030-01-01', // Matching original test root's expiry for clarity
+        serialNumber: 'CROSS001002003004AABB',
+        status: 'active',
+        keyAlgorithm: 'ECDSA P-384', // Matches the key type of 'key-test-dev-root'
+        signatureAlgorithm: 'SHA384withECDSA',
+        kmsKeyId: 'key-test-dev-root', // &lt;&lt; Uses the same key as the self-signed Test &amp; Development Root
+        pemData: generateMockPem('LamassuIoT Test &amp; Development CA (Cross-Cert by Global G1)', 'cross-cert-for-test-root-by-g1'),
+        children: [] // This certificate for the key doesn't issue other CAs itself
       }
     ],
   },
   {
     id: 'root-ca-2',
-    name: 'LamassuIoT Test & Development Root CA',
+    name: 'LamassuIoT Test &amp; Development Root CA',
     issuer: 'Self-signed', // Self-signed
     expires: '2030-01-01',
     serialNumber: '6A7B8C9D0E1F23456789',
     status: 'active',
     keyAlgorithm: 'ECDSA P-384',
     signatureAlgorithm: 'SHA384withECDSA',
-    kmsKeyId: 'key-test-dev-root', // KMS Key
-    pemData: generateMockPem('LamassuIoT Test & Development Root CA', 'root-ca-2'),
+    kmsKeyId: 'key-test-dev-root', // KMS Key for this self-signed root
+    pemData: generateMockPem('LamassuIoT Test &amp; Development Root CA', 'root-ca-2'),
     children: [
         {
           id: 'intermediate-ca-2a',
