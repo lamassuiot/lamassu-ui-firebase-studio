@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network, Loader2 } from "lucide-react";
+import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network, Loader2, GitFork } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { certificateAuthoritiesData, getCaDisplayName } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,20 @@ const CaHierarchyView = dynamic(() =>
   }
 );
 
-type ViewMode = 'list' | 'filesystem' | 'hierarchy';
+const CaGraphView = dynamic(() =>
+  import('@/components/dashboard/ca/CaGraphView').then(mod => mod.CaGraphView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg">Loading Graph View...</p>
+      </div>
+    )
+  }
+);
+
+type ViewMode = 'list' | 'filesystem' | 'hierarchy' | 'graph';
 
 const getExpiryTextAndStatus = (expires: string, status: CA['status']): { text: string; badgeVariant: "default" | "secondary" | "destructive" | "outline"; badgeClass: string } => {
   const expiryDate = parseISO(expires);
@@ -167,7 +180,7 @@ export default function CertificateAuthoritiesPage() {
   };
 
   const handleViewModeChange = (newMode: string) => {
-    if (newMode && (newMode === 'list' || newMode === 'filesystem' || newMode === 'hierarchy')) {
+    if (newMode && (newMode === 'list' || newMode === 'filesystem' || newMode === 'hierarchy' || newMode === 'graph')) {
       setViewMode(newMode as ViewMode);
     }
   };
@@ -177,6 +190,8 @@ export default function CertificateAuthoritiesPage() {
     currentViewTitle = "Filesystem View";
   } else if (viewMode === 'hierarchy') {
     currentViewTitle = "Hierarchy View";
+  } else if (viewMode === 'graph') {
+    currentViewTitle = "Graph View";
   }
 
 
@@ -203,6 +218,10 @@ export default function CertificateAuthoritiesPage() {
                   <Network className="h-4 w-4 mr-0 sm:mr-2" />
                    <span className="hidden sm:inline">Hierarchy</span>
                 </ToggleGroupItem>
+                 <ToggleGroupItem value="graph" aria-label="Graph view">
+                  <GitFork className="h-4 w-4 mr-0 sm:mr-2" /> {/* Using GitFork as a placeholder for graph icon */}
+                   <span className="hidden sm:inline">Graph</span>
+                </ToggleGroupItem>
               </ToggleGroup>
               <Button variant="default" onClick={handleCreateNewCAClick}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
@@ -226,6 +245,9 @@ export default function CertificateAuthoritiesPage() {
               )}
               {viewMode === 'hierarchy' && (
                 <CaHierarchyView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
+              )}
+              {viewMode === 'graph' && (
+                <CaGraphView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
               )}
             </>
           ) : (
