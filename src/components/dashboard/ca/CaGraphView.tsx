@@ -120,7 +120,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ cas, router, allCAs })
     );
   }
 
-  const nodes = dagreGraph.nodes().map(nodeId => dagreGraph.node(nodeId) as DagreNode & { id: string }).map(node => ({...node, id: nodeId}));
+  const nodes = dagreGraph.nodes().map(idFromDagre => { const nodeLabel = dagreGraph.node(idFromDagre); return { ...nodeLabel, id: idFromDagre }; }) as DagreNode[];
   const edges = dagreGraph.edges().map(edgeObj => dagreGraph.edge(edgeObj) as DagreEdge);
 
 
