@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
-import { Badge } from './ui/badge';
+import { Badge } from '@/components/ui/badge'; // Changed import path
 
 interface CertificateDetailsModalProps {
   certificate: CertificateData | null;
