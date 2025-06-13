@@ -9,7 +9,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { ZoomIn, ZoomOut, RotateCcw, Key, IterationCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Key, IterationCcw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isPast, parseISO, formatDistanceToNowStrict } from 'date-fns';
 
@@ -244,3 +244,5 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ cas, router, allCAs })
 // It's good practice to ensure foreignObject content doesn't break out.
 // Add this to your global CSS or a style tag if needed, though Tailwind should handle most.
 // .namespace-foreign-object-styles-here div { box-sizing: border-box; overflow: hidden; }
+
+    
