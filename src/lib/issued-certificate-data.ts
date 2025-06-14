@@ -5,7 +5,7 @@ import type { CertificateData, VerificationStatus } from '@/types/certificate';
 interface ApiKeyMetadata {
   type: string;
   bits?: number;
-  curve_name?: string; 
+  curve_name?: string;
   strength?: string;
 }
 
@@ -29,7 +29,7 @@ interface ApiCertificateDetails {
   subject_key_id: string;
   authority_key_id: string;
   metadata: Record<string, any>;
-  status: string; 
+  status: string;
   certificate: string; // Base64 encoded PEM
   key_metadata: ApiKeyMetadata;
   subject: ApiDistinguishedName;
@@ -39,18 +39,18 @@ interface ApiCertificateDetails {
   valid_to: string; // ISO Date string
   revocation_timestamp?: string;
   revocation_reason?: string;
-  type?: string; 
+  type?: string;
   engine_id?: string;
   is_ca: boolean;
 }
 
 export interface ApiIssuedCertificateItem {
-  serial_number: string; 
-  subject_key_id: string; 
-  authority_key_id: string; 
-  metadata: Record<string, any>; 
-  status: string; 
-  certificate: ApiCertificateDetails; 
+  serial_number: string;
+  subject_key_id: string;
+  authority_key_id: string;
+  metadata: Record<string, any>;
+  status: string;
+  certificate: ApiCertificateDetails;
 }
 
 export interface ApiIssuedCertificateListResponse {
@@ -78,7 +78,7 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
   let publicKeyAlgorithm = certDetails.key_metadata.type;
   if (certDetails.key_metadata.bits) {
     publicKeyAlgorithm += ` (${certDetails.key_metadata.bits} bit)`;
-  } else if (certDetails.key_metadata.curve_name) { 
+  } else if (certDetails.key_metadata.curve_name) {
     publicKeyAlgorithm += ` (${certDetails.key_metadata.curve_name})`;
   }
 
@@ -97,20 +97,20 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
 
 
   return {
-    id: certDetails.serial_number, 
-    fileName: `${subjectDisplay.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'certificate'}.pem`, 
+    id: certDetails.serial_number,
+    fileName: `${subjectDisplay.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'certificate'}.pem`,
     subject: subjectDisplay,
     issuer: issuerDisplay,
     serialNumber: certDetails.serial_number,
     validFrom: certDetails.valid_from,
     validTo: certDetails.valid_to,
-    sans: [], 
+    sans: [],
     pemData: pemData,
     verificationStatus,
     verificationDetails: `Status from CA: ${apiStatus || apiCert.status}. On-device verification pending.`,
     publicKeyAlgorithm,
-    signatureAlgorithm: 'N/A (from API)', 
-    fingerprintSha256: '', 
+    signatureAlgorithm: 'N/A (from API)',
+    fingerprintSha256: '',
     rawApiData: apiCert,
     issuerCaId: certDetails.issuer_metadata.id,
   };
@@ -127,16 +127,16 @@ export async function fetchIssuedCertificates(
 ): Promise<{ certificates: CertificateData[]; nextToken: string | null }> {
   const { accessToken, bookmark, pageSize = '10' } = params;
   const queryParams = new URLSearchParams({
-    sort_by: 'valid_from', 
-    sort_mode: 'desc',      
+    sort_by: 'valid_from',
+    sort_mode: 'desc',
     page_size: pageSize,
   });
 
   if (bookmark) {
     queryParams.append('bookmark', bookmark);
   }
-  
-  const response = await fetch(`https://lamassu-dev.cloud.cegasa.com/api/ca/v1/certificates?${queryParams.toString()}`, {
+
+  const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates?${queryParams.toString()}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
     },
@@ -156,4 +156,3 @@ export async function fetchIssuedCertificates(
   const certificates = apiResponse.list.map(transformApiIssuedCertificateToLocal);
   return { certificates, nextToken: apiResponse.next };
 }
-
