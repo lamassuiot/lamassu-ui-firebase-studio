@@ -5,7 +5,7 @@ import React from 'react';
 import type { CA } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users } from "lucide-react";
+import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, ArrowLeft } from "lucide-react"; // Added FileText and ArrowLeft
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -210,7 +210,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
           </AccordionItem>
         )}
 
-        {certificateSpecific.certificateChainForVisualizer && certificateSpecific.certificateChainForVisualizer.length > 0 && (
+        {certificateSpecific.certificateChainForVisualizer && certificateSpecific.certificateChainForVisualizer.length >= 0 && ( // Allow empty chain if it's just the cert itself
           <AccordionItem value="chain-visualizer" className="border-b-0">
             <AccordionTrigger className={cn(accordionTriggerStyle)}>
               <Network className="mr-2 h-5 w-5" /> Issuance Chain
@@ -226,12 +226,14 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                     </div>
                   </div>
                 </div>
-                <ArrowLeft className="h-5 w-5 text-border my-1 transform rotate-90" />
+                {certificateSpecific.certificateChainForVisualizer.length > 0 && (
+                  <ArrowLeft className="h-5 w-5 text-border my-1 transform rotate-90" />
+                )}
                 {certificateSpecific.certificateChainForVisualizer.map((caNode, index) => (
                   <CaHierarchyPathNode
                     key={caNode.id}
                     ca={caNode}
-                    isCurrentCa={false}
+                    isCurrentCa={false} // CAs in this chain are issuers, not the current item
                     hasNext={index < certificateSpecific.certificateChainForVisualizer.length - 1}
                     isFirst={index === 0}
                   />
