@@ -5,7 +5,7 @@ import React, { useState, useEffect, FC } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Copy, Check, Users, Network, Layers, Download, ShieldAlert, RefreshCw, Edit, Code2, Database } from "lucide-react";
+import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Copy, Check, Users, Network, Layers, Download, ShieldAlert, RefreshCw, Edit, Code2, Database, Loader2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,8 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, getCaDisplayName } from '@/lib/ca-data';
+import { findCaById, getCaDisplayName, fetchAndProcessCAs } from '@/lib/ca-data'; // Added fetchAndProcessCAs
 import { CaHierarchyPathNode } from './CaHierarchyPathNode';
+import { useAuth } from '@/contexts/AuthContext'; // Added useAuth
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'; // Added Alert components
 
 const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] => {
   if (!targetCaId) return [];
@@ -37,12 +39,17 @@ const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] =
 };
 
 
-export default function CertificateAuthorityDetailsClient({ allCertificateAuthoritiesData }: { allCertificateAuthoritiesData: CA[] }) {
+export default function CertificateAuthorityDetailsClient() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth(); // Added useAuth
   const caId = params.caId as string;
   
+  const [allCertificateAuthoritiesData, setAllCertificateAuthoritiesData] = useState<CA[]>([]);
+  const [isLoadingCAs, setIsLoadingCAs] = useState(true);
+  const [errorCAs, setErrorCAs] = useState<string | null>(null);
+
   const [caDetails, setCaDetails] = useState<CA | null>(null);
   const [caPathToRoot, setCaPathToRoot] = useState<CA[]>([]);
   const [placeholderSerial, setPlaceholderSerial] = useState<string>('');
@@ -76,27 +83,56 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
   };
   const lamassuMetadataString = JSON.stringify(mockLamassuMetadata, null, 2);
 
+  useEffect(() => {
+    const loadCAs = async () => {
+      if (!isAuthenticated() || !user?.access_token) {
+        if (!authLoading) { // Only set error if auth is not loading
+          setErrorCAs("User not authenticated. Please log in.");
+          setIsLoadingCAs(false);
+        }
+        return;
+      }
+      setIsLoadingCAs(true);
+      setErrorCAs(null);
+      try {
+        const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+        setAllCertificateAuthoritiesData(fetchedCAs);
+      } catch (err: any) {
+        setErrorCAs(err.message || 'Failed to load Certificate Authorities data.');
+      } finally {
+        setIsLoadingCAs(false);
+      }
+    };
+
+    if (!authLoading) {
+      loadCAs();
+    }
+  }, [user?.access_token, isAuthenticated, authLoading]);
+
 
   useEffect(() => {
-    const foundCa = findCaById(caId, allCertificateAuthoritiesData);
-    setCaDetails(foundCa);
-    if (foundCa) {
-      const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
-      setCaPathToRoot(path);
+    if (allCertificateAuthoritiesData.length > 0 && !isLoadingCAs) {
+      const foundCa = findCaById(caId, allCertificateAuthoritiesData);
+      setCaDetails(foundCa);
+      if (foundCa) {
+        const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
+        setCaPathToRoot(path);
 
-      const chainInOrderForPem = [...path].reverse(); 
-      const chainPem = chainInOrderForPem
-        .map(caNode => caNode.pemData || '')
-        .filter(pem => pem.trim() !== '')
-        .join('\n\n'); 
-      setFullChainPemString(chainPem);
+        const chainInOrderForPem = [...path].reverse(); 
+        const chainPem = chainInOrderForPem
+          .map(caNode => caNode.pemData || '')
+          .filter(pem => pem.trim() !== '')
+          .join('\\n\\n'); // Using escaped newline for CDATA
+        setFullChainPemString(chainPem);
 
-    } else {
-      setCaPathToRoot([]);
-      setFullChainPemString('');
+      } else {
+        setCaPathToRoot([]);
+        setFullChainPemString('');
+        setErrorCAs(prevError => prevError ? prevError : `CA with ID "${caId}" not found in the loaded data.`);
+      }
+      setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
     }
-    setPlaceholderSerial(Math.random().toString(16).slice(2, 10).toUpperCase() + ':' + Math.random().toString(16).slice(2, 10).toUpperCase());
-  }, [caId, allCertificateAuthoritiesData]);
+  }, [caId, allCertificateAuthoritiesData, isLoadingCAs]);
 
   const DetailItem: FC<{ label: string; value?: string | React.ReactNode; fullWidthValue?: boolean }> = ({ label, value, fullWidthValue }) => {
     if (value === undefined || value === null || value === '') return null;
@@ -116,7 +152,7 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
       return;
     }
     try {
-      await navigator.clipboard.writeText(textToCopy);
+      await navigator.clipboard.writeText(textToCopy.replace(/\\n/g, '\\n')); // Unescape for clipboard
       if (type === 'Certificate') setPemCopied(true);
       if (type === 'Full Chain') setFullChainCopied(true);
       if (type === 'Metadata') setMetadataCopied(true);
@@ -132,12 +168,39 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
     }
   };
 
+  if (authLoading || isLoadingCAs) {
+    return (
+      <div className="w-full space-y-6 flex flex-col items-center justify-center">
+        <Loader2 className="h-12 w-12 text-primary animate-spin" />
+        <p className="text-muted-foreground">
+          {authLoading ? "Authenticating..." : "Loading CA data..."}
+        </p>
+      </div>
+    );
+  }
+
+  if (errorCAs && !caDetails) { // Show error if CA list failed or specific CA not found
+    return (
+      <div className="w-full space-y-4 p-4">
+         <Button variant="outline" onClick={() => router.push('/dashboard/certificate-authorities')} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+          </Button>
+        <Alert variant="destructive">
+          <FileText className="h-4 w-4" />
+          <AlertTitle>Error Loading CA Details</AlertTitle>
+          <AlertDescription>{errorCAs}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
 
   if (!caDetails) {
+    // This state might be brief if CAs are loading or if caId is invalid after load
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center">
         <FileText className="h-12 w-12 text-muted-foreground animate-pulse" />
-        <p className="text-muted-foreground">Loading CA details for ID: {caId}...</p>
+        <p className="text-muted-foreground">Searching for CA details for ID: {caId}...</p>
         <Button variant="outline" onClick={() => router.back()} className="mt-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
         </Button>
@@ -230,8 +293,8 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
                   <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
                   {placeholderSerial && (
                     <>
-                      <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[0]}:... (placeholder)</span>} />
-                      <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{placeholderSerial.split(':')[1]}:... (placeholder)</span>} />
+                      <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{caDetails.subjectKeyId || `${placeholderSerial.split(':')[0]}:... (placeholder)`}</span>} />
+                      <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{caDetails.authorityKeyId || `${placeholderSerial.split(':')[1]}:... (placeholder)`}</span>} />
                     </>
                   )}
                 </AccordionContent>
@@ -244,8 +307,8 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
                 <AccordionContent className="space-y-1 px-4 pt-3">
                   <DetailItem label="Basic Constraints" value={
                       <div className="space-y-0.5">
-                          <p>CA: <Badge variant={caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? "default" : "secondary"} className={(caDetails.issuer === 'Self-signed' || (caDetails.children && caDetails.children.length > 0) ? 'bg-green-100 text-green-700' : '')}>TRUE</Badge></p>
-                          <p>Path Length Constraint: {caDetails.issuer === 'Self-signed' ? 'None' : (caDetails.children && caDetails.children.length > 0 ? '1 (placeholder)' : '0 (placeholder)')}</p>
+                          <p>CA: <Badge variant={caDetails.isCa ? "default" : "secondary"} className={(caDetails.isCa ? 'bg-green-100 text-green-700' : '')}>{caDetails.isCa ? "TRUE" : "FALSE"}</Badge></p>
+                          {caDetails.isCa && <p>Path Length Constraint: {caDetails.issuer === 'Self-signed' ? 'None' : (caDetails.children && caDetails.children.length > 0 ? '1 (placeholder)' : '0 (placeholder)')}</p>}
                       </div>
                   } />
                   <Separator className="my-2"/>
@@ -346,7 +409,7 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
                     </div>
                     {caDetails.pemData ? (
                       <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
-                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
+                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData.replace(/\\n/g, '\n')}</pre>
                       </ScrollArea>
                     ) : (
                       <p className="text-sm text-muted-foreground p-4 text-center">No individual certificate PEM data available for this CA.</p>
@@ -362,7 +425,7 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
                     {fullChainPemString.trim() ? (
                       <>
                         <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
-                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString}</pre>
+                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString.replace(/\\n/g, '\n')}</pre>
                         </ScrollArea>
                         <p className="text-xs text-muted-foreground mt-2">
                             The full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
@@ -440,4 +503,3 @@ export default function CertificateAuthorityDetailsClient({ allCertificateAuthor
     </div>
   );
 }
-
