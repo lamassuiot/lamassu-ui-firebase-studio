@@ -24,33 +24,25 @@ interface ApiIssuerMetadata {
   level: number;
 }
 
-interface ApiCertificateDetails {
-  serial_number: string;
-  subject_key_id: string;
-  authority_key_id: string;
-  metadata: Record<string, any>;
-  status: string;
-  certificate: string; // Base64 encoded PEM
-  key_metadata: ApiKeyMetadata;
-  subject: ApiDistinguishedName;
-  issuer: ApiDistinguishedName;
-  valid_from: string; // ISO Date string
-  issuer_metadata: ApiIssuerMetadata;
-  valid_to: string; // ISO Date string
-  revocation_timestamp?: string;
-  revocation_reason?: string;
-  type?: string;
-  engine_id?: string;
-  is_ca: boolean;
-}
-
+// Updated interface to directly reflect the structure of an item in the API list
 export interface ApiIssuedCertificateItem {
   serial_number: string;
   subject_key_id: string;
   authority_key_id: string;
   metadata: Record<string, any>;
-  status: string;
-  certificate: ApiCertificateDetails;
+  status: string;                 // Top-level status
+  certificate: string;            // Base64 encoded PEM string (top-level)
+  key_metadata: ApiKeyMetadata;   // Top-level
+  subject: ApiDistinguishedName;  // Top-level
+  issuer: ApiDistinguishedName;   // Top-level
+  valid_from: string;             // Top-level ISO Date string
+  issuer_metadata: ApiIssuerMetadata; // Top-level
+  valid_to: string;               // Top-level ISO Date string
+  revocation_timestamp?: string; // Top-level
+  revocation_reason?: string;    // Top-level
+  type?: string;                   // Top-level (e.g., "EXTERNAL")
+  engine_id?: string;              // Top-level
+  is_ca: boolean;                 // Top-level
 }
 
 export interface ApiIssuedCertificateListResponse {
@@ -59,60 +51,54 @@ export interface ApiIssuedCertificateListResponse {
 }
 
 function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): CertificateData {
-  const certDetails = apiCert.certificate;
-
   let verificationStatus: VerificationStatus = 'unverified';
-  const apiStatus = certDetails.status?.toUpperCase();
+  const apiStatus = apiCert.status?.toUpperCase(); // Use top-level status
 
   if (apiStatus === 'ACTIVE') {
-    verificationStatus = new Date(certDetails.valid_to) < new Date() ? 'expired' : 'unverified';
+    verificationStatus = new Date(apiCert.valid_to) < new Date() ? 'expired' : 'unverified';
   } else if (apiStatus === 'REVOKED') {
     verificationStatus = 'revoked';
-  } else if (apiStatus === 'EXPIRED') { // Assuming API might send EXPIRED as top-level status too
+  } else if (apiStatus === 'EXPIRED') {
     verificationStatus = 'expired';
-  } else if (apiCert.status?.toUpperCase() === 'EXPIRED') { // Check top-level status for EXPIRED
-     verificationStatus = 'expired';
   }
 
-
-  let publicKeyAlgorithm = certDetails.key_metadata.type;
-  if (certDetails.key_metadata.bits) {
-    publicKeyAlgorithm += ` (${certDetails.key_metadata.bits} bit)`;
-  } else if (certDetails.key_metadata.curve_name) {
-    publicKeyAlgorithm += ` (${certDetails.key_metadata.curve_name})`;
+  let publicKeyAlgorithm = apiCert.key_metadata.type; // Access directly from apiCert
+  if (apiCert.key_metadata.bits) {
+    publicKeyAlgorithm += ` (${apiCert.key_metadata.bits} bit)`;
+  } else if (apiCert.key_metadata.curve_name) {
+    publicKeyAlgorithm += ` (${apiCert.key_metadata.curve_name})`;
   }
 
-  const subjectDisplay = certDetails.subject.common_name || `SN:${certDetails.serial_number}`;
-  const issuerDisplay = certDetails.issuer.common_name || `CA_ID:${certDetails.issuer_metadata.id}`;
+  const subjectDisplay = apiCert.subject.common_name || `SN:${apiCert.serial_number}`;
+  const issuerDisplay = apiCert.issuer.common_name || `CA_ID:${apiCert.issuer_metadata.id}`;
 
   let pemData = '';
-  if (typeof window !== 'undefined' && certDetails.certificate) {
+  if (typeof window !== 'undefined' && apiCert.certificate) { // apiCert.certificate is the PEM string
     try {
-      pemData = window.atob(certDetails.certificate);
+      pemData = window.atob(apiCert.certificate);
     } catch (e) {
-      console.error("Failed to decode base64 PEM data for SN:", certDetails.serial_number, e);
+      console.error("Failed to decode base64 PEM data for SN:", apiCert.serial_number, e);
       pemData = "Error: Could not decode PEM data.";
     }
   }
 
-
   return {
-    id: certDetails.serial_number,
+    id: apiCert.serial_number, // Use serial_number as ID
     fileName: `${subjectDisplay.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'certificate'}.pem`,
     subject: subjectDisplay,
     issuer: issuerDisplay,
-    serialNumber: certDetails.serial_number,
-    validFrom: certDetails.valid_from,
-    validTo: certDetails.valid_to,
-    sans: [],
+    serialNumber: apiCert.serial_number,
+    validFrom: apiCert.valid_from,
+    validTo: apiCert.valid_to,
+    sans: [], // SANs are not directly in this API response part, would need detailed parsing or different endpoint
     pemData: pemData,
     verificationStatus,
-    verificationDetails: `Status from CA: ${apiStatus || apiCert.status}. On-device verification pending.`,
+    verificationDetails: `Status from CA: ${apiStatus || 'N/A'}. On-device verification pending.`,
     publicKeyAlgorithm,
-    signatureAlgorithm: 'N/A (from API)',
-    fingerprintSha256: '',
+    signatureAlgorithm: 'N/A (from API)', // Placeholder, not directly in this part of API response
+    fingerprintSha256: '', // Would require client-side calculation or different endpoint
     rawApiData: apiCert,
-    issuerCaId: certDetails.issuer_metadata.id,
+    issuerCaId: apiCert.issuer_metadata.id,
   };
 }
 
