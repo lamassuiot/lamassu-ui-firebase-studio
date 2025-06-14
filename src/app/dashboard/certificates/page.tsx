@@ -1,125 +1,74 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
-import type { CertificateData, VerificationStatus } from '@/types/certificate';
-import { FileText } from 'lucide-react';
-import crypto from 'crypto'; // For generating UUIDs for mock data
-
-function Loader2Icon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
-}
-
-const generateMockPemData = (cn: string, issuer: string): string => {
-  return `-----BEGIN CERTIFICATE-----
-MII... (Mock PEM data for ${cn})
-Subject: CN=${cn}, O=LamassuIoT Devices
-Issuer: CN=${issuer}, O=LamassuIoT CAs
-...MII
------END CERTIFICATE-----`;
-};
-
-const mockCertificates: CertificateData[] = [
-  {
-    id: globalThis.crypto.randomUUID(),
-    fileName: 'device-alpha-001.pem',
-    subject: 'CN=device-alpha-001.lamassu.internal, O=LamassuIoT Devices',
-    issuer: 'CN=Device Authentication CA EU West, O=LamassuIoT CAs',
-    serialNumber: '1A:2B:3C:4D:5E:6F:01',
-    validFrom: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(), // 100 days ago
-    validTo: new Date(Date.now() + 265 * 24 * 60 * 60 * 1000).toISOString(),   // 265 days from now
-    sans: ['dns:device-alpha-001.lamassu.internal', 'ip:192.168.1.101'],
-    pemData: generateMockPemData('device-alpha-001.lamassu.internal', 'Device Authentication CA EU West'),
-    verificationStatus: 'verified',
-    verificationDetails: 'Certificate chain verified successfully.',
-    publicKeyAlgorithm: 'RSA (2048 bits)',
-    signatureAlgorithm: 'SHA256withRSA',
-    fingerprintSha256: crypto.createHash('sha256').update(generateMockPemData('device-alpha-001.lamassu.internal', 'Device Authentication CA EU West')).digest('hex'),
-  },
-  {
-    id: globalThis.crypto.randomUUID(),
-    fileName: 'sensor-beta-007.crt',
-    subject: 'CN=sensor-beta-007.lamassu.internal, O=LamassuIoT Sensors',
-    issuer: 'CN=Staging Environment CA, O=LamassuIoT Test CAs',
-    serialNumber: '7A:8B:9C:0D:1E:2F:02',
-    validFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
-    validTo: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),     // 5 days from now (about to expire)
-    sans: ['dns:sensor-beta-007.lamassu.internal'],
-    pemData: generateMockPemData('sensor-beta-007.lamassu.internal', 'Staging Environment CA'),
-    verificationStatus: 'unverified',
-    verificationDetails: 'Certificate has not been verified yet.',
-    publicKeyAlgorithm: 'ECDSA (P-256)',
-    signatureAlgorithm: 'SHA256withECDSA',
-    fingerprintSha256: crypto.createHash('sha256').update(generateMockPemData('sensor-beta-007.lamassu.internal', 'Staging Environment CA')).digest('hex'),
-  },
-  {
-    id: globalThis.crypto.randomUUID(),
-    fileName: 'legacy-device.pem',
-    subject: 'CN=legacy-device.old-infra, O=Old Systems',
-    issuer: 'CN=Old Partner Root CA (Revoked), O=Old CAs',
-    serialNumber: 'F1:E2:D3:C4:B5:A6:03',
-    validFrom: new Date(Date.now() - 500 * 24 * 60 * 60 * 1000).toISOString(), // 500 days ago
-    validTo: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(),   // Expired 100 days ago
-    sans: [],
-    pemData: generateMockPemData('legacy-device.old-infra', 'Old Partner Root CA (Revoked)'),
-    verificationStatus: 'expired',
-    verificationDetails: 'Certificate is expired.',
-    publicKeyAlgorithm: 'RSA (1024 bits)',
-    signatureAlgorithm: 'SHA1withRSA',
-    fingerprintSha256: crypto.createHash('sha256').update(generateMockPemData('legacy-device.old-infra', 'Old Partner Root CA (Revoked)')).digest('hex'),
-  },
-];
+import type { CertificateData } from '@/types/certificate';
+import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchIssuedCertificates } from '@/lib/issued-certificate-data'; 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 
 export default function CertificatesPage() {
+  const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+
   const [certificates, setCertificates] = useState<CertificateData[]>([]);
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+  
+  const [isLoadingApi, setIsLoadingApi] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setIsClient(true);
-    const storedCerts = localStorage.getItem('lamassuIoT_certs');
-    if (storedCerts) {
-      try {
-        const parsedCerts = JSON.parse(storedCerts);
-        if (Array.isArray(parsedCerts) && parsedCerts.length > 0) {
-          setCertificates(parsedCerts);
-        } else {
-          setCertificates(mockCertificates); // Populate with mock if stored is empty array
-        }
-      } catch (e) {
-        console.error("Failed to parse stored certificates:", e);
-        localStorage.removeItem('lamassuIoT_certs');
-        setCertificates(mockCertificates); // Populate with mock on error
+  const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]); 
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(0); 
+  const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null); 
+
+  const [pageSize, setPageSize] = useState<string>('10');
+  
+  const loadCertificates = useCallback(async (bookmarkToFetch: string | null) => {
+    if (authLoading || !isAuthenticated() || !user?.access_token) {
+      if (!authLoading && !isAuthenticated()) {
+        setApiError("User not authenticated. Please log in.");
+        setCertificates([]);
+        setNextTokenFromApi(null);
+        setIsLoadingApi(false);
       }
-    } else {
-      setCertificates(mockCertificates); // Populate with mock if nothing in storage
+      return;
     }
-  }, []);
+    setIsLoadingApi(true);
+    setApiError(null);
+    try {
+      const result = await fetchIssuedCertificates({
+        accessToken: user.access_token,
+        bookmark: bookmarkToFetch,
+        pageSize,
+      });
+      setCertificates(result.certificates);
+      setNextTokenFromApi(result.nextToken);
+    } catch (err: any) {
+      setApiError(err.message || 'Failed to load issued certificates.');
+      setCertificates([]);
+      setNextTokenFromApi(null);
+    } finally {
+      setIsLoadingApi(false);
+    }
+  }, [user?.access_token, isAuthenticated, authLoading, pageSize]);
 
   useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('lamassuIoT_certs', JSON.stringify(certificates));
+    if (!authLoading) { 
+      loadCertificates(bookmarkStack[currentPageIndex]);
     }
-  }, [certificates, isClient]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [authLoading, currentPageIndex, pageSize]); 
 
   const handleInspectCertificate = (certificate: CertificateData) => {
     setSelectedCertificate(certificate);
@@ -132,34 +81,143 @@ export default function CertificatesPage() {
   };
 
   const handleCertificateUpdated = (updatedCertificate: CertificateData) => {
-    setCertificates(prevCerts => 
+    setCertificates(prevCerts =>
       prevCerts.map(cert => cert.id === updatedCertificate.id ? updatedCertificate : cert)
     );
   };
-  
-  if (!isClient) {
+
+  const handleRefresh = () => {
+    if (currentPageIndex < bookmarkStack.length) {
+        loadCertificates(bookmarkStack[currentPageIndex]);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (isLoadingApi) return;
+    const potentialNextPageIndex = currentPageIndex + 1;
+
+    if (potentialNextPageIndex < bookmarkStack.length) { 
+        setCurrentPageIndex(potentialNextPageIndex);
+    } else if (nextTokenFromApi) { 
+        const newPageBookmark = nextTokenFromApi;
+        const newStack = bookmarkStack.slice(0, currentPageIndex + 1); 
+        setBookmarkStack([...newStack, newPageBookmark]); 
+        setCurrentPageIndex(newStack.length); 
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (isLoadingApi || currentPageIndex === 0) return;
+    const prevIndex = currentPageIndex - 1;
+    setCurrentPageIndex(prevIndex); 
+  };
+
+
+  if (authLoading) {
     return (
         <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
             <Loader2Icon className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-lg">Loading Certificates...</p>
+            <p className="text-lg text-muted-foreground">Authenticating...</p>
+        </div>
+    );
+  }
+  
+  if (isLoadingApi && certificates.length === 0) { 
+    return (
+        <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
+            <Loader2Icon className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-lg text-muted-foreground">Loading Certificates...</p>
         </div>
     );
   }
 
+
   return (
     <div className="w-full space-y-6">
-      <div className="flex items-center space-x-3 mb-4">
-        <FileText className="h-8 w-8 text-primary" />
-        <h1 className="text-2xl font-headline font-semibold">Issued Certificates</h1>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="flex items-center space-x-3">
+            <FileText className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl font-headline font-semibold">Issued Certificates</h1>
+        </div>
+        <Button onClick={handleRefresh} variant="outline" disabled={isLoadingApi && certificates.length > 0}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> Refresh List
+        </Button>
       </div>
+
       <p className="text-sm text-muted-foreground">
-        A list of certificates managed by the system, displaying their Common Name (CN), serial number, issuing CA, and current status.
+        A list of end-entity certificates issued by the system, displaying their Common Name (CN), serial number, issuing CA, and current status.
       </p>
-      <CertificateList 
-        certificates={certificates} 
-        onInspectCertificate={handleInspectCertificate}
-        onCertificateUpdated={handleCertificateUpdated}
-      />
+
+      {apiError && (
+        <Alert variant="destructive">
+          <AlertCircleIcon className="h-4 w-4" />
+          <AlertTitle>Error Loading Certificates</AlertTitle>
+          <AlertDescription>{apiError} <Button variant="link" onClick={() => loadCertificates(bookmarkStack[currentPageIndex])} className="p-0 h-auto">Try again?</Button></AlertDescription>
+        </Alert>
+      )}
+
+      {!apiError && (
+        <>
+          <CertificateList
+            certificates={certificates}
+            onInspectCertificate={handleInspectCertificate}
+            onCertificateUpdated={handleCertificateUpdated}
+          />
+          {certificates.length === 0 && !isLoadingApi && (
+            <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
+              <h3 className="text-lg font-semibold text-muted-foreground">No Issued Certificates Found</h3>
+              <p className="text-sm text-muted-foreground">
+                There are no certificates to display based on the current filters or none have been issued yet.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+      
+      {(!apiError && (certificates.length > 0 || isLoadingApi)) && (
+        <div className="flex justify-between items-center mt-4">
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="pageSizeSelectCertList" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
+              <Select
+                value={pageSize}
+                onValueChange={(value) => {
+                  setPageSize(value);
+                  setBookmarkStack([null]); 
+                  setCurrentPageIndex(0);
+                }}
+                disabled={isLoadingApi || authLoading}
+              >
+                <SelectTrigger id="pageSizeSelectCertList" className="w-[80px]">
+                  <SelectValue placeholder="Page size" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+                <Button
+                    onClick={handlePreviousPage}
+                    disabled={isLoadingApi || currentPageIndex === 0}
+                    variant="outline"
+                >
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                </Button>
+                <Button
+                    onClick={handleNextPage}
+                    disabled={isLoadingApi || !(currentPageIndex < bookmarkStack.length -1 || nextTokenFromApi) }
+                    variant="outline"
+                >
+                    Next <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+      )}
+
       <CertificateDetailsModal
         certificate={selectedCertificate}
         isOpen={isModalOpen}
@@ -168,4 +226,3 @@ export default function CertificatesPage() {
     </div>
   );
 }
-
