@@ -16,18 +16,19 @@ import {
   SidebarInset,
   SidebarGroupLabel,
   useSidebar,
-  SidebarTrigger, // Added import
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import type { CA } from '@/lib/ca-data';
-import { certificateAuthoritiesData, findCaById } from '@/lib/ca-data';
+// import { certificateAuthoritiesData, findCaById } from '@/lib/ca-data'; // Data is now dynamic
+import { findCaById } from '@/lib/ca-data'; // findCaById can still be used if data is passed or fetched
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { jwtDecode } from 'jwt-decode'; // Import jwt-decode
+import { jwtDecode } from 'jwt-decode';
 import Image from 'next/image'
 import Logo from './lamassu_full_white.svg'
 
@@ -35,22 +36,6 @@ interface DecodedAccessToken {
   realm_access?: {
     roles?: string[];
   };
-  // Add other claims you might need from the access token
-}
-
-
-function CustomSidebarToggle() {
-  const { open, toggleSidebar } = useSidebar();
-  return (
-    <SidebarMenuButton
-      onClick={toggleSidebar}
-      className="w-full flex items-center group-data-[collapsible=icon]:justify-center mb-2"
-      tooltip={{ children: open ? "Collapse sidebar" : "Expand sidebar", side: 'right', align: 'center' }}
-    >
-      {open ? <ChevronsLeft /> : <ChevronsRight />}
-      <span className="ml-2 group-data-[collapsible=icon]:hidden whitespace-nowrap">{open ? "Collapse" : ""}</span>
-    </SidebarMenuButton>
-  );
 }
 
 const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
@@ -68,7 +53,9 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'device-groups': "Device Groups",
 };
 
-function generateBreadcrumbs(pathname: string, params: ReturnType<typeof useParams>, allCAs: CA[]): BreadcrumbItem[] {
+// Adjusted to accept potentially dynamic allCAs list.
+// For now, if a CA is not found (e.g., data not loaded yet), it will use the ID as label.
+function generateBreadcrumbs(pathname: string, params: ReturnType<typeof useParams>, allCAs: CA[] | null): BreadcrumbItem[] {
   const pathSegments = pathname.split('/').filter(segment => segment);
   const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/dashboard' }];
 
@@ -85,13 +72,12 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
     
     currentHref += `/${segment}`;
 
-    if (params.caId && segment === params.caId && pathSegments[i-1] === 'certificate-authorities') {
+    if (params.caId && segment === params.caId && pathSegments[i-1] === 'certificate-authorities' && allCAs) {
       const ca = findCaById(segment, allCAs);
-      label = ca ? ca.name : segment;
+      label = ca ? ca.name : segment; // Fallback to segment ID if not found
     } else if (params.deviceId && segment === params.deviceId && pathSegments[i-1] === 'devices') {
-      label = `Device: ${segment}`; // Or fetch device name if available
+      label = `Device: ${segment}`; 
     }
-
 
     if (isLastSegment) {
       breadcrumbItems.push({ label });
@@ -111,6 +97,14 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const params = useParams();
   const { user, isLoading, login, logout, isAuthenticated } = useAuth();
+  
+  // In a real app, `allCAsForBreadcrumbs` would come from a global state/context
+  // or be fetched here if necessary and performant.
+  // For now, passing null, generateBreadcrumbs will handle it.
+  const [allCAsForBreadcrumbs, setAllCAsForBreadcrumbs] = React.useState<CA[] | null>(null);
+  // TODO: Consider fetching a lightweight list of CA names/IDs here for breadcrumbs if truly needed,
+  // or rely on page-specific data for context.
+
 
   const homeItem = { href: '/dashboard', label: 'Home', icon: HomeIcon };
   const pkiItems = [
@@ -129,8 +123,9 @@ export default function DashboardLayout({
   ];
 
   const breadcrumbItems = React.useMemo(() => {
-    return generateBreadcrumbs(pathname, params, certificateAuthoritiesData);
-  }, [pathname, params]);
+    // Passing null for allCAs; the function will use IDs as labels if CA names aren't available.
+    return generateBreadcrumbs(pathname, params, allCAsForBreadcrumbs);
+  }, [pathname, params, allCAsForBreadcrumbs]);
 
   let userRoles: string[] = [];
   if (isAuthenticated() && user?.access_token) {
@@ -283,6 +278,7 @@ export default function DashboardLayout({
             </Sidebar>
 
             <SidebarInset className="flex-1 overflow-y-auto p-4 md:p-6">
+              {/* Pass null to breadcrumbs; it will handle missing CA data */}
               {breadcrumbItems.length > 1 && <Breadcrumbs items={breadcrumbItems} />}
               {children}
             </SidebarInset>
@@ -304,3 +300,17 @@ export default function DashboardLayout({
   );
 }
 
+// CustomSidebarToggle (internal component, keep as is)
+function CustomSidebarToggle() {
+  const { open, toggleSidebar } = useSidebar();
+  return (
+    <SidebarMenuButton
+      onClick={toggleSidebar}
+      className="w-full flex items-center group-data-[collapsible=icon]:justify-center mb-2"
+      tooltip={{ children: open ? "Collapse sidebar" : "Expand sidebar", side: 'right', align: 'center' }}
+    >
+      {open ? <ChevronsLeft /> : <ChevronsRight />}
+      <span className="ml-2 group-data-[collapsible=icon]:hidden whitespace-nowrap">{open ? "Collapse" : ""}</span>
+    </SidebarMenuButton>
+  );
+}

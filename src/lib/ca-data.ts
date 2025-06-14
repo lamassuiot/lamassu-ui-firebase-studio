@@ -1,199 +1,193 @@
-
 // Define the CA data structure
+
+// API Response Structures
+interface ApiKeyMetadata {
+  type: string; // e.g., "ECDSA", "RSA"
+  bits?: number; // e.g., 256, 2048
+  curve_name?: string; // e.g., "P-256" for ECDSA
+  strength?: string; // e.g., "HIGH"
+}
+
+interface ApiDistinguishedName {
+  common_name: string;
+  organization?: string;
+  organization_unit?: string;
+  country?: string;
+  state?: string;
+  locality?: string;
+}
+
+interface ApiIssuerMetadata {
+  serial_number: string;
+  id: string; // Issuer CA's ID
+  level: number;
+}
+
+interface ApiCertificateData {
+  serial_number: string;
+  subject_key_id: string;
+  authority_key_id: string;
+  metadata: Record<string, any>;
+  status: string; // "ACTIVE", "REVOKED", "EXPIRED" (assuming API might provide EXPIRED)
+  certificate: string; // Base64 encoded PEM
+  key_metadata: ApiKeyMetadata;
+  subject: ApiDistinguishedName;
+  issuer: ApiDistinguishedName; // Issuer DN from cert, issuer_metadata.id is the CA ID
+  valid_from: string; // ISO Date string
+  issuer_metadata: ApiIssuerMetadata;
+  valid_to: string; // ISO Date string
+  revocation_timestamp?: string;
+  revocation_reason?: string;
+  type?: string; // "MANAGED"
+  engine_id?: string; // To be used as kmsKeyId
+  is_ca: boolean;
+}
+
+export interface ApiCaItem {
+  id: string; // This is the CA's own ID
+  certificate: ApiCertificateData;
+  serial_number: string; // Duplicated from certificate.serial_number
+  metadata: Record<string, any>;
+  validity?: {
+    type: string;
+    duration: string;
+    time: string;
+  };
+  creation_ts: string;
+  level: number; // Hierarchy level, 0 for root
+}
+
+export interface ApiResponseList {
+  next: string | null;
+  list: ApiCaItem[];
+}
+
+// Local CA interface
 export interface CA {
   id: string;
   name: string;
-  issuer: string; // This will be the ID of the parent CA for intermediates, or "Self-signed" for roots
-  expires: string;
+  issuer: string; // ID of the parent CA or "Self-signed"
+  expires: string; // ISO Date string from valid_to
   serialNumber: string;
-  status: 'active' | 'expired' | 'revoked';
+  status: 'active' | 'expired' | 'revoked' | 'unknown'; // Added 'unknown' for safety
   keyAlgorithm: string;
-  signatureAlgorithm: string;
-  kmsKeyId?: string; // Added KMS Key ID
-  pemData?: string; 
+  signatureAlgorithm: string; // Placeholder for now
+  kmsKeyId?: string;
+  pemData?: string;
   children?: CA[];
+  subjectKeyId?: string;
+  authorityKeyId?: string;
+  subjectDN?: ApiDistinguishedName;
+  issuerDN?: ApiDistinguishedName;
+  isCa?: boolean;
+  level?: number; // Store the original level from API
+  rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
 }
 
-// Mock PEM data generator
-const generateMockPem = (name: string, id: string): string => {
-  const header = `-----BEGIN CERTIFICATE-----`;
-  const footer = `-----END CERTIFICATE-----`;
-  const body = Buffer.from(`Subject: CN=${name}, ID=${id}\nIssuer: Mock CA\nValidity: Mock Dates\nPublicKey: Mock Key\nSignature: Mock Signature\n${crypto.randomBytes(64).toString('base64')}\n${crypto.randomBytes(64).toString('base64')}\n${crypto.randomBytes(64).toString('base64')}`).toString('base64').replace(/(.{64})/g, "$1\n");
-  return `${header}\n${body}\n${footer}`;
-};
-
-// Mock CA data with static serial numbers, PEM data, and KMS Key IDs
-export const certificateAuthoritiesData: CA[] = [
-  {
-    id: 'root-ca-1',
-    name: 'LamassuIoT Global Root CA G1',
-    issuer: 'Self-signed', // Self-signed
-    expires: '2045-12-31',
-    serialNumber: '0A1B2C3D4E5F67890123',
-    status: 'active',
-    keyAlgorithm: 'RSA 4096 bit',
-    signatureAlgorithm: 'SHA512withRSA',
-    kmsKeyId: 'key-pkcs11-global-root-g1', // KMS Key for this Root CA
-    pemData: generateMockPem('LamassuIoT Global Root CA G1', 'root-ca-1'),
-    children: [
-      {
-        id: 'intermediate-ca-1a',
-        name: 'LamassuIoT Regional Services CA EU',
-        issuer: 'root-ca-1',
-        expires: '2040-06-30',
-        serialNumber: '1A2B3C4D5E6F78901234',
-        status: 'active',
-        keyAlgorithm: 'RSA 2048 bit',
-        signatureAlgorithm: 'SHA256withRSA',
-        kmsKeyId: 'key-services-ca-eu', // KMS Key for this Intermediate CA
-        pemData: generateMockPem('LamassuIoT Regional Services CA EU', 'intermediate-ca-1a'),
-        children: [
-          {
-            id: 'signing-ca-1a1',
-            name: 'Device Authentication CA EU West',
-            issuer: 'intermediate-ca-1a',
-            expires: '2035-01-15',
-            serialNumber: '2A3B4C5D6E7F89012345',
-            status: 'active',
-            keyAlgorithm: 'ECDSA P-256',
-            signatureAlgorithm: 'SHA256withECDSA',
-            kmsKeyId: 'key-device-auth-eu-west', // KMS Key for this Signing CA
-            pemData: generateMockPem('Device Authentication CA EU West', 'signing-ca-1a1'),
-          },
-          {
-            id: 'signing-ca-1a2',
-            name: 'Secure Update Service CA EU Central',
-            issuer: 'intermediate-ca-1a',
-            expires: '2038-03-22',
-            serialNumber: '3A4B5C6D7E8F90123456',
-            status: 'active',
-            keyAlgorithm: 'RSA 2048 bit',
-            signatureAlgorithm: 'SHA256withRSA',
-            kmsKeyId: 'key-secure-update-eu-central', // KMS Key
-            pemData: generateMockPem('Secure Update Service CA EU Central', 'signing-ca-1a2'),
-          },
-        ],
-      },
-      {
-        id: 'intermediate-ca-1b',
-        name: 'LamassuIoT Manufacturing CA US',
-        issuer: 'root-ca-1',
-        expires: '2039-10-10',
-        serialNumber: '4A5B6C7D8E9F01234567',
-        status: 'active',
-        keyAlgorithm: 'RSA 3072 bit',
-        signatureAlgorithm: 'SHA384withRSA',
-        kmsKeyId: 'key-manufacturing-ca-us', // KMS Key
-        pemData: generateMockPem('LamassuIoT Manufacturing CA US', 'intermediate-ca-1b'),
-        children: [
-           {
-            id: 'signing-ca-1b1',
-            name: 'Factory A Provisioning CA',
-            issuer: 'intermediate-ca-1b',
-            expires: '2030-07-12',
-            serialNumber: '5A6B7C8D9E0F12345678',
-            status: 'active',
-            keyAlgorithm: 'RSA 2048 bit',
-            signatureAlgorithm: 'SHA256withRSA',
-            kmsKeyId: 'key-factory-a-provisioning', // KMS Key
-            pemData: generateMockPem('Factory A Provisioning CA', 'signing-ca-1b1'),
-          }
-        ]
-      },
-      {
-        id: 'intermediate-ca-1c-keyreuse',
-        name: 'LamassuIoT Special Projects CA (Key Reuse Demo)',
-        issuer: 'root-ca-1',
-        expires: '2042-01-01',
-        serialNumber: '1C2D3E4F5A6B7C8D9E0F',
-        status: 'active',
-        keyAlgorithm: 'RSA 2048 bit',
-        signatureAlgorithm: 'SHA256withRSA',
-        kmsKeyId: 'key-services-ca-eu', // Reusing key from intermediate-ca-1a
-        pemData: generateMockPem('LamassuIoT Special Projects CA', 'intermediate-ca-1c-keyreuse'),
-      },
-      {
-        id: 'cross-cert-for-test-root-by-g1',
-        name: 'LamassuIoT Test &amp; Development CA (Cross-Cert by Global G1)',
-        issuer: 'root-ca-1', // Issued by Global Root CA G1
-        expires: '2030-01-01', // Matching original test root's expiry for clarity
-        serialNumber: 'CROSS001002003004AABB',
-        status: 'active',
-        keyAlgorithm: 'ECDSA P-384', // Matches the key type of 'key-test-dev-root'
-        signatureAlgorithm: 'SHA384withECDSA',
-        kmsKeyId: 'key-test-dev-root', // &lt;&lt; Uses the same key as the self-signed Test &amp; Development Root
-        pemData: generateMockPem('LamassuIoT Test &amp; Development CA (Cross-Cert by Global G1)', 'cross-cert-for-test-root-by-g1'),
-        children: [] // This certificate for the key doesn't issue other CAs itself
-      }
-    ],
-  },
-  {
-    id: 'root-ca-2',
-    name: 'LamassuIoT Test &amp; Development Root CA',
-    issuer: 'Self-signed', // Self-signed
-    expires: '2030-01-01',
-    serialNumber: '6A7B8C9D0E1F23456789',
-    status: 'active',
-    keyAlgorithm: 'ECDSA P-384',
-    signatureAlgorithm: 'SHA384withECDSA',
-    kmsKeyId: 'key-test-dev-root', // KMS Key for this self-signed root
-    pemData: generateMockPem('LamassuIoT Test &amp; Development Root CA', 'root-ca-2'),
-    children: [
-        {
-          id: 'intermediate-ca-2a',
-          name: 'Staging Environment CA',
-          issuer: 'root-ca-2',
-          expires: '2028-07-07',
-          serialNumber: '7A8B9C0D1E2F34567890',
-          status: 'active',
-          keyAlgorithm: 'ECDSA P-256',
-          signatureAlgorithm: 'SHA256withECDSA',
-          kmsKeyId: 'key-staging-env-ca', // KMS Key
-          pemData: generateMockPem('Staging Environment CA', 'intermediate-ca-2a'),
-        },
-        {
-          id: 'intermediate-ca-2b',
-          name: 'QA Services CA (Expired)',
-          issuer: 'root-ca-2',
-          expires: '2023-01-01', // Expired
-          serialNumber: '8A9B0C1D2E3F45678901',
-          status: 'expired',
-          keyAlgorithm: 'RSA 2048 bit',
-          signatureAlgorithm: 'SHA256withRSA',
-          kmsKeyId: 'key-qa-services-ca-expired', // KMS Key
-          pemData: generateMockPem('QA Services CA (Expired)', 'intermediate-ca-2b'),
-        }
-    ]
-  },
-  {
-    id: 'root-ca-3',
-    name: 'Old Partner Root CA (Revoked)',
-    issuer: 'Self-signed', // Self-signed
-    expires: '2025-05-05',
-    serialNumber: '9A0B1C2D3E4F56789012',
-    status: 'revoked',
-    keyAlgorithm: 'RSA 2048 bit',
-    signatureAlgorithm: 'SHA256withRSA',
-    kmsKeyId: 'key-old-partner-root-revoked', // KMS Key
-    pemData: generateMockPem('Old Partner Root CA (Revoked)', 'root-ca-3'),
+// Helper to transform API CA item to local CA structure (without children)
+function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
+  let status: CA['status'] = 'unknown';
+  const apiStatus = apiCa.certificate.status?.toUpperCase();
+  if (apiStatus === 'ACTIVE') {
+    status = new Date(apiCa.certificate.valid_to) < new Date() ? 'expired' : 'active';
+  } else if (apiStatus === 'REVOKED') {
+    status = 'revoked';
+  } else if (apiStatus === 'EXPIRED') { // Assuming API might send EXPIRED
+    status = 'expired';
   }
-];
+
+  let keyAlgorithm = apiCa.certificate.key_metadata.type;
+  if (apiCa.certificate.key_metadata.bits) {
+    keyAlgorithm += ` (${apiCa.certificate.key_metadata.bits} bit)`;
+  } else if (apiCa.certificate.key_metadata.curve_name) {
+    keyAlgorithm += ` (${apiCa.certificate.key_metadata.curve_name})`;
+  }
+
+
+  return {
+    id: apiCa.id,
+    name: apiCa.certificate.subject.common_name || apiCa.id,
+    issuer: apiCa.certificate.issuer_metadata.id === apiCa.id || apiCa.level === 0 ? 'Self-signed' : apiCa.certificate.issuer_metadata.id,
+    expires: apiCa.certificate.valid_to,
+    serialNumber: apiCa.certificate.serial_number,
+    status,
+    keyAlgorithm: keyAlgorithm,
+    signatureAlgorithm: 'N/A (from API)', // Placeholder, not directly in this part of API response
+    kmsKeyId: apiCa.certificate.engine_id,
+    pemData: typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : '', // Decode base64 PEM
+    subjectKeyId: apiCa.certificate.subject_key_id,
+    authorityKeyId: apiCa.certificate.authority_key_id,
+    subjectDN: apiCa.certificate.subject,
+    issuerDN: apiCa.certificate.issuer,
+    isCa: apiCa.certificate.is_ca,
+    level: apiCa.level,
+    rawApiData: apiCa,
+  };
+}
+
+// Helper to build hierarchy from a flat list of CAs
+function buildCaHierarchy(flatCaList: Omit<CA, 'children'>[]): CA[] {
+  const caMap: Record<string, CA> = {};
+  const roots: CA[] = [];
+
+  // First pass: create a map and transform items to include children array
+  flatCaList.forEach(apiCa => {
+    caMap[apiCa.id] = { ...apiCa, children: [] };
+  });
+
+  // Second pass: build the hierarchy
+  Object.values(caMap).forEach(ca => {
+    if (ca.issuer && ca.issuer !== 'Self-signed' && caMap[ca.issuer]) {
+      caMap[ca.issuer].children?.push(ca);
+    } else if (ca.issuer === 'Self-signed' || !caMap[ca.issuer] ) { // Root or orphan (orphans become roots)
+      roots.push(ca);
+    }
+  });
+  
+  // Sort children by name for consistent display
+  const sortChildrenRecursive = (nodes: CA[]) => {
+    nodes.sort((a, b) => a.name.localeCompare(b.name));
+    nodes.forEach(node => {
+      if (node.children) {
+        sortChildrenRecursive(node.children);
+      }
+    });
+  };
+  sortChildrenRecursive(roots);
+
+  return roots;
+}
+
+
+// Function to fetch, transform, and build hierarchy
+export async function fetchAndProcessCAs(accessToken: string): Promise<CA[]> {
+  const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: "Failed to fetch CAs" }));
+    throw new Error(errorData.message || `HTTP error ${response.status}`);
+  }
+
+  const apiResponse: ApiResponseList = await response.json();
+  if (!apiResponse.list) {
+    console.warn("API response for CAs is missing 'list' property:", apiResponse);
+    return [];
+  }
+  
+  const transformedFlatList = apiResponse.list.map(apiCa => transformApiCaToLocalCa(apiCa));
+  return buildCaHierarchy(transformedFlatList);
+}
+
 
 // Helper function to get CA display name for issuer
 export function getCaDisplayName(caId: string, allCAs: CA[]): string {
   if (caId === 'Self-signed') return 'Self-signed';
   
-  function findCa(id: string, cas: CA[]): CA | undefined {
-    for (const ca of cas) {
-      if (ca.id === id) return ca;
-      if (ca.children) {
-        const found = findCa(id, ca.children);
-        if (found) return found;
-      }
-    }
-    return undefined;
-  }
-  const ca = findCa(caId, allCAs);
+  const ca = findCaById(caId, allCAs);
   return ca ? ca.name : caId; // Fallback to ID if not found
 }
 
@@ -214,7 +208,8 @@ export function findCaById(id: string | undefined | null, cas: CA[]): CA | null 
 export function findCaByCommonName(commonName: string | undefined | null, cas: CA[]): CA | null {
   if (!commonName) return null;
   for (const ca of cas) {
-    if (ca.name.toLowerCase() === commonName.toLowerCase()) return ca; // Case-insensitive comparison
+    // Ensure ca.name is used as it's the transformed common_name
+    if (ca.name && ca.name.toLowerCase() === commonName.toLowerCase()) return ca; 
     if (ca.children) {
       const found = findCaByCommonName(commonName, ca.children);
       if (found) return found;
@@ -222,8 +217,3 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
   }
   return null;
 }
-
-
-// crypto needed for mock PEM generation
-import crypto from 'crypto';
-

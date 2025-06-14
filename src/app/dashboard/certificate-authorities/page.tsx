@@ -1,18 +1,20 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network, Loader2, GitFork } from "lucide-react";
+import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network, Loader2, GitFork, AlertCircle } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { certificateAuthoritiesData, getCaDisplayName } from '@/lib/ca-data';
+import { getCaDisplayName, fetchAndProcessCAs } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import dynamic from 'next/dynamic';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useAuth } from '@/contexts/AuthContext';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const CaFilesystemView = dynamic(() => 
   import('@/components/dashboard/ca/CaFilesystemView').then(mod => mod.CaFilesystemView), 
@@ -69,10 +71,13 @@ const getExpiryTextAndStatus = (expires: string, status: CA['status']): { text: 
     text = `Expired ${formatDistanceToNowStrict(expiryDate)} ago`;
     badgeVariant = "destructive";
     badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
-  } else {
+  } else if (status === 'active') {
     text = `Expires in ${formatDistanceToNowStrict(expiryDate)}`;
     badgeVariant = "secondary"; 
     badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
+  } else {
+    text = `Status: ${status.toUpperCase()}`; // Default for unknown or other statuses
+    badgeClass = "bg-muted text-muted-foreground border-border";
   }
   
   return { text: `${status.toUpperCase()} \u00B7 ${text}`, badgeVariant, badgeClass };
@@ -100,7 +105,7 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
     if (hasChildren) {
       setIsOpen(!isOpen);
     } else {
-      handleDetailsClick(e); // If no children, clicking the card goes to details
+      handleDetailsClick(e); 
     }
   };
   
@@ -173,7 +178,39 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
 
 export default function CertificateAuthoritiesPage() {
   const router = useRouter(); 
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const [cas, setCas] = useState<CA[]>([]);
+  const [isLoadingCas, setIsLoadingCas] = useState(true);
+  const [errorCas, setErrorCas] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+
+  const loadCAs = useCallback(async () => {
+    if (!isAuthenticated() || !user?.access_token) {
+      if (!authLoading && !isAuthenticated()){
+           setErrorCas("User not authenticated. Please log in.");
+           setIsLoadingCas(false);
+      }
+      return;
+    }
+    setIsLoadingCas(true);
+    setErrorCas(null);
+    try {
+      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+      setCas(fetchedCAs);
+    } catch (err: any) {
+      setErrorCas(err.message || 'Failed to load Certificate Authorities.');
+      setCas([]); // Clear CAs on error
+    } finally {
+      setIsLoadingCas(false);
+    }
+  }, [user?.access_token, isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    if (!authLoading) { // Only fetch if auth state is resolved
+        loadCAs();
+    }
+  }, [loadCAs, authLoading]);
+
 
   const handleCreateNewCAClick = () => {
     router.push('/dashboard/certificate-authorities/new');
@@ -194,6 +231,16 @@ export default function CertificateAuthoritiesPage() {
     currentViewTitle = "Graph View";
   }
 
+  if (authLoading || isLoadingCas) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">
+          {authLoading ? "Authenticating..." : "Loading Certificate Authorities..."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 w-full">
@@ -219,7 +266,7 @@ export default function CertificateAuthoritiesPage() {
                    <span className="hidden sm:inline">Hierarchy</span>
                 </ToggleGroupItem>
                  <ToggleGroupItem value="graph" aria-label="Graph view">
-                  <GitFork className="h-4 w-4 mr-0 sm:mr-2" /> {/* Using GitFork as a placeholder for graph icon */}
+                  <GitFork className="h-4 w-4 mr-0 sm:mr-2" />
                    <span className="hidden sm:inline">Graph</span>
                 </ToggleGroupItem>
               </ToggleGroup>
@@ -231,27 +278,34 @@ export default function CertificateAuthoritiesPage() {
           <p className="text-sm text-muted-foreground">Currently viewing CAs in: <span className="font-semibold">{currentViewTitle}</span>. Manage your Certificate Authority configurations and trust stores.</p> 
         </div>
         <div className="pt-6"> 
-          {certificateAuthoritiesData.length > 0 ? (
+          {errorCas && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error Loading CAs</AlertTitle>
+              <AlertDescription>{errorCas} <Button variant="link" onClick={loadCAs} className="p-0 h-auto">Try again?</Button></AlertDescription>
+            </Alert>
+          )}
+          {!errorCas && cas.length > 0 ? (
             <>
               {viewMode === 'list' && (
                 <ul className="space-y-2">
-                  {certificateAuthoritiesData.map((ca) => (
-                    <CaTreeItem key={ca.id} ca={ca} level={0} router={router} allCAs={certificateAuthoritiesData} />
+                  {cas.map((ca) => (
+                    <CaTreeItem key={ca.id} ca={ca} level={0} router={router} allCAs={cas} />
                   ))}
                 </ul>
               )}
               {viewMode === 'filesystem' && (
-                <CaFilesystemView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
+                <CaFilesystemView cas={cas} router={router} allCAs={cas} />
               )}
               {viewMode === 'hierarchy' && (
-                <CaHierarchyView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
+                <CaHierarchyView cas={cas} router={router} allCAs={cas} />
               )}
               {viewMode === 'graph' && (
-                <CaGraphView cas={certificateAuthoritiesData} router={router} allCAs={certificateAuthoritiesData} />
+                <CaGraphView cas={cas} router={router} allCAs={cas} />
               )}
             </>
           ) : (
-            <p className="text-muted-foreground">No Certificate Authorities configured.</p>
+            !errorCas && <p className="text-muted-foreground">No Certificate Authorities configured or found.</p>
           )}
         </div>
       </div>
