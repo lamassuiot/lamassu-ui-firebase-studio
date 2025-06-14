@@ -156,3 +156,4 @@ export async function fetchIssuedCertificates(
   const certificates = apiResponse.list.map(transformApiIssuedCertificateToLocal);
   return { certificates, nextToken: apiResponse.next };
 }
+
