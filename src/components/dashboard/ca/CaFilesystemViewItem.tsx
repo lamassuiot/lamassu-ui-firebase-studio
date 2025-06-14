@@ -4,8 +4,8 @@
 import React, { useState } from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Button } from "@/components/ui/button";
-import { Badge } from '@/components/ui/badge';
-import { Folder, FolderOpen, FileWarning, ChevronRight, FileSearch, FilePlus2 } from 'lucide-react';
+// Badge import removed as it's not used directly in this simplified status text logic
+import { Landmark, ShieldAlert, ChevronRight, FileSearch, FilePlus2 } from 'lucide-react'; // Changed Folder, FolderOpen, FileWarning
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -58,11 +58,9 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
     router.push(`/dashboard/certificate-authorities/${ca.id}/issue-certificate`);
   };
 
-  let IconComponent = Folder;
+  let IconComponent = Landmark; // Default to Landmark for CA
   if (isCritical) {
-    IconComponent = FileWarning; // Using FileWarning for revoked/expired
-  } else if (isOpen && hasChildren) {
-    IconComponent = FolderOpen;
+    IconComponent = ShieldAlert; // Use ShieldAlert for revoked/expired
   }
 
 
