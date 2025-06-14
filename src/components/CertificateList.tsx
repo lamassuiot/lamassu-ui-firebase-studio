@@ -19,13 +19,15 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { certificateAuthoritiesData, findCaByCommonName } from '@/lib/ca-data';
+// Removed: import { certificateAuthoritiesData, findCaByCommonName } from '@/lib/ca-data';
+import { findCaByCommonName } from '@/lib/ca-data'; // Keep findCaByCommonName if used, but it needs allCAs
 import { cn } from '@/lib/utils';
 
 interface CertificateListProps {
   certificates: CertificateData[];
   onInspectCertificate: (certificate: CertificateData) => void;
   onCertificateUpdated: (updatedCertificate: CertificateData) => void;
+  // allCAs: CA[]; // If we want to restore linking, pass allCAs as a prop
 }
 
 type SortableColumn = 'commonName' | 'serialNumber' | 'issuerCN' | 'expires' | 'status';
@@ -255,14 +257,14 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
             <TableBody>
                 {processedCertificates.map((cert) => {
                 const issuerCN = getCommonName(cert.issuer);
-                const issuerCa = findCaByCommonName(issuerCN, certificateAuthoritiesData);
+                // const issuerCa = findCaByCommonName(issuerCN, allCAs); // Needs allCAs passed in
 
                 return (
                     <TableRow key={cert.id}>
                     <TableCell className="font-medium truncate max-w-[150px] sm:max-w-xs">{getCommonName(cert.subject)}</TableCell>
                     <TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[120px]">{cert.serialNumber}</TableCell>
                     <TableCell className="hidden lg:table-cell truncate max-w-[200px]">
-                        {issuerCa ? (
+                        {/* {issuerCa ? (
                         <Button
                             variant="link"
                             className="p-0 h-auto text-left whitespace-normal leading-tight"
@@ -270,9 +272,9 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                         >
                             {issuerCN}
                         </Button>
-                        ) : (
-                        issuerCN
-                        )}
+                        ) : ( */}
+                        {issuerCN}
+                        {/* )} */}
                     </TableCell>
                     <TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>
