@@ -240,7 +240,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
       )}
 
       { (processedCertificates.length > 0 || (certificates.length > 0 && searchTerm === '')) && (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
             <Table>
             <TableHeader>
                 <TableRow>
