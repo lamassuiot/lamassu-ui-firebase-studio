@@ -13,10 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, getCaDisplayName, fetchAndProcessCAs } from '@/lib/ca-data'; // Added fetchAndProcessCAs
+import { findCaById, getCaDisplayName, fetchAndProcessCAs } from '@/lib/ca-data';
 import { CaHierarchyPathNode } from './CaHierarchyPathNode';
-import { useAuth } from '@/contexts/AuthContext'; // Added useAuth
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'; // Added Alert components
+import { useAuth } from '@/contexts/AuthContext';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { RevocationModal } from '@/components/shared/RevocationModal'; // Added import
 
 const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] => {
   if (!targetCaId) return [];
@@ -43,7 +44,7 @@ export default function CertificateAuthorityDetailsClient() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth(); // Added useAuth
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const caId = params.caId as string;
   
   const [allCertificateAuthoritiesData, setAllCertificateAuthoritiesData] = useState<CA[]>([]);
@@ -58,6 +59,9 @@ export default function CertificateAuthorityDetailsClient() {
   const [fullChainPemString, setFullChainPemString] = useState<string>('');
   const [metadataCopied, setMetadataCopied] = useState(false);
   const [activeCertificateSubTab, setActiveCertificateSubTab] = useState('single-certificate');
+
+  const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
+  const [caToRevoke, setCaToRevoke] = useState<CA | null>(null);
 
 
   const mockLamassuMetadata = {
@@ -86,7 +90,7 @@ export default function CertificateAuthorityDetailsClient() {
   useEffect(() => {
     const loadCAs = async () => {
       if (!isAuthenticated() || !user?.access_token) {
-        if (!authLoading) { // Only set error if auth is not loading
+        if (!authLoading) {
           setErrorCAs("User not authenticated. Please log in.");
           setIsLoadingCAs(false);
         }
@@ -122,7 +126,7 @@ export default function CertificateAuthorityDetailsClient() {
         const chainPem = chainInOrderForPem
           .map(caNode => caNode.pemData || '')
           .filter(pem => pem.trim() !== '')
-          .join('\\n\\n'); // Using escaped newline for CDATA
+          .join('\\n\\n'); 
         setFullChainPemString(chainPem);
 
       } else {
@@ -152,7 +156,7 @@ export default function CertificateAuthorityDetailsClient() {
       return;
     }
     try {
-      await navigator.clipboard.writeText(textToCopy.replace(/\\n/g, '\\n')); // Unescape for clipboard
+      await navigator.clipboard.writeText(textToCopy.replace(/\\n/g, '\\n'));
       if (type === 'Certificate') setPemCopied(true);
       if (type === 'Full Chain') setFullChainCopied(true);
       if (type === 'Metadata') setMetadataCopied(true);
@@ -168,6 +172,32 @@ export default function CertificateAuthorityDetailsClient() {
     }
   };
 
+  const handleOpenRevokeCAModal = () => {
+    if (caDetails) {
+      setCaToRevoke(caDetails);
+      setIsRevocationModalOpen(true);
+    }
+  };
+
+  const handleConfirmCARevocation = (reason: string) => {
+    if (caToRevoke) {
+      console.log(`Revoking CA: ${caToRevoke.name} (ID: ${caToRevoke.id}) for reason: ${reason}`);
+      // Mock API call and UI update
+      setCaDetails(prev => prev ? {...prev, status: 'revoked'} : null);
+      toast({
+        title: "CA Revocation (Mock)",
+        description: `CA "${caToRevoke.name}" marked as revoked with reason: ${reason}.`,
+        variant: "default"
+      });
+      setAllCertificateAuthoritiesData(prevCAs => 
+        prevCAs.map(ca => ca.id === caToRevoke.id ? {...ca, status: 'revoked'} : ca)
+      );
+    }
+    setIsRevocationModalOpen(false);
+    setCaToRevoke(null);
+  };
+
+
   if (authLoading || isLoadingCAs) {
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center">
@@ -179,7 +209,7 @@ export default function CertificateAuthorityDetailsClient() {
     );
   }
 
-  if (errorCAs && !caDetails) { // Show error if CA list failed or specific CA not found
+  if (errorCAs && !caDetails) {
     return (
       <div className="w-full space-y-4 p-4">
          <Button variant="outline" onClick={() => router.push('/dashboard/certificate-authorities')} className="mb-4">
@@ -196,7 +226,6 @@ export default function CertificateAuthorityDetailsClient() {
 
 
   if (!caDetails) {
-    // This state might be brief if CAs are loading or if caId is invalid after load
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center">
         <FileText className="h-12 w-12 text-muted-foreground animate-pulse" />
@@ -256,7 +285,7 @@ export default function CertificateAuthorityDetailsClient() {
 
         <div className="p-6 space-x-2 border-b">
           <Button variant="outline" onClick={() => alert('Download CRL (placeholder)')}><Download className="mr-2 h-4 w-4" /> Download CRL</Button>
-          <Button variant="outline" onClick={() => alert('Revoke CA (placeholder)')}><ShieldAlert className="mr-2 h-4 w-4" /> Revoke CA</Button>
+          <Button variant="destructive" onClick={handleOpenRevokeCAModal} disabled={caDetails.status === 'revoked'}><ShieldAlert className="mr-2 h-4 w-4" /> Revoke CA</Button>
           <Button variant="outline" onClick={() => alert('Renew CA (placeholder)')}><RefreshCw className="mr-2 h-4 w-4" /> Renew CA</Button>
           <Button variant="outline" onClick={() => alert('Edit Configuration (placeholder)')}><Edit className="mr-2 h-4 w-4" /> Edit Configuration</Button>
         </div>
@@ -394,7 +423,7 @@ export default function CertificateAuthorityDetailsClient() {
 
           <TabsContent value="certificate">
             <div className="flex flex-col md:flex-row gap-6 py-4">
-              <div className="flex-grow md:w-2/3 xl:w-3/4"> {/* Left Column: PEM Data with Sub-Tabs */}
+              <div className="flex-grow md:w-2/3 xl:w-3/4"> 
                 <Tabs value={activeCertificateSubTab} onValueChange={setActiveCertificateSubTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="single-certificate">This Certificate</TabsTrigger>
@@ -409,7 +438,7 @@ export default function CertificateAuthorityDetailsClient() {
                     </div>
                     {caDetails.pemData ? (
                       <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
-                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData.replace(/\\n/g, '\n')}</pre>
+                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData.replace(/\\n/g, '\\n')}</pre>
                       </ScrollArea>
                     ) : (
                       <p className="text-sm text-muted-foreground p-4 text-center">No individual certificate PEM data available for this CA.</p>
@@ -425,7 +454,7 @@ export default function CertificateAuthorityDetailsClient() {
                     {fullChainPemString.trim() ? (
                       <>
                         <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
-                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString.replace(/\\n/g, '\n')}</pre>
+                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString.replace(/\\n/g, '\\n')}</pre>
                         </ScrollArea>
                         <p className="text-xs text-muted-foreground mt-2">
                             The full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
@@ -439,7 +468,7 @@ export default function CertificateAuthorityDetailsClient() {
                 </Tabs>
               </div>
 
-              <div className="flex-shrink-0 md:w-1/3 xl:w-1/4"> {/* Right Column: Issuance Hierarchy */}
+              <div className="flex-shrink-0 md:w-1/3 xl:w-1/4"> 
                 <h4 className="text-md font-semibold mb-3 flex items-center">
                   <Network className="mr-2 h-5 w-5 text-muted-foreground" />
                   Issuance Path
@@ -500,6 +529,18 @@ export default function CertificateAuthorityDetailsClient() {
           </TabsContent>
         </Tabs>
       </div>
+      {caToRevoke && (
+        <RevocationModal
+          isOpen={isRevocationModalOpen}
+          onClose={() => {
+            setIsRevocationModalOpen(false);
+            setCaToRevoke(null);
+          }}
+          onConfirm={handleConfirmCARevocation}
+          itemName={caToRevoke.name}
+          itemType="CA"
+        />
+      )}
     </div>
   );
 }

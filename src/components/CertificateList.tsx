@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronsUpDown } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronsUpDown, ShieldAlert } from 'lucide-react'; // Added ShieldAlert
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,15 +19,16 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import type { CA } from '@/lib/ca-data'; // Import CA type
-import { findCaById } from '@/lib/ca-data'; // Import findCaById
+import type { CA } from '@/lib/ca-data';
+import { findCaById } from '@/lib/ca-data';
 import { cn } from '@/lib/utils';
+import { RevocationModal } from '@/components/shared/RevocationModal'; // Added import
 
 interface CertificateListProps {
   certificates: CertificateData[];
   onInspectCertificate: (certificate: CertificateData) => void;
   onCertificateUpdated: (updatedCertificate: CertificateData) => void;
-  allCAs: CA[]; // Prop to receive all CAs for linking
+  allCAs: CA[];
 }
 
 type SortableColumn = 'commonName' | 'serialNumber' | 'issuerCN' | 'expires' | 'status';
@@ -38,7 +39,6 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-// For client-side verification status (mock)
 const ClientVerificationStatusBadge: React.FC<{ status: VerificationStatus }> = ({ status }) => {
   switch (status) {
     case 'verified':
@@ -58,7 +58,6 @@ const ClientVerificationStatusBadge: React.FC<{ status: VerificationStatus }> = 
   }
 };
 
-// For displaying API-reported status
 const ApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => {
   if (!status) return <Badge variant="outline">Unknown</Badge>;
   const upperStatus = status.toUpperCase();
@@ -74,7 +73,7 @@ const ApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => {
   } else if (upperStatus.includes('EXPIRED')) {
     badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
     Icon = AlertTriangle;
-  } else if (upperStatus.includes('PENDING')) { // Example for a potential PENDING status from API
+  } else if (upperStatus.includes('PENDING')) {
     badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
     Icon = Clock;
   }
@@ -90,13 +89,13 @@ const getCommonName = (subjectOrIssuer: string): string => {
 
 const apiStatusSortOrder: Record<string, number> = {
   'ACTIVE': 0,
-  'PENDING': 1, // Assuming PENDING could be an API status
-  'UNVERIFIED': 2, // Placeholder if needed
+  'PENDING': 1,
+  'UNVERIFIED': 2,
   'EXPIRED': 3,
   'REVOKED': 4,
   'ERROR': 5,
-  'INVALID_PATH': 6, // Placeholder if needed
-  'UNKNOWN': 7, // Fallback
+  'INVALID_PATH': 6,
+  'UNKNOWN': 7,
 };
 
 
@@ -108,6 +107,9 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
   const [searchTerm, setSearchTerm] = useState('');
   const [searchField, setSearchField] = useState<'commonName' | 'serialNumber'>('commonName');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>({ column: 'expires', direction: 'desc' });
+
+  const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
+  const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
 
 
   const handleVerify = async (certificate: CertificateData) => {
@@ -122,7 +124,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
       resultStatus = 'error';
       resultDetails = 'An unexpected error occurred during verification.';
     } else if (randomOutcome < 0.15) {
-      resultStatus = 'expired'; // This might be redundant if API already says expired
+      resultStatus = 'expired';
       resultDetails = 'Client-side check: Certificate is expired.';
     } else if (randomOutcome < 0.25) {
       resultStatus = 'invalid_path';
@@ -175,7 +177,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
             aValue = parseISO(a.validTo).getTime();
             bValue = parseISO(b.validTo).getTime();
             break;
-          case 'status': // Sorting by API status
+          case 'status':
             aValue = apiStatusSortOrder[a.apiStatus?.toUpperCase() || 'UNKNOWN'] ?? apiStatusSortOrder['UNKNOWN'];
             bValue = apiStatusSortOrder[b.apiStatus?.toUpperCase() || 'UNKNOWN'] ?? apiStatusSortOrder['UNKNOWN'];
             break;
@@ -207,9 +209,9 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     const isSorted = sortConfig?.column === column;
     let Icon = ChevronsUpDown;
     if (isSorted) {
-      if (column === 'expires') { // Date sort
+      if (column === 'expires') {
         Icon = sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10;
-      } else { // Text or status sort
+      } else {
         Icon = sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ;
       }
     } else if (column === 'expires') {
@@ -223,6 +225,25 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
         </div>
       </TableHead>
     );
+  };
+
+  const handleOpenRevokeCertModal = (certificate: CertificateData) => {
+    setCertificateToRevoke(certificate);
+    setIsRevocationModalOpen(true);
+  };
+
+  const handleConfirmCertificateRevocation = (reason: string) => {
+    if (certificateToRevoke) {
+      console.log(`Revoking certificate: ${certificateToRevoke.fileName} (SN: ${certificateToRevoke.serialNumber}) for reason: ${reason}`);
+      // Mock update:
+      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED', verificationStatus: 'revoked', verificationDetails: `Revoked by user: ${reason}` });
+      toast({
+        title: "Certificate Revocation (Mock)",
+        description: `Certificate "${getCommonName(certificateToRevoke.subject)}" marked as revoked with reason: ${reason}.`,
+      });
+    }
+    setIsRevocationModalOpen(false);
+    setCertificateToRevoke(null);
   };
   
   if (certificates.length === 0 && searchTerm === '') {
@@ -337,8 +358,8 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => alert(`Revoke certificate: ${cert.fileName} (placeholder)`)}>
-                            Revoke Certificate
+                            <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
+                              <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => alert(`Download PEM for: ${cert.fileName} (placeholder)`)}>
                             Download PEM
@@ -356,6 +377,18 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
             </TableBody>
             </Table>
         </div>
+      )}
+      {certificateToRevoke && (
+        <RevocationModal
+          isOpen={isRevocationModalOpen}
+          onClose={() => {
+            setIsRevocationModalOpen(false);
+            setCertificateToRevoke(null);
+          }}
+          onConfirm={handleConfirmCertificateRevocation}
+          itemName={getCommonName(certificateToRevoke.subject)}
+          itemType="Certificate"
+        />
       )}
     </div>
   );
