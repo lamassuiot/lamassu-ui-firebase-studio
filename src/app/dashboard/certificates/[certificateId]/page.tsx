@@ -19,4 +19,3 @@ export default function CertificateDetailPageContainer({ params }: { params: { c
   // The client component uses useParams(), so no need to pass params.certificateId here explicitly
   return <CertificateDetailPageClient />;
 }
-
