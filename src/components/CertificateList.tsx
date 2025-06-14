@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronsUpDown, ShieldAlert } from 'lucide-react'; // Added ShieldAlert
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronsUpDown, ShieldAlert, FileText } from 'lucide-react'; // Added ShieldAlert
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +26,7 @@ import { RevocationModal } from '@/components/shared/RevocationModal';
 
 interface CertificateListProps {
   certificates: CertificateData[];
-  onInspectCertificate: (certificate: CertificateData) => void;
+  onInspectCertificate: (certificate: CertificateData) => void; // Kept for modal, though primary nav is to page
   onCertificateUpdated: (updatedCertificate: CertificateData) => void;
   allCAs: CA[];
 }
@@ -43,7 +43,7 @@ const ApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => {
   if (!status) return <Badge variant="outline">Unknown</Badge>;
   const upperStatus = status.toUpperCase();
   let badgeClass = "bg-muted text-muted-foreground border-border";
-  let Icon = AlertTriangle; // Default to AlertTriangle for unknown/other statuses
+  let Icon = AlertTriangle; 
 
   if (upperStatus.includes('ACTIVE')) {
     badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
@@ -71,11 +71,9 @@ const getCommonName = (subjectOrIssuer: string): string => {
 const apiStatusSortOrder: Record<string, number> = {
   'ACTIVE': 0,
   'PENDING': 1,
-  // 'UNVERIFIED': 2, // This was for client-side status, apiStatus is more direct
   'EXPIRED': 3,
   'REVOKED': 4,
-  'ERROR': 5, // Placeholder if API sends error status
-  // 'INVALID_PATH': 6, // Client-side
+  'ERROR': 5, 
   'UNKNOWN': 7,
 };
 
@@ -187,7 +185,6 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
   const handleConfirmCertificateRevocation = (reason: string) => {
     if (certificateToRevoke) {
       console.log(`Revoking certificate: ${certificateToRevoke.fileName} (SN: ${certificateToRevoke.serialNumber}) for reason: ${reason}`);
-      // Mock update:
       onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED' });
       toast({
         title: "Certificate Revocation (Mock)",
@@ -283,9 +280,25 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                         <ApiStatusBadge status={cert.apiStatus} />
                     </TableCell>
                     <TableCell className="text-right space-x-1">
-                        <Button variant="outline" size="icon" onClick={() => onInspectCertificate(cert)} title="Inspect Certificate" className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1">
+                        <Button 
+                            variant="outline" 
+                            size="icon" 
+                            onClick={() => router.push(`/dashboard/certificates/${cert.serialNumber}`)} 
+                            title="View Certificate Details" 
+                            className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1"
+                        >
+                            <FileText className="h-4 w-4" />
+                            <span className="sr-only sm:not-sr-only sm:ml-1 hidden sm:inline">Details</span>
+                        </Button>
+                         <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => onInspectCertificate(cert)} 
+                            title="Quick Inspect (Modal)" 
+                            className="h-8 w-8 sm:hidden" // Hide on sm and up, use Details button instead
+                        >
                             <Eye className="h-4 w-4" />
-                            <span className="sr-only sm:not-sr-only sm:ml-1 hidden sm:inline">Inspect</span>
+                            <span className="sr-only">Inspect</span>
                         </Button>
                         <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -295,6 +308,9 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
+                                <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
                               <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
                             </DropdownMenuItem>
