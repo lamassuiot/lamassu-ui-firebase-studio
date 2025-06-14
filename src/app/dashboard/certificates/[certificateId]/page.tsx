@@ -11,8 +11,6 @@ export async function generateStaticParams() {
   // For `output: 'export'`, this function is required for dynamic routes.
   // Returning an empty array means Next.js won't pre-render any specific certificate pages by default.
   // Pages for specific IDs will be client-side rendered when navigated to.
-  // If Next.js encounters a static link to a specific ID during the build process,
-  // it might still require that ID to be listed here, or the link itself needs to be made dynamic.
   return [];
 }
 
