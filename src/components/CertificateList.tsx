@@ -1,14 +1,14 @@
 
 "use client";
 
-import React, { useState, useMemo, useCallback } from 'react';
-import type { CertificateData, VerificationStatus } from '@/types/certificate';
+import React, { useState, useMemo } from 'react';
+import type { CertificateData } from '@/types/certificate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ShieldQuestion, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronsUpDown, ShieldAlert } from 'lucide-react'; // Added ShieldAlert
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronsUpDown, ShieldAlert } from 'lucide-react'; // Added ShieldAlert
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation';
 import type { CA } from '@/lib/ca-data';
 import { findCaById } from '@/lib/ca-data';
 import { cn } from '@/lib/utils';
-import { RevocationModal } from '@/components/shared/RevocationModal'; // Added import
+import { RevocationModal } from '@/components/shared/RevocationModal';
 
 interface CertificateListProps {
   certificates: CertificateData[];
@@ -39,30 +39,11 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-const ClientVerificationStatusBadge: React.FC<{ status: VerificationStatus }> = ({ status }) => {
-  switch (status) {
-    case 'verified':
-      return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="mr-1 h-3 w-3" />Verified</Badge>;
-    case 'invalid_path':
-    case 'revoked':
-      return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Invalid</Badge>;
-    case 'expired':
-      return <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600"><AlertTriangle className="mr-1 h-3 w-3" />Expired</Badge>;
-    case 'pending':
-      return <Badge variant="secondary"><Loader2 className="mr-1 h-3 w-3 animate-spin" />Pending</Badge>;
-    case 'error':
-      return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" />Error</Badge>;
-    case 'unverified':
-    default:
-      return <Badge variant="outline"><ShieldQuestion className="mr-1 h-3 w-3" />Unverified</Badge>;
-  }
-};
-
 const ApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => {
   if (!status) return <Badge variant="outline">Unknown</Badge>;
   const upperStatus = status.toUpperCase();
   let badgeClass = "bg-muted text-muted-foreground border-border";
-  let Icon = ShieldQuestion;
+  let Icon = AlertTriangle; // Default to AlertTriangle for unknown/other statuses
 
   if (upperStatus.includes('ACTIVE')) {
     badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
@@ -90,17 +71,16 @@ const getCommonName = (subjectOrIssuer: string): string => {
 const apiStatusSortOrder: Record<string, number> = {
   'ACTIVE': 0,
   'PENDING': 1,
-  'UNVERIFIED': 2,
+  // 'UNVERIFIED': 2, // This was for client-side status, apiStatus is more direct
   'EXPIRED': 3,
   'REVOKED': 4,
-  'ERROR': 5,
-  'INVALID_PATH': 6,
+  'ERROR': 5, // Placeholder if API sends error status
+  // 'INVALID_PATH': 6, // Client-side
   'UNKNOWN': 7,
 };
 
 
 export function CertificateList({ certificates, onInspectCertificate, onCertificateUpdated, allCAs }: CertificateListProps) {
-  const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -110,34 +90,6 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
 
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
-
-
-  const handleVerify = async (certificate: CertificateData) => {
-    setVerifyingId(certificate.id);
-    onCertificateUpdated({ ...certificate, verificationStatus: 'pending', verificationDetails: 'Verification in progress...' });
-    await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
-    let resultStatus: VerificationStatus = 'error';
-    let resultDetails = 'An unexpected error occurred during verification.';
-    let success = false;
-    const randomOutcome = Math.random();
-    if (randomOutcome < 0.05) {
-      resultStatus = 'error';
-      resultDetails = 'An unexpected error occurred during verification.';
-    } else if (randomOutcome < 0.15) {
-      resultStatus = 'expired';
-      resultDetails = 'Client-side check: Certificate is expired.';
-    } else if (randomOutcome < 0.25) {
-      resultStatus = 'invalid_path';
-      resultDetails = 'Client-side check: Certificate validation failed: Unable to find a valid certification path to a trusted root CA.';
-    } else {
-      resultStatus = 'verified';
-      resultDetails = 'Client-side check: Certificate chain verified successfully against trusted roots. Not Expired. Not Revoked (mocked).';
-      success = true;
-    }
-    onCertificateUpdated({ ...certificate, verificationStatus: resultStatus, verificationDetails: resultDetails });
-    toast({ title: success ? "Verification Complete" : "Verification Failed", description: resultDetails, variant: success ? "default" : "destructive" });
-    setVerifyingId(null);
-  };
 
   const processedCertificates = useMemo(() => {
     let filtered = [...certificates];
@@ -236,7 +188,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     if (certificateToRevoke) {
       console.log(`Revoking certificate: ${certificateToRevoke.fileName} (SN: ${certificateToRevoke.serialNumber}) for reason: ${reason}`);
       // Mock update:
-      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED', verificationStatus: 'revoked', verificationDetails: `Revoked by user: ${reason}` });
+      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED' });
       toast({
         title: "Certificate Revocation (Mock)",
         description: `Certificate "${getCommonName(certificateToRevoke.subject)}" marked as revoked with reason: ${reason}.`,
@@ -334,21 +286,6 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                         <Button variant="outline" size="icon" onClick={() => onInspectCertificate(cert)} title="Inspect Certificate" className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1">
                             <Eye className="h-4 w-4" />
                             <span className="sr-only sm:not-sr-only sm:ml-1 hidden sm:inline">Inspect</span>
-                        </Button>
-                        <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleVerify(cert)}
-                        disabled={verifyingId === cert.id || cert.verificationStatus === 'pending'}
-                        title="Verify Certificate (Client-side Mock)"
-                        className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1"
-                        >
-                        {verifyingId === cert.id || cert.verificationStatus === 'pending' ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <CheckCircle className="h-4 w-4" />
-                        )}
-                        <span className="sr-only sm:not-sr-only sm:ml-1 hidden sm:inline">Verify</span>
                         </Button>
                         <DropdownMenu>
                         <DropdownMenuTrigger asChild>

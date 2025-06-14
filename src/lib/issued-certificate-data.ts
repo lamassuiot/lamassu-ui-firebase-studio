@@ -1,5 +1,5 @@
 
-import type { CertificateData, VerificationStatus } from '@/types/certificate';
+import type { CertificateData } from '@/types/certificate';
 
 // API Response Structures for Issued Certificates
 interface ApiKeyMetadata {
@@ -51,19 +51,6 @@ export interface ApiIssuedCertificateListResponse {
 }
 
 function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): CertificateData {
-  // Determine initial client-side verification status based on API status and validity
-  let clientVerificationStatus: VerificationStatus = 'unverified';
-  const apiStatusUpper = apiCert.status?.toUpperCase();
-
-  if (apiStatusUpper === 'ACTIVE') {
-    clientVerificationStatus = new Date(apiCert.valid_to) < new Date() ? 'expired' : 'unverified';
-  } else if (apiStatusUpper === 'REVOKED') {
-    clientVerificationStatus = 'revoked';
-  } else if (apiStatusUpper === 'EXPIRED') { // Assuming API might explicitly send EXPIRED
-    clientVerificationStatus = 'expired';
-  }
-  // Other API statuses like PENDING_ACTIVATION etc. could map to 'pending' or 'unverified' for client-side.
-
   let publicKeyAlgorithm = apiCert.key_metadata.type;
   if (apiCert.key_metadata.bits) {
     publicKeyAlgorithm += ` (${apiCert.key_metadata.bits} bit)`;
@@ -94,8 +81,6 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
     validTo: apiCert.valid_to,
     sans: [], // SANs are not directly in this API response part
     pemData: pemData,
-    verificationStatus: clientVerificationStatus, // Keep for existing mock verify logic
-    verificationDetails: `API Status: ${apiCert.status || 'N/A'}. Client-side verification pending.`,
     apiStatus: apiCert.status, // Store raw API status
     publicKeyAlgorithm,
     signatureAlgorithm: 'N/A (from API)',

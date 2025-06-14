@@ -1,6 +1,4 @@
 
-export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'invalid_path' | 'expired' | 'revoked' | 'error';
-
 export interface CertificateData {
   id: string; // Using serial number as ID from API
   fileName: string; // Synthesized
@@ -11,8 +9,6 @@ export interface CertificateData {
   validTo: string; // ISO date string
   sans: string[]; // May need to be parsed from PEM or fetched from a detail endpoint
   pemData: string;
-  verificationStatus: VerificationStatus; // Current status for client-side mock verification
-  verificationDetails: string; // Current details for client-side mock verification
   publicKeyAlgorithm?: string;
   signatureAlgorithm?: string;
   fingerprintSha256?: string;
@@ -20,4 +16,3 @@ export interface CertificateData {
   apiStatus?: string; // To store the raw status from the API
   rawApiData?: any; // To store the original API response for this certificate
 }
-

@@ -5,7 +5,7 @@ import React, { useState, useEffect, FC } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Copy, Check, Users, Network, Layers, Download, ShieldAlert, RefreshCw, Edit, Code2, Database, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, Info, KeyRound, Lock, Link as LinkIcon, ListChecks, Server, ScrollText, Copy, Check, Users, Network, Layers, Download, ShieldAlert, Edit, Code2, Database, Loader2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,7 +17,7 @@ import { findCaById, getCaDisplayName, fetchAndProcessCAs } from '@/lib/ca-data'
 import { CaHierarchyPathNode } from './CaHierarchyPathNode';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { RevocationModal } from '@/components/shared/RevocationModal'; // Added import
+import { RevocationModal } from '@/components/shared/RevocationModal';
 
 const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] => {
   if (!targetCaId) return [];
@@ -126,7 +126,7 @@ export default function CertificateAuthorityDetailsClient() {
         const chainPem = chainInOrderForPem
           .map(caNode => caNode.pemData || '')
           .filter(pem => pem.trim() !== '')
-          .join('\\n\\n'); 
+          .join('\n\n'); // Use actual newline for display and copy
         setFullChainPemString(chainPem);
 
       } else {
@@ -156,7 +156,7 @@ export default function CertificateAuthorityDetailsClient() {
       return;
     }
     try {
-      await navigator.clipboard.writeText(textToCopy.replace(/\\n/g, '\\n'));
+      await navigator.clipboard.writeText(textToCopy); // No need to replace \n here
       if (type === 'Certificate') setPemCopied(true);
       if (type === 'Full Chain') setFullChainCopied(true);
       if (type === 'Metadata') setMetadataCopied(true);
@@ -286,7 +286,6 @@ export default function CertificateAuthorityDetailsClient() {
         <div className="p-6 space-x-2 border-b">
           <Button variant="outline" onClick={() => alert('Download CRL (placeholder)')}><Download className="mr-2 h-4 w-4" /> Download CRL</Button>
           <Button variant="destructive" onClick={handleOpenRevokeCAModal} disabled={caDetails.status === 'revoked'}><ShieldAlert className="mr-2 h-4 w-4" /> Revoke CA</Button>
-          <Button variant="outline" onClick={() => alert('Renew CA (placeholder)')}><RefreshCw className="mr-2 h-4 w-4" /> Renew CA</Button>
           <Button variant="outline" onClick={() => alert('Edit Configuration (placeholder)')}><Edit className="mr-2 h-4 w-4" /> Edit Configuration</Button>
         </div>
 
@@ -438,7 +437,7 @@ export default function CertificateAuthorityDetailsClient() {
                     </div>
                     {caDetails.pemData ? (
                       <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
-                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData.replace(/\\n/g, '\\n')}</pre>
+                        <pre className="text-xs whitespace-pre-wrap break-all font-code">{caDetails.pemData}</pre>
                       </ScrollArea>
                     ) : (
                       <p className="text-sm text-muted-foreground p-4 text-center">No individual certificate PEM data available for this CA.</p>
@@ -454,7 +453,7 @@ export default function CertificateAuthorityDetailsClient() {
                     {fullChainPemString.trim() ? (
                       <>
                         <ScrollArea className="h-96 w-full rounded-md border p-3 bg-muted/30">
-                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString.replace(/\\n/g, '\\n')}</pre>
+                          <pre className="text-xs whitespace-pre-wrap break-all font-code">{fullChainPemString}</pre>
                         </ScrollArea>
                         <p className="text-xs text-muted-foreground mt-2">
                             The full chain includes {caPathToRoot.length} certificate(s): This CA and its issuer(s) up to the root.
