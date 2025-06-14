@@ -1,3 +1,4 @@
+
 export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'invalid_path' | 'expired' | 'revoked' | 'error';
 
 export interface CertificateData {
@@ -10,11 +11,13 @@ export interface CertificateData {
   validTo: string; // ISO date string
   sans: string[]; // May need to be parsed from PEM or fetched from a detail endpoint
   pemData: string;
-  verificationStatus: VerificationStatus;
-  verificationDetails: string;
+  verificationStatus: VerificationStatus; // Current status for client-side mock verification
+  verificationDetails: string; // Current details for client-side mock verification
   publicKeyAlgorithm?: string;
   signatureAlgorithm?: string;
-  fingerprintSha256?: string; // Would need client-side calculation or detail endpoint
+  fingerprintSha256?: string;
   issuerCaId?: string; // ID of the CA that issued this certificate
+  apiStatus?: string; // To store the raw status from the API
   rawApiData?: any; // To store the original API response for this certificate
 }
+

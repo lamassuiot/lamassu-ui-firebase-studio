@@ -51,18 +51,20 @@ export interface ApiIssuedCertificateListResponse {
 }
 
 function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): CertificateData {
-  let verificationStatus: VerificationStatus = 'unverified';
-  const apiStatus = apiCert.status?.toUpperCase(); // Use top-level status
+  // Determine initial client-side verification status based on API status and validity
+  let clientVerificationStatus: VerificationStatus = 'unverified';
+  const apiStatusUpper = apiCert.status?.toUpperCase();
 
-  if (apiStatus === 'ACTIVE') {
-    verificationStatus = new Date(apiCert.valid_to) < new Date() ? 'expired' : 'unverified';
-  } else if (apiStatus === 'REVOKED') {
-    verificationStatus = 'revoked';
-  } else if (apiStatus === 'EXPIRED') {
-    verificationStatus = 'expired';
+  if (apiStatusUpper === 'ACTIVE') {
+    clientVerificationStatus = new Date(apiCert.valid_to) < new Date() ? 'expired' : 'unverified';
+  } else if (apiStatusUpper === 'REVOKED') {
+    clientVerificationStatus = 'revoked';
+  } else if (apiStatusUpper === 'EXPIRED') { // Assuming API might explicitly send EXPIRED
+    clientVerificationStatus = 'expired';
   }
+  // Other API statuses like PENDING_ACTIVATION etc. could map to 'pending' or 'unverified' for client-side.
 
-  let publicKeyAlgorithm = apiCert.key_metadata.type; // Access directly from apiCert
+  let publicKeyAlgorithm = apiCert.key_metadata.type;
   if (apiCert.key_metadata.bits) {
     publicKeyAlgorithm += ` (${apiCert.key_metadata.bits} bit)`;
   } else if (apiCert.key_metadata.curve_name) {
@@ -73,7 +75,7 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
   const issuerDisplay = apiCert.issuer.common_name || `CA_ID:${apiCert.issuer_metadata.id}`;
 
   let pemData = '';
-  if (typeof window !== 'undefined' && apiCert.certificate) { // apiCert.certificate is the PEM string
+  if (typeof window !== 'undefined' && apiCert.certificate) {
     try {
       pemData = window.atob(apiCert.certificate);
     } catch (e) {
@@ -83,22 +85,23 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
   }
 
   return {
-    id: apiCert.serial_number, // Use serial_number as ID
+    id: apiCert.serial_number,
     fileName: `${subjectDisplay.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'certificate'}.pem`,
     subject: subjectDisplay,
     issuer: issuerDisplay,
     serialNumber: apiCert.serial_number,
     validFrom: apiCert.valid_from,
     validTo: apiCert.valid_to,
-    sans: [], // SANs are not directly in this API response part, would need detailed parsing or different endpoint
+    sans: [], // SANs are not directly in this API response part
     pemData: pemData,
-    verificationStatus,
-    verificationDetails: `Status from CA: ${apiStatus || 'N/A'}. On-device verification pending.`,
+    verificationStatus: clientVerificationStatus, // Keep for existing mock verify logic
+    verificationDetails: `API Status: ${apiCert.status || 'N/A'}. Client-side verification pending.`,
+    apiStatus: apiCert.status, // Store raw API status
     publicKeyAlgorithm,
-    signatureAlgorithm: 'N/A (from API)', // Placeholder, not directly in this part of API response
-    fingerprintSha256: '', // Would require client-side calculation or different endpoint
-    rawApiData: apiCert,
+    signatureAlgorithm: 'N/A (from API)',
+    fingerprintSha256: '',
     issuerCaId: apiCert.issuer_metadata.id,
+    rawApiData: apiCert,
   };
 }
 

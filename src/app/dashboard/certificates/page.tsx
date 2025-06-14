@@ -6,15 +6,24 @@ import { useRouter } from 'next/navigation';
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
-import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw } from 'lucide-react';
+import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, ListFilter } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data'; 
+import { fetchAndProcessCAs, type CA } from '@/lib/ca-data';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 
 export default function CertificatesPage() {
@@ -33,27 +42,39 @@ export default function CertificatesPage() {
   const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null); 
 
   const [pageSize, setPageSize] = useState<string>('10');
+
+  const [allCAs, setAllCAs] = useState<CA[]>([]);
+  const [isLoadingCAs, setIsLoadingCAs] = useState(true);
+  const [errorCAs, setErrorCAs] = useState<string | null>(null);
   
-  const loadCertificates = useCallback(async (bookmarkToFetch: string | null) => {
+  const loadCertificatesAndCAs = useCallback(async (bookmarkToFetch: string | null) => {
     if (authLoading || !isAuthenticated() || !user?.access_token) {
       if (!authLoading && !isAuthenticated()) {
         setApiError("User not authenticated. Please log in.");
+        setErrorCAs("User not authenticated. Please log in.");
         setCertificates([]);
+        setAllCAs([]);
         setNextTokenFromApi(null);
         setIsLoadingApi(false);
+        setIsLoadingCAs(false);
       }
       return;
     }
+    
     setIsLoadingApi(true);
+    setIsLoadingCAs(true);
     setApiError(null);
+    setErrorCAs(null);
+
     try {
-      const result = await fetchIssuedCertificates({
+      // Fetch certificates
+      const certResult = await fetchIssuedCertificates({
         accessToken: user.access_token,
         bookmark: bookmarkToFetch,
         pageSize,
       });
-      setCertificates(result.certificates);
-      setNextTokenFromApi(result.nextToken);
+      setCertificates(certResult.certificates);
+      setNextTokenFromApi(certResult.nextToken);
     } catch (err: any) {
       setApiError(err.message || 'Failed to load issued certificates.');
       setCertificates([]);
@@ -61,14 +82,28 @@ export default function CertificatesPage() {
     } finally {
       setIsLoadingApi(false);
     }
-  }, [user?.access_token, isAuthenticated, authLoading, pageSize]);
+
+    try {
+      // Fetch CAs (only if not already loaded or if a reload is forced)
+      if (allCAs.length === 0) { // Simple check, could be more sophisticated
+        const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+        setAllCAs(fetchedCAs);
+      }
+    } catch (err: any) {
+      setErrorCAs(err.message || 'Failed to load CA list for linking.');
+      // Potentially clear allCAs or handle specific UI for this error
+    } finally {
+      setIsLoadingCAs(false);
+    }
+
+  }, [user?.access_token, isAuthenticated, authLoading, pageSize, allCAs.length]); // Added allCAs.length dependency
 
   useEffect(() => {
     if (!authLoading) { 
-      loadCertificates(bookmarkStack[currentPageIndex]);
+      loadCertificatesAndCAs(bookmarkStack[currentPageIndex]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [authLoading, currentPageIndex, pageSize]); 
+  }, [authLoading, currentPageIndex, pageSize]); // Removed loadCertificatesAndCAs from dep array to avoid loop if allCAs.length changes it.
 
   const handleInspectCertificate = (certificate: CertificateData) => {
     setSelectedCertificate(certificate);
@@ -88,7 +123,8 @@ export default function CertificatesPage() {
 
   const handleRefresh = () => {
     if (currentPageIndex < bookmarkStack.length) {
-        loadCertificates(bookmarkStack[currentPageIndex]);
+        setAllCAs([]); // Force CA reload on manual refresh for now
+        loadCertificatesAndCAs(bookmarkStack[currentPageIndex]);
     }
   };
 
@@ -112,26 +148,20 @@ export default function CertificatesPage() {
     setCurrentPageIndex(prevIndex); 
   };
 
-
-  if (authLoading) {
+  if (authLoading || (isLoadingApi && certificates.length === 0) || (isLoadingCAs && allCAs.length === 0 && certificates.length > 0) ) {
+    const loadingText = authLoading 
+        ? "Authenticating..." 
+        : isLoadingApi 
+            ? "Loading Certificates..." 
+            : "Loading CA Data for Linking...";
     return (
         <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
             <Loader2Icon className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-lg text-muted-foreground">Authenticating...</p>
+            <p className="text-lg text-muted-foreground">{loadingText}</p>
         </div>
     );
   }
   
-  if (isLoadingApi && certificates.length === 0) { 
-    return (
-        <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
-            <Loader2Icon className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-lg text-muted-foreground">Loading Certificates...</p>
-        </div>
-    );
-  }
-
-
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
@@ -139,29 +169,51 @@ export default function CertificatesPage() {
             <FileText className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-headline font-semibold">Issued Certificates</h1>
         </div>
-        <Button onClick={handleRefresh} variant="outline" disabled={isLoadingApi && certificates.length > 0}>
-            <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> Refresh List
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button onClick={handleRefresh} variant="outline" disabled={isLoadingApi && certificates.length > 0}>
+              <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> Refresh List
+          </Button>
+          {/* Filter button (placeholder functionality) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <ListFilter className="mr-2 h-4 w-4" /> Filters
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem checked={false} onCheckedChange={() => {}}>Active</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={false} onCheckedChange={() => {}}>Expired</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={false} onCheckedChange={() => {}}>Revoked</DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">
         A list of end-entity certificates issued by the system, displaying their Common Name (CN), serial number, issuing CA, and current status.
       </p>
 
-      {apiError && (
+      {(apiError || errorCAs) && (
         <Alert variant="destructive">
           <AlertCircleIcon className="h-4 w-4" />
-          <AlertTitle>Error Loading Certificates</AlertTitle>
-          <AlertDescription>{apiError} <Button variant="link" onClick={() => loadCertificates(bookmarkStack[currentPageIndex])} className="p-0 h-auto">Try again?</Button></AlertDescription>
+          <AlertTitle>Error Loading Data</AlertTitle>
+          <AlertDescription>
+            {apiError && <p>Certificates: {apiError}</p>}
+            {errorCAs && <p>CAs for Linking: {errorCAs}</p>}
+            <Button variant="link" onClick={() => loadCertificatesAndCAs(bookmarkStack[currentPageIndex])} className="p-0 h-auto">Try again?</Button>
+          </AlertDescription>
         </Alert>
       )}
 
-      {!apiError && (
+      {!(apiError || errorCAs) && (
         <>
           <CertificateList
             certificates={certificates}
             onInspectCertificate={handleInspectCertificate}
             onCertificateUpdated={handleCertificateUpdated}
+            allCAs={allCAs}
           />
           {certificates.length === 0 && !isLoadingApi && (
             <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
@@ -174,7 +226,7 @@ export default function CertificatesPage() {
         </>
       )}
       
-      {(!apiError && (certificates.length > 0 || isLoadingApi)) && (
+      {!(apiError || errorCAs) && (certificates.length > 0 || isLoadingApi) && (
         <div className="flex justify-between items-center mt-4">
             <div className="flex items-center space-x-2">
               <Label htmlFor="pageSizeSelectCertList" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
@@ -185,7 +237,7 @@ export default function CertificatesPage() {
                   setBookmarkStack([null]); 
                   setCurrentPageIndex(0);
                 }}
-                disabled={isLoadingApi || authLoading}
+                disabled={isLoadingApi || authLoading || isLoadingCAs}
               >
                 <SelectTrigger id="pageSizeSelectCertList" className="w-[80px]">
                   <SelectValue placeholder="Page size" />

@@ -19,15 +19,15 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
-// Removed: import { certificateAuthoritiesData, findCaByCommonName } from '@/lib/ca-data';
-import { findCaByCommonName } from '@/lib/ca-data'; // Keep findCaByCommonName if used, but it needs allCAs
+import type { CA } from '@/lib/ca-data'; // Import CA type
+import { findCaById } from '@/lib/ca-data'; // Import findCaById
 import { cn } from '@/lib/utils';
 
 interface CertificateListProps {
   certificates: CertificateData[];
   onInspectCertificate: (certificate: CertificateData) => void;
   onCertificateUpdated: (updatedCertificate: CertificateData) => void;
-  // allCAs: CA[]; // If we want to restore linking, pass allCAs as a prop
+  allCAs: CA[]; // Prop to receive all CAs for linking
 }
 
 type SortableColumn = 'commonName' | 'serialNumber' | 'issuerCN' | 'expires' | 'status';
@@ -38,7 +38,8 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-const StatusBadge: React.FC<{ status: VerificationStatus }> = ({ status }) => {
+// For client-side verification status (mock)
+const ClientVerificationStatusBadge: React.FC<{ status: VerificationStatus }> = ({ status }) => {
   switch (status) {
     case 'verified':
       return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="mr-1 h-3 w-3" />Verified</Badge>;
@@ -57,30 +58,57 @@ const StatusBadge: React.FC<{ status: VerificationStatus }> = ({ status }) => {
   }
 };
 
+// For displaying API-reported status
+const ApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => {
+  if (!status) return <Badge variant="outline">Unknown</Badge>;
+  const upperStatus = status.toUpperCase();
+  let badgeClass = "bg-muted text-muted-foreground border-border";
+  let Icon = ShieldQuestion;
+
+  if (upperStatus.includes('ACTIVE')) {
+    badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
+    Icon = CheckCircle;
+  } else if (upperStatus.includes('REVOKED')) {
+    badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
+    Icon = XCircle;
+  } else if (upperStatus.includes('EXPIRED')) {
+    badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
+    Icon = AlertTriangle;
+  } else if (upperStatus.includes('PENDING')) { // Example for a potential PENDING status from API
+    badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
+    Icon = Clock;
+  }
+
+  return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}><Icon className="mr-1 h-3 w-3" />{upperStatus}</Badge>;
+};
+
+
 const getCommonName = (subjectOrIssuer: string): string => {
   const cnMatch = subjectOrIssuer.match(/CN=([^,]+)/);
   return cnMatch ? cnMatch[1] : subjectOrIssuer; 
 };
 
-const statusSortOrder: Record<VerificationStatus, number> = {
-  verified: 0,
-  pending: 1,
-  unverified: 2,
-  error: 3,
-  invalid_path: 4,
-  revoked: 5,
-  expired: 6,
+const apiStatusSortOrder: Record<string, number> = {
+  'ACTIVE': 0,
+  'PENDING': 1, // Assuming PENDING could be an API status
+  'UNVERIFIED': 2, // Placeholder if needed
+  'EXPIRED': 3,
+  'REVOKED': 4,
+  'ERROR': 5,
+  'INVALID_PATH': 6, // Placeholder if needed
+  'UNKNOWN': 7, // Fallback
 };
 
 
-export function CertificateList({ certificates, onInspectCertificate, onCertificateUpdated }: CertificateListProps) {
+export function CertificateList({ certificates, onInspectCertificate, onCertificateUpdated, allCAs }: CertificateListProps) {
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchField, setSearchField] = useState<'commonName' | 'serialNumber'>('commonName');
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>({ column: 'expires', direction: 'desc' });
+
 
   const handleVerify = async (certificate: CertificateData) => {
     setVerifyingId(certificate.id);
@@ -94,14 +122,14 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
       resultStatus = 'error';
       resultDetails = 'An unexpected error occurred during verification.';
     } else if (randomOutcome < 0.15) {
-      resultStatus = 'expired';
-      resultDetails = 'Certificate is expired.';
+      resultStatus = 'expired'; // This might be redundant if API already says expired
+      resultDetails = 'Client-side check: Certificate is expired.';
     } else if (randomOutcome < 0.25) {
       resultStatus = 'invalid_path';
-      resultDetails = 'Certificate validation failed: Unable to find a valid certification path to a trusted root CA.';
+      resultDetails = 'Client-side check: Certificate validation failed: Unable to find a valid certification path to a trusted root CA.';
     } else {
       resultStatus = 'verified';
-      resultDetails = 'Certificate chain verified successfully against trusted roots. Not Expired. Not Revoked (mocked).';
+      resultDetails = 'Client-side check: Certificate chain verified successfully against trusted roots. Not Expired. Not Revoked (mocked).';
       success = true;
     }
     onCertificateUpdated({ ...certificate, verificationStatus: resultStatus, verificationDetails: resultDetails });
@@ -147,9 +175,9 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
             aValue = parseISO(a.validTo).getTime();
             bValue = parseISO(b.validTo).getTime();
             break;
-          case 'status':
-            aValue = statusSortOrder[a.verificationStatus];
-            bValue = statusSortOrder[b.verificationStatus];
+          case 'status': // Sorting by API status
+            aValue = apiStatusSortOrder[a.apiStatus?.toUpperCase() || 'UNKNOWN'] ?? apiStatusSortOrder['UNKNOWN'];
+            bValue = apiStatusSortOrder[b.apiStatus?.toUpperCase() || 'UNKNOWN'] ?? apiStatusSortOrder['UNKNOWN'];
             break;
           default:
             return 0;
@@ -177,17 +205,17 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
 
   const SortableHeader: React.FC<{ column: SortableColumn; title: string; className?: string }> = ({ column, title, className }) => {
     const isSorted = sortConfig?.column === column;
-    const Icon = isSorted ? (sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ) : ChevronsUpDown;
-    if (column === 'expires') {
-         const DateIcon = isSorted ? (sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10) : ChevronsUpDown;
-         return (
-            <TableHead className={cn("cursor-pointer hover:bg-muted/50", className)} onClick={() => requestSort(column)}>
-                <div className="flex items-center gap-1">
-                {title} <DateIcon className={cn("h-4 w-4", isSorted ? "text-primary" : "text-muted-foreground/50")} />
-                </div>
-            </TableHead>
-        );
+    let Icon = ChevronsUpDown;
+    if (isSorted) {
+      if (column === 'expires') { // Date sort
+        Icon = sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10;
+      } else { // Text or status sort
+        Icon = sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ;
+      }
+    } else if (column === 'expires') {
+        Icon = ChevronsUpDown; 
     }
+    
     return (
       <TableHead className={cn("cursor-pointer hover:bg-muted/50", className)} onClick={() => requestSort(column)}>
         <div className="flex items-center gap-1">
@@ -197,12 +225,12 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     );
   };
   
-  if (certificates.length === 0 && searchTerm === '') { // Show "No Certificates" only if initial list is empty AND no search term
+  if (certificates.length === 0 && searchTerm === '') {
     return (
       <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
         <h3 className="text-lg font-semibold text-muted-foreground">No Certificates Listed</h3>
         <p className="text-sm text-muted-foreground">
-          There are no certificates to display. You can import certificates using the form typically found on this page.
+          There are no certificates to display. Data is fetched live from the API.
         </p>
       </div>
     );
@@ -250,35 +278,36 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                 <SortableHeader column="serialNumber" title="Serial Number" className="hidden md:table-cell" />
                 <SortableHeader column="issuerCN" title="CA Issuer" className="hidden lg:table-cell" />
                 <SortableHeader column="expires" title="Expires" />
-                <SortableHeader column="status" title="Status" />
+                <SortableHeader column="status" title="API Status" />
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {processedCertificates.map((cert) => {
-                const issuerCN = getCommonName(cert.issuer);
-                // const issuerCa = findCaByCommonName(issuerCN, allCAs); // Needs allCAs passed in
+                const issuerCa = cert.issuerCaId && allCAs ? findCaById(cert.issuerCaId, allCAs) : null;
+                const issuerDisplayName = issuerCa ? issuerCa.name : getCommonName(cert.issuer);
 
                 return (
                     <TableRow key={cert.id}>
                     <TableCell className="font-medium truncate max-w-[150px] sm:max-w-xs">{getCommonName(cert.subject)}</TableCell>
                     <TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[120px]">{cert.serialNumber}</TableCell>
                     <TableCell className="hidden lg:table-cell truncate max-w-[200px]">
-                        {/* {issuerCa ? (
+                        {issuerCa ? (
                         <Button
                             variant="link"
                             className="p-0 h-auto text-left whitespace-normal leading-tight"
                             onClick={() => router.push(`/dashboard/certificate-authorities/${issuerCa.id}/details`)}
+                            title={`View details for CA: ${issuerCa.name}`}
                         >
-                            {issuerCN}
+                            {issuerCa.name}
                         </Button>
-                        ) : ( */}
-                        {issuerCN}
-                        {/* )} */}
+                        ) : (
+                          issuerDisplayName
+                        )}
                     </TableCell>
                     <TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>
-                        <StatusBadge status={cert.verificationStatus} />
+                        <ApiStatusBadge status={cert.apiStatus} />
                     </TableCell>
                     <TableCell className="text-right space-x-1">
                         <Button variant="outline" size="icon" onClick={() => onInspectCertificate(cert)} title="Inspect Certificate" className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1">
@@ -290,7 +319,7 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
                         size="icon"
                         onClick={() => handleVerify(cert)}
                         disabled={verifyingId === cert.id || cert.verificationStatus === 'pending'}
-                        title="Verify Certificate"
+                        title="Verify Certificate (Client-side Mock)"
                         className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1"
                         >
                         {verifyingId === cert.id || cert.verificationStatus === 'pending' ? (
@@ -331,4 +360,3 @@ export function CertificateList({ certificates, onInspectCertificate, onCertific
     </div>
   );
 }
-

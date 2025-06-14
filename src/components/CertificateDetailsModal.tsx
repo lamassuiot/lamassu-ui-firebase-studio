@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge'; // Changed import path
+import { Badge } from '@/components/ui/badge';
 
 interface CertificateDetailsModalProps {
   certificate: CertificateData | null;
@@ -19,19 +19,21 @@ interface CertificateDetailsModalProps {
 export function CertificateDetailsModal({ certificate, isOpen, onClose }: CertificateDetailsModalProps) {
   if (!certificate) return null;
 
-  const DetailItem: React.FC<{ label: string; value?: string | string[] | null }> = ({ label, value }) => {
+  const DetailItem: React.FC<{ label: string; value?: string | string[] | null | React.ReactNode }> = ({ label, value }) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return null;
     return (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 py-2">
         <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
         <dd className="text-sm text-foreground sm:col-span-2">
-          {Array.isArray(value) ? (
-            <ul className="list-disc list-inside">
-              {value.map((item, index) => <li key={index}>{item}</li>)}
-            </ul>
-          ) : (
-            value
-          )}
+          {React.isValidElement(value) ? value : 
+            Array.isArray(value) ? (
+              <ul className="list-disc list-inside">
+                {value.map((item, index) => <li key={index}>{item}</li>)}
+              </ul>
+            ) : (
+              value
+            )
+          }
         </dd>
       </div>
     );
@@ -43,7 +45,7 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">Certificate Details: {certificate.fileName}</DialogTitle>
           <DialogDescription>
-            Detailed information for the selected X.509 certificate.
+            Detailed information for the selected X.509 certificate. API Status: {certificate.apiStatus || 'N/A'}
           </DialogDescription>
         </DialogHeader>
         
@@ -54,6 +56,8 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
             <DetailItem label="Serial Number" value={certificate.serialNumber} />
             <DetailItem label="Valid From" value={format(new Date(certificate.validFrom), 'PPpp')} />
             <DetailItem label="Valid To" value={format(new Date(certificate.validTo), 'PPpp')} />
+            <DetailItem label="API Reported Status" value={<Badge variant={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'default' : 'destructive'} className={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'bg-green-500' : ''}>{certificate.apiStatus || 'N/A'}</Badge>} />
+            
             {certificate.publicKeyAlgorithm && <DetailItem label="Public Key Algorithm" value={certificate.publicKeyAlgorithm} />}
             {certificate.signatureAlgorithm && <DetailItem label="Signature Algorithm" value={certificate.signatureAlgorithm} />}
             {certificate.fingerprintSha256 && <DetailItem label="SHA-256 Fingerprint" value={certificate.fingerprintSha256} />}
@@ -72,8 +76,8 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
             <Separator className="my-3"/>
             
             <div className="py-2">
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Verification Status</h3>
-              <p className="text-sm text-foreground">{certificate.verificationDetails}</p>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">Client Verification Status</h3>
+              <p className="text-sm text-foreground">({certificate.verificationStatus}) {certificate.verificationDetails}</p>
             </div>
             
             <Separator className="my-3"/>
@@ -81,7 +85,18 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-1">PEM Data</h3>
               <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/30">
-                <pre className="text-xs whitespace-pre-wrap break-all font-code">{certificate.pemData}</pre>
+                <pre className="text-xs whitespace-pre-wrap break-all font-mono">{certificate.pemData}</pre>
+              </ScrollArea>
+            </div>
+
+            <Separator className="my-3"/>
+
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">Raw API Data</h3>
+              <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/30">
+                <pre className="text-xs whitespace-pre-wrap break-all font-mono">
+                  {certificate.rawApiData ? JSON.stringify(certificate.rawApiData, null, 2) : 'No raw API data available.'}
+                </pre>
               </ScrollArea>
             </div>
           </div>
