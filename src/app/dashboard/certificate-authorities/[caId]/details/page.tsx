@@ -1,5 +1,4 @@
 
-import React from 'react';
 import CertificateAuthorityDetailsClient from '@/components/dashboard/ca/details/CertificateAuthorityDetailsClient';
 
 export async function generateStaticParams() {
@@ -8,8 +7,8 @@ export async function generateStaticParams() {
   return [];
 }
 
-// Page component (Server Component)
+// Page component (now a Server Component shell)
 export default function CertificateAuthorityDetailsPage() {
-  // CertificateAuthorityDetailsClient will now fetch its own data using useParams().
+  // CertificateAuthorityDetailsClient will fetch its own data using useParams().
   return <CertificateAuthorityDetailsClient />;
 }

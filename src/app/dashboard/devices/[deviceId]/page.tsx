@@ -7,9 +7,8 @@ export async function generateStaticParams() {
   return [];
 }
 
-// This is a Server Component shell for the dynamic route.
-export default function DeviceDetailPageContainer({ params }: { params: { deviceId: string } }) {
-  // The client component uses useParams(), so no need to pass params.deviceId here explicitly
-  // unless there's a specific reason or pre-fetching logic done in this server component in the future.
+// Page component (Server Component shell)
+export default function DeviceDetailPageContainer() {
+  // The client component uses useParams() to get deviceId
   return <DeviceDetailPageClient />;
 }
