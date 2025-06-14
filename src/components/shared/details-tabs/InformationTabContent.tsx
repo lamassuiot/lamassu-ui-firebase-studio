@@ -5,7 +5,7 @@ import React from 'react';
 import type { CA } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, ArrowLeft } from "lucide-react"; // Added FileText and ArrowLeft
+import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, ChevronDown } from "lucide-react"; // Added ChevronDown, removed ArrowLeft for chain
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -217,7 +217,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             </AccordionTrigger>
             <AccordionContent className="px-4 pt-3">
               <div className="flex flex-col items-center w-full">
-                <div className="relative flex flex-col items-center group w-full max-w-sm border border-primary/50 rounded-lg p-3 shadow-sm mb-2 bg-primary/5">
+                <div className="relative flex flex-col items-center group w-full max-w-sm border border-primary/50 rounded-lg p-3 shadow-sm bg-primary/5">
                   <div className="flex items-center space-x-3 w-full">
                     <FileText className="h-5 w-5 text-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -227,7 +227,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                   </div>
                 </div>
                 {certificateSpecific.certificateChainForVisualizer.length > 0 && (
-                  <ArrowLeft className="h-5 w-5 text-border my-1 transform rotate-90" />
+                  <ChevronDown className="h-5 w-5 text-border my-1" />
                 )}
                 {certificateSpecific.certificateChainForVisualizer.map((caNode, index) => (
                   <CaHierarchyPathNode
@@ -235,7 +235,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                     ca={caNode}
                     isCurrentCa={false} // CAs in this chain are issuers, not the current item
                     hasNext={index < certificateSpecific.certificateChainForVisualizer.length - 1}
-                    isFirst={index === 0}
+                    isFirst={true} // For CaHierarchyPathNode, this means it won't render an arrow *before* itself.
                   />
                 ))}
               </div>
