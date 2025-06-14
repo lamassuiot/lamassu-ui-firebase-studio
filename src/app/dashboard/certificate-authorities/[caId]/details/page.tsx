@@ -7,7 +7,7 @@ export async function generateStaticParams() {
   return [];
 }
 
-// Page component (now a Server Component shell)
+// Page component (Server Component shell)
 export default function CertificateAuthorityDetailsPage() {
   // CertificateAuthorityDetailsClient will fetch its own data using useParams().
   return <CertificateAuthorityDetailsClient />;

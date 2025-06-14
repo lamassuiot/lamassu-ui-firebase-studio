@@ -7,7 +7,7 @@ export async function generateStaticParams() {
   return [];
 }
 
-// Page component (now a Server Component shell)
+// Page component (Server Component shell)
 export default function IssueCertificatePage() {
   // The client component uses useParams() to get caId, so no specific data needs to be passed here.
   return <IssueCertificateFormClient />;
