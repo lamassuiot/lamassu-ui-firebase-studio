@@ -6,12 +6,16 @@ import React from 'react';
 import CertificateAuthorityDetailsClient from '@/components/dashboard/ca/details/CertificateAuthorityDetailsClient';
 
 // This function is problematic with fully dynamic, API-driven data and `output: 'export'`.
-// For now, returning an empty array to avoid build errors.
+// For now, returning a list of known/example CA IDs to avoid build errors.
 // A better approach for `output: 'export'` might involve pre-building known CA pages
 // or making this page fully client-rendered if CA list is highly dynamic.
 export async function generateStaticParams() {
-  // Example: return [{ caId: 'known-ca-1' }, { caId: 'known-ca-2' }];
-  return []; // No CAs will be pre-rendered at build time.
+  return [
+    { caId: '33631fff-38ac-4950-a15c-e8d12e7b794f' }, // ID from build error
+    { caId: '07c23e39-964a-4a2b-8021-e9584c4db8ad' }, // Example from API
+    { caId: '3f3b381b-ed94-4017-ade9-76f2958b39e6' }, // Example from API
+    // Add other known/important CA IDs here if needed for pre-rendering
+  ];
 }
 
 // Page component (Server Component)
