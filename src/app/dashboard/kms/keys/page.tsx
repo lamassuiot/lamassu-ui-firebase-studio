@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { KeyRound, PlusCircle, MoreVertical, Eye, FilePlus2, PenTool, ShieldCheck, Trash2, AlertTriangle } from "lucide-react";
+import { KeyRound, PlusCircle, MoreVertical, Eye, FilePlus2, PenTool, ShieldCheck, Trash2, AlertTriangle, FileSignature } from "lucide-react"; // Added FileSignature
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ interface KmsKey {
   status: 'Enabled' | 'Disabled' | 'PendingDeletion';
   creationDate: string; // ISO Date string
   description?: string;
+  hasPrivateKey?: boolean; // Added to determine CSR/Sign capability
 }
 
 const mockKmsKeysData: KmsKey[] = [
@@ -31,6 +32,7 @@ const mockKmsKeysData: KmsKey[] = [
     status: 'Enabled',
     creationDate: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Primary signing key for the LamassuIoT Global Root CA G1, referenced via PKCS11 URI.',
+    hasPrivateKey: true,
   },
   {
     id: 'key-5678efgh-56ef-78gh-90ij-5678901234cd',
@@ -39,6 +41,7 @@ const mockKmsKeysData: KmsKey[] = [
     status: 'Enabled',
     creationDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Signing key for the Development Intermediate CA.',
+    hasPrivateKey: true,
   },
   {
     id: 'key-pq-dilithium2-aes',
@@ -47,6 +50,7 @@ const mockKmsKeysData: KmsKey[] = [
     status: 'Enabled',
     creationDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Post-quantum signature key for critical firmware (ML-DSA Level 3).',
+    hasPrivateKey: true,
   },
   {
     id: 'key-9012ijkl-90ij-12kl-34mn-9012345678ef',
@@ -55,6 +59,7 @@ const mockKmsKeysData: KmsKey[] = [
     status: 'Disabled',
     creationDate: new Date(Date.now() - 700 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Archived code signing key, no longer in active use.',
+    hasPrivateKey: true, // Assume it had one historically
   },
   {
     id: 'key-3456mnop-34mn-56op-78qr-3456789012gh',
@@ -63,6 +68,16 @@ const mockKmsKeysData: KmsKey[] = [
     status: 'PendingDeletion',
     creationDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Encryption key for staging services, scheduled for deletion.',
+    hasPrivateKey: true,
+  },
+  {
+    id: 'key-public-only-sample',
+    alias: 'lamassu/external/partner-verification-key',
+    keyTypeDisplay: 'RSA 2048',
+    status: 'Enabled',
+    creationDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+    description: 'Public key of an external partner for signature verification.',
+    hasPrivateKey: false, // Explicitly public only
   },
 ];
 
@@ -113,6 +128,10 @@ export default function KmsKeysPage() {
     setKeyToDelete(null);
   };
 
+  const handleViewDetails = (keyId: string) => {
+    router.push(`/dashboard/kms/keys/${keyId}`);
+  };
+
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
@@ -161,16 +180,22 @@ export default function KmsKeysPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => alert(`View details for key: ${key.alias}`)}>
+                        <DropdownMenuItem onClick={() => handleViewDetails(key.id)}>
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Generate CSR for key: ${key.alias} (placeholder)`)}>
-                          <FilePlus2 className="mr-2 h-4 w-4" /> Generate CSR
+                        <DropdownMenuItem 
+                          onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=generate-csr`)}
+                          disabled={!key.hasPrivateKey}
+                        >
+                          <FileSignature className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Sign with key: ${key.alias} (placeholder)`)}>
+                        <DropdownMenuItem 
+                          onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=sign-verify`)}
+                          disabled={!key.hasPrivateKey}
+                        >
                           <PenTool className="mr-2 h-4 w-4" /> Sign
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Verify with key: ${key.alias} (placeholder)`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=sign-verify`)}>
                           <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem> 
                         <DropdownMenuSeparator />
