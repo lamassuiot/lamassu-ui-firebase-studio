@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { DetailItem } from '@/components/shared/DetailItem';
-import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
+import { KmsPublicKeyPemTabContent } from '@/components/dashboard/kms/details-tabs/KmsPublicKeyPemTabContent'; // Updated import
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,7 @@ interface KmsKeyDetailed {
   description?: string;
   hasPrivateKey: boolean;
   publicKeyPem?: string;
-  privateKeyPem?: string; // Optional
+  // privateKeyPem removed as it's not directly shown in this simplified "Public Key" tab
   purpose?: string[]; // e.g., ['SIGN_VERIFY', 'ENCRYPT_DECRYPT']
   origin?: 'GENERATED' | 'IMPORTED_FULL' | 'IMPORTED_PUBLIC_ONLY';
 }
@@ -52,8 +52,7 @@ const fetchMockKmsKeyDetails = async (keyId: string): Promise<KmsKeyDetailed | n
       creationDate: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(),
       description: 'Primary signing key for the LamassuIoT Global Root CA G1, referenced via PKCS11 URI.',
       hasPrivateKey: true,
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0yZ9o2U88eLMDc8X\nU1jV9qZ1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q\n0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z\n1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2\nAd1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X\n2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2QIDAQAB\n-----END PUBLIC KEY-----`,
-      privateKeyPem: `-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDTJn2jZTzx4swN\nzxdTWNX2pnXFnYB3VfZjfHxnZDTD1nXFnYB3VfZjfHxnZDTD1nXFnYB3VfZjfHxn\nZDTD1nXFnYB3VfZjfHxnal... (mocked private key) ...\n-----END PRIVATE KEY-----`,
+      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0yZ9o2U88eLMDc8X\\nU1jV9qZ1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q\\n0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z\\n1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2\\nAd1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X\\n2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2QIDAQAB\\n-----END PUBLIC KEY-----`,
       purpose: ['SIGN_VERIFY', 'KEY_CERT_SIGN'],
       origin: 'IMPORTED_FULL',
     },
@@ -67,8 +66,7 @@ const fetchMockKmsKeyDetails = async (keyId: string): Promise<KmsKeyDetailed | n
       creationDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
       description: 'Signing key for the Development Intermediate CA.',
       hasPrivateKey: true,
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEAjP8hK1wG2J4v3hZ7YQ8k8j5X4v7yW1\nN0zXv1X6n8k2VzP7wS5Z3sW2n0cX9jV8k4R6wQ7jXyZ5dY9nU2oW8sB0rP6sF3qK\nB6dJ9gY7wP5k3R2nN1qX0xXw==\n-----END PUBLIC KEY-----`,
-      privateKeyPem: `-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIJQ5... (mocked private key) ...\n-----END EC PRIVATE KEY-----`,
+      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEAjP8hK1wG2J4v3hZ7YQ8k8j5X4v7yW1\\nN0zXv1X6n8k2VzP7wS5Z3sW2n0cX9jV8k4R6wQ7jXyZ5dY9nU2oW8sB0rP6sF3qK\\nB6dJ9gY7wP5k3R2nN1qX0xXw==\\n-----END PUBLIC KEY-----`,
       purpose: ['SIGN_VERIFY'],
       origin: 'GENERATED',
     },
@@ -77,12 +75,12 @@ const fetchMockKmsKeyDetails = async (keyId: string): Promise<KmsKeyDetailed | n
       alias: 'lamassu/prod/firmware-signing-mldsa65',
       keyTypeDisplay: 'ML-DSA-65',
       algorithm: 'ML-DSA',
-      keySize: 'ML-DSA-65',
+      keySize: 'ML-DSA-65', // This is more of a 'level' than a size in bits
       status: 'Enabled',
       creationDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
       description: 'Post-quantum signature key for critical firmware (ML-DSA Level 3).',
-      hasPrivateKey: true, // Assuming for ML-DSA it also has a private part
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\nMLDSA PUBLIC KEY DATA (mocked for ML-DSA-65)\n-----END PUBLIC KEY-----`,
+      hasPrivateKey: true,
+      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMLDSA PUBLIC KEY DATA (mocked for ML-DSA-65)\\n-----END PUBLIC KEY-----`,
       purpose: ['SIGN_VERIFY'],
       origin: 'GENERATED',
     },
@@ -96,7 +94,7 @@ const fetchMockKmsKeyDetails = async (keyId: string): Promise<KmsKeyDetailed | n
       creationDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
       description: 'Public key of an external partner for signature verification.',
       hasPrivateKey: false,
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA... (another public key) ...\nAQAB\n-----END PUBLIC KEY-----`,
+      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA... (another public key) ...\\nAQAB\\n-----END PUBLIC KEY-----`,
       purpose: ['VERIFY_ONLY'],
       origin: 'IMPORTED_PUBLIC_ONLY',
     }
@@ -129,15 +127,17 @@ export default function KmsKeyDetailsPageClient() {
   const [keyDetails, setKeyDetails] = useState<KmsKeyDetailed | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('overview');
 
-  // State for Sign/Verify Tab
-  const [signAlgorithm, setSignAlgorithm] = useState(signatureAlgorithms[3]); // Default to RSASSA_PKCS1_V1_5_SHA_256
+  // State for Sign Tab
+  const [signAlgorithm, setSignAlgorithm] = useState(signatureAlgorithms[3]);
   const [signMessageType, setSignMessageType] = useState('RAW');
   const [signPayloadEncoding, setSignPayloadEncoding] = useState('PLAIN_TEXT');
   const [payloadToSign, setPayloadToSign] = useState('');
   const [generatedSignature, setGeneratedSignature] = useState('');
 
-  const [verifyAlgorithm, setVerifyAlgorithm] = useState(signatureAlgorithms[3]); // Default to RSASSA_PKCS1_V1_5_SHA_256
+  // State for Verify Tab
+  const [verifyAlgorithm, setVerifyAlgorithm] = useState(signatureAlgorithms[3]);
   const [verifyMessageType, setVerifyMessageType] = useState('RAW');
   const [verifyPayloadEncoding, setVerifyPayloadEncoding] = useState('PLAIN_TEXT');
   const [unsignedPayload, setUnsignedPayload] = useState('');
@@ -157,7 +157,22 @@ export default function KmsKeyDetailsPageClient() {
         .then(data => {
           if (data) {
             setKeyDetails(data);
-            setCsrCommonName(data.alias || '');
+            setCsrCommonName(data.alias || ''); // Pre-fill CSR CN with alias
+
+            // Set default algorithm based on key type
+            if (data.algorithm === 'RSA') {
+                setSignAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
+                setVerifyAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
+            } else if (data.algorithm === 'ECDSA') {
+                setSignAlgorithm('ECDSA_SHA_256');
+                setVerifyAlgorithm('ECDSA_SHA_256');
+            } else if (data.algorithm === 'ML-DSA') {
+                const defaultMlDsaAlgo = data.keySize === 'ML-DSA-44' ? 'ML-DSA-44' :
+                                         data.keySize === 'ML-DSA-87' ? 'ML-DSA-87' : 'ML-DSA-65';
+                setSignAlgorithm(defaultMlDsaAlgo);
+                setVerifyAlgorithm(defaultMlDsaAlgo);
+            }
+
           } else {
             setError(`KMS Key with ID "${keyId}" not found.`);
           }
@@ -168,6 +183,12 @@ export default function KmsKeyDetailsPageClient() {
         })
         .finally(() => setIsLoading(false));
     }
+     const queryParams = new URLSearchParams(window.location.search);
+     const tabFromQuery = queryParams.get('tab');
+     if (tabFromQuery) {
+        setActiveTab(tabFromQuery);
+     }
+
   }, [keyId]);
 
   const handleSign = () => {
@@ -196,13 +217,13 @@ export default function KmsKeyDetailsPageClient() {
         return;
     }
     console.log("Mock CSR Generation:", { commonName: csrCommonName, organization: csrOrganization, keyId: keyDetails?.id });
-    const mockCsrContent = `-----BEGIN CERTIFICATE REQUEST-----\n`+
-                           `MIICvDCCAaQCAQAwdzELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWEx\n`+
-                           `FjAUBgNVBAcMDU1vdW50YWluIFZpZXcxDTALBgNVBAoMBEdvb2dsZTEPMA0GA1UE\n`+
-                           `CwwGSW50ZXJuZXQxEjAQBgNVBAMMCSoubGFtYXNzdS5pbzCCASIwDQYJKoZIhvcN\n`+
-                           `AQEBBQADggEPADCCAQoCggEBANEvb0FbEDkRkYFuM4Q0QfLpFkfpGpySnJzYwhuT\n`+
-                           `... (mock CSR content for ${csrCommonName}) ...\n`+
-                           `MGFqLg==\n`+
+    const mockCsrContent = `-----BEGIN CERTIFICATE REQUEST-----\\n`+
+                           `MIICvDCCAaQCAQAwdzELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWEx\\n`+
+                           `FjAUBgNVBAcMDU1vdW50YWluIFZpZXcxDTALBgNVBAoMBEdvb2dsZTEPMA0GA1UE\\n`+
+                           `CwwGSW50ZXJuZXQxEjAQBgNVBAMMCSoubGFtYXNzdS5pbzCCASIwDQYJKoZIhvcN\\n`+
+                           `AQEBBQADggEPADCCAQoCggEBANEvb0FbEDkRkYFuM4Q0QfLpFkfpGpySnJzYwhuT\\n`+
+                           `... (mock CSR content for ${csrCommonName}) ...\\n`+
+                           `MGFqLg==\\n`+
                            `-----END CERTIFICATE REQUEST-----`;
     setGeneratedCsr(mockCsrContent);
     toast({ title: "Mock CSR Generated", description: "CSR content populated (mock)." });
@@ -268,8 +289,8 @@ export default function KmsKeyDetailsPageClient() {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full p-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full p-6">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mb-6">
             <TabsTrigger value="overview"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Overview</TabsTrigger>
             <TabsTrigger value="public-key"><FileText className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Public Key</TabsTrigger>
             <TabsTrigger value="sign" disabled={!keyDetails.hasPrivateKey}><PenTool className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Sign</TabsTrigger>
@@ -306,8 +327,8 @@ export default function KmsKeyDetailsPageClient() {
           </TabsContent>
 
           <TabsContent value="public-key">
-            <PemTabContent
-              singlePemData={keyDetails.publicKeyPem}
+            <KmsPublicKeyPemTabContent
+              publicKeyPem={keyDetails.publicKeyPem}
               itemName={keyDetails.alias}
               toast={toast}
             />
@@ -326,7 +347,11 @@ export default function KmsKeyDetailsPageClient() {
                             <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {signatureAlgorithms.map(algo => (
-                                    <SelectItem key={algo} value={algo}>{algo}</SelectItem>
+                                    <SelectItem key={algo} value={algo} disabled={
+                                        (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                                        (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                                        (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                                    }>{algo}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -380,7 +405,11 @@ export default function KmsKeyDetailsPageClient() {
                             <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {signatureAlgorithms.map(algo => (
-                                    <SelectItem key={algo} value={algo}>{algo}</SelectItem>
+                                     <SelectItem key={algo} value={algo} disabled={
+                                        (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                                        (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                                        (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                                    }>{algo}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -450,4 +479,3 @@ export default function KmsKeyDetailsPageClient() {
     </div>
   );
 }
-
