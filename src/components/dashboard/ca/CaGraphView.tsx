@@ -49,26 +49,24 @@ interface DagreEdge {
 }
 
 const KMS_NODE_WIDTH = 220;
-const KMS_NODE_HEIGHT = 60; // Slightly increased height for better text fit
+const KMS_NODE_HEIGHT = 60;
 const CA_CERT_NODE_WIDTH = 280;
-const CA_CERT_NODE_HEIGHT = 110; // Base height for CA cert node
+const CA_CERT_NODE_HEIGHT = 110;
 const CA_CERT_KMS_ID_TEXT_HEIGHT = 20;
 
-// New color scheme for KMS Nodes (Green)
 const KMS_NODE_THEME = {
-  border: 'hsl(120 50% 40%)', // Darker Green
-  bg: 'hsl(120 60% 88%)',     // Lighter Green
-  text: 'hsl(120 50% 25%)',   // Dark Green for text
-  iconColor: 'hsl(120 50% 45%)'// Medium Green for icon
+  border: 'hsl(130 50% 45%)', // Slightly adjusted green
+  bg: 'hsl(130 60% 90%)',     // Lighter green for background
+  text: 'hsl(130 50% 20%)',   // Darker green for text
+  iconColor: 'hsl(130 50% 40%)'// Medium green for icon
 };
 
-// Updated function for CA Certificate Node colors (Blue for active)
 const getCaCertStatusColors = (ca: CA): { border: string, bg: string, text: string, iconColor: string } => {
   const isExpired = isPast(parseISO(ca.expires));
-  if (ca.status === 'revoked') return { border: 'hsl(0 72% 51%)', bg: 'hsl(0 72% 51% / 0.1)', text: 'hsl(0 72% 51%)', iconColor: 'hsl(0 72% 51%)' };
-  if (isExpired) return { border: 'hsl(30 80% 55%)', bg: 'hsl(30 80% 55% / 0.1)', text: 'hsl(30 80% 55%)', iconColor: 'hsl(30 80% 55%)' };
+  if (ca.status === 'revoked') return { border: 'hsl(0 72% 51%)', bg: 'hsl(0 72% 92%)', text: 'hsl(0 72% 40%)', iconColor: 'hsl(0 72% 51%)' };
+  if (isExpired) return { border: 'hsl(30 80% 55%)', bg: 'hsl(30 80% 92%)', text: 'hsl(30 80% 40%)', iconColor: 'hsl(30 80% 55%)' };
   // Active CA Certs are Blue
-  return { border: 'hsl(210 70% 45%)', bg: 'hsl(210 70% 90%)', text: 'hsl(210 70% 30%)', iconColor: 'hsl(210 70% 50%)' };
+  return { border: 'hsl(210 70% 50%)', bg: 'hsl(210 70% 92%)', text: 'hsl(210 70% 30%)', iconColor: 'hsl(210 70% 50%)' };
 };
 
 
@@ -82,7 +80,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
     setLayoutRan(false); 
 
     const g = new dagre.graphlib.Graph({ compound: false }); 
-    g.setGraph({ rankdir: 'TB', ranksep: 70, nodesep: 40, edgesep: 20 }); // Adjusted spacing slightly
+    g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 50, edgesep: 25 }); // Increased ranksep slightly
     g.setDefaultEdgeLabel(() => ({}));
 
     const uniqueKmsKeyIds = new Set<string>();
@@ -94,7 +92,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
 
     uniqueKmsKeyIds.forEach(kmsId => {
       g.setNode(`kms-${kmsId}`, {
-        label: `KMS Key: ${kmsId.substring(0,15)}${kmsId.length > 15 ? '...' : ''}`, // Shortened display
+        label: `KMS: ${kmsId.substring(0,12)}...`,
         width: KMS_NODE_WIDTH,
         height: KMS_NODE_HEIGHT,
         isKmsNode: true,
@@ -114,16 +112,17 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
     });
 
     allCAs.forEach(ca => {
+      // Edge from KMS Key to CA (type: 'signs')
       if (ca.kmsKeyId && g.hasNode(`kms-${ca.kmsKeyId}`) && g.hasNode(ca.id)) {
          if (!g.outEdges(`kms-${ca.kmsKeyId}`)?.some(edge => edge.w === ca.id)) {
             g.setEdge(`kms-${ca.kmsKeyId}`, ca.id, { 
               type: 'signs', 
-              style: `stroke: ${KMS_NODE_THEME.border}; stroke-dasharray: 5,5;`, // Dashed line for KMS signing
+              style: `stroke: ${KMS_NODE_THEME.border}; stroke-dasharray: 6,4;`, // Adjusted dasharray
               arrowhead: 'kms_signs' 
             } as DagreEdge);
          }
       }
-
+      // Edge from Issuer CA to this CA (type: 'issues')
       if (ca.issuer && ca.issuer !== 'Self-signed' && ca.issuer !== ca.id && g.hasNode(ca.issuer) && g.hasNode(ca.id)) {
         if (!g.outEdges(ca.issuer)?.some(edge => edge.w === ca.id)) {
            g.setEdge(ca.issuer, ca.id, { 
@@ -166,7 +165,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
   return (
     <div className="w-full h-[calc(100vh-250px)] border rounded-md relative overflow-hidden flex flex-col bg-muted/10">
       <div className="p-2 border-b bg-background flex items-center justify-between sticky top-0 z-20">
-        <div></div>
+        <div></div> {/* Placeholder for future controls if needed */}
         <div className="flex items-center space-x-2">
           <ServerIcon className="h-4 w-4 text-muted-foreground" />
           <Label htmlFor="showKmsIdTextToggleGraph" className="text-sm font-medium text-muted-foreground">
@@ -209,13 +208,13 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                         <path
                           key={`edge-${i}-${edge.v}-${edge.w}`}
                           d={pathData}
-                          strokeWidth="1.5"
+                          strokeWidth="2" // Slightly thicker edge lines
                           fill="none"
                           style={{ 
                             stroke: edge.type === 'signs' ? KMS_NODE_THEME.border : 'hsl(var(--border))', 
-                            strokeDasharray: edge.type === 'signs' ? '5,5' : 'none' 
+                            strokeDasharray: edge.type === 'signs' ? '6,4' : 'none' // Adjusted dash for 'signs'
                           }}
-                          markerEnd={edge.arrowhead === 'ca_issues' ? "url(#arrowhead-ca-issues)" : "url(#arrowhead-kms-signs)"}
+                          markerEnd={edge.type === 'issues' ? "url(#arrowhead-ca-issues)" : "url(#arrowhead-kms-signs)"} // Use edge.type directly
                         />
                       );
                     })}
@@ -229,7 +228,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                           <g
                             key={kmsNode.id}
                             transform={`translate(${kmsNode.x - kmsNode.width / 2}, ${kmsNode.y - kmsNode.height / 2})`}
-                            className="cursor-default group"
+                            className="cursor-pointer group" // Make KMS node clickable
                              onClick={() => router.push(`/dashboard/kms/keys/${kmsNode.kmsId}`)}
                           >
                             <rect
@@ -239,19 +238,18 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                               ry="6"
                               fill={KMS_NODE_THEME.bg}
                               stroke={KMS_NODE_THEME.border}
-                              strokeWidth="2" // Make border slightly thicker
+                              strokeWidth="1.5"
                               className="transition-shadow group-hover:shadow-md"
                             />
                             <foreignObject width={kmsNode.width} height={kmsNode.height} x="0" y="0">
                                 <div className={cn("p-2 flex flex-col justify-center items-center h-full text-xs", 'namespace-kms-node')}>
                                     <div className="flex items-center mb-0.5">
-                                      <ServerIcon size={16} className="mr-1.5" style={{color: KMS_NODE_THEME.iconColor}} />
-                                      <p className="font-semibold truncate text-base" style={{color: KMS_NODE_THEME.text}} title={kmsNode.kmsId}>
-                                        {/* Heuristic for display name - replace with actual alias if available */}
-                                        {kmsNode.kmsId.includes('prod') ? 'Key-PROD' : kmsNode.kmsId.includes('iot') ? 'Key-IoT' : 'KMS Key'}
+                                      <ServerIcon size={18} className="mr-1.5 flex-shrink-0" style={{color: KMS_NODE_THEME.iconColor}} />
+                                      <p className="font-semibold truncate text-sm" style={{color: KMS_NODE_THEME.text}} title={kmsNode.kmsId}>
+                                        KMS Key
                                       </p>
                                     </div>
-                                    <p className="font-mono truncate text-[10px]" style={{color: KMS_NODE_THEME.text}} title={kmsNode.kmsId}>
+                                    <p className="font-mono truncate text-[10px]" style={{color: KMS_NODE_THEME.text, opacity: 0.8}} title={kmsNode.kmsId}>
                                       {kmsNode.kmsId}
                                     </p>
                                 </div>
@@ -277,31 +275,31 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                               ry="8"
                               fill={statusColors.bg}
                               stroke={statusColors.border}
-                              strokeWidth="2" // Make border slightly thicker
+                              strokeWidth="1.5"
                               className="transition-shadow group-hover:shadow-lg"
                             />
                             <foreignObject width={caNode.width} height={nodeActualHeight} x="0" y="0">
                               <div className={cn("p-2.5 flex flex-col justify-between h-full text-xs", 'namespace-ca-cert-node')}>
                                  <div>
                                   <div className="flex items-center mb-1">
-                                    <Key size={16} className="mr-1.5" style={{color: statusColors.iconColor}} />
-                                    <p className="font-semibold text-base truncate" style={{color: statusColors.text}} title={caNode.label}>{caNode.label}</p>
+                                    <Key size={16} className="mr-1.5 flex-shrink-0" style={{color: statusColors.iconColor}} />
+                                    <p className="font-semibold text-sm truncate" style={{color: statusColors.text}} title={caNode.label}>{caNode.label}</p>
                                   </div>
-                                  <p className="truncate text-[10px]" style={{color: cn(statusColors.text, 'opacity-80')}} title={`ID: ${caNode.id}`}>
-                                      ID: <span className="font-mono">{caNode.id.substring(0,15)}...</span>
+                                  <p className="truncate text-[10px]" style={{color: cn(statusColors.text, 'opacity-70')}} title={`ID: ${caNode.id}`}>
+                                      ID: <span className="font-mono">{caNode.id}</span>
                                   </p>
                                   {isSelfSignedByCertDef && (
-                                      <div className="flex items-center mt-0.5" style={{color: statusColors.iconColor, opacity: 0.9}}>
-                                          <IterationCcw size={11} className="mr-1" />
-                                          <span className="text-[10px]">Self-Signed Cert</span>
+                                      <div className="flex items-center mt-0.5" style={{color: statusColors.iconColor, opacity: 0.8}}>
+                                          <IterationCcw size={11} className="mr-1 flex-shrink-0" />
+                                          <span className="text-[10px] font-medium">Self-Signed Cert</span>
                                       </div>
                                   )}
                                   <p className={cn("text-[10px] mt-0.5 font-medium")} style={{color: statusColors.text}}>{caNode.caData.status.toUpperCase()} &middot; Exp: {formatDistanceToNowStrict(parseISO(caNode.caData.expires))} </p>
                                  </div>
                                   {showKmsKeyIdTextInCaNode && caNode.caData.kmsKeyId && (
-                                  <div className="mt-auto pt-1 border-t border-dashed" style={{borderColor: cn(statusColors.border, 'opacity-50')}}>
-                                      <p className="text-[10px] font-medium" style={{color: statusColors.text}}>Uses KMS Key:</p>
-                                      <p className="text-[10px] font-mono truncate" style={{color: statusColors.text, opacity: 0.8}} title={caNode.caData.kmsKeyId}>
+                                  <div className="mt-auto pt-1 border-t border-dashed" style={{borderColor: cn(statusColors.border, 'opacity-40')}}>
+                                      <p className="text-[10px] font-medium" style={{color: statusColors.text, opacity: 0.9}}>Uses KMS Key:</p>
+                                      <p className="text-[10px] font-mono truncate" style={{color: statusColors.text, opacity: 0.7}} title={caNode.caData.kmsKeyId}>
                                       {caNode.caData.kmsKeyId}
                                       </p>
                                   </div>
