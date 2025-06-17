@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,14 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Settings, Info, CalendarDays, KeyRound, Repeat, UploadCloud, FileText } from "lucide-react";
+import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Settings, Info, CalendarDays, KeyRound, Repeat, UploadCloud, FileText, Loader2, AlertTriangle } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { certificateAuthoritiesData } from '@/lib/ca-data';
+import { fetchAndProcessCAs } from '@/lib/ca-data'; // Corrected import
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from '@/lib/utils';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
+import { useAuth } from '@/contexts/AuthContext';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 interface SelectableCaTreeItemProps {
   ca: CA;
@@ -117,6 +120,8 @@ const creationModes = [
 
 export default function CreateCertificateAuthorityPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+
   const [selectedMode, setSelectedMode] = useState<string | null>(null);
 
   const [caType, setCaType] = useState('root');
@@ -139,9 +144,42 @@ export default function CreateCertificateAuthorityPage() {
 
   const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
 
+  const [availableParentCAs, setAvailableParentCAs] = useState<CA[]>([]);
+  const [isLoadingParentCAs, setIsLoadingParentCAs] = useState(false);
+  const [errorParentCAs, setErrorParentCAs] = useState<string | null>(null);
+
+
   useEffect(() => {
     setCaId(crypto.randomUUID());
   }, []);
+
+  const loadParentCAs = useCallback(async () => {
+    if (!isAuthenticated() || !user?.access_token) {
+      if (!authLoading) { 
+        setErrorParentCAs("User not authenticated. Cannot load parent CAs.");
+      }
+      setIsLoadingParentCAs(false);
+      return;
+    }
+    setIsLoadingParentCAs(true);
+    setErrorParentCAs(null);
+    try {
+      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+      setAvailableParentCAs(fetchedCAs);
+    } catch (err: any) {
+      setErrorParentCAs(err.message || 'Failed to load available parent CAs.');
+      setAvailableParentCAs([]);
+    } finally {
+      setIsLoadingParentCAs(false);
+    }
+  }, [user?.access_token, isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    if (!authLoading) {
+        loadParentCAs();
+    }
+  }, [loadParentCAs, authLoading]);
+
 
   const handleCaTypeChange = (value: string) => {
     setCaType(value);
@@ -188,7 +226,7 @@ export default function CreateCertificateAuthorityPage() {
 
     const formData = {
       creationMode: selectedMode,
-      caType: selectedMode === 'importCertOnly' ? 'external_public' : caType, // Adapt based on mode
+      caType: selectedMode === 'importCertOnly' ? 'external_public' : caType,
       cryptoEngine: selectedMode === 'importCertOnly' ? 'N/A' : cryptoEngine,
       parentCaId: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.id,
       parentCaName: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.name,
@@ -244,7 +282,6 @@ export default function CreateCertificateAuthorityPage() {
     );
   }
 
-  // Render the form UI
   return (
     <div className="w-full space-y-6 mb-8">
       <div className="flex justify-between items-center">
@@ -278,7 +315,6 @@ export default function CreateCertificateAuthorityPage() {
         <div className="p-6 pt-0">
           <form onSubmit={handleSubmit} className="space-y-8">
 
-            {/* CA Settings Section - Conditionally render fields based on mode */}
             {selectedMode !== 'importCertOnly' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
@@ -295,7 +331,7 @@ export default function CreateCertificateAuthorityPage() {
                      {selectedMode === 'importFull' && <p className="text-xs text-muted-foreground mt-1">CA type will be determined from the imported certificate.</p>}
                   </div>
 
-                  {selectedMode !== 'importFull' && ( // Crypto Engine not relevant for full import if we assume it's external
+                  {selectedMode !== 'importFull' && ( 
                     <div>
                       <Label htmlFor="cryptoEngine">Crypto Engine</Label>
                       <Select value={cryptoEngine} onValueChange={setCryptoEngine} disabled={selectedMode === 'reuseKeyPair'}>
@@ -312,7 +348,7 @@ export default function CreateCertificateAuthorityPage() {
                   )}
 
 
-                  {caType === 'intermediate' && selectedMode !== 'importFull' && ( // Parent CA selection for non-imported intermediates
+                  {caType === 'intermediate' && selectedMode !== 'importFull' && (
                     <div>
                       <Label htmlFor="parentCa">Parent CA</Label>
                       <Button
@@ -321,8 +357,9 @@ export default function CreateCertificateAuthorityPage() {
                         onClick={() => setIsParentCaModalOpen(true)}
                         className="w-full justify-start text-left font-normal mt-1"
                         id="parentCa"
+                        disabled={isLoadingParentCAs || authLoading}
                       >
-                        {selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
+                        {isLoadingParentCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
                       </Button>
                       {selectedParentCa && (
                         <div className="mt-2">
@@ -429,7 +466,6 @@ export default function CreateCertificateAuthorityPage() {
 
             {selectedMode !== 'importCertOnly' && <Separator />}
 
-            {/* Subject Section - Conditionally render fields */}
             {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />Subject Distinguished Name (DN)</h3>
@@ -464,8 +500,6 @@ export default function CreateCertificateAuthorityPage() {
             )}
             {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && <Separator />}
 
-
-            {/* Expiration Settings - Conditionally render fields */}
             {selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && (
               <section>
                    <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
@@ -519,19 +553,37 @@ export default function CreateCertificateAuthorityPage() {
               Choose an existing CA to be the issuer for this new intermediate CA.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="h-72 my-4">
-            <ul className="space-y-1 pr-2">
-              {certificateAuthoritiesData.filter(ca => ca.status === 'active').map((ca) => (
-                <SelectableCaTreeItem
-                  key={ca.id}
-                  ca={ca}
-                  level={0}
-                  onSelect={handleParentCaSelect}
-                  currentParentId={selectedParentCa?.id}
-                />
-              ))}
-            </ul>
-          </ScrollArea>
+          {(isLoadingParentCAs || authLoading) && (
+            <div className="flex items-center justify-center h-72">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2">{authLoading ? "Authenticating..." : "Loading CAs..."}</p>
+            </div>
+          )}
+          {errorParentCAs && !isLoadingParentCAs && !authLoading && (
+             <Alert variant="destructive" className="my-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error Loading Parent CAs</AlertTitle>
+                <AlertDescription>{errorParentCAs} <Button variant="link" onClick={loadParentCAs} className="p-0 h-auto">Try again?</Button></AlertDescription>
+            </Alert>
+          )}
+          {!isLoadingParentCAs && !authLoading && !errorParentCAs && availableParentCAs.length > 0 && (
+            <ScrollArea className="h-72 my-4">
+                <ul className="space-y-1 pr-2">
+                {availableParentCAs.filter(ca => ca.status === 'active').map((ca) => (
+                    <SelectableCaTreeItem
+                    key={ca.id}
+                    ca={ca}
+                    level={0}
+                    onSelect={handleParentCaSelect}
+                    currentParentId={selectedParentCa?.id}
+                    />
+                ))}
+                </ul>
+            </ScrollArea>
+          )}
+          {!isLoadingParentCAs && !authLoading && !errorParentCAs && availableParentCAs.length === 0 && (
+            <p className="text-muted-foreground text-center my-4">No active CAs available to select as parent.</p>
+          )}
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">Cancel</Button>
@@ -543,3 +595,4 @@ export default function CreateCertificateAuthorityPage() {
   );
 }
 
+    
