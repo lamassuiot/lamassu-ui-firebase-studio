@@ -22,8 +22,8 @@ export default function SigninCallbackPage() {
       try {
         console.log("SigninCallback: Processing callback...");
         await userManager.signinRedirectCallback();
-        console.log("SigninCallback: Callback processed, redirecting to dashboard.");
-        router.push('/dashboard');
+        console.log("SigninCallback: Callback processed, redirecting to /.");
+        router.push('/'); // Changed redirect to /
       } catch (error) {
         console.error('SigninCallback: Error processing signin callback:', error);
         // Handle error, e.g., redirect to an error page or login
@@ -40,3 +40,4 @@ export default function SigninCallbackPage() {
     </div>
   );
 }
+

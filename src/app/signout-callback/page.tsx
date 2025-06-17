@@ -27,8 +27,8 @@ export default function SignoutCallbackPage() {
         console.error('SignoutCallback: Error processing signout callback:', error);
       } finally {
         // Always redirect, e.g., to home or login prompt page
-        console.log("SignoutCallback: Redirecting to dashboard (which will prompt login if needed).");
-        router.push('/dashboard'); 
+        console.log("SignoutCallback: Redirecting to /.");
+        router.push('/'); // Changed redirect to /
       }
     };
     processSignout();
@@ -41,3 +41,4 @@ export default function SignoutCallbackPage() {
     </div>
   );
 }
+
