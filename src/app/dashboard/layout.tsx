@@ -19,12 +19,11 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2 } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import type { CA } from '@/lib/ca-data';
-// import { certificateAuthoritiesData, findCaById } from '@/lib/ca-data'; // Data is now dynamic
-import { findCaById } from '@/lib/ca-data'; // findCaById can still be used if data is passed or fetched
+import { findCaById } from '@/lib/ca-data'; 
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,10 +50,9 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'keys': "Keys",
   'devices': "Devices",
   'device-groups': "Device Groups",
+  'crypto-engines': "Crypto Engines",
 };
 
-// Adjusted to accept potentially dynamic allCAs list.
-// For now, if a CA is not found (e.g., data not loaded yet), it will use the ID as label.
 function generateBreadcrumbs(pathname: string, params: ReturnType<typeof useParams>, allCAs: CA[] | null): BreadcrumbItem[] {
   const pathSegments = pathname.split('/').filter(segment => segment);
   const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/dashboard' }];
@@ -74,10 +72,13 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
 
     if (params.caId && segment === params.caId && pathSegments[i-1] === 'certificate-authorities' && allCAs) {
       const ca = findCaById(segment, allCAs);
-      label = ca ? ca.name : segment; // Fallback to segment ID if not found
+      label = ca ? ca.name : segment; 
     } else if (params.deviceId && segment === params.deviceId && pathSegments[i-1] === 'devices') {
       label = `Device: ${segment}`; 
+    } else if (params.keyId && segment === params.keyId && pathSegments[i-2] === 'kms' && pathSegments[i-1] === 'keys') {
+      label = `Key: ${segment}`;
     }
+
 
     if (isLastSegment) {
       breadcrumbItems.push({ label });
@@ -98,15 +99,13 @@ export default function DashboardLayout({
   const params = useParams();
   const { user, isLoading, login, logout, isAuthenticated } = useAuth();
   
-  // In a real app, `allCAsForBreadcrumbs` would come from a global state/context
-  // or be fetched here if necessary and performant.
-  // For now, passing null, generateBreadcrumbs will handle it.
   const [allCAsForBreadcrumbs, setAllCAsForBreadcrumbs] = React.useState<CA[] | null>(null);
-  // TODO: Consider fetching a lightweight list of CA names/IDs here for breadcrumbs if truly needed,
-  // or rely on page-specific data for context.
 
 
   const homeItem = { href: '/dashboard', label: 'Home', icon: HomeIcon };
+  const kmsItems = [
+    { href: '/dashboard/kms/keys', label: 'Keys', icon: KeyRound },
+  ];
   const pkiItems = [
     { href: '/dashboard/certificates', label: 'Certificates', icon: FileText },
     { href: '/dashboard/certificate-authorities', label: 'Certificate Authorities', icon: Landmark },
@@ -118,12 +117,12 @@ export default function DashboardLayout({
     { href: '/dashboard/devices', label: 'Devices', icon: Router },
     { href: '/dashboard/device-groups', label: 'Device Groups', icon: ServerCog },
   ];
-  const kmsItems = [
-    { href: '/dashboard/kms/keys', label: 'Keys', icon: KeyRound },
+  const cryptoEnginesItems = [
+    { href: '/dashboard/crypto-engines', label: 'Crypto Engines', icon: Cpu },
   ];
 
+
   const breadcrumbItems = React.useMemo(() => {
-    // Passing null for allCAs; the function will use IDs as labels if CA names aren't available.
     return generateBreadcrumbs(pathname, params, allCAsForBreadcrumbs);
   }, [pathname, params, allCAsForBreadcrumbs]);
 
@@ -217,6 +216,22 @@ export default function DashboardLayout({
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
+                  {kmsItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
+                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                      >
+                        <Link href={item.href} className="flex items-center w-full justify-start">
+                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+
                   <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">PKI</SidebarGroupLabel>
                   {pkiItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
@@ -248,9 +263,9 @@ export default function DashboardLayout({
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
-
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
-                  {kmsItems.map((item) => (
+                  
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Platform</SidebarGroupLabel>
+                  {cryptoEnginesItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
@@ -278,7 +293,6 @@ export default function DashboardLayout({
             </Sidebar>
 
             <SidebarInset className="flex-1 overflow-y-auto p-4 md:p-6">
-              {/* Pass null to breadcrumbs; it will handle missing CA data */}
               {breadcrumbItems.length > 1 && <Breadcrumbs items={breadcrumbItems} />}
               {children}
             </SidebarInset>
@@ -300,7 +314,6 @@ export default function DashboardLayout({
   );
 }
 
-// CustomSidebarToggle (internal component, keep as is)
 function CustomSidebarToggle() {
   const { open, toggleSidebar } = useSidebar();
   return (
