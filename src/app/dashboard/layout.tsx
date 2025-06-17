@@ -105,6 +105,7 @@ export default function DashboardLayout({
   const homeItem = { href: '/dashboard', label: 'Home', icon: HomeIcon };
   const kmsItems = [
     { href: '/dashboard/kms/keys', label: 'Keys', icon: KeyRound },
+    { href: '/dashboard/crypto-engines', label: 'Crypto Engines', icon: Cpu },
   ];
   const pkiItems = [
     { href: '/dashboard/certificates', label: 'Certificates', icon: FileText },
@@ -116,9 +117,6 @@ export default function DashboardLayout({
   const iotItems = [
     { href: '/dashboard/devices', label: 'Devices', icon: Router },
     { href: '/dashboard/device-groups', label: 'Device Groups', icon: ServerCog },
-  ];
-  const cryptoEnginesItems = [
-    { href: '/dashboard/crypto-engines', label: 'Crypto Engines', icon: Cpu },
   ];
 
 
@@ -264,21 +262,6 @@ export default function DashboardLayout({
                     </SidebarMenuItem>
                   ))}
                   
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Platform</SidebarGroupLabel>
-                  {cryptoEnginesItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href.length > '/dashboard'.length)}
-                        tooltip={{children: item.label, side: 'right', align: 'center' }}
-                      >
-                        <Link href={item.href} className="flex items-center w-full justify-start">
-                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
                 </SidebarMenu>
               </SidebarContent>
               <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
