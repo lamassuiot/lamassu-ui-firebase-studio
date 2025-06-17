@@ -128,7 +128,7 @@ export function CertificateList({
             <TableRow>
               <SortableHeader column="commonName" title="Common Name" />
               <SortableHeader column="serialNumber" title="Serial Number" className="hidden md:table-cell" />
-              <SortableHeader column="issuerCN" title="CA Issuer" className="hidden lg:table-cell" />
+              <TableHead className="hidden lg:table-cell">CA Issuer</TableHead> {/* Changed to regular TableHead */}
               <SortableHeader column="expires" title="Expires" />
               <SortableHeader column="status" title="API Status" />
               <TableHead className="text-right">Actions</TableHead>

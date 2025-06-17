@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export type SortableCertColumn = 'commonName' | 'serialNumber' | 'issuerCN' | 'expires' | 'status';
+export type SortableCertColumn = 'commonName' | 'serialNumber' | 'expires' | 'status';
 export type SortDirection = 'asc' | 'desc';
 
 export interface CertSortConfig {
@@ -115,7 +115,7 @@ export default function CertificatesPage() {
         switch (sortConfig.column) {
           case 'commonName': sortByApiField = 'subject.common_name'; break;
           case 'serialNumber': sortByApiField = 'serial_number'; break;
-          case 'issuerCN': sortByApiField = 'issuer.common_name'; break;
+          // case 'issuerCN': sortByApiField = 'issuer.common_name'; break; // Removed issuerCN from sorting
           case 'expires': sortByApiField = 'valid_to'; break;
           case 'status': sortByApiField = 'status'; break;
           default: sortByApiField = 'valid_from';
