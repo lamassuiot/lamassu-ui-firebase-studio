@@ -83,22 +83,23 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
   if (apiCert.issuer.common_name) issuerDNParts.push(`CN=${apiCert.issuer.common_name}`);
   if (apiCert.issuer.organization) issuerDNParts.push(`O=${apiCert.issuer.organization}`);
   if (apiCert.issuer.organization_unit) issuerDNParts.push(`OU=${apiCert.issuer.organization_unit}`);
-  // Add other issuer parts if needed, similar to subject
+  const fullIssuer = issuerDNParts.join(', ');
+
 
   return {
-    id: apiCert.serial_number, // Using serial as ID
+    id: apiCert.serial_number, 
     fileName: `${subjectDisplay.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'certificate'}.pem`,
-    subject: fullSubject || subjectDisplay, // Use full subject DN if available
-    issuer: issuerDNParts.join(', ') || issuerDisplay,
+    subject: fullSubject || subjectDisplay, 
+    issuer: fullIssuer || issuerDisplay,
     serialNumber: apiCert.serial_number,
     validFrom: apiCert.valid_from,
     validTo: apiCert.valid_to,
-    sans: [], // TODO: Parse SANs if available in API metadata or from PEM
+    sans: apiCert.metadata?.sans || [], // Assuming SANs might be in metadata.sans
     pemData: pemData,
     apiStatus: apiCert.status,
     publicKeyAlgorithm,
-    signatureAlgorithm: 'N/A (from API)', // Placeholder for actual signature algorithm
-    fingerprintSha256: '', // Placeholder, needs to be calculated if required
+    signatureAlgorithm: apiCert.metadata?.signature_algorithm || 'N/A (from API)', // Assuming sig algo in metadata
+    fingerprintSha256: apiCert.metadata?.fingerprint_sha256 || '', 
     issuerCaId: apiCert.issuer_metadata.id,
     rawApiData: apiCert,
   };
@@ -106,25 +107,15 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
 
 interface FetchIssuedCertificatesParams {
   accessToken: string;
-  bookmark?: string | null;
-  pageSize?: string;
+  apiQueryString?: string; // Changed from bookmark and pageSize to a single query string
 }
 
 export async function fetchIssuedCertificates(
   params: FetchIssuedCertificatesParams
 ): Promise<{ certificates: CertificateData[]; nextToken: string | null }> {
-  const { accessToken, bookmark, pageSize = '10' } = params;
-  const queryParams = new URLSearchParams({
-    sort_by: 'valid_from',
-    sort_mode: 'desc',
-    page_size: pageSize,
-  });
-
-  if (bookmark) {
-    queryParams.append('bookmark', bookmark);
-  }
-
-  const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates?${queryParams.toString()}`, {
+  const { accessToken, apiQueryString = 'sort_by=valid_from&sort_mode=desc&page_size=10' } = params;
+  
+  const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates?${apiQueryString}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
     },
@@ -149,3 +140,4 @@ export async function fetchIssuedCertificates(
 export function findCertificateBySerialNumber(serialNumber: string, certificates: CertificateData[]): CertificateData | null {
   return certificates.find(cert => cert.serialNumber === serialNumber) || null;
 }
+
