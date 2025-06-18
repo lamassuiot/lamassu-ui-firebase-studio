@@ -9,6 +9,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Cpu, ShieldAlert, ShieldCheck, Shield, Settings, Tag, CheckSquare, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import AWSKMSLogo from './AWS-KMS.png'
+import AWSMLogo from './AWS-SM.png'
+import GOLANGLogo from './GOLANG.png'
+import PKCS11Logo from './PKCS11.png'
+import Image from 'next/image'
 
 // Interfaces for API data
 interface ApiKeyTypeDetail {
@@ -82,7 +87,7 @@ export default function CryptoEnginesPage() {
 
   useEffect(() => {
     if (!authLoading) {
-        fetchEngines();
+      fetchEngines();
     }
   }, [fetchEngines, authLoading]);
 
@@ -104,8 +109,8 @@ export default function CryptoEnginesPage() {
           <Cpu className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-headline font-semibold">Crypto Engines</h1>
         </div>
-         <Button onClick={fetchEngines} variant="outline" disabled={isLoadingEngines}>
-            <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingEngines && "animate-spin")} /> Refresh List
+        <Button onClick={fetchEngines} variant="outline" disabled={isLoadingEngines}>
+          <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingEngines && "animate-spin")} /> Refresh List
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
@@ -136,13 +141,36 @@ export default function CryptoEnginesPage() {
         <div className="space-y-4">
           {engines.map((engine) => {
             const securityInfo = getSecurityLevelInfo(engine.security_level);
+            var engineLogo = GOLANGLogo
+            switch (engine.type) {
+              case "AWS_KMS":
+                engineLogo = AWSKMSLogo
+                break;
+              case "AWS_SM":
+                engineLogo = AWSMLogo
+                break;
+              case "GOLANG":
+                engineLogo = GOLANGLogo
+                break;
+              case "PKCS11":
+                engineLogo = PKCS11Logo
+                break;
+              default:
+                break;
+            }
             return (
               <Card key={engine.id} className="shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="text-xl flex items-center">
-                        <Settings className="mr-2 h-5 w-5 text-primary/80" /> {engine.name}
+                        <Image
+                          src={engineLogo}
+                          height={30}
+                          alt="logo engine"
+                          className='mr-1.5'
+                        />
+                        {engine.name}
                       </CardTitle>
                       <CardDescription>{engine.provider} - ID: <span className="font-mono text-xs">{engine.id}</span></CardDescription>
                     </div>
@@ -157,13 +185,13 @@ export default function CryptoEnginesPage() {
                   <div className="flex items-center space-x-2">
                     <securityInfo.Icon className={cn("h-4 w-4", securityInfo.badgeClass.split(' ')[1])} />
                     <Badge variant="outline" className={cn("text-xs", securityInfo.badgeClass)}>{securityInfo.text}</Badge>
-                     <Badge variant="secondary" className="text-xs">Type: {engine.type}</Badge>
+                    <Badge variant="secondary" className="text-xs">Type: {engine.type}</Badge>
                   </div>
-                  
+
                   <div>
                     <h4 className="text-sm font-medium text-muted-foreground mb-1">Supported Key Types:</h4>
                     <p className="text-sm text-foreground bg-muted/30 p-2 rounded-md">
-                        {formatSupportedKeyTypes(engine.supported_key_types)}
+                      {formatSupportedKeyTypes(engine.supported_key_types)}
                     </p>
                   </div>
                   {Object.keys(engine.metadata).length > 0 && (

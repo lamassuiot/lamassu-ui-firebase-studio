@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { KeyRound, PlusCircle, MoreVertical, Eye, FilePlus2, PenTool, ShieldCheck, Trash2, AlertTriangle, FileSignature } from "lucide-react"; // Added FileSignature
+import { KeyRound, PlusCircle, MoreVertical, Eye, FileSignature, PenTool, ShieldCheck, Trash2, AlertTriangle, Cpu } from "lucide-react";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +21,8 @@ interface KmsKey {
   status: 'Enabled' | 'Disabled' | 'PendingDeletion';
   creationDate: string; // ISO Date string
   description?: string;
-  hasPrivateKey?: boolean; // Added to determine CSR/Sign capability
+  hasPrivateKey?: boolean;
+  cryptoEngineId?: string; // Added for Crypto Engine
 }
 
 const mockKmsKeysData: KmsKey[] = [
@@ -33,6 +34,7 @@ const mockKmsKeysData: KmsKey[] = [
     creationDate: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Primary signing key for the LamassuIoT Global Root CA G1, referenced via PKCS11 URI.',
     hasPrivateKey: true,
+    cryptoEngineId: 'PKCS11_Engine_fs1',
   },
   {
     id: 'key-5678efgh-56ef-78gh-90ij-5678901234cd',
@@ -42,6 +44,7 @@ const mockKmsKeysData: KmsKey[] = [
     creationDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Signing key for the Development Intermediate CA.',
     hasPrivateKey: true,
+    cryptoEngineId: 'GOLANG_Crypto',
   },
   {
     id: 'key-pq-dilithium2-aes',
@@ -51,6 +54,7 @@ const mockKmsKeysData: KmsKey[] = [
     creationDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Post-quantum signature key for critical firmware (ML-DSA Level 3).',
     hasPrivateKey: true,
+    cryptoEngineId: 'MLDSA_HSM_v1',
   },
   {
     id: 'key-9012ijkl-90ij-12kl-34mn-9012345678ef',
@@ -59,7 +63,8 @@ const mockKmsKeysData: KmsKey[] = [
     status: 'Disabled',
     creationDate: new Date(Date.now() - 700 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Archived code signing key, no longer in active use.',
-    hasPrivateKey: true, // Assume it had one historically
+    hasPrivateKey: true,
+    cryptoEngineId: 'GOLANG_Crypto',
   },
   {
     id: 'key-3456mnop-34mn-56op-78qr-3456789012gh',
@@ -69,6 +74,7 @@ const mockKmsKeysData: KmsKey[] = [
     creationDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Encryption key for staging services, scheduled for deletion.',
     hasPrivateKey: true,
+    cryptoEngineId: 'AWSKMS',
   },
   {
     id: 'key-public-only-sample',
@@ -77,7 +83,8 @@ const mockKmsKeysData: KmsKey[] = [
     status: 'Enabled',
     creationDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
     description: 'Public key of an external partner for signature verification.',
-    hasPrivateKey: false, // Explicitly public only
+    hasPrivateKey: false,
+    cryptoEngineId: 'N/A (Public Key)',
   },
 ];
 
@@ -155,6 +162,7 @@ export default function KmsKeysPage() {
                 <TableHead>Alias</TableHead>
                 <TableHead className="hidden md:table-cell">Key ID</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead><div className="flex items-center"><Cpu className="mr-1.5 h-4 w-4 text-muted-foreground"/>Crypto Engine</div></TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden sm:table-cell">Creation Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -164,11 +172,16 @@ export default function KmsKeysPage() {
               {keys.map((key) => (
                 <TableRow key={key.id}>
                   <TableCell className="font-medium">
-                    <p className="truncate max-w-[200px] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl" title={key.alias}>{key.alias}</p>
-                    {key.description && <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl" title={key.description}>{key.description}</p>}
+                    <p className="truncate max-w-[180px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg" title={key.alias}>{key.alias}</p>
+                    {key.description && <p className="text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg" title={key.description}>{key.description}</p>}
                   </TableCell>
                   <TableCell className="font-mono text-xs hidden md:table-cell" title={key.id}>{key.id.substring(0, 12)}...</TableCell>
                   <TableCell>{key.keyTypeDisplay}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs font-normal bg-muted/40 border-muted-foreground/30">
+                        {key.cryptoEngineId || 'N/A'}
+                    </Badge>
+                  </TableCell>
                   <TableCell><StatusBadge status={key.status} /></TableCell>
                   <TableCell className="hidden sm:table-cell">{format(new Date(key.creationDate), 'MMM dd, yyyy')}</TableCell>
                   <TableCell className="text-right">
@@ -190,12 +203,12 @@ export default function KmsKeysPage() {
                           <FileSignature className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=sign-verify`)}
+                          onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=sign`)}
                           disabled={!key.hasPrivateKey}
                         >
                           <PenTool className="mr-2 h-4 w-4" /> Sign
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=sign-verify`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=verify`)}>
                           <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem> 
                         <DropdownMenuSeparator />
@@ -247,3 +260,5 @@ export default function KmsKeysPage() {
     </div>
   );
 }
+
+    
