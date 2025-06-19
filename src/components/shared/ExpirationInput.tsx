@@ -30,8 +30,6 @@ interface ExpirationInputProps {
   idPrefix: string; // To ensure unique IDs for elements
 }
 
-const INDEFINITE_DATE_VALUE = new Date("9999-12-31T23:59:59.999Z");
-
 export const ExpirationInput: React.FC<ExpirationInputProps> = ({
   label,
   value,
