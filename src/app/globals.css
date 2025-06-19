@@ -2,98 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
-    --background: 208 100% 97%; /* #F0F8FF */
-    --foreground: 222 84% 5%; /* Dark blue, good contrast on light blue bg */
+    /* Base Theme Colors from PRD */
+    --background: 208 100% 97%; /* #F0F8FF AliceBlue */
+    --foreground: 222 84% 5%; /* Dark Blue for contrast on light background */
+    
+    --primary: 217 100% 53%; /* #0f67ff Light Sky Blue */
+    --primary-foreground: 0 0% 98%; /* Near White */
+    
+    --accent: 150 65% 85%; /* #a2ecc8 Periwinkle (greenish) */
+    --accent-foreground: 150 65% 25%; /* Darker accent for contrast */
 
-    --muted: 210 40% 90%;
-    --muted-foreground: 215 30% 45%;
+    /* Standard ShadCN UI Colors (derived) */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 222 84% 5%; /* Dark Blue */
+    
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 222 84% 5%; /* Dark Blue */
+    
+    --secondary: 210 40% 90%; /* Light Grayish Blue */
+    --secondary-foreground: 222 84% 10%; /* Dark Blue */
+    
+    --muted: 210 40% 92%; /* Lighter Grayish Blue */
+    --muted-foreground: 210 35% 45%; /* Muted Grayish Blue */
+    
+    --destructive: 0 84% 60%; /* Red */
+    --destructive-foreground: 0 0% 98%; /* Near White */
+    
+    --border: 210 40% 88%; /* Light Gray Border */
+    --input: 210 40% 85%; /* Slightly darker for input border */
+    --ring: 217 90% 65%; /* Based on primary for focus rings */
 
-    --popover: 208 100% 97%;
-    --popover-foreground: 222 84% 5%;
+    --radius: 0.5rem; /* Default border radius */
 
-    --card: 208 100% 97%;
-    --card-foreground: 222 84% 5%;
+    /* Chart Colors */
+    --chart-1: 217 90% 60%; /* Primary variant */
+    --chart-2: 150 70% 70%; /* Accent variant */
+    --chart-3: 30 80% 55%;  /* Orange/Yellow for warning */
+    --chart-4: 0 70% 60%;   /* Red for critical/error */
+    --chart-5: 260 70% 70%; /* Purple for other */
 
-    --border: 215 30% 85%;
-    --input: 215 30% 88%;
-
-    --primary: 217 100% 53%; /* #0f67ff */
-    --primary-foreground: 0 0% 98%; /* White/very light for contrast on primary */
-
-    --secondary: 195 63% 79%; /* #a8daeb */
-    --secondary-foreground: 220 10% 20%; /* Dark grayish blue for contrast on new secondary */
-
-    --accent: 155 60% 78%; /* #a2ecc8 */
-    --accent-foreground: 155 50% 25%; /* Darker green for contrast on accent */
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-
-    --ring: 217 100% 53%;
-    --radius: 0.5rem;
-
-    --chart-1: 217 100% 53%;
-    --chart-2: 155 60% 60%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-
-    --sidebar-background: 208 50% 95%;
-    --sidebar-foreground: 222 84% 5%;
-    --sidebar-primary: 217 100% 53%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 195 63% 79%; /* Updated to #a8daeb HSL */
-    --sidebar-accent-foreground: 220 10% 20%; /* Updated for contrast with new sidebar-accent */
-    --sidebar-border: 215 30% 80%;
-    --sidebar-ring: 217 100% 53%;
+    /* Sidebar Specific Colors (Light Theme) */
+    --sidebar-background: 210 60% 96%; /* Slightly different from main background */
+    --sidebar-foreground: 222 84% 10%; /* Dark blue for text */
+    --sidebar-primary: 217 100% 53%; /* Same as main primary */
+    --sidebar-primary-foreground: 0 0% 98%; /* Same as main primary-foreground */
+    --sidebar-accent: 150 65% 80%; /* Slightly adjusted accent */
+    --sidebar-accent-foreground: 150 65% 20%; /* Darker accent */
+    --sidebar-border: 210 40% 85%; /* Sidebar border */
+    --sidebar-ring: 217 90% 65%; /* Ring color */
   }
 
   .dark {
-    --background: 222 40% 15%; /* Lighter main background for more pop */
-    --foreground: 210 40% 95%;
-
-    --muted: 220 30% 22%; /* Slightly lighter to contrast with new darker cards/sidebar */
-    --muted-foreground: 215 20% 65%;
-
-    --popover: 222 40% 10%; /* Stays same, good contrast with new bg */
-    --popover-foreground: 210 40% 95%;
-
-    --card: 222 40% 10%; /* Stays same, now more distinct from lighter bg */
-    --card-foreground: 210 40% 95%;
-
-    --border: 217 30% 28%; /* Slightly lighter border for new bg */
-    --input: 217 30% 20%; /* Slightly lighter input for new bg */
-
-    --primary: 217 90% 60%; /* Adjusted primary for dark mode */
-    --primary-foreground: 0 0% 98%; /* Light foreground for new primary */
-
-    --secondary: 217 30% 25%; /* Making secondary a bit more distinct */
-    --secondary-foreground: 210 40% 90%;
-
-    --accent: 155 55% 50%; /* Adjusted accent for dark mode */
-    --accent-foreground: 155 50% 95%; /* Light foreground for new accent */
-
-    --destructive: 0 60% 45%;
-    --destructive-foreground: 0 0% 98%;
-
-    --ring: 217 90% 60%; /* Ring matches new primary */
-
-    --chart-1: 217 90% 60%;
-    --chart-2: 155 55% 50%;
+    /* Base Dark Theme Colors */
+    --background: 222 40% 15%; /* Dark Blue-Gray */
+    --foreground: 210 40% 95%; /* Light Gray */
     
-    --sidebar-background: 222 40% 8%; /* Darker sidebar */
-    --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 217 90% 60%; /* Matches new main primary */
-    --sidebar-primary-foreground: 0 0% 98%; /* Matches new main primary-foreground */
-    --sidebar-accent: 195 60% 55%; /* Updated blue for dark theme sidebar accent */
-    --sidebar-accent-foreground: 195 60% 95%; /* Updated for contrast with new dark sidebar-accent */
-    --sidebar-border: 217 30% 18%; /* Darker border for darker sidebar */
+    --primary: 217 90% 60%; /* Slightly lighter/desaturated primary */
+    --primary-foreground: 0 0% 98%; /* Near White */
+    
+    --accent: 150 50% 70%; /* Muted accent */
+    --accent-foreground: 150 50% 20%; /* Darker accent */
+
+    /* Standard ShadCN UI Colors (Dark Mode) */
+    --card: 222 40% 18%; /* Darker card */
+    --card-foreground: 210 40% 95%; /* Light Gray */
+    
+    --popover: 222 40% 18%; /* Darker popover */
+    --popover-foreground: 210 40% 95%; /* Light Gray */
+    
+    --secondary: 217 30% 25%; /* Darker secondary */
+    --secondary-foreground: 210 40% 90%; /* Lighter secondary text */
+    
+    --muted: 217 30% 22%; /* Darker muted */
+    --muted-foreground: 210 30% 65%; /* Muted gray text */
+    
+    --destructive: 0 63% 50%; /* Darker Red */
+    --destructive-foreground: 0 0% 98%; /* Near White */
+    
+    --border: 217 20% 30%; /* Darker Border */
+    --input: 217 20% 35%; /* Darker input border */
+    --ring: 217 80% 65%; /* Primary variant for dark rings */
+    
+    /* Chart Colors (Dark Theme) - adjust as needed */
+    --chart-1: 217 80% 65%;
+    --chart-2: 150 60% 60%;
+    --chart-3: 35 70% 50%;
+    --chart-4: 0 60% 55%;
+    --chart-5: 260 60% 65%;
+
+    /* Sidebar Specific Colors (Dark Theme) */
+    --sidebar-background: 222 40% 12%; /* Even darker for sidebar */
+    --sidebar-foreground: 210 40% 90%; /* Light gray text */
+    --sidebar-primary: 217 90% 60%; /* Same as dark primary */
+    --sidebar-primary-foreground: 0 0% 98%; /* Same as dark primary-foreground */
+    --sidebar-accent: 150 50% 65%; /* Adjusted dark accent */
+    --sidebar-accent-foreground: 150 50% 15%; /* Darker accent text */
+    --sidebar-border: 222 40% 25%; /* Dark sidebar border */
+    --sidebar-ring: 217 80% 65%; /* Ring color */
   }
 }
 
@@ -102,6 +109,9 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline;
   }
 }

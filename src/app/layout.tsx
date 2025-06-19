@@ -7,7 +7,8 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation'; // Added useSearchParams
+import { usePathname, useSearchParams, useParams } // Added useParams
+from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -23,16 +24,15 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
-// import type { CA } from '@/lib/ca-data'; // No longer needed here for breadcrumbs
-// import { findCaById } from '@/lib/ca-data'; // No longer needed here for breadcrumbs
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { jwtDecode } from 'jwt-decode';
 import Image from 'next/image'
 import Logo from './lamassu_full_white.svg'
+// import type { CA } from '@/lib/ca-data'; // Keep if needed for breadcrumbs later
 
 interface DecodedAccessToken {
   realm_access?: {
@@ -54,10 +54,10 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'devices': "Devices",
   'device-groups': "Device Groups",
   'crypto-engines': "Crypto Engines",
+  'settings': "Settings",
 };
 
-// Simplified breadcrumb generation based on path segments only
-function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
+function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
   const pathSegments = pathname.split('/').filter(segment => segment);
   const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/' }];
 
@@ -69,57 +69,48 @@ function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
 
   for (let i = 0; i < pathSegments.length; i++) {
     const segment = pathSegments[i];
-    const isLastSegment = i === pathSegments.length - 1;
     let label = PATH_SEGMENT_TO_LABEL_MAP[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
     
     currentHref += `/${segment}`;
+    const isLastSegment = i === pathSegments.length - 1;
+    let hrefWithQuery = currentHref;
 
-    // For "details" or "issue-certificate" pages, we just use the generic label from the map.
-    // Dynamic naming (e.g., specific CA name) would require more complex state management or context.
+    // For detail pages, try to append the relevant ID query param for navigation
+    if (segment === 'details') {
+        if (queryParams.get('caId')) hrefWithQuery += `?caId=${queryParams.get('caId')}`;
+        else if (queryParams.get('certificateId')) hrefWithQuery += `?certificateId=${queryParams.get('certificateId')}`;
+        else if (queryParams.get('keyId')) hrefWithQuery += `?keyId=${queryParams.get('keyId')}`;
+        else if (queryParams.get('deviceId')) hrefWithQuery += `?deviceId=${queryParams.get('deviceId')}`;
+    } else if (segment === 'issue-certificate' && queryParams.get('caId')) {
+        hrefWithQuery += `?caId=${queryParams.get('caId')}`;
+    }
+
 
     if (isLastSegment) {
-      breadcrumbItems.push({ label });
+      breadcrumbItems.push({ label }); // No href for the last item (current page)
     } else {
-      breadcrumbItems.push({ label, href: currentHref });
+      breadcrumbItems.push({ label, href: hrefWithQuery });
     }
   }
   return breadcrumbItems;
 }
 
-const InnerLayout = ({ children }: { children: React.ReactNode }) => {
-  const pathname = usePathname();
-  // const params = useParams(); // Removed, not needed for query param strategy in layout
-  const { isLoading: authIsLoading, isAuthenticated, user, login, logout } = useAuth();
-  const [clientMounted, setClientMounted] = React.useState(false);
-  // const [allCAsForBreadcrumbs, setAllCAsForBreadcrumbs] = React.useState<CA[] | null>(null); // No longer needed for breadcrumbs
 
-  React.useEffect(() => {
-    setClientMounted(true);
-  }, []);
-
-  const isCallbackPage =
-    pathname === '/signin-callback' ||
-    pathname === '/silent-renew-callback' ||
-    pathname === '/signout-callback';
-
-  if (isCallbackPage) {
-    return <>{children}</>;
-  }
-  
-  const LoadingState = () => (
+const LoadingState = () => (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
       <Loader2 className="h-16 w-16 animate-spin text-primary" />
       <p className="mt-6 text-lg text-muted-foreground">
-        {authIsLoading ? "Verifying authentication..." : "Initializing application..."}
+        Loading authentication status...
       </p>
     </div>
-  );
+);
 
-  if (!clientMounted || authIsLoading) {
-    return <LoadingState />;
-  }
-  
-  const breadcrumbItems = generateBreadcrumbs(pathname); // Removed params and allCAs
+const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user, login, logout } = useAuth();
+  const pathname = usePathname();
+  const searchParams = useSearchParams(); // Now used by generateBreadcrumbs
+
+  const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
   if (isAuthenticated() && user?.access_token) {
     try {
@@ -148,7 +139,9 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     { href: '/devices', label: 'Devices', icon: Router },
     { href: '/device-groups', label: 'Device Groups', icon: ServerCog },
   ];
-
+  const appSettingsItems = [
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ];
 
   return (
     <SidebarProvider defaultOpen>
@@ -156,7 +149,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
         <header className="flex h-12 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" />
-            <Image
+             <Image
               src={Logo}
               height={30}
               alt="LamassuIoT Logo"
@@ -266,6 +259,22 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
+                  
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Application</SidebarGroupLabel>
+                   {appSettingsItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname.startsWith(item.href)}
+                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                      >
+                        <Link href={item.href} className="flex items-center w-full justify-start">
+                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
 
                 </SidebarMenu>
               </SidebarContent>
@@ -300,6 +309,42 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
       </div>
     </SidebarProvider>
   );
+};
+
+
+const InnerLayout = ({ children }: { children: React.ReactNode }) => {
+  const { isLoading: authIsLoading } = useAuth();
+  const [clientMounted, setClientMounted] = React.useState(false);
+  const pathname = usePathname();
+  
+  // Hooks must be called unconditionally at the top level
+  const params = useParams(); 
+  const searchParams = useSearchParams(); 
+
+  React.useEffect(() => {
+    setClientMounted(true);
+  }, []);
+
+  const isCallbackPage =
+    pathname === '/signin-callback' ||
+    pathname === '/silent-renew-callback' ||
+    pathname === '/signout-callback';
+
+  if (isCallbackPage) {
+    return <>{children}</>; // Render children directly for callback pages
+  }
+
+  // If not mounted or auth is still loading, show the main loading state
+  if (!clientMounted || authIsLoading) {
+    return <LoadingState />;
+  }
+
+  // This section is now only rendered on the client after mount and auth resolution
+  // You can safely use hooks like useParams or fetch data based on searchParams here
+  // if MainLayoutContent needed them (it currently doesn't directly, but breadcrumbs do)
+  // const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
+
+  return <MainLayoutContent>{children}</MainLayoutContent>;
 };
 
 
@@ -340,3 +385,4 @@ function CustomSidebarToggle() {
     </SidebarMenuButton>
   );
 }
+
