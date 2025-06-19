@@ -133,6 +133,17 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
+  const isCallbackPage = 
+    pathname === '/signin-callback' || 
+    pathname === '/silent-renew-callback' || 
+    pathname === '/signout-callback';
+
+  if (isCallbackPage) {
+    // For OIDC callback pages, render children directly.
+    // AuthProvider is still above, so UserManager is available.
+    return <>{children}</>;
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
