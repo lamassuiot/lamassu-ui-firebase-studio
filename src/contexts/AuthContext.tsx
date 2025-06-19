@@ -19,8 +19,6 @@ const createUserManager = (): UserManager | null => {
       post_logout_redirect_uri: `${window.location.origin}/signout-callback.html`,
       response_type: 'code',
       scope: 'openid profile email', // Standard scopes
-      automaticSilentRenew: true,
-      loadUserInfo: true, // Attempt to load user info after signin
       userStore: new WebStorageStateStore({ store: window.localStorage }), // Persist user session
       // monitorSession: true, // Optional: for session management features like checkSessionChanged
     });
