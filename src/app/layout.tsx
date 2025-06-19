@@ -82,6 +82,7 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
       label = `Key: ${segment}`;
     }
 
+
     if (isLastSegment) {
       breadcrumbItems.push({ label });
     } else {
@@ -92,14 +93,19 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
 }
 
 const InnerLayout = ({ children }: { children: React.ReactNode }) => {
+  // ALL HOOKS AT THE TOP
   const pathname = usePathname();
+  const params = useParams(); // Moved up
   const { isLoading: authIsLoading, isAuthenticated, user, login, logout } = useAuth();
   const [clientMounted, setClientMounted] = React.useState(false);
+  const [allCAsForBreadcrumbs, setAllCAsForBreadcrumbs] = React.useState<CA[] | null>(null); // Moved up & Example, adapt as needed
 
   React.useEffect(() => {
     setClientMounted(true);
+    // TODO: Add effect to loadCAsForBreadcrumbs if needed, or pass it down
   }, []);
 
+  // Conditional rendering logic
   const isCallbackPage =
     pathname === '/signin-callback' ||
     pathname === '/silent-renew-callback' ||
@@ -109,24 +115,22 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     return <>{children}</>;
   }
 
-  // Strategy: Server and initial client render a simple loading state.
-  // Client transitions to full UI after mount and auth resolution.
+  // If not clientMounted or still loading auth, return loading state
   if (!clientMounted || authIsLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
         <p className="mt-6 text-lg text-muted-foreground">
-          {clientMounted ? "Loading authentication status..." : "Initializing application..."}
+          {/* Ensure loading message is consistent or determined by a stable prop/state if it changes */}
+          {clientMounted ? "Verifying authentication..." : "Initializing..."}
         </p>
       </div>
     );
   }
 
-  // This section is now only rendered on the client after mount and auth resolution
-  const params = useParams(); // Safe to call hooks here now
-  const [allCAsForBreadcrumbs, setAllCAsForBreadcrumbs] = React.useState<CA[] | null>(null); // Example, adapt as needed
-  // Add effect to loadCAsForBreadcrumbs if needed, or pass it down
 
+  // This section is now only rendered on the client after mount and auth resolution
+  // Now it's safe to use params and allCAsForBreadcrumbs because hooks were called unconditionally
   const breadcrumbItems = generateBreadcrumbs(pathname, params, allCAsForBreadcrumbs);
   let userRoles: string[] = [];
   if (isAuthenticated() && user?.access_token) {
