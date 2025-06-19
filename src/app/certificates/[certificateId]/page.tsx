@@ -1,8 +1,5 @@
-
-import CertificateDetailPageClient from './CertificateDetailPageClient';
-
-// Page component (Server Component shell)
-export default function CertificateDetailPageContainer() {
-  // The client component uses useParams() to get certificateId
-  return <CertificateDetailPageClient />;
+// This dynamic route page is no longer used.
+// Functionality moved to /certificates/details using query parameters.
+export default function ObsoleteCertificateIdPage() {
+  return null;
 }
