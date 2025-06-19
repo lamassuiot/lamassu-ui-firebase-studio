@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { isPast, parseISO, formatDistanceToNowStrict } from 'date-fns';
 
 interface CaGraphViewProps {
-  cas: CA[]; // Though we use allCAs primarily for graph construction
+  cas: CA[]; 
   router: ReturnType<typeof import('next/navigation').useRouter>;
   allCAs: CA[];
 }
@@ -42,7 +42,7 @@ interface DagreEdge {
   v: string;
   w: string;
   points?: Array<{ x: number; y: number }>;
-  type: 'signs' | 'issues'; // 'signs' for KMS->CA, 'issues' for CA->CA
+  type: 'signs' | 'issues'; 
   style?: string;
   arrowhead?: string;
   [key: string]: any;
@@ -55,17 +55,16 @@ const CA_CERT_NODE_HEIGHT = 110;
 const CA_CERT_KMS_ID_TEXT_HEIGHT = 20;
 
 const KMS_NODE_THEME = {
-  border: 'hsl(130 50% 45%)', // Slightly adjusted green
-  bg: 'hsl(130 60% 90%)',     // Lighter green for background
-  text: 'hsl(130 50% 20%)',   // Darker green for text
-  iconColor: 'hsl(130 50% 40%)'// Medium green for icon
+  border: 'hsl(130 50% 45%)', 
+  bg: 'hsl(130 60% 90%)',     
+  text: 'hsl(130 50% 20%)',   
+  iconColor: 'hsl(130 50% 40%)'
 };
 
 const getCaCertStatusColors = (ca: CA): { border: string, bg: string, text: string, iconColor: string } => {
   const isExpired = isPast(parseISO(ca.expires));
   if (ca.status === 'revoked') return { border: 'hsl(0 72% 51%)', bg: 'hsl(0 72% 92%)', text: 'hsl(0 72% 40%)', iconColor: 'hsl(0 72% 51%)' };
   if (isExpired) return { border: 'hsl(30 80% 55%)', bg: 'hsl(30 80% 92%)', text: 'hsl(30 80% 40%)', iconColor: 'hsl(30 80% 55%)' };
-  // Active CA Certs are Blue
   return { border: 'hsl(210 70% 50%)', bg: 'hsl(210 70% 92%)', text: 'hsl(210 70% 30%)', iconColor: 'hsl(210 70% 50%)' };
 };
 
@@ -80,7 +79,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
     setLayoutRan(false); 
 
     const g = new dagre.graphlib.Graph({ compound: false }); 
-    g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 50, edgesep: 25 }); // Increased ranksep slightly
+    g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 50, edgesep: 25 }); 
     g.setDefaultEdgeLabel(() => ({}));
 
     const uniqueKmsKeyIds = new Set<string>();
@@ -112,17 +111,15 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
     });
 
     allCAs.forEach(ca => {
-      // Edge from KMS Key to CA (type: 'signs')
       if (ca.kmsKeyId && g.hasNode(`kms-${ca.kmsKeyId}`) && g.hasNode(ca.id)) {
          if (!g.outEdges(`kms-${ca.kmsKeyId}`)?.some(edge => edge.w === ca.id)) {
             g.setEdge(`kms-${ca.kmsKeyId}`, ca.id, { 
               type: 'signs', 
-              style: `stroke: ${KMS_NODE_THEME.border}; stroke-dasharray: 6,4;`, // Adjusted dasharray
+              style: `stroke: ${KMS_NODE_THEME.border}; stroke-dasharray: 6,4;`, 
               arrowhead: 'kms_signs' 
             } as DagreEdge);
          }
       }
-      // Edge from Issuer CA to this CA (type: 'issues')
       if (ca.issuer && ca.issuer !== 'Self-signed' && ca.issuer !== ca.id && g.hasNode(ca.issuer) && g.hasNode(ca.id)) {
         if (!g.outEdges(ca.issuer)?.some(edge => edge.w === ca.id)) {
            g.setEdge(ca.issuer, ca.id, { 
@@ -165,7 +162,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
   return (
     <div className="w-full h-[calc(100vh-250px)] border rounded-md relative overflow-hidden flex flex-col bg-muted/10">
       <div className="p-2 border-b bg-background flex items-center justify-between sticky top-0 z-20">
-        <div></div> {/* Placeholder for future controls if needed */}
+        <div></div> 
         <div className="flex items-center space-x-2">
           <ServerIcon className="h-4 w-4 text-muted-foreground" />
           <Label htmlFor="showKmsIdTextToggleGraph" className="text-sm font-medium text-muted-foreground">
@@ -208,13 +205,13 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                         <path
                           key={`edge-${i}-${edge.v}-${edge.w}`}
                           d={pathData}
-                          strokeWidth="2" // Slightly thicker edge lines
+                          strokeWidth="2" 
                           fill="none"
                           style={{ 
                             stroke: edge.type === 'signs' ? KMS_NODE_THEME.border : 'hsl(var(--border))', 
-                            strokeDasharray: edge.type === 'signs' ? '6,4' : 'none' // Adjusted dash for 'signs'
+                            strokeDasharray: edge.type === 'signs' ? '6,4' : 'none' 
                           }}
-                          markerEnd={edge.type === 'issues' ? "url(#arrowhead-ca-issues)" : "url(#arrowhead-kms-signs)"} // Use edge.type directly
+                          markerEnd={edge.type === 'issues' ? "url(#arrowhead-ca-issues)" : "url(#arrowhead-kms-signs)"} 
                         />
                       );
                     })}
@@ -228,8 +225,8 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                           <g
                             key={kmsNode.id}
                             transform={`translate(${kmsNode.x - kmsNode.width / 2}, ${kmsNode.y - kmsNode.height / 2})`}
-                            className="cursor-pointer group" // Make KMS node clickable
-                             onClick={() => router.push(`/kms/keys/${kmsNode.kmsId}`)}
+                            className="cursor-pointer group" 
+                             onClick={() => router.push(`/kms/keys/details?keyId=${kmsNode.kmsId}`)} // Updated navigation
                           >
                             <rect
                               width={kmsNode.width}
@@ -265,7 +262,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                           <g
                             key={caNode.id}
                             transform={`translate(${caNode.x - caNode.width / 2}, ${caNode.y - nodeActualHeight / 2})`}
-                            onClick={() => router.push(`/certificate-authorities/${caNode.id}/details`)}
+                            onClick={() => router.push(`/certificate-authorities/details?caId=${caNode.id}`)} // Updated navigation
                             className="cursor-pointer group"
                           >
                             <rect

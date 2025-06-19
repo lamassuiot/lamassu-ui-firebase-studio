@@ -148,7 +148,7 @@ export function CertificateList({
                       <Button
                         variant="link"
                         className="p-0 h-auto text-left whitespace-normal leading-tight"
-                        onClick={() => router.push(`/certificate-authorities/${issuerCa.id}/details`)}
+                        onClick={() => router.push(`/certificate-authorities/details?caId=${issuerCa.id}`)} // Updated navigation
                         title={`View details for CA: ${issuerCa.name}`}
                       >
                         {issuerCa.name}
@@ -165,7 +165,7 @@ export function CertificateList({
                     <Button 
                       variant="outline" 
                       size="icon" 
-                      onClick={() => router.push(`/certificates/${cert.serialNumber}`)} 
+                      onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)} // Updated navigation
                       title="View Certificate Details" 
                       className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1"
                     >

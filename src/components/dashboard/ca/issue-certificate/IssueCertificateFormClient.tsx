@@ -2,7 +2,7 @@
 'use client'; 
 
 import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation'; // Changed from useParams
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,17 +11,32 @@ import { ArrowLeft, FilePlus2 } from "lucide-react";
 
 // Client Component for the form
 export default function IssueCertificateFormClient() {
-  const params = useParams();
+  const searchParams = useSearchParams(); // Changed from useParams
   const router = useRouter();
-  const caId = params.caId as string;
+  const caId = searchParams.get('caId'); // Get caId from query params
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!caId) {
+        alert("Error: CA ID is missing from the URL.");
+        return;
+    }
     console.log(`Issuing certificate from CA: ${caId} with form data...`);
     alert(`Mock issue certificate from CA ${caId}`);
     // Potentially redirect or show a success message
-    // router.push(`/certificate-authorities/${caId}/details`);
+    // router.push(`/certificate-authorities/details?caId=${caId}`);
   };
+
+  if (!caId) {
+    return (
+        <div className="w-full space-y-6 p-4">
+            <Button variant="outline" onClick={() => router.back()} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+            <div className="text-destructive">Error: CA ID is missing from URL. Cannot issue certificate.</div>
+        </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6">

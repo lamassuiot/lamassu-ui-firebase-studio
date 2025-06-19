@@ -120,15 +120,9 @@ export default function KmsKeysPage() {
   const fetchKeys = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 700));
     try {
-      // Replace with actual API call in a real app:
-      // const response = await fetch('/api/kms-keys');
-      // if (!response.ok) throw new Error('Failed to fetch keys');
-      // const data = await response.json();
-      // setKeys(data);
-      setKeys(mockKmsKeysData); // Using mock data for simulation
+      setKeys(mockKmsKeysData); 
     } catch (err: any) {
       setError(err.message || "An unknown error occurred while fetching keys.");
       setKeys([]);
@@ -152,7 +146,6 @@ export default function KmsKeysPage() {
 
   const handleDeleteKey = () => {
     if (keyToDelete) {
-      // Simulate API call for deletion then update state
       setKeys(prevKeys => prevKeys.filter(k => k.id !== keyToDelete.id));
       toast({
         title: "Key Deleted (Mock)",
@@ -163,8 +156,8 @@ export default function KmsKeysPage() {
     setKeyToDelete(null);
   };
 
-  const handleViewDetails = (keyId: string) => {
-    router.push(`/kms/keys/${keyId}`);
+  const handleViewDetails = (keyIdValue: string) => {
+    router.push(`/kms/keys/details?keyId=${keyIdValue}`); // Updated navigation
   };
 
   if (isLoading) {
@@ -248,18 +241,18 @@ export default function KmsKeysPage() {
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => router.push(`/kms/keys/${key.id}?tab=generate-csr`)}
+                          onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=generate-csr`)} // Updated navigation
                           disabled={!key.hasPrivateKey}
                         >
                           <FileSignature className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => router.push(`/kms/keys/${key.id}?tab=sign`)}
+                          onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=sign`)} // Updated navigation
                           disabled={!key.hasPrivateKey}
                         >
                           <PenTool className="mr-2 h-4 w-4" /> Sign
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/kms/keys/${key.id}?tab=verify`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=verify`)}> {/* Updated navigation */}
                           <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem> 
                         <DropdownMenuSeparator />
@@ -279,13 +272,13 @@ export default function KmsKeysPage() {
         </div>
       ) : (
         !isLoading && !error && <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-          <h3 className="text-lg font-semibold text-muted-foreground">No KMS Keys Found</h3>
-          <p className="text-sm text-muted-foreground">
+            <h3 className="text-lg font-semibold text-muted-foreground">No KMS Keys Found</h3>
+            <p className="text-sm text-muted-foreground">
             There are no asymmetric keys configured in the KMS yet.
-          </p>
-          <Button onClick={handleCreateNewKey} className="mt-4">
-            <PlusCircle className="mr-2 h-4 w-4" /> Create New Key
-          </Button>
+            </p>
+            <Button onClick={handleCreateNewKey} className="mt-4">
+              <PlusCircle className="mr-2 h-4 w-4" /> Create New Key
+            </Button>
         </div>
       )}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

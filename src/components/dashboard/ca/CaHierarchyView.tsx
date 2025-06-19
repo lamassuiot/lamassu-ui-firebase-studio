@@ -1,16 +1,17 @@
 
 'use client';
 
-import React, { useState } from 'react'; // Added useState
+import React, { useState } from 'react'; 
 import type { CA } from '@/lib/ca-data';
 import { Tree, TreeNode } from 'react-organizational-chart';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch'; // Added Switch import
-import { Label } from '@/components/ui/label'; // Added Label import
+import { Switch } from '@/components/ui/switch'; 
+import { Label } from '@/components/ui/label'; 
 import { ZoomIn, ZoomOut, RotateCcw, Key } from 'lucide-react';
-import { cn } from '@/lib/utils';
+// cn import is not strictly needed here anymore unless more complex styling is added
+// import { cn } from '@/lib/utils'; 
 
 interface CaHierarchyViewProps {
   cas: CA[];
@@ -19,7 +20,7 @@ interface CaHierarchyViewProps {
 }
 
 export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, allCAs }) => {
-  const [showKmsKeyIds, setShowKmsKeyIds] = useState(false); // State for toggle
+  const [showKmsKeyIds, setShowKmsKeyIds] = useState(false); 
 
   if (cas.length === 0) {
     return (
@@ -29,7 +30,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
 
   const renderTreeNodes = (ca: CA, currentRouter: ReturnType<typeof import('next/navigation').useRouter>, currentAllCAs: CA[]): React.ReactNode => {
     const handleNodeClick = (selectedCa: CA) => {
-      currentRouter.push(`/certificate-authorities/${selectedCa.id}/details`);
+      currentRouter.push(`/certificate-authorities/details?caId=${selectedCa.id}`); // Updated navigation
     };
 
     return (
@@ -40,8 +41,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
             ca={ca}
             onClick={handleNodeClick}
             className="mx-auto w-auto min-w-[330px] max-w-[380px]"
-            showKmsKeyId={showKmsKeyIds} // Pass toggle state
-            // kmsKeyId is now taken from ca.kmsKeyId internally by CaVisualizerCard
+            showKmsKeyId={showKmsKeyIds} 
           />
         }
       >
@@ -51,14 +51,13 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
   };
 
   const handleRootNodeClick = (selectedCa: CA) => {
-    router.push(`/certificate-authorities/${selectedCa.id}/details`);
+    router.push(`/certificate-authorities/details?caId=${selectedCa.id}`); // Updated navigation
   };
 
   return (
     <div className="w-full h-[calc(100vh-200px)] border rounded-md relative overflow-hidden flex flex-col">
       <div className="p-2 border-b bg-muted/30 flex items-center justify-between">
          <div className="flex items-center space-x-1">
-            {/* Zoom and Reset Controls will be added by TransformWrapper's controls prop or manually */}
         </div>
         <div className="flex items-center space-x-2">
           <Key className="h-4 w-4 text-muted-foreground" />
@@ -96,21 +95,21 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
               </div>
               <TransformComponent
                 wrapperStyle={{ width: '100%', height: '100%' }}
-                contentStyle={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '60px 20px 20px 20px' }} // Added more top padding
+                contentStyle={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '60px 20px 20px 20px' }} 
               >
                 <div className="flex flex-row items-start space-x-12">
                   {cas.map((rootCa) => (
                     <Tree
                       key={rootCa.id}
                       lineWidth={'2px'}
-                      lineColor={'hsl(var(--border))'} // Use border color for lines
+                      lineColor={'hsl(var(--border))'} 
                       lineBorderRadius={'5px'}
                       label={
                         <CaVisualizerCard
                           ca={rootCa}
                           onClick={handleRootNodeClick}
                           className="mx-auto w-auto min-w-[330px] max-w-[380px]"
-                          showKmsKeyId={showKmsKeyIds} // Pass toggle state
+                          showKmsKeyId={showKmsKeyIds} 
                         />
                       }
                     >

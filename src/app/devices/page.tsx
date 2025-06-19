@@ -171,7 +171,7 @@ export default function DevicesPage() {
     try {
       const baseUrl = 'https://lab.lamassu.io/api/devmanager/v1/devices';
       const params = new URLSearchParams({
-        sort_by: 'creation_timestamp', // API default sort, client-side sorting will refine this
+        sort_by: 'creation_timestamp', 
         sort_mode: 'desc',
         page_size: currentPageSize,
       });
@@ -234,10 +234,7 @@ export default function DevicesPage() {
   };
 
   const sortedAndFilteredDevices = useMemo(() => {
-    let processed = [...devices]; // Use the fetched devices
-
-    // Filtering is already handled by API through debouncedDeviceIdFilter,
-    // but if we had client-side filters, they'd go here.
+    let processed = [...devices]; 
 
     if (sortConfig) {
       processed.sort((a, b) => {
@@ -284,11 +281,11 @@ export default function DevicesPage() {
     if (isSorted) {
       if (column === 'createdAt') {
         Icon = sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10;
-      } else { // For text-based columns
+      } else { 
         Icon = sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ;
       }
     } else if (column === 'createdAt') {
-         Icon = ChevronsUpDown; // Default for non-sorted date
+         Icon = ChevronsUpDown; 
     }
 
 
@@ -306,18 +303,18 @@ export default function DevicesPage() {
     alert('Navigate to Create New Device form (placeholder)');
   };
 
-  const handleViewDetails = (deviceId: string) => {
-    router.push(`/devices/${deviceId}`);
+  const handleViewDetails = (deviceIdValue: string) => {
+    router.push(`/devices/details?deviceId=${deviceIdValue}`); // Updated navigation
   };
 
-  const handleEditDevice = (deviceId: string) => {
-    alert(`Edit device ID: ${deviceId} (placeholder)`);
+  const handleEditDevice = (deviceIdValue: string) => {
+    alert(`Edit device ID: ${deviceIdValue} (placeholder)`);
   };
 
-  const handleDeleteDevice = (deviceId: string) => {
-    if(confirm(`Are you sure you want to delete device ${deviceId}? This action cannot be undone.`)){
-        setDevices(prev => prev.filter(d => d.id !== deviceId));
-        alert(`Device ${deviceId} deleted (mock - API call not implemented).`);
+  const handleDeleteDevice = (deviceIdValue: string) => {
+    if(confirm(`Are you sure you want to delete device ${deviceIdValue}? This action cannot be undone.`)){
+        setDevices(prev => prev.filter(d => d.id !== deviceIdValue));
+        alert(`Device ${deviceIdValue} deleted (mock - API call not implemented).`);
     }
   };
 

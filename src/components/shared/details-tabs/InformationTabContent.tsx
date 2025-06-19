@@ -5,16 +5,16 @@ import React from 'react';
 import type { CA } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, ChevronDown } from "lucide-react"; // Added ChevronDown, removed ArrowLeft for chain
+import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, ChevronDown } from "lucide-react"; 
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DetailItem } from '@/components/shared/DetailItem';
-import { CaHierarchyPathNode } from '@/components/dashboard/ca/details/CaHierarchyPathNode'; // Specific to CA details
-import { getCaDisplayName } from '@/lib/ca-data'; // Utility for CA display name
+import { CaHierarchyPathNode } from '@/components/dashboard/ca/details/CaHierarchyPathNode'; 
+import { getCaDisplayName } from '@/lib/ca-data'; 
 import { format, parseISO } from 'date-fns';
-import type { useRouter } from 'next/navigation';
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'; // For routerHook type
 
 interface InformationTabContentProps {
   item: CA | CertificateData;
@@ -23,7 +23,7 @@ interface InformationTabContentProps {
     pathToRoot: CA[];
     allCAsForLinking: CA[];
     currentCaId: string;
-    placeholderSerial?: string; // For SKI/AKI placeholder
+    placeholderSerial?: string; 
   };
   certificateSpecific?: {
     certificateChainForVisualizer: CA[];
@@ -31,7 +31,7 @@ interface InformationTabContentProps {
     statusBadgeClass?: string;
     apiStatusText: string;
   };
-  routerHook: ReturnType<typeof useRouter>;
+  routerHook: AppRouterInstance; // Using specific type
 }
 
 export const InformationTabContent: React.FC<InformationTabContentProps> = ({
@@ -154,7 +154,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                 <ul className="list-disc list-inside space-y-1 pl-4">
                   {caDetails.children.map(child => (
                     <li key={child.id}>
-                      <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => routerHook.push(`/certificate-authorities/${child.id}/details`)}>
+                      <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => routerHook.push(`/certificate-authorities/details?caId=${child.id}`)}>
                         {child.name} (ID: {child.id})
                       </Button>
                     </li>
@@ -210,7 +210,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
           </AccordionItem>
         )}
 
-        {certificateSpecific.certificateChainForVisualizer && certificateSpecific.certificateChainForVisualizer.length >= 0 && ( // Allow empty chain if it's just the cert itself
+        {certificateSpecific.certificateChainForVisualizer && certificateSpecific.certificateChainForVisualizer.length >= 0 && ( 
           <AccordionItem value="chain-visualizer" className="border-b-0">
             <AccordionTrigger className={cn(accordionTriggerStyle)}>
               <Network className="mr-2 h-5 w-5" /> Issuance Chain
@@ -233,9 +233,9 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                   <CaHierarchyPathNode
                     key={caNode.id}
                     ca={caNode}
-                    isCurrentCa={false} // CAs in this chain are issuers, not the current item
+                    isCurrentCa={false} 
                     hasNext={index < certificateSpecific.certificateChainForVisualizer.length - 1}
-                    isFirst={true} // For CaHierarchyPathNode, this means it won't render an arrow *before* itself.
+                    isFirst={true} 
                   />
                 ))}
               </div>

@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation'; // Changed from useParams
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Database, Loader2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
@@ -42,11 +42,11 @@ const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] =
 
 
 export default function CertificateAuthorityDetailsClient() {
-  const params = useParams();
-  const routerHook = useRouter(); // Renamed to avoid conflict with router prop if any
+  const searchParams = useSearchParams(); // Changed from useParams
+  const routerHook = useRouter();
   const { toast } = useToast();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const caId = params.caId as string;
+  const caId = searchParams.get('caId'); // Get caId from query params
   
   const [allCertificateAuthoritiesData, setAllCertificateAuthoritiesData] = useState<CA[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
@@ -60,8 +60,7 @@ export default function CertificateAuthorityDetailsClient() {
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [caToRevoke, setCaToRevoke] = useState<CA | null>(null);
 
-  // Mock Lamassu Metadata will be passed to MetadataTabContent
-  const mockLamassuMetadata = {
+  const mockLamassuMetadata = caId ? {
     lamassuInternalId: `lm_ca_${caId.replace(/-/g, '_')}`,
     provisioningProfile: "Default IoT Device Profile",
     associatedDeviceGroups: ["group_thermostats_emea", "group_sensors_floor_1"],
@@ -81,7 +80,7 @@ export default function CertificateAuthorityDetailsClient() {
         enabled: true,
         keyId: caDetails?.kmsKeyId || `arn:aws:kms:eu-west-1:123456789012:key/mock-kms-${caId}`
     }
-  };
+  } : {};
 
   useEffect(() => {
     const loadCAs = async () => {
@@ -111,6 +110,11 @@ export default function CertificateAuthorityDetailsClient() {
 
 
   useEffect(() => {
+    if (!caId) {
+        setErrorCAs("CA ID is missing from the URL.");
+        setCaDetails(null);
+        return;
+    }
     if (allCertificateAuthoritiesData.length > 0 && !isLoadingCAs) {
       const foundCa = findCaById(caId, allCertificateAuthoritiesData);
       setCaDetails(foundCa);
@@ -122,7 +126,7 @@ export default function CertificateAuthorityDetailsClient() {
         const chainPem = chainInOrderForPem
           .map(caNode => caNode.pemData || '')
           .filter(pem => pem.trim() !== '')
-          .join('\\n\\n'); // Use escaped newlines for pre block display
+          .join('\\n\\n'); 
         setFullChainPemString(chainPem);
 
       } else {
@@ -174,7 +178,7 @@ export default function CertificateAuthorityDetailsClient() {
   if (errorCAs && !caDetails) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
+         <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
           </Button>
         <Alert variant="destructive">
@@ -191,8 +195,8 @@ export default function CertificateAuthorityDetailsClient() {
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center">
         <FileText className="h-12 w-12 text-muted-foreground animate-pulse" />
-        <p className="text-muted-foreground">Searching for CA details for ID: {caId}...</p>
-        <Button variant="outline" onClick={() => routerHook.back()} className="mt-4">
+        <p className="text-muted-foreground">Searching for CA details for ID: {caId || 'Unknown'}...</p>
+        <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')} className="mt-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
         </Button>
       </div>
@@ -222,7 +226,7 @@ export default function CertificateAuthorityDetailsClient() {
   return (
     <div className="w-full space-y-6">
       <div className="flex justify-between items-center mb-4">
-        <Button variant="outline" onClick={() => routerHook.back()}>
+        <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
         </Button>
       </div>

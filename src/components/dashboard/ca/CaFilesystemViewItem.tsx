@@ -4,8 +4,7 @@
 import React, { useState } from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Button } from "@/components/ui/button";
-// Badge import removed as it's not used directly in this simplified status text logic
-import { Landmark, ShieldAlert, ChevronRight, FileSearch, FilePlus2 } from 'lucide-react'; // Changed Folder, FolderOpen, FileWarning
+import { Landmark, ShieldAlert, ChevronRight, FileSearch, FilePlus2 } from 'lucide-react'; 
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +22,6 @@ const getExpiryTextAndSimplifiedStatus = (expires: string, status: CA['status'])
     isCritical = true;
   } else {
     text = `Expires in ${formatDistanceToNowStrict(expiryDate)}`;
-    // Could add warning logic for upcoming expiry if needed
   }
   
   return { text: `${status.toUpperCase()} \u00B7 ${text}`, isWarning, isCritical };
@@ -38,7 +36,7 @@ interface CaFilesystemViewItemProps {
 }
 
 export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, level, router, allCAs }) => {
-  const [isOpen, setIsOpen] = useState(level < 2); // Auto-expand first few levels
+  const [isOpen, setIsOpen] = useState(level < 2); 
   const hasChildren = ca.children && ca.children.length > 0;
 
   const { text: statusText, isCritical } = getExpiryTextAndSimplifiedStatus(ca.expires, ca.status);
@@ -50,17 +48,17 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
   
   const handleDetailsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/certificate-authorities/${ca.id}/details`);
+    router.push(`/certificate-authorities/details?caId=${ca.id}`); // Updated navigation
   };
 
   const handleIssueCertClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/certificate-authorities/${ca.id}/issue-certificate`);
+    router.push(`/certificate-authorities/issue-certificate?caId=${ca.id}`); // Updated navigation
   };
 
-  let IconComponent = Landmark; // Default to Landmark for CA
+  let IconComponent = Landmark; 
   if (isCritical) {
-    IconComponent = ShieldAlert; // Use ShieldAlert for revoked/expired
+    IconComponent = ShieldAlert; 
   }
 
 
@@ -77,10 +75,10 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
         {hasChildren && (
           <ChevronRight
             className={cn("h-4 w-4 text-muted-foreground transition-transform duration-150 flex-shrink-0", isOpen && "rotate-90")}
-            onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} // Allow direct click on chevron too
+            onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} 
           />
         )}
-        {!hasChildren && <div className="w-4 h-4 flex-shrink-0"></div>} {/* Placeholder for alignment */}
+        {!hasChildren && <div className="w-4 h-4 flex-shrink-0"></div>} 
         
         <IconComponent className={cn("h-5 w-5 flex-shrink-0", isCritical ? "text-destructive" : "text-primary")} />
         
@@ -102,7 +100,7 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
       </div>
 
       {hasChildren && isOpen && (
-        <ul className="pl-4 border-l border-dashed border-border ml-4 py-1"> {/* Indent children and add guide line */}
+        <ul className="pl-4 border-l border-dashed border-border ml-4 py-1"> 
           {ca.children?.map((childCa) => (
             <CaFilesystemViewItem
               key={childCa.id}

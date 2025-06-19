@@ -1,13 +1,13 @@
 
 'use client';
 
-import './globals.css'; // From old root layout
-import { Toaster } from "@/components/ui/toaster"; // From old root layout
-import { AuthProvider, useAuth } from '@/contexts/AuthContext'; // From old root layout + useAuth
+import './globals.css'; 
+import { Toaster } from "@/components/ui/toaster"; 
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'; 
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation'; // Added useSearchParams
 import {
   SidebarProvider,
   Sidebar,
@@ -26,8 +26,8 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
-import type { CA } from '@/lib/ca-data';
-import { findCaById } from '@/lib/ca-data';
+// import type { CA } from '@/lib/ca-data'; // No longer needed here for breadcrumbs
+// import { findCaById } from '@/lib/ca-data'; // No longer needed here for breadcrumbs
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { jwtDecode } from 'jwt-decode';
@@ -56,7 +56,8 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'crypto-engines': "Crypto Engines",
 };
 
-function generateBreadcrumbs(pathname: string, params: ReturnType<typeof useParams>, allCAs: CA[] | null): BreadcrumbItem[] {
+// Simplified breadcrumb generation based on path segments only
+function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
   const pathSegments = pathname.split('/').filter(segment => segment);
   const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/' }];
 
@@ -70,18 +71,11 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
     const segment = pathSegments[i];
     const isLastSegment = i === pathSegments.length - 1;
     let label = PATH_SEGMENT_TO_LABEL_MAP[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
-
+    
     currentHref += `/${segment}`;
 
-    if (params.caId && segment === params.caId && pathSegments[i-1] === 'certificate-authorities' && allCAs) {
-      const ca = findCaById(segment, allCAs);
-      label = ca ? ca.name : segment;
-    } else if (params.deviceId && segment === params.deviceId && pathSegments[i-1] === 'devices') {
-      label = `Device: ${segment}`;
-    } else if (params.keyId && segment === params.keyId && pathSegments[i-2] === 'kms' && pathSegments[i-1] === 'keys') {
-      label = `Key: ${segment}`;
-    }
-
+    // For "details" or "issue-certificate" pages, we just use the generic label from the map.
+    // Dynamic naming (e.g., specific CA name) would require more complex state management or context.
 
     if (isLastSegment) {
       breadcrumbItems.push({ label });
@@ -93,19 +87,16 @@ function generateBreadcrumbs(pathname: string, params: ReturnType<typeof usePara
 }
 
 const InnerLayout = ({ children }: { children: React.ReactNode }) => {
-  // ALL HOOKS AT THE TOP
   const pathname = usePathname();
-  const params = useParams(); // Moved up
+  // const params = useParams(); // Removed, not needed for query param strategy in layout
   const { isLoading: authIsLoading, isAuthenticated, user, login, logout } = useAuth();
   const [clientMounted, setClientMounted] = React.useState(false);
-  const [allCAsForBreadcrumbs, setAllCAsForBreadcrumbs] = React.useState<CA[] | null>(null); // Moved up & Example, adapt as needed
+  // const [allCAsForBreadcrumbs, setAllCAsForBreadcrumbs] = React.useState<CA[] | null>(null); // No longer needed for breadcrumbs
 
   React.useEffect(() => {
     setClientMounted(true);
-    // TODO: Add effect to loadCAsForBreadcrumbs if needed, or pass it down
   }, []);
 
-  // Conditional rendering logic
   const isCallbackPage =
     pathname === '/signin-callback' ||
     pathname === '/silent-renew-callback' ||
@@ -114,24 +105,21 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
   if (isCallbackPage) {
     return <>{children}</>;
   }
+  
+  const LoadingState = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
+      <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      <p className="mt-6 text-lg text-muted-foreground">
+        {authIsLoading ? "Verifying authentication..." : "Initializing application..."}
+      </p>
+    </div>
+  );
 
-  // If not clientMounted or still loading auth, return loading state
   if (!clientMounted || authIsLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-        <p className="mt-6 text-lg text-muted-foreground">
-          {/* Ensure loading message is consistent or determined by a stable prop/state if it changes */}
-          {clientMounted ? "Verifying authentication..." : "Initializing..."}
-        </p>
-      </div>
-    );
+    return <LoadingState />;
   }
-
-
-  // This section is now only rendered on the client after mount and auth resolution
-  // Now it's safe to use params and allCAsForBreadcrumbs because hooks were called unconditionally
-  const breadcrumbItems = generateBreadcrumbs(pathname, params, allCAsForBreadcrumbs);
+  
+  const breadcrumbItems = generateBreadcrumbs(pathname); // Removed params and allCAs
   let userRoles: string[] = [];
   if (isAuthenticated() && user?.access_token) {
     try {
@@ -236,7 +224,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > '/'.length)}
+                        isActive={pathname.startsWith(item.href)}
                         tooltip={{children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
@@ -252,7 +240,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > '/'.length)}
+                        isActive={pathname.startsWith(item.href)}
                         tooltip={{children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
@@ -268,7 +256,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > '/'.length)}
+                        isActive={pathname.startsWith(item.href)}
                         tooltip={{children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
