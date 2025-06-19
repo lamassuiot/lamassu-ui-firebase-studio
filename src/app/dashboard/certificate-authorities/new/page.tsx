@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Settings, Info, CalendarDays, KeyRound, Repeat, UploadCloud, FileText, Loader2, AlertTriangle } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs } from '@/lib/ca-data'; // Corrected import
+import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from '@/hooks/use-toast';
 
 
 interface SelectableCaTreeItemProps {
@@ -84,11 +85,19 @@ const rsaKeySizes = [
   { value: '4096', label: '4096 bit' },
 ];
 
-const ecdsaKeySizes = [
+const ecdsaKeySizes = [ // These represent curve names, will be mapped to bits
   { value: 'P-256', label: 'P-256' },
   { value: 'P-384', label: 'P-384' },
   { value: 'P-521', label: 'P-521' },
 ];
+
+const cryptoEngines = [
+    { value: 'Local Software KeyStore', label: 'Local Software KeyStore', apiId: 'GOLANG_Crypto' },
+    { value: 'AWS KMS (mock)', label: 'AWS KMS (mock)', apiId: 'AWSKMS' },
+    { value: 'Azure Key Vault (mock)', label: 'Azure Key Vault (mock)', apiId: 'AzureKeyVault' },
+    { value: 'Hardware HSM (mock)', label: 'Hardware HSM (mock)', apiId: 'PKCS11_Engine_fs1' },
+];
+
 
 const creationModes = [
   {
@@ -121,17 +130,19 @@ const creationModes = [
 export default function CreateCertificateAuthorityPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const [selectedMode, setSelectedMode] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [caType, setCaType] = useState('root');
-  const [cryptoEngine, setCryptoEngine] = useState('Local Software KeyStore');
+  const [cryptoEngine, setCryptoEngine] = useState(cryptoEngines[0].value); // Default to first engine's display value
   const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
   const [caId, setCaId] = useState('');
   const [caName, setCaName] = useState('');
 
   const [keyType, setKeyType] = useState('RSA');
-  const [keySize, setKeySize] = useState('2048');
+  const [keySize, setKeySize] = useState('2048'); // For RSA; for ECDSA this will be curve name
 
   const [country, setCountry] = useState('');
   const [stateProvince, setStateProvince] = useState('');
@@ -209,37 +220,113 @@ export default function CreateCertificateAuthorityPage() {
     setIsParentCaModalOpen(false);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const mapCryptoEngineToApiEngineId = (engineValue: string): string => {
+    const selectedEngine = cryptoEngines.find(e => e.value === engineValue);
+    return selectedEngine ? selectedEngine.apiId : 'GOLANG_Crypto'; // Fallback
+  };
+
+  const mapEcdsaCurveToBits = (curveName: string): number => {
+    switch (curveName) {
+      case 'P-256': return 256;
+      case 'P-384': return 384;
+      case 'P-521': return 521;
+      default: return 256; // Default or throw error
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (selectedMode !== 'importCertOnly' && caType === 'intermediate' && !selectedParentCa) {
-      alert('Please select a Parent CA for intermediate CAs.');
+    setIsSubmitting(true);
+
+    if (selectedMode !== 'importCertOnly' && caType === 'intermediate' && !selectedParentCa && selectedMode !== 'importFull') {
+      toast({ title: "Validation Error", description: "Please select a Parent CA for intermediate CAs.", variant: "destructive" });
+      setIsSubmitting(false);
       return;
     }
-    if (selectedMode !== 'importCertOnly' && !caName.trim()) {
-        alert('CA Name (Common Name) cannot be empty.');
-        return;
+    if (selectedMode !== 'importCertOnly' && selectedMode !== 'importFull' && !caName.trim()) {
+      toast({ title: "Validation Error", description: "CA Name (Common Name) cannot be empty.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
     }
 
-    const subjectDN = {
-        C: country, ST: stateProvince, L: locality, O: organization, OU: organizationalUnit, CN: caName,
-    };
+    if (selectedMode === 'newKeyPair') {
+      if (!user?.access_token) {
+        toast({ title: "Authentication Error", description: "User not authenticated.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
 
-    const formData = {
-      creationMode: selectedMode,
-      caType: selectedMode === 'importCertOnly' ? 'external_public' : caType,
-      cryptoEngine: selectedMode === 'importCertOnly' ? 'N/A' : cryptoEngine,
-      parentCaId: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.id,
-      parentCaName: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.name,
-      caId,
-      subjectDN,
-      keyType: selectedMode === 'importCertOnly' ? 'N/A' : keyType,
-      keySize: selectedMode === 'importCertOnly' ? 'N/A' : keySize,
-      caExpirationDuration: selectedMode === 'importCertOnly' ? 'N/A (external)' : caExpirationDuration,
-      issuanceExpirationDuration: selectedMode === 'importCertOnly' ? 'N/A (external)' : issuanceExpirationDuration,
-    };
-    console.log(`Creating CA (Mode: ${selectedMode}) with data:`, formData);
-    alert(`Mock CA Creation Successful (Mode: ${selectedModeDetails?.title})\nDetails in console.`);
-    router.push('/dashboard/certificate-authorities');
+      const payload = {
+        parent_id: caType === 'root' ? null : selectedParentCa?.id || null,
+        id: caId,
+        engine_id: mapCryptoEngineToApiEngineId(cryptoEngine),
+        subject: {
+          country: country || undefined,
+          state_province: stateProvince || undefined, 
+          locality: locality || undefined,
+          organization: organization || undefined,
+          organization_unit: organizationalUnit || undefined,
+          common_name: caName,
+        },
+        key_metadata: {
+          type: keyType,
+          bits: keyType === 'RSA' ? parseInt(keySize) : mapEcdsaCurveToBits(keySize),
+        },
+        ca_expiration: {
+          type: "Duration",
+          duration: caExpirationDuration,
+        },
+        issuance_expiration: {
+          type: "Duration",
+          duration: issuanceExpirationDuration,
+        },
+        ca_type: "MANAGED",
+      };
+
+      try {
+        const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user.access_token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+          throw new Error(errorData.message || `Failed to create CA. Status: ${response.status}`);
+        }
+        
+        // const responseData = await response.json(); // If API returns created CA details
+        toast({ title: "CA Creation Successful", description: `CA "${caName}" has been created.`, variant: "default" });
+        router.push('/dashboard/certificate-authorities');
+
+      } catch (error: any) {
+        console.error("CA Creation API Error:", error);
+        toast({ title: "CA Creation Failed", description: error.message || "An unknown error occurred.", variant: "destructive" });
+      }
+
+    } else {
+      // Mock submission for other modes
+      const subjectDN = { C: country, ST: stateProvince, L: locality, O: organization, OU: organizationalUnit, CN: caName };
+      const formData = {
+        creationMode: selectedMode,
+        caType: selectedMode === 'importCertOnly' ? 'external_public' : caType,
+        cryptoEngine: selectedMode === 'importCertOnly' ? 'N/A' : cryptoEngine,
+        parentCaId: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.id,
+        parentCaName: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.name,
+        caId, subjectDN,
+        keyType: selectedMode === 'importCertOnly' ? 'N/A' : keyType,
+        keySize: selectedMode === 'importCertOnly' ? 'N/A' : keySize,
+        caExpirationDuration: selectedMode === 'importCertOnly' ? 'N/A (external)' : caExpirationDuration,
+        issuanceExpirationDuration: selectedMode === 'importCertOnly' ? 'N/A (external)' : issuanceExpirationDuration,
+      };
+      console.log(`Mock Creating CA (Mode: ${selectedMode}) with data:`, formData);
+      toast({ title: "Mock CA Creation (Non-API)", description: `Mock CA Submission for mode: ${selectedModeDetails?.title}. Details in console.`, variant: "default" });
+      router.push('/dashboard/certificate-authorities');
+    }
+    setIsSubmitting(false);
   };
 
   const selectedModeDetails = creationModes.find(m => m.id === selectedMode);
@@ -337,10 +424,9 @@ export default function CreateCertificateAuthorityPage() {
                       <Select value={cryptoEngine} onValueChange={setCryptoEngine} disabled={selectedMode === 'reuseKeyPair'}>
                         <SelectTrigger id="cryptoEngine"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Local Software KeyStore">Local Software KeyStore</SelectItem>
-                          <SelectItem value="AWS KMS">AWS KMS (mock)</SelectItem>
-                          <SelectItem value="Azure Key Vault">Azure Key Vault (mock)</SelectItem>
-                          <SelectItem value="Hardware HSM">Hardware HSM (mock)</SelectItem>
+                          {cryptoEngines.map(engine => (
+                            <SelectItem key={engine.value} value={engine.value}>{engine.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                        {selectedMode === 'reuseKeyPair' && <p className="text-xs text-muted-foreground mt-1">Crypto engine will be based on the selected existing key.</p>}
@@ -417,7 +503,7 @@ export default function CreateCertificateAuthorityPage() {
                         </Select>
                       </div>
                       <div>
-                        <Label htmlFor="keySize">Key Size</Label>
+                        <Label htmlFor="keySize">{keyType === 'ECDSA' ? 'ECDSA Curve' : 'Key Size'}</Label>
                         <Select value={keySize} onValueChange={setKeySize}>
                           <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -534,11 +620,11 @@ export default function CreateCertificateAuthorityPage() {
             
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg">
-                <PlusCircle className="mr-2 h-5 w-5" /> 
+              <Button type="submit" size="lg" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
                 {selectedMode === 'importCertOnly' ? 'Import Certificate' : 
                  selectedMode === 'importFull' ? 'Import CA' :
-                 'Create CA'}
+                 (isSubmitting ? 'Creating...' : 'Create CA')}
               </Button>
             </div>
           </form>
@@ -595,4 +681,4 @@ export default function CreateCertificateAuthorityPage() {
   );
 }
 
-    
+      
