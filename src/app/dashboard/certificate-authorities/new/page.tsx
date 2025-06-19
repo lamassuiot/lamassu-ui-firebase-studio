@@ -20,6 +20,7 @@ import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
+import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 
 
 interface SelectableCaTreeItemProps {
@@ -91,12 +92,13 @@ const ecdsaKeySizes = [ // These represent curve names, will be mapped to bits
   { value: 'P-521', label: 'P-521' },
 ];
 
-const cryptoEngines = [
-    { value: 'Local Software KeyStore', label: 'Local Software KeyStore', apiId: 'GOLANG_Crypto' },
-    { value: 'AWS KMS (mock)', label: 'AWS KMS (mock)', apiId: 'AWSKMS' },
-    { value: 'Azure Key Vault (mock)', label: 'Azure Key Vault (mock)', apiId: 'AzureKeyVault' },
-    { value: 'Hardware HSM (mock)', label: 'Hardware HSM (mock)', apiId: 'PKCS11_Engine_fs1' },
-];
+// This cryptoEngines array will be removed as we use CryptoEngineSelector
+// const cryptoEngines = [
+//     { value: 'Local Software KeyStore', label: 'Local Software KeyStore', apiId: 'GOLANG_Crypto' },
+//     { value: 'AWS KMS (mock)', label: 'AWS KMS (mock)', apiId: 'AWSKMS' },
+//     { value: 'Azure Key Vault (mock)', label: 'Azure Key Vault (mock)', apiId: 'AzureKeyVault' },
+//     { value: 'Hardware HSM (mock)', label: 'Hardware HSM (mock)', apiId: 'PKCS11_Engine_fs1' },
+// ];
 
 
 const creationModes = [
@@ -136,7 +138,7 @@ export default function CreateCertificateAuthorityPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [caType, setCaType] = useState('root');
-  const [cryptoEngine, setCryptoEngine] = useState(cryptoEngines[0].value); // Default to first engine's display value
+  const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined); // Will store the selected engine_id
   const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
   const [caId, setCaId] = useState('');
   const [caName, setCaName] = useState('');
@@ -166,7 +168,7 @@ export default function CreateCertificateAuthorityPage() {
 
   const loadParentCAs = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
-      if (!authLoading) { 
+      if (!authLoading) {
         setErrorParentCAs("User not authenticated. Cannot load parent CAs.");
       }
       setIsLoadingParentCAs(false);
@@ -220,10 +222,7 @@ export default function CreateCertificateAuthorityPage() {
     setIsParentCaModalOpen(false);
   };
 
-  const mapCryptoEngineToApiEngineId = (engineValue: string): string => {
-    const selectedEngine = cryptoEngines.find(e => e.value === engineValue);
-    return selectedEngine ? selectedEngine.apiId : 'GOLANG_Crypto'; // Fallback
-  };
+  // mapCryptoEngineToApiEngineId is no longer needed as cryptoEngineId state holds the API ID.
 
   const mapEcdsaCurveToBits = (curveName: string): number => {
     switch (curveName) {
@@ -248,6 +247,12 @@ export default function CreateCertificateAuthorityPage() {
       setIsSubmitting(false);
       return;
     }
+     if (selectedMode === 'newKeyPair' && !cryptoEngineId) {
+      toast({ title: "Validation Error", description: "Please select a Crypto Engine.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
 
     if (selectedMode === 'newKeyPair') {
       if (!user?.access_token) {
@@ -255,14 +260,20 @@ export default function CreateCertificateAuthorityPage() {
         setIsSubmitting(false);
         return;
       }
+      if (!cryptoEngineId) { // Should be caught by above check, but good for safety
+        toast({ title: "Validation Error", description: "Crypto Engine ID is missing.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+
 
       const payload = {
         parent_id: caType === 'root' ? null : selectedParentCa?.id || null,
         id: caId,
-        engine_id: mapCryptoEngineToApiEngineId(cryptoEngine),
+        engine_id: cryptoEngineId, // Use the selected engine_id directly
         subject: {
           country: country || undefined,
-          state_province: stateProvince || undefined, 
+          state_province: stateProvince || undefined,
           locality: locality || undefined,
           organization: organization || undefined,
           organization_unit: organizationalUnit || undefined,
@@ -297,8 +308,7 @@ export default function CreateCertificateAuthorityPage() {
           const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
           throw new Error(errorData.message || `Failed to create CA. Status: ${response.status}`);
         }
-        
-        // const responseData = await response.json(); // If API returns created CA details
+
         toast({ title: "CA Creation Successful", description: `CA "${caName}" has been created.`, variant: "default" });
         router.push('/dashboard/certificate-authorities');
 
@@ -313,7 +323,7 @@ export default function CreateCertificateAuthorityPage() {
       const formData = {
         creationMode: selectedMode,
         caType: selectedMode === 'importCertOnly' ? 'external_public' : caType,
-        cryptoEngine: selectedMode === 'importCertOnly' ? 'N/A' : cryptoEngine,
+        cryptoEngine: selectedMode === 'importCertOnly' ? 'N/A' : cryptoEngineId, // Use cryptoEngineId
         parentCaId: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.id,
         parentCaName: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.name,
         caId, subjectDN,
@@ -343,8 +353,8 @@ export default function CreateCertificateAuthorityPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {creationModes.map(mode => (
-            <Card 
-              key={mode.id} 
+            <Card
+              key={mode.id}
               className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col group"
               onClick={() => setSelectedMode(mode.id)}
             >
@@ -379,7 +389,7 @@ export default function CreateCertificateAuthorityPage() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Change Creation Method
         </Button>
       </div>
-      
+
       <div className="w-full">
         <div className="p-6">
           <div className="flex items-center space-x-3">
@@ -418,18 +428,23 @@ export default function CreateCertificateAuthorityPage() {
                      {selectedMode === 'importFull' && <p className="text-xs text-muted-foreground mt-1">CA type will be determined from the imported certificate.</p>}
                   </div>
 
-                  {selectedMode !== 'importFull' && ( 
+                  {selectedMode === 'newKeyPair' && (
                     <div>
                       <Label htmlFor="cryptoEngine">Crypto Engine</Label>
-                      <Select value={cryptoEngine} onValueChange={setCryptoEngine} disabled={selectedMode === 'reuseKeyPair'}>
-                        <SelectTrigger id="cryptoEngine"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {cryptoEngines.map(engine => (
-                            <SelectItem key={engine.value} value={engine.value}>{engine.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                       {selectedMode === 'reuseKeyPair' && <p className="text-xs text-muted-foreground mt-1">Crypto engine will be based on the selected existing key.</p>}
+                      <CryptoEngineSelector
+                        value={cryptoEngineId}
+                        onValueChange={setCryptoEngineId}
+                        disabled={authLoading}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
+
+                  {selectedMode === 'reuseKeyPair' && (
+                     <div>
+                        <Label htmlFor="cryptoEngineReuse">Crypto Engine (determined by existing key)</Label>
+                        <Input id="cryptoEngineReuse" value="Determined by Existing Key Selection" disabled className="mt-1 bg-muted/50" />
+                        <p className="text-xs text-muted-foreground mt-1">Select the existing key below, its engine will be used.</p>
                     </div>
                   )}
 
@@ -462,7 +477,7 @@ export default function CreateCertificateAuthorityPage() {
                           <p className="text-xs text-muted-foreground mt-1">Root CAs are self-signed.</p>
                        </div>
                   )}
-                  
+
                   {selectedMode === 'importFull' && (
                      <div>
                         <Label htmlFor="importedCaPem">CA Certificate & Private Key (PEM)</Label>
@@ -483,7 +498,7 @@ export default function CreateCertificateAuthorityPage() {
                       value={caName}
                       onChange={(e) => setCaName(e.target.value)}
                       placeholder="e.g., LamassuIoT Secure Services CA"
-                      required={selectedMode !== 'importFull'} 
+                      required={selectedMode !== 'importFull'}
                       disabled={selectedMode === 'importFull'}
                       className="mt-1"
                     />
@@ -517,13 +532,13 @@ export default function CreateCertificateAuthorityPage() {
                     <div>
                         <Label htmlFor="existingKeyId">Existing Key ID (from KMS)</Label>
                         <Input id="existingKeyId" placeholder="Enter existing Key ID from your KMS" required className="mt-1"/>
-                        <p className="text-xs text-muted-foreground mt-1">Key type and size will be determined by the existing key.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Key type, size, and crypto engine will be determined by the existing key.</p>
                     </div>
                   )}
                 </div>
               </section>
             )}
-            
+
             {selectedMode === 'importCertOnly' && (
                  <section>
                     <h3 className="text-lg font-semibold mb-3 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Import CA Certificate</h3>
@@ -617,12 +632,12 @@ export default function CreateCertificateAuthorityPage() {
                   </div>
               </section>
             )}
-            
+
 
             <div className="flex justify-end pt-4">
               <Button type="submit" size="lg" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-                {selectedMode === 'importCertOnly' ? 'Import Certificate' : 
+                {selectedMode === 'importCertOnly' ? 'Import Certificate' :
                  selectedMode === 'importFull' ? 'Import CA' :
                  (isSubmitting ? 'Creating...' : 'Create CA')}
               </Button>
@@ -680,5 +695,3 @@ export default function CreateCertificateAuthorityPage() {
     </div>
   );
 }
-
-      

@@ -5,32 +5,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Cpu, ShieldAlert, ShieldCheck, Shield, Settings, Tag, CheckSquare, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import AWSKMSLogo from './AWS-KMS.png'
-import AWSMLogo from './AWS-SM.png'
-import GOLANGLogo from './GOLANG.png'
-import PKCS11Logo from './PKCS11.png'
-import Image from 'next/image'
+import type { ApiCryptoEngine, ApiKeyTypeDetail } from '@/types/crypto-engine'; // Import from new types file
+import Image from 'next/image';
+// Assuming images are moved to public or use placeholder icons
+// For simplicity, I'll use generic icons here, but you can adapt the image logic
+// import AWSKMSLogo from '/images/crypto-engines/AWS-KMS.png'; // Example if images moved to public
 
-// Interfaces for API data
-interface ApiKeyTypeDetail {
-  type: string; // e.g., "RSA", "ECDSA"
-  sizes: (number | string)[]; // e.g., [2048, 3072] or ["P-256", "P-384"]
-}
+// Placeholder icons (replace with Image components if preferred and images are set up)
+import { Cloud as CloudIcon, Cpu as CpuIcon, HardDrive as HardDriveIcon, ShieldQuestion } from 'lucide-react';
 
-interface ApiCryptoEngine {
-  id: string;
-  name: string;
-  type: string; // e.g., "AWS_KMS"
-  provider: string;
-  security_level: number;
-  metadata: Record<string, any>;
-  supported_key_types: ApiKeyTypeDetail[];
-  default: boolean;
-}
 
 // Helper to format supported key types for display
 const formatSupportedKeyTypes = (keyTypes: ApiKeyTypeDetail[]): string => {
@@ -47,6 +34,23 @@ const getSecurityLevelInfo = (level: number): { text: string; Icon: React.Elemen
   if (level >= 3) return { text: `Level ${level} (High)`, Icon: Shield, badgeClass: "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700" };
   return { text: `Level ${level}`, Icon: Settings, badgeClass: "bg-muted text-muted-foreground border-border" };
 };
+
+const EngineIcon: React.FC<{ type: string, name: string }> = ({ type, name }) => {
+  const typeUpper = type?.toUpperCase();
+  const nameUpper = name?.toUpperCase();
+
+  if (typeUpper?.includes('AWS') || nameUpper?.includes('KMS') || nameUpper?.includes('AZURE') || nameUpper?.includes('VAULT')) {
+    return <CloudIcon className="mr-1.5 h-7 w-7 text-blue-500" />;
+  }
+  if (typeUpper?.includes('GOLANG') || nameUpper?.includes('SOFTWARE') || typeUpper?.includes('LOCAL')) {
+    return <CpuIcon className="mr-1.5 h-7 w-7 text-green-500" />;
+  }
+  if (typeUpper?.includes('PKCS11') || nameUpper?.includes('HSM')) {
+    return <HardDriveIcon className="mr-1.5 h-7 w-7 text-gray-600" />;
+  }
+  return <ShieldQuestion className="mr-1.5 h-7 w-7 text-muted-foreground" />;
+};
+
 
 export default function CryptoEnginesPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -141,38 +145,16 @@ export default function CryptoEnginesPage() {
         <div className="space-y-4">
           {engines.map((engine) => {
             const securityInfo = getSecurityLevelInfo(engine.security_level);
-            var engineLogo = GOLANGLogo
-            switch (engine.type) {
-              case "AWS_KMS":
-                engineLogo = AWSKMSLogo
-                break;
-              case "AWS_SM":
-                engineLogo = AWSMLogo
-                break;
-              case "GOLANG":
-                engineLogo = GOLANGLogo
-                break;
-              case "PKCS11":
-                engineLogo = PKCS11Logo
-                break;
-              default:
-                break;
-            }
             return (
               <Card key={engine.id} className="shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-xl flex items-center">
-                        <Image
-                          src={engineLogo}
-                          height={30}
-                          alt="logo engine"
-                          className='mr-1.5'
-                        />
-                        {engine.name}
-                      </CardTitle>
-                      <CardDescription>{engine.provider} - ID: <span className="font-mono text-xs">{engine.id}</span></CardDescription>
+                    <div className="flex items-center">
+                       <EngineIcon type={engine.type} name={engine.name} />
+                       <div>
+                          <CardTitle className="text-xl">{engine.name}</CardTitle>
+                          <CardDescription>{engine.provider} - ID: <span className="font-mono text-xs">{engine.id}</span></CardDescription>
+                       </div>
                     </div>
                     {engine.default && (
                       <Badge variant="default" className="text-xs bg-accent text-accent-foreground">
