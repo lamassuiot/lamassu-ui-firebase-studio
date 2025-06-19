@@ -1,17 +1,18 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { KeyRound, PlusCircle, MoreVertical, Eye, FileSignature, PenTool, ShieldCheck, Trash2, AlertTriangle, Cpu } from "lucide-react";
+import { KeyRound, PlusCircle, MoreVertical, Eye, FileSignature, PenTool, ShieldCheck, Trash2, AlertTriangle, Cpu, Loader2, RefreshCw } from "lucide-react";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 interface KmsKey {
@@ -22,7 +23,7 @@ interface KmsKey {
   creationDate: string; // ISO Date string
   description?: string;
   hasPrivateKey?: boolean;
-  cryptoEngineId?: string; // Added for Crypto Engine
+  cryptoEngineId?: string; 
 }
 
 const mockKmsKeysData: KmsKey[] = [
@@ -110,9 +111,35 @@ const StatusBadge: React.FC<{ status: KmsKey['status'] }> = ({ status }) => {
 export default function KmsKeysPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [keys, setKeys] = useState<KmsKey[]>(mockKmsKeysData);
+  const [keys, setKeys] = useState<KmsKey[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [keyToDelete, setKeyToDelete] = useState<KmsKey | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const fetchKeys = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 700));
+    try {
+      // Replace with actual API call in a real app:
+      // const response = await fetch('/api/kms-keys');
+      // if (!response.ok) throw new Error('Failed to fetch keys');
+      // const data = await response.json();
+      // setKeys(data);
+      setKeys(mockKmsKeysData); // Using mock data for simulation
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred while fetching keys.");
+      setKeys([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchKeys();
+  }, [fetchKeys]);
 
   const handleCreateNewKey = () => {
     router.push('/kms/keys/new');
@@ -125,6 +152,7 @@ export default function KmsKeysPage() {
 
   const handleDeleteKey = () => {
     if (keyToDelete) {
+      // Simulate API call for deletion then update state
       setKeys(prevKeys => prevKeys.filter(k => k.id !== keyToDelete.id));
       toast({
         title: "Key Deleted (Mock)",
@@ -139,6 +167,16 @@ export default function KmsKeysPage() {
     router.push(`/kms/keys/${keyId}`);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">Loading KMS Keys...</p>
+      </div>
+    );
+  }
+
+
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
@@ -146,15 +184,28 @@ export default function KmsKeysPage() {
           <KeyRound className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-headline font-semibold">Key Management Service - Asymmetric Keys</h1>
         </div>
-        <Button onClick={handleCreateNewKey}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Create New Key
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button onClick={fetchKeys} variant="outline" disabled={isLoading}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
+          </Button>
+          <Button onClick={handleCreateNewKey}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Create New Key
+          </Button>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         Manage asymmetric keys stored in the Key Management Service. These keys are used for signing, verification, encryption, and decryption.
       </p>
+      
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error Loading Keys</AlertTitle>
+          <AlertDescription>{error} <Button variant="link" onClick={fetchKeys} className="p-0 h-auto">Try again?</Button></AlertDescription>
+        </Alert>
+      )}
 
-      {keys.length > 0 ? (
+      {!isLoading && !error && keys.length > 0 ? (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -227,7 +278,7 @@ export default function KmsKeysPage() {
           </Table>
         </div>
       ) : (
-        <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
+        !isLoading && !error && <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">No KMS Keys Found</h3>
           <p className="text-sm text-muted-foreground">
             There are no asymmetric keys configured in the KMS yet.

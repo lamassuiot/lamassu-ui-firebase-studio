@@ -1,12 +1,14 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollTextIcon, PlusCircle, Settings2, Clock, Fingerprint, BookText, Eye, Edit, KeyRound, ShieldCheck, PenTool } from "lucide-react";
+import { ScrollTextIcon, PlusCircle, Settings2, Clock, Fingerprint, BookText, Eye, Edit, KeyRound, ShieldCheck, PenTool, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { useRouter } from 'next/navigation';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from '@/lib/utils';
 
 interface SigningProfile {
   id: string;
@@ -79,6 +81,33 @@ const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: strin
 
 export default function SigningProfilesPage() {
   const router = useRouter();
+  const [profiles, setProfiles] = useState<SigningProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProfiles = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 700));
+    try {
+      // Replace with actual API call:
+      // const response = await fetch('/api/signing-profiles');
+      // if (!response.ok) throw new Error('Failed to fetch signing profiles');
+      // const data = await response.json();
+      // setProfiles(data);
+      setProfiles(mockSigningProfilesData); // Using mock data for simulation
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred while fetching profiles.");
+      setProfiles([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfiles();
+  }, [fetchProfiles]);
 
   const handleCreateNewProfile = () => {
     router.push('/signing-profiles/new');
@@ -94,6 +123,15 @@ export default function SigningProfilesPage() {
     // router.push(`/signing-profiles/${profileId}/usage`);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">Loading Signing Profiles...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
@@ -101,17 +139,30 @@ export default function SigningProfilesPage() {
           <ScrollTextIcon className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-headline font-semibold">Signing Profiles</h1>
         </div>
-        <Button onClick={handleCreateNewProfile}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Create New Profile
-        </Button>
+        <div className="flex items-center space-x-2">
+            <Button onClick={fetchProfiles} variant="outline" disabled={isLoading}>
+                <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
+            </Button>
+            <Button onClick={handleCreateNewProfile}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Create New Profile
+            </Button>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         Manage templates that define how certificates are signed, including duration, subject attributes, and extensions.
       </p>
 
-      {mockSigningProfilesData.length > 0 ? (
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error Loading Profiles</AlertTitle>
+          <AlertDescription>{error} <Button variant="link" onClick={fetchProfiles} className="p-0 h-auto">Try again?</Button></AlertDescription>
+        </Alert>
+      )}
+
+      {!isLoading && !error && profiles.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockSigningProfilesData.map((profile) => (
+          {profiles.map((profile) => (
             <Card key={profile.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center space-x-2">
@@ -150,7 +201,7 @@ export default function SigningProfilesPage() {
           ))}
         </div>
       ) : (
-        <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
+         !isLoading && !error && <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
             <h3 className="text-lg font-semibold text-muted-foreground">No Signing Profiles Defined</h3>
             <p className="text-sm text-muted-foreground">
             Get started by creating a new signing profile.
