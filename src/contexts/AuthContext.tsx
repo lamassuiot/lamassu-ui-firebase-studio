@@ -42,15 +42,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const userManagerInstance = useMemo(() => createUserManager(), []);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialize isLoading:
+  // - false on server (userManagerInstance is null, so !!userManagerInstance is false)
+  // - true on client (userManagerInstance exists, so !!userManagerInstance is true), until user is loaded.
+  const [isLoading, setIsLoading] = useState(!!userManagerInstance);
   const router = useRouter();
 
   useEffect(() => {
     if (!userManagerInstance) {
-      setIsLoading(false);
+      // This handles the case where userManagerInstance might not be available (e.g. SSR or failed init on client)
+      // For SSR, isLoading is already false from initial state.
+      // If this happens on client post-init, ensure isLoading is false.
+      if (typeof window !== 'undefined') {
+        setIsLoading(false);
+      }
       return;
     }
 
+    // Client-side logic since userManagerInstance exists.
+    // isLoading is true here due to initial useState(!!userManagerInstance).
     const loadUser = async () => {
       try {
         const loadedUser = await userManagerInstance.getUser();
@@ -58,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("AuthContext: Error loading user:", error);
       } finally {
-        setIsLoading(false);
+        setIsLoading(false); // Set to false after attempt
       }
     };
 
@@ -74,28 +84,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     const onAccessTokenExpired = () => {
       console.log("AuthContext: Access token expired, attempting silent renew or logout.");
-      // UserManager handles automaticSilentRenew. If it fails, onSilentRenewError is called.
-      // If not using automaticSilentRenew, you might trigger a manual renew or logout here.
-      // For now, relying on automaticSilentRenew or onSilentRenewError.
     };
     const onSilentRenewError = (error: Error) => {
       console.error("AuthContext: Silent renew error:", error);
-      // Potentially force logout or prompt for re-login
-      // logout(); // This might be too aggressive, leads to logout loops if IdP session is also gone.
     };
     const onUserSignedOut = () => {
         console.log("AuthContext: User signed out (possibly from another tab/window)");
-        setUser(null); // Ensure local state is cleared
-        // router.push('/'); // Redirect to a public page
+        setUser(null); 
     };
-
 
     userManagerInstance.events.addUserLoaded(onUserLoaded);
     userManagerInstance.events.addUserUnloaded(onUserUnloaded);
     userManagerInstance.events.addAccessTokenExpired(onAccessTokenExpired);
     userManagerInstance.events.addSilentRenewError(onSilentRenewError);
     userManagerInstance.events.addUserSignedOut(onUserSignedOut);
-
 
     return () => {
       userManagerInstance.events.removeUserLoaded(onUserLoaded);
@@ -112,7 +114,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsLoading(true);
         console.log("AuthContext: Initiating login redirect");
         await userManagerInstance.signinRedirect();
-        // Redirect will happen, no need to setIsLoading(false) here
       } catch (error) {
         console.error("AuthContext: Login redirect error:", error);
         setIsLoading(false);
@@ -124,22 +125,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (userManagerInstance) {
       try {
         setIsLoading(true);
-        // Clear user from state immediately for snappier UI, though UserManager will also clear its storage.
         setUser(null);
-        if (await userManagerInstance.getUser()) { // Check if user exists before trying to sign out
+        if (await userManagerInstance.getUser()) { 
             await userManagerInstance.signoutRedirect();
         } else {
-             // If no user, perhaps just clean up local state and redirect to home
             router.push('/');
             setIsLoading(false);
         }
-        // Redirect will happen
       } catch (error) {
         console.error("AuthContext: Logout redirect error:", error);
-        // Fallback: clear user and redirect manually if signoutRedirect fails
         setUser(null);
-        await userManagerInstance.removeUser(); // Ensure user is cleared from storage
-        router.push('/'); // Fallback redirect
+        await userManagerInstance.removeUser(); 
+        router.push('/'); 
         setIsLoading(false);
       }
     }
@@ -168,5 +165,4 @@ export const useAuth = () => {
   return context;
 };
 
-// Helper for callback pages
 export const getClientUserManager = createUserManager;
