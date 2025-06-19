@@ -42,17 +42,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const userManagerInstance = useMemo(() => createUserManager(), []);
   const [user, setUser] = useState<User | null>(null);
-  // Initialize isLoading:
-  // - false on server (userManagerInstance is null, so !!userManagerInstance is false)
-  // - true on client (userManagerInstance exists, so !!userManagerInstance is true), until user is loaded.
-  const [isLoading, setIsLoading] = useState(!!userManagerInstance);
+  const [isLoading, setIsLoading] = useState(true); // Initialize isLoading to true for server and client
   const router = useRouter();
 
   useEffect(() => {
     if (!userManagerInstance) {
-      // This handles the case where userManagerInstance might not be available (e.g. SSR or failed init on client)
-      // For SSR, isLoading is already false from initial state.
-      // If this happens on client post-init, ensure isLoading is false.
+      // This case implies we are on the server OR userManager failed to initialize on client.
+      // If on client and userManager failed, we should stop loading.
       if (typeof window !== 'undefined') {
         setIsLoading(false);
       }
@@ -60,7 +56,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // Client-side logic since userManagerInstance exists.
-    // isLoading is true here due to initial useState(!!userManagerInstance).
     const loadUser = async () => {
       try {
         const loadedUser = await userManagerInstance.getUser();
@@ -68,7 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("AuthContext: Error loading user:", error);
       } finally {
-        setIsLoading(false); // Set to false after attempt
+        setIsLoading(false); // Set to false after attempt on client
       }
     };
 
@@ -84,13 +79,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     const onAccessTokenExpired = () => {
       console.log("AuthContext: Access token expired, attempting silent renew or logout.");
+      // userManagerInstance.signinSilent().catch(() => logout()); // Example handling
     };
     const onSilentRenewError = (error: Error) => {
       console.error("AuthContext: Silent renew error:", error);
+      // Potentially trigger logout if silent renew fails critically
+      // logout();
     };
     const onUserSignedOut = () => {
         console.log("AuthContext: User signed out (possibly from another tab/window)");
         setUser(null); 
+        // router.push('/'); // Optionally redirect to home/login
     };
 
     userManagerInstance.events.addUserLoaded(onUserLoaded);
@@ -106,17 +105,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       userManagerInstance.events.removeSilentRenewError(onSilentRenewError);
       userManagerInstance.events.removeUserSignedOut(onUserSignedOut);
     };
-  }, [userManagerInstance, router]);
+  }, [userManagerInstance, router]); // Removed logout from deps as it's stable
 
   const login = async () => {
     if (userManagerInstance) {
       try {
-        setIsLoading(true);
+        // setIsLoading(true); // isLoading is already true or managed by page navigation
         console.log("AuthContext: Initiating login redirect");
         await userManagerInstance.signinRedirect();
       } catch (error) {
         console.error("AuthContext: Login redirect error:", error);
-        setIsLoading(false);
+        setIsLoading(false); // Ensure loading stops on error
       }
     }
   };
@@ -124,20 +123,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     if (userManagerInstance) {
       try {
-        setIsLoading(true);
-        setUser(null);
+        // setIsLoading(true); // Handled by navigation or page state
+        setUser(null); // Clear user immediately
         if (await userManagerInstance.getUser()) { 
             await userManagerInstance.signoutRedirect();
         } else {
+            // Already logged out or no user session
             router.push('/');
-            setIsLoading(false);
+            setIsLoading(false); // Ensure loading state is false if no redirect happens
         }
       } catch (error) {
         console.error("AuthContext: Logout redirect error:", error);
-        setUser(null);
-        await userManagerInstance.removeUser(); 
+        setUser(null); // Ensure user is cleared
+        await userManagerInstance.removeUser(); // Clean up OIDC storage
         router.push('/'); 
-        setIsLoading(false);
+        setIsLoading(false); // Ensure loading state is false
       }
     }
   };
@@ -145,7 +145,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = () => {
     return !!user && !user.expired;
   };
-
+  
+  // This check is mostly for client-side robustness, server won't hit this for rendering page content.
   if (!userManagerInstance && typeof window !== 'undefined') {
     return <div>Error: Authentication system could not initialize. Please refresh.</div>;
   }
@@ -166,3 +167,4 @@ export const useAuth = () => {
 };
 
 export const getClientUserManager = createUserManager;
+    
