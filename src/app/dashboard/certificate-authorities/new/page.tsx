@@ -21,6 +21,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
+import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
+import { formatISO } from 'date-fns';
 
 
 interface SelectableCaTreeItemProps {
@@ -86,20 +88,11 @@ const rsaKeySizes = [
   { value: '4096', label: '4096 bit' },
 ];
 
-const ecdsaKeySizes = [ // These represent curve names, will be mapped to bits
+const ecdsaKeySizes = [ 
   { value: 'P-256', label: 'P-256' },
   { value: 'P-384', label: 'P-384' },
   { value: 'P-521', label: 'P-521' },
 ];
-
-// This cryptoEngines array will be removed as we use CryptoEngineSelector
-// const cryptoEngines = [
-//     { value: 'Local Software KeyStore', label: 'Local Software KeyStore', apiId: 'GOLANG_Crypto' },
-//     { value: 'AWS KMS (mock)', label: 'AWS KMS (mock)', apiId: 'AWSKMS' },
-//     { value: 'Azure Key Vault (mock)', label: 'Azure Key Vault (mock)', apiId: 'AzureKeyVault' },
-//     { value: 'Hardware HSM (mock)', label: 'Hardware HSM (mock)', apiId: 'PKCS11_Engine_fs1' },
-// ];
-
 
 const creationModes = [
   {
@@ -128,6 +121,8 @@ const creationModes = [
   },
 ];
 
+const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
+
 
 export default function CreateCertificateAuthorityPage() {
   const router = useRouter();
@@ -138,13 +133,13 @@ export default function CreateCertificateAuthorityPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [caType, setCaType] = useState('root');
-  const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined); // Will store the selected engine_id
+  const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined);
   const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
   const [caId, setCaId] = useState('');
   const [caName, setCaName] = useState('');
 
   const [keyType, setKeyType] = useState('RSA');
-  const [keySize, setKeySize] = useState('2048'); // For RSA; for ECDSA this will be curve name
+  const [keySize, setKeySize] = useState('2048');
 
   const [country, setCountry] = useState('');
   const [stateProvince, setStateProvince] = useState('');
@@ -152,8 +147,8 @@ export default function CreateCertificateAuthorityPage() {
   const [organization, setOrganization] = useState('');
   const [organizationalUnit, setOrganizationalUnit] = useState('');
 
-  const [caExpirationDuration, setCaExpirationDuration] = useState('10y');
-  const [issuanceExpirationDuration, setIssuanceExpirationDuration] = useState('1y');
+  const [caExpiration, setCaExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '10y' });
+  const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
 
   const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
 
@@ -198,11 +193,11 @@ export default function CreateCertificateAuthorityPage() {
     setCaType(value);
     setSelectedParentCa(null);
     if (value === 'root') {
-      setCaExpirationDuration('10y');
-      setIssuanceExpirationDuration('1y');
+      setCaExpiration({ type: 'Duration', durationValue: '10y' });
+      setIssuanceExpiration({ type: 'Duration', durationValue: '1y' });
     } else {
-      setCaExpirationDuration('5y');
-      setIssuanceExpirationDuration('90d');
+      setCaExpiration({ type: 'Duration', durationValue: '5y' });
+      setIssuanceExpiration({ type: 'Duration', durationValue: '90d' });
     }
   };
 
@@ -222,16 +217,29 @@ export default function CreateCertificateAuthorityPage() {
     setIsParentCaModalOpen(false);
   };
 
-  // mapCryptoEngineToApiEngineId is no longer needed as cryptoEngineId state holds the API ID.
-
   const mapEcdsaCurveToBits = (curveName: string): number => {
     switch (curveName) {
       case 'P-256': return 256;
       case 'P-384': return 384;
       case 'P-521': return 521;
-      default: return 256; // Default or throw error
+      default: return 256; 
     }
   };
+  
+  const formatExpirationForApi = (config: ExpirationConfig): { type: string; duration?: string; time?: string } => {
+    if (config.type === "Duration") {
+      return { type: "Duration", duration: config.durationValue };
+    }
+    if (config.type === "Date" && config.dateValue) {
+      return { type: "Date", time: formatISO(config.dateValue) };
+    }
+    if (config.type === "Indefinite") {
+      return { type: "Date", time: INDEFINITE_DATE_API_VALUE };
+    }
+    // Fallback or error, though UI should prevent this
+    return { type: "Duration", duration: "1y" }; 
+  };
+
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -252,6 +260,28 @@ export default function CreateCertificateAuthorityPage() {
       setIsSubmitting(false);
       return;
     }
+    if (selectedMode === 'newKeyPair') {
+        if (caExpiration.type === "Duration" && !caExpiration.durationValue?.trim()) {
+             toast({ title: "Validation Error", description: "CA Expiration duration cannot be empty.", variant: "destructive" });
+             setIsSubmitting(false);
+             return;
+        }
+        if (issuanceExpiration.type === "Duration" && !issuanceExpiration.durationValue?.trim()) {
+             toast({ title: "Validation Error", description: "Issuance Expiration duration cannot be empty.", variant: "destructive" });
+             setIsSubmitting(false);
+             return;
+        }
+         if (caExpiration.type === "Date" && !caExpiration.dateValue) {
+             toast({ title: "Validation Error", description: "CA Expiration date must be selected.", variant: "destructive" });
+             setIsSubmitting(false);
+             return;
+        }
+        if (issuanceExpiration.type === "Date" && !issuanceExpiration.dateValue) {
+             toast({ title: "Validation Error", description: "Issuance Expiration date must be selected.", variant: "destructive" });
+             setIsSubmitting(false);
+             return;
+        }
+    }
 
 
     if (selectedMode === 'newKeyPair') {
@@ -260,7 +290,7 @@ export default function CreateCertificateAuthorityPage() {
         setIsSubmitting(false);
         return;
       }
-      if (!cryptoEngineId) { // Should be caught by above check, but good for safety
+      if (!cryptoEngineId) { 
         toast({ title: "Validation Error", description: "Crypto Engine ID is missing.", variant: "destructive" });
         setIsSubmitting(false);
         return;
@@ -270,7 +300,7 @@ export default function CreateCertificateAuthorityPage() {
       const payload = {
         parent_id: caType === 'root' ? null : selectedParentCa?.id || null,
         id: caId,
-        engine_id: cryptoEngineId, // Use the selected engine_id directly
+        engine_id: cryptoEngineId, 
         subject: {
           country: country || undefined,
           state_province: stateProvince || undefined,
@@ -283,14 +313,8 @@ export default function CreateCertificateAuthorityPage() {
           type: keyType,
           bits: keyType === 'RSA' ? parseInt(keySize) : mapEcdsaCurveToBits(keySize),
         },
-        ca_expiration: {
-          type: "Duration",
-          duration: caExpirationDuration,
-        },
-        issuance_expiration: {
-          type: "Duration",
-          duration: issuanceExpirationDuration,
-        },
+        ca_expiration: formatExpirationForApi(caExpiration),
+        issuance_expiration: formatExpirationForApi(issuanceExpiration),
         ca_type: "MANAGED",
       };
 
@@ -323,14 +347,14 @@ export default function CreateCertificateAuthorityPage() {
       const formData = {
         creationMode: selectedMode,
         caType: selectedMode === 'importCertOnly' ? 'external_public' : caType,
-        cryptoEngine: selectedMode === 'importCertOnly' ? 'N/A' : cryptoEngineId, // Use cryptoEngineId
+        cryptoEngine: selectedMode === 'importCertOnly' ? 'N/A' : cryptoEngineId,
         parentCaId: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.id,
         parentCaName: caType === 'root' || selectedMode === 'importCertOnly' ? 'Self-signed / External' : selectedParentCa?.name,
         caId, subjectDN,
         keyType: selectedMode === 'importCertOnly' ? 'N/A' : keyType,
         keySize: selectedMode === 'importCertOnly' ? 'N/A' : keySize,
-        caExpirationDuration: selectedMode === 'importCertOnly' ? 'N/A (external)' : caExpirationDuration,
-        issuanceExpirationDuration: selectedMode === 'importCertOnly' ? 'N/A (external)' : issuanceExpirationDuration,
+        caExpiration: selectedMode === 'importCertOnly' ? 'N/A (external)' : caExpiration,
+        issuanceExpiration: selectedMode === 'importCertOnly' ? 'N/A (external)' : issuanceExpiration,
       };
       console.log(`Mock Creating CA (Mode: ${selectedMode}) with data:`, formData);
       toast({ title: "Mock CA Creation (Non-API)", description: `Mock CA Submission for mode: ${selectedModeDetails?.title}. Details in console.`, variant: "default" });
@@ -605,30 +629,18 @@ export default function CreateCertificateAuthorityPage() {
               <section>
                    <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                          <Label htmlFor="caExpirationDuration" className="font-medium">CA Certificate Expiration</Label>
-                          <Input
-                              id="caExpirationDuration"
-                              value={caExpirationDuration}
-                              onChange={(e) => setCaExpirationDuration(e.target.value)}
-                              placeholder="e.g., 10y, 365d"
-                              required
-                              className="mt-1"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">Duration (valid units: y/w/d/h/m/s).</p>
-                      </div>
-                      <div>
-                          <Label htmlFor="issuanceExpirationDuration" className="font-medium">Default End-Entity Certificate Issuance Expiration</Label>
-                          <Input
-                              id="issuanceExpirationDuration"
-                              value={issuanceExpirationDuration}
-                              onChange={(e) => setIssuanceExpirationDuration(e.target.value)}
-                              placeholder="e.g., 1y, 90d"
-                              required
-                              className="mt-1"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">Duration for certs issued by this CA.</p>
-                      </div>
+                      <ExpirationInput
+                        idPrefix="ca-exp"
+                        label="CA Certificate Expiration"
+                        value={caExpiration}
+                        onValueChange={setCaExpiration}
+                      />
+                      <ExpirationInput
+                        idPrefix="issuance-exp"
+                        label="Default End-Entity Certificate Issuance Expiration"
+                        value={issuanceExpiration}
+                        onValueChange={setIssuanceExpiration}
+                      />
                   </div>
               </section>
             )}
