@@ -1,9 +1,8 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// Removed Card, CardContent, CardHeader, CardTitle, CardDescription from imports
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,31 +11,35 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle } from "lucide-react";
+import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { certificateAuthoritiesData } from '@/lib/ca-data';
+import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface SelectableCaTreeItemProps {
   ca: CA;
   level: number;
-  onSelect: (ca: CA) => void;
-  isSelected?: boolean; 
-  isMultiSelected?: boolean; 
-  showCheckbox?: boolean; 
-  onMultiSelectToggle?: (ca: CA, isSelected: boolean) => void; 
+  onSelect: (ca: CA) => void; // For single-selection mode
+  currentSingleSelectedCa?: CA | null; // If in single selection mode
+  showCheckbox?: boolean;
+  isMultiSelected?: boolean; // This will be true if THIS ca is in the multi-select list
+  onMultiSelectToggle?: (ca: CA, isSelected: boolean) => void; // For multi-selection mode
+  _currentMultiSelectedCAsPassedToDialog?: CA[]; // The full list of multi-selected CAs for checking children
 }
 
 const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({ 
   ca, 
   level, 
   onSelect, 
-  isSelected, 
-  isMultiSelected, 
+  currentSingleSelectedCa,
   showCheckbox, 
-  onMultiSelectToggle 
+  isMultiSelected, 
+  onMultiSelectToggle,
+  _currentMultiSelectedCAsPassedToDialog
 }) => {
   const [isOpen, setIsOpen] = useState(level < 1);
   const hasChildren = ca.children && ca.children.length > 0;
@@ -54,7 +57,7 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
     <li className={`py-1 ${level > 0 ? 'pl-4 border-l border-dashed border-border ml-2' : ''} relative list-none`}>
       {level > 0 && <Minus className="h-3 w-3 absolute -left-[0.4rem] top-3 text-border transform rotate-90" />}
       <div 
-        className={`flex items-center space-x-2 p-1 rounded-md hover:bg-muted/50 cursor-pointer ${isSelected || isMultiSelected ? 'bg-primary/10' : ''}`}
+        className={`flex items-center space-x-2 p-1 rounded-md hover:bg-muted/50 cursor-pointer ${ (currentSingleSelectedCa?.id === ca.id && !showCheckbox) || isMultiSelected ? 'bg-primary/10' : ''}`}
         onClick={handleItemClick}
       >
         {showCheckbox && (
@@ -75,10 +78,10 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
           />
         )}
         {!hasChildren && !showCheckbox && <div className="w-4"></div>}
-        {!hasChildren && showCheckbox && <div className="w-0"></div>}
+        {!hasChildren && showCheckbox && <div className="w-0"></div>} {/* Adjusted placeholder for checkbox scenario */}
         
         <FolderTree className="h-4 w-4 text-primary flex-shrink-0" />
-        <span className={`flex-1 text-sm ${isSelected || isMultiSelected ? 'font-semibold text-primary': ''}`}>
+        <span className={`flex-1 text-sm ${ (currentSingleSelectedCa?.id === ca.id && !showCheckbox) || isMultiSelected ? 'font-semibold text-primary': ''}`}>
           {ca.name}
         </span>
       </div>
@@ -90,10 +93,11 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
               ca={childCa} 
               level={level + 1} 
               onSelect={onSelect}
-              isSelected={isSelected && childCa.id === ca.id} 
-              isMultiSelected={!!(isMultiSelected && showCheckbox && currentMultiSelectedCAs?.some(sel => sel.id === childCa.id))}
+              currentSingleSelectedCa={currentSingleSelectedCa}
               showCheckbox={showCheckbox}
+              isMultiSelected={!!(showCheckbox && _currentMultiSelectedCAsPassedToDialog?.some(sel => sel.id === childCa.id))}
               onMultiSelectToggle={onMultiSelectToggle}
+              _currentMultiSelectedCAsPassedToDialog={_currentMultiSelectedCAsPassedToDialog}
             />
           ))}
         </ul>
@@ -102,10 +106,10 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
   );
 };
 
-let currentMultiSelectedCAs: CA[] | undefined; 
 
 export default function CreateRegistrationAuthorityPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
 
   const [registrationMode, setRegistrationMode] = useState('JITP');
   const [tags, setTags] = useState('iot');
@@ -135,6 +139,36 @@ export default function CreateRegistrationAuthorityPage() {
   const [isValidationCaModalOpen, setIsValidationCaModalOpen] = useState(false);
   const [isAdditionalValidationCaModalOpen, setIsAdditionalValidationCaModalOpen] = useState(false);
   const [isManagedCaModalOpen, setIsManagedCaModalOpen] = useState(false);
+  
+  const [availableCAs, setAvailableCAs] = useState<CA[]>([]);
+  const [isLoadingCAs, setIsLoadingCAs] = useState(false);
+  const [errorCAs, setErrorCAs] = useState<string | null>(null);
+
+  const loadCAs = useCallback(async () => {
+    if (!isAuthenticated() || !user?.access_token) {
+      if (!authLoading) setErrorCAs("User not authenticated. Cannot load CAs.");
+      setIsLoadingCAs(false);
+      return;
+    }
+    setIsLoadingCAs(true);
+    setErrorCAs(null);
+    try {
+      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+      setAvailableCAs(fetchedCAs);
+    } catch (err: any) {
+      setErrorCAs(err.message || 'Failed to load available CAs.');
+      setAvailableCAs([]);
+    } finally {
+      setIsLoadingCAs(false);
+    }
+  }, [user?.access_token, isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    if (!authLoading) {
+        loadCAs();
+    }
+  }, [loadCAs, authLoading]);
+
 
   const handleEnrollmentCaSelect = (ca: CA) => {
     setEnrollmentCa(ca);
@@ -188,9 +222,8 @@ export default function CreateRegistrationAuthorityPage() {
     onSelect: (ca: CA) => void, 
     currentSingleSelectedCa?: CA | null, 
     onMultiSelectToggle?: (ca: CA, isSelected: boolean) => void, 
-    _currentMultiSelectedCAs?: CA[] 
+    currentMultiSelectedCAs?: CA[] 
   ) => {
-    currentMultiSelectedCAs = _currentMultiSelectedCAs;
     return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-md">
@@ -198,22 +231,41 @@ export default function CreateRegistrationAuthorityPage() {
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-72 my-4">
-          <ul className="space-y-1 pr-2">
-            {certificateAuthoritiesData.map((ca) => (
-              <SelectableCaTreeItem 
-                key={ca.id} 
-                ca={ca} 
-                level={0} 
-                onSelect={onSelect} 
-                isSelected={currentSingleSelectedCa?.id === ca.id}
-                showCheckbox={!!onMultiSelectToggle} 
-                isMultiSelected={_currentMultiSelectedCAs?.some(selCa => selCa.id === ca.id)}
-                onMultiSelectToggle={onMultiSelectToggle}
-              />
-            ))}
-          </ul>
-        </ScrollArea>
+        {(isLoadingCAs || authLoading) && (
+            <div className="flex items-center justify-center h-72">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2">{authLoading ? "Authenticating..." : "Loading CAs..."}</p>
+            </div>
+        )}
+        {errorCAs && !isLoadingCAs && !authLoading && (
+            <Alert variant="destructive" className="my-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Error Loading CAs</AlertTitle>
+            <AlertDescription>{errorCAs} <Button variant="link" onClick={loadCAs} className="p-0 h-auto">Try again?</Button></AlertDescription>
+            </Alert>
+        )}
+        {!isLoadingCAs && !authLoading && !errorCAs && availableCAs.length > 0 && (
+            <ScrollArea className="h-72 my-4">
+            <ul className="space-y-1 pr-2">
+                {availableCAs.map((ca) => (
+                <SelectableCaTreeItem 
+                    key={ca.id} 
+                    ca={ca} 
+                    level={0} 
+                    onSelect={onSelect} 
+                    currentSingleSelectedCa={currentSingleSelectedCa}
+                    showCheckbox={!!onMultiSelectToggle} 
+                    isMultiSelected={!!(currentMultiSelectedCAs && currentMultiSelectedCAs.some(selCa => selCa.id === ca.id))}
+                    onMultiSelectToggle={onMultiSelectToggle}
+                    _currentMultiSelectedCAsPassedToDialog={currentMultiSelectedCAs}
+                />
+                ))}
+            </ul>
+            </ScrollArea>
+        )}
+        {!isLoadingCAs && !authLoading && !errorCAs && availableCAs.length === 0 && (
+            <p className="text-muted-foreground text-center my-4">No CAs available to select.</p>
+        )}
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="outline">Done</Button>
@@ -231,16 +283,16 @@ export default function CreateRegistrationAuthorityPage() {
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to RAs
       </Button>
       
-      <div> {/* Replaces Card wrapper */}
-        <div className="flex flex-col space-y-1.5 p-6"> {/* Replaces CardHeader */}
-          <h1 className="text-xl font-headline flex items-center font-semibold leading-none tracking-tight"> {/* Replaces CardTitle */}
+      <div> 
+        <div className="flex flex-col space-y-1.5 p-6"> 
+          <h1 className="text-xl font-headline flex items-center font-semibold leading-none tracking-tight"> 
             <PlusCircle className="mr-2 h-6 w-6 text-primary" /> Create New Registration Authority
           </h1>
-          <p className="text-sm text-muted-foreground"> {/* Replaces CardDescription */}
+          <p className="text-sm text-muted-foreground"> 
             Configure all settings for the new Registration Authority below.
           </p>
         </div>
-        <div className="p-6 pt-0"> {/* Replaces CardContent */}
+        <div className="p-6 pt-0"> 
           <form onSubmit={handleSubmit} className="space-y-0">
             
             <Accordion type="multiple" defaultValue={['dms-definition']} className="w-full space-y-2">
@@ -304,8 +356,8 @@ export default function CreateRegistrationAuthorityPage() {
                     </div>
                     <div>
                       <Label htmlFor="enrollmentCa">Enrollment CA</Label>
-                      <Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1">
-                        {enrollmentCa ? enrollmentCa.name : "Select Enrollment CA..."}
+                      <Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingCAs || authLoading}>
+                        {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : enrollmentCa ? enrollmentCa.name : "Select Enrollment CA..."}
                       </Button>
                       {enrollmentCa && (
                         <div className="mt-2">
@@ -330,8 +382,8 @@ export default function CreateRegistrationAuthorityPage() {
                     </div>
                     <div>
                       <Label htmlFor="validationCAs">Validation CAs</Label>
-                      <Button type="button" variant="outline" onClick={() => setIsValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1">
-                        {validationCAs.length > 0 ? `Selected ${validationCAs.length} CA(s) - Click to modify` : "Select Validation CAs..."}
+                      <Button type="button" variant="outline" onClick={() => setIsValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingCAs || authLoading}>
+                         {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : validationCAs.length > 0 ? `Selected ${validationCAs.length} CA(s) - Click to modify` : "Select Validation CAs..."}
                       </Button>
                       {validationCAs.length > 0 && 
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -395,8 +447,8 @@ export default function CreateRegistrationAuthorityPage() {
                     </div>
                     <div>
                       <Label htmlFor="additionalValidationCAs">Additional Validation CAs (for re-enrollment)</Label>
-                      <Button type="button" variant="outline" onClick={() => setIsAdditionalValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1">
-                        {additionalValidationCAs.length > 0 ? `Selected ${additionalValidationCAs.length} CA(s) - Click to modify` : "Select Additional Validation CAs..."}
+                      <Button type="button" variant="outline" onClick={() => setIsAdditionalValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingCAs || authLoading}>
+                         {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : additionalValidationCAs.length > 0 ? `Selected ${additionalValidationCAs.length} CA(s) - Click to modify` : "Select Additional Validation CAs..."}
                       </Button>
                       {additionalValidationCAs.length > 0 && 
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -441,8 +493,8 @@ export default function CreateRegistrationAuthorityPage() {
                     </div>
                     <div>
                       <Label htmlFor="managedCAs">Managed CAs (for CA certs endpoint)</Label>
-                      <Button type="button" variant="outline" onClick={() => setIsManagedCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1">
-                        {managedCAs.length > 0 ? `Selected ${managedCAs.length} CA(s) - Click to modify` : "Select Managed CAs..."}
+                      <Button type="button" variant="outline" onClick={() => setIsManagedCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingCAs || authLoading}>
+                        {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : managedCAs.length > 0 ? `Selected ${managedCAs.length} CA(s) - Click to modify` : "Select Managed CAs..."}
                       </Button>
                       {managedCAs.length > 0 && 
                         <div className="mt-2 flex flex-wrap gap-2">

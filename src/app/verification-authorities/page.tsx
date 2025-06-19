@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Keep for INNER card
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ShieldCheck, Settings, FileText, ListChecks, Clock, Repeat, UploadCloud, KeyRound, Bell, TestTube2, Terminal, ChevronDown, ChevronUp, Plus, Trash2, FolderTree, Minus, ChevronRight } from "lucide-react";
+import { ShieldCheck, Settings, FileText, ListChecks, Clock, Bell, TestTube2, Terminal, Plus, Trash2, FolderTree, Minus, ChevronRight, Loader2, AlertTriangle as AlertTriangleIcon } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { certificateAuthoritiesData } from '@/lib/ca-data';
+import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 interface VAConfig {
   caId: string;
@@ -64,7 +67,7 @@ interface VAConfig {
     alertOnFailure: boolean;
     alertOnCriticalEvent: boolean;
     automatedTestingEnabled: boolean;
-    automatedTestingSchedule: string; // cron string
+    automatedTestingSchedule: string; 
     apiEndpoint: string;
   };
 }
@@ -173,14 +176,40 @@ const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({ ca, level, 
 
 
 export default function VerificationAuthoritiesPage() {
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [selectedCaId, setSelectedCaId] = useState<string | undefined>(undefined);
   const [config, setConfig] = useState<VAConfig | null>(null);
   const [isCaSelectModalOpen, setIsCaSelectModalOpen] = useState(false);
-  const [allCAsList, setAllCAsList] = useState<CA[]>([]); 
+  
+  const [availableCAs, setAvailableCAs] = useState<CA[]>([]); 
+  const [isLoadingCAs, setIsLoadingCAs] = useState(false);
+  const [errorCAs, setErrorCAs] = useState<string | null>(null);
+
+  const loadCAs = useCallback(async () => {
+    if (!isAuthenticated() || !user?.access_token) {
+      if (!authLoading) setErrorCAs("User not authenticated. Cannot load CAs.");
+      setIsLoadingCAs(false);
+      return;
+    }
+    setIsLoadingCAs(true);
+    setErrorCAs(null);
+    try {
+      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+      setAvailableCAs(fetchedCAs);
+    } catch (err: any) {
+      setErrorCAs(err.message || 'Failed to load available CAs.');
+      setAvailableCAs([]);
+    } finally {
+      setIsLoadingCAs(false);
+    }
+  }, [user?.access_token, isAuthenticated, authLoading]);
 
   useEffect(() => {
-    setAllCAsList(certificateAuthoritiesData);
-  }, []);
+    if (!authLoading) {
+        loadCAs();
+    }
+  }, [loadCAs, authLoading]);
+
 
   useEffect(() => {
     if (selectedCaId) {
@@ -290,7 +319,7 @@ export default function VerificationAuthoritiesPage() {
     return undefined;
   };
   
-  const selectedCaDetails = selectedCaId ? findCaByIdRecursive(selectedCaId, allCAsList) : null;
+  const selectedCaDetails = selectedCaId ? findCaByIdRecursive(selectedCaId, availableCAs) : null;
 
   const accordionTriggerStyle = "text-lg font-medium bg-muted/50 hover:bg-muted/60 data-[state=open]:bg-muted/75 px-4 py-4 rounded-md";
 
@@ -301,15 +330,15 @@ export default function VerificationAuthoritiesPage() {
   
   return (
     <div className="space-y-6 w-full">
-      <div> {/* Was Card */}
-        <div className="p-6"> {/* Was CardHeader */}
+      <div> 
+        <div className="p-6"> 
           <div className="flex items-center space-x-3 mb-2">
             <ShieldCheck className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold">Validation Authority (VA) Configuration</h1> {/* Was CardTitle */}
+            <h1 className="text-2xl font-headline font-semibold">Validation Authority (VA) Configuration</h1> 
           </div>
-          <p className="text-sm text-muted-foreground">Configure CRL and OCSP settings per Certificate Authority.</p> {/* Was CardDescription */}
+          <p className="text-sm text-muted-foreground">Configure CRL and OCSP settings per Certificate Authority.</p> 
         </div>
-        <div className="p-6 pt-0"> {/* Was CardContent */}
+        <div className="p-6 pt-0"> 
           <div className="mb-6 space-y-2">
             <Label htmlFor="ca-select-button">Select Certificate Authority to Configure</Label>
              <Button
@@ -317,8 +346,9 @@ export default function VerificationAuthoritiesPage() {
                 variant="outline"
                 onClick={() => setIsCaSelectModalOpen(true)}
                 className="w-full md:w-1/2 justify-start text-left font-normal"
+                disabled={isLoadingCAs || authLoading}
             >
-                {selectedCaDetails ? `${selectedCaDetails.name} (${selectedCaDetails.id})` : "Select a CA..."}
+                {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedCaDetails ? `${selectedCaDetails.name} (${selectedCaDetails.id})` : "Select a CA...")}
             </Button>
           </div>
 
@@ -330,19 +360,37 @@ export default function VerificationAuthoritiesPage() {
                   Choose an existing CA to configure its Validation Authority settings.
                 </DialogDescription>
               </DialogHeader>
-              <ScrollArea className="h-72 my-4">
-                <ul className="space-y-1 pr-2">
-                  {allCAsList.map((ca) => (
-                    <SelectableCaTreeItem 
-                      key={ca.id} 
-                      ca={ca} 
-                      level={0} 
-                      onSelect={handleCaSelectedFromModal}
-                      currentSelectedCaId={selectedCaId}
-                    />
-                  ))}
-                </ul>
-              </ScrollArea>
+              {(isLoadingCAs || authLoading) && (
+                <div className="flex items-center justify-center h-72">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-2">{authLoading ? "Authenticating..." : "Loading CAs..."}</p>
+                </div>
+              )}
+              {errorCAs && !isLoadingCAs && !authLoading && (
+                <Alert variant="destructive" className="my-4">
+                    <AlertTriangleIcon className="h-4 w-4" />
+                    <AlertTitle>Error Loading CAs</AlertTitle>
+                    <AlertDescription>{errorCAs} <Button variant="link" onClick={loadCAs} className="p-0 h-auto">Try again?</Button></AlertDescription>
+                </Alert>
+              )}
+              {!isLoadingCAs && !authLoading && !errorCAs && availableCAs.length > 0 && (
+                <ScrollArea className="h-72 my-4">
+                  <ul className="space-y-1 pr-2">
+                    {availableCAs.map((ca) => (
+                      <SelectableCaTreeItem 
+                        key={ca.id} 
+                        ca={ca} 
+                        level={0} 
+                        onSelect={handleCaSelectedFromModal}
+                        currentSelectedCaId={selectedCaId}
+                      />
+                    ))}
+                  </ul>
+                </ScrollArea>
+              )}
+              {!isLoadingCAs && !authLoading && !errorCAs && availableCAs.length === 0 && (
+                <p className="text-muted-foreground text-center my-4">No CAs available to select.</p>
+              )}
               <DialogFooter>
                 <DialogClose asChild>
                   <Button type="button" variant="outline">Cancel</Button>
@@ -358,7 +406,7 @@ export default function VerificationAuthoritiesPage() {
           )}
 
           {config && selectedCaDetails && (
-            <Card className="border-primary/50 shadow-md mt-4"> {/* This INNER Card remains */}
+            <Card className="border-primary/50 shadow-md mt-4"> 
               <CardHeader>
                 <CardTitle className="text-xl flex items-center">
                   <Settings className="mr-2 h-6 w-6 text-primary" />
@@ -367,7 +415,7 @@ export default function VerificationAuthoritiesPage() {
                 <CardDescription>Customize CRL, OCSP, and advanced validation parameters for this CA.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <Card> {/* This card for General Validation Methods also remains as it is internal */}
+                <Card> 
                   <CardHeader>
                     <CardTitle className="text-lg">General Validation Methods</CardTitle>
                   </CardHeader>
@@ -441,7 +489,7 @@ export default function VerificationAuthoritiesPage() {
                       </div>
                        <div>
                         <Label>Manual CRLs</Label>
-                        <Button variant="outline" size="sm" className="ml-2"><UploadCloud className="mr-2 h-4 w-4" /> Upload CRL</Button>
+                        <Button variant="outline" size="sm" className="ml-2"><FileText className="mr-2 h-4 w-4" /> Upload CRL</Button>
                         {config.crl.manualCrls.length > 0 && <div className="mt-2 text-sm text-muted-foreground">Managed CRLs: ...</div>}
                       </div>
                        <div className="flex items-center space-x-2">
@@ -560,7 +608,7 @@ export default function VerificationAuthoritiesPage() {
                         </div>
                         <div>
                             <Label>Trusted OCSP Responder Certificates</Label>
-                            <Button variant="outline" size="sm" className="ml-2"><KeyRound className="mr-2 h-4 w-4" /> Manage Certificates</Button>
+                            <Button variant="outline" size="sm" className="ml-2"><FileText className="mr-2 h-4 w-4" /> Manage Certificates</Button>
                              {config.ocsp.trustedResponderCertificates.length > 0 && <div className="mt-2 text-sm text-muted-foreground">Trusted Responders: ...</div>}
                         </div>
                         <Label>Response Validation</Label>
