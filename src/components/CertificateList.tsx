@@ -21,7 +21,7 @@ import type { CA } from '@/lib/ca-data';
 import { findCaById } from '@/lib/ca-data';
 import { cn } from '@/lib/utils';
 import { RevocationModal } from '@/components/shared/RevocationModal';
-import type { CertSortConfig, SortableCertColumn } from '@/app/dashboard/certificates/page'; // Import shared types
+import type { CertSortConfig, SortableCertColumn } from '@/app/certificates/page'; // Import shared types
 
 interface CertificateListProps {
   certificates: CertificateData[];

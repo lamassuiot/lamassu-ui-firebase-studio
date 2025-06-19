@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { jwtDecode } from 'jwt-decode';
 import Image from 'next/image'
-import Logo from './dashboard/lamassu_full_white.svg' // Path to logo might need adjustment after file moves by user
+import Logo from './lamassu_full_white.svg' // Path to logo might need adjustment after file moves by user
 
 interface DecodedAccessToken {
   realm_access?: {

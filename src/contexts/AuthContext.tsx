@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation';
 Log.setLogger(console);
 Log.setLevel(Log.DEBUG);
 
-
 const createUserManager = (): UserManager | null => {
   if (typeof window !== 'undefined') {
     return new UserManager({
@@ -111,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (userManagerInstance) {
       try {
         setIsLoading(true);
+        console.log("AuthContext: Initiating login redirect");
         await userManagerInstance.signinRedirect();
         // Redirect will happen, no need to setIsLoading(false) here
       } catch (error) {
