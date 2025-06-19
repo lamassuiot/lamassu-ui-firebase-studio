@@ -307,7 +307,7 @@ export default function DevicesPage() {
   };
 
   const handleViewDetails = (deviceId: string) => {
-    router.push(`/dashboard/devices/${deviceId}`);
+    router.push(`/devices/${deviceId}`);
   };
 
   const handleEditDevice = (deviceId: string) => {
@@ -542,4 +542,3 @@ export default function DevicesPage() {
     </div>
   );
 }
-

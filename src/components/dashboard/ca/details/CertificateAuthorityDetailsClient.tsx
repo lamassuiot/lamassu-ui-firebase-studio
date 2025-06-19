@@ -297,7 +297,7 @@ export default function CertificateAuthorityDetailsClient() {
                     <p className="text-sm text-muted-foreground mb-4">
                         A list of certificates directly issued by <strong>{caDetails.name}</strong> would be displayed here.
                     </p>
-                    <Button variant="secondary" onClick={() => routerHook.push(`/dashboard/certificates?issuerCaId=${caDetails.id}`)}>
+                    <Button variant="secondary" onClick={() => routerHook.push(`/certificates?issuerCaId=${caDetails.id}`)}>
                         View/Manage Issued Certificates
                     </Button>
                 </div>
@@ -320,5 +320,3 @@ export default function CertificateAuthorityDetailsClient() {
     </div>
   );
 }
-
-    

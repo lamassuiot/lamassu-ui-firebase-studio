@@ -92,12 +92,12 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
 
   const handleDetailsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/dashboard/certificate-authorities/${ca.id}/details`);
+    router.push(`/certificate-authorities/${ca.id}/details`);
   };
 
   const handleIssueCertClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/dashboard/certificate-authorities/${ca.id}/issue-certificate`);
+    router.push(`/certificate-authorities/${ca.id}/issue-certificate`);
   };
 
   const handleToggleOpen = (e: React.MouseEvent) => {
@@ -213,7 +213,7 @@ export default function CertificateAuthoritiesPage() {
 
 
   const handleCreateNewCAClick = () => {
-    router.push('/dashboard/certificate-authorities/new');
+    router.push('/certificate-authorities/new');
   };
 
   const handleViewModeChange = (newMode: string) => {

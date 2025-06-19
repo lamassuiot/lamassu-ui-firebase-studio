@@ -99,12 +99,12 @@ export default function CreateSigningProfilePage() {
       title: "Profile Creation Mock",
       description: `Signing Profile "${data.profileName}" submitted. Check console for details.`,
     });
-    // router.push('/dashboard/signing-profiles'); // Optionally navigate back
+    router.push('/signing-profiles'); 
   }
 
   return (
     <div className="w-full space-y-6 mb-8">
-      <Button variant="outline" onClick={() => router.push('/dashboard/signing-profiles')} className="mb-0">
+      <Button variant="outline" onClick={() => router.push('/signing-profiles')} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Signing Profiles
       </Button>
 
@@ -409,7 +409,7 @@ export default function CreateSigningProfilePage() {
 
 
               <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => router.push('/dashboard/signing-profiles')}>
+                <Button type="button" variant="outline" onClick={() => router.push('/signing-profiles')}>
                   Cancel
                 </Button>
                 <Button type="submit">

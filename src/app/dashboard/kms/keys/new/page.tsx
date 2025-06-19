@@ -184,7 +184,7 @@ export default function CreateKmsKeyPage() {
     setTags('');
     // Optionally reset mode-specific fields or navigate
     // setSelectedMode(null); 
-    router.push('/dashboard/kms/keys');
+    router.push('/kms/keys');
   };
 
   const selectedModeDetails = creationModes.find(m => m.id === selectedMode);
@@ -192,7 +192,7 @@ export default function CreateKmsKeyPage() {
   if (!selectedMode) {
     return (
       <div className="w-full space-y-8 mb-8">
-        <Button variant="outline" onClick={() => router.push('/dashboard/kms/keys')} className="mb-0">
+        <Button variant="outline" onClick={() => router.push('/kms/keys')} className="mb-0">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to KMS Keys
         </Button>
         <div className="text-center">
@@ -230,7 +230,7 @@ export default function CreateKmsKeyPage() {
   return (
     <div className="w-full space-y-6 mb-8">
       <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.push('/dashboard/kms/keys')}>
+        <Button variant="outline" onClick={() => router.push('/kms/keys')}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to KMS Keys
         </Button>
         <Button variant="ghost" onClick={() => setSelectedMode(null)} className="text-primary hover:text-primary/80">
@@ -404,6 +404,3 @@ export default function CreateKmsKeyPage() {
     </div>
   );
 }
-
-
-    

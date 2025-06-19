@@ -177,7 +177,7 @@ export default function CreateRegistrationAuthorityPage() {
     };
     console.log('Creating new RA with data:', formData);
     alert(`Mock RA Creation Submitted!\nCheck console for details.`);
-    router.push('/dashboard/registration-authorities'); 
+    router.push('/registration-authorities'); 
   };
   
   const renderCaSelectionDialog = (
@@ -511,5 +511,3 @@ export default function CreateRegistrationAuthorityPage() {
     </div>
   );
 }
-
-    

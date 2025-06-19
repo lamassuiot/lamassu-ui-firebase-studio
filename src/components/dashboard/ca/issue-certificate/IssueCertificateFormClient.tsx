@@ -20,7 +20,7 @@ export default function IssueCertificateFormClient() {
     console.log(`Issuing certificate from CA: ${caId} with form data...`);
     alert(`Mock issue certificate from CA ${caId}`);
     // Potentially redirect or show a success message
-    // router.push(`/dashboard/certificate-authorities/${caId}/details`);
+    // router.push(`/certificate-authorities/${caId}/details`);
   };
 
   return (

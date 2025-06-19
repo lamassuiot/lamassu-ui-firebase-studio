@@ -115,7 +115,7 @@ export default function KmsKeysPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const handleCreateNewKey = () => {
-    router.push('/dashboard/kms/keys/new');
+    router.push('/kms/keys/new');
   };
 
   const confirmDeleteKey = (key: KmsKey) => {
@@ -136,7 +136,7 @@ export default function KmsKeysPage() {
   };
 
   const handleViewDetails = (keyId: string) => {
-    router.push(`/dashboard/kms/keys/${keyId}`);
+    router.push(`/kms/keys/${keyId}`);
   };
 
   return (
@@ -197,18 +197,18 @@ export default function KmsKeysPage() {
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=generate-csr`)}
+                          onClick={() => router.push(`/kms/keys/${key.id}?tab=generate-csr`)}
                           disabled={!key.hasPrivateKey}
                         >
                           <FileSignature className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=sign`)}
+                          onClick={() => router.push(`/kms/keys/${key.id}?tab=sign`)}
                           disabled={!key.hasPrivateKey}
                         >
                           <PenTool className="mr-2 h-4 w-4" /> Sign
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/kms/keys/${key.id}?tab=verify`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/kms/keys/${key.id}?tab=verify`)}>
                           <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem> 
                         <DropdownMenuSeparator />
@@ -260,5 +260,3 @@ export default function KmsKeysPage() {
     </div>
   );
 }
-
-    

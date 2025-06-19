@@ -29,7 +29,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
 
   const renderTreeNodes = (ca: CA, currentRouter: ReturnType<typeof import('next/navigation').useRouter>, currentAllCAs: CA[]): React.ReactNode => {
     const handleNodeClick = (selectedCa: CA) => {
-      currentRouter.push(`/dashboard/certificate-authorities/${selectedCa.id}/details`);
+      currentRouter.push(`/certificate-authorities/${selectedCa.id}/details`);
     };
 
     return (
@@ -51,7 +51,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
   };
 
   const handleRootNodeClick = (selectedCa: CA) => {
-    router.push(`/dashboard/certificate-authorities/${selectedCa.id}/details`);
+    router.push(`/certificate-authorities/${selectedCa.id}/details`);
   };
 
   return (

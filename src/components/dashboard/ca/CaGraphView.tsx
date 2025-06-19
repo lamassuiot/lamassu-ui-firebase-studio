@@ -229,7 +229,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                             key={kmsNode.id}
                             transform={`translate(${kmsNode.x - kmsNode.width / 2}, ${kmsNode.y - kmsNode.height / 2})`}
                             className="cursor-pointer group" // Make KMS node clickable
-                             onClick={() => router.push(`/dashboard/kms/keys/${kmsNode.kmsId}`)}
+                             onClick={() => router.push(`/kms/keys/${kmsNode.kmsId}`)}
                           >
                             <rect
                               width={kmsNode.width}
@@ -265,7 +265,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                           <g
                             key={caNode.id}
                             transform={`translate(${caNode.x - caNode.width / 2}, ${caNode.y - nodeActualHeight / 2})`}
-                            onClick={() => router.push(`/dashboard/certificate-authorities/${caNode.id}/details`)}
+                            onClick={() => router.push(`/certificate-authorities/${caNode.id}/details`)}
                             className="cursor-pointer group"
                           >
                             <rect
@@ -320,5 +320,3 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
     </div>
   );
 };
-
-    

@@ -241,7 +241,7 @@ export default function KmsKeyDetailsPageClient() {
   if (error) {
     return (
       <div className="w-full space-y-4 p-4">
-        <Button variant="outline" onClick={() => router.push('/dashboard/kms/keys')} className="mb-4">
+        <Button variant="outline" onClick={() => router.push('/kms/keys')} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to KMS Keys
         </Button>
         <Alert variant="destructive">
@@ -258,7 +258,7 @@ export default function KmsKeyDetailsPageClient() {
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
         <KeyRound className="h-12 w-12 text-muted-foreground" />
         <p className="text-muted-foreground">KMS Key with ID "{keyId}" not found.</p>
-        <Button variant="outline" onClick={() => router.push('/dashboard/kms/keys')} className="mt-4">
+        <Button variant="outline" onClick={() => router.push('/kms/keys')} className="mt-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to KMS Keys
         </Button>
       </div>
@@ -267,7 +267,7 @@ export default function KmsKeyDetailsPageClient() {
   
   return (
     <div className="w-full space-y-6">
-      <Button variant="outline" onClick={() => router.push('/dashboard/kms/keys')}>
+      <Button variant="outline" onClick={() => router.push('/kms/keys')}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to KMS Keys
       </Button>
       

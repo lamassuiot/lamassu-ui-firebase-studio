@@ -50,12 +50,12 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
   
   const handleDetailsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/dashboard/certificate-authorities/${ca.id}/details`);
+    router.push(`/certificate-authorities/${ca.id}/details`);
   };
 
   const handleIssueCertClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/dashboard/certificate-authorities/${ca.id}/issue-certificate`);
+    router.push(`/certificate-authorities/${ca.id}/issue-certificate`);
   };
 
   let IconComponent = Landmark; // Default to Landmark for CA
@@ -117,4 +117,3 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
     </li>
   );
 };
-

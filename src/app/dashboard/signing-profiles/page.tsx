@@ -81,17 +81,17 @@ export default function SigningProfilesPage() {
   const router = useRouter();
 
   const handleCreateNewProfile = () => {
-    router.push('/dashboard/signing-profiles/new');
+    router.push('/signing-profiles/new');
   };
 
   const handleEditProfile = (profileId: string) => {
     alert(`Edit profile ${profileId} (placeholder)`);
-    // router.push(`/dashboard/signing-profiles/${profileId}/edit`);
+    // router.push(`/signing-profiles/${profileId}/edit`);
   };
 
   const handleViewUsage = (profileId: string) => {
      alert(`View usage for profile ${profileId} (placeholder)`);
-    // router.push(`/dashboard/signing-profiles/${profileId}/usage`);
+    // router.push(`/signing-profiles/${profileId}/usage`);
   };
 
   return (

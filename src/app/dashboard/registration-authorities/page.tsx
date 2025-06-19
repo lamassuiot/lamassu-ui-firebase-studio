@@ -9,7 +9,7 @@ export default function RegistrationAuthoritiesPage() {
   const router = useRouter();
 
   const handleCreateNewRAClick = () => {
-    router.push('/dashboard/registration-authorities/new');
+    router.push('/registration-authorities/new');
   };
 
   return (

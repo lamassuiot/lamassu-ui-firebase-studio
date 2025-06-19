@@ -189,7 +189,7 @@ export default function CertificateDetailPageClient() {
   if (errorCert || errorAllCAs) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => routerHook.push('/dashboard/certificates')} className="mb-4">
+         <Button variant="outline" onClick={() => routerHook.push('/certificates')} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certificates
           </Button>
         <Alert variant="destructive">
@@ -207,7 +207,7 @@ export default function CertificateDetailPageClient() {
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
         <FileText className="h-12 w-12 text-muted-foreground" />
         <p className="text-muted-foreground">Certificate with Serial Number "{certificateId}" not found or data is unavailable.</p>
-        <Button variant="outline" onClick={() => routerHook.push('/dashboard/certificates')} className="mt-4">
+        <Button variant="outline" onClick={() => routerHook.push('/certificates')} className="mt-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certificates List
         </Button>
       </div>
@@ -233,7 +233,7 @@ export default function CertificateDetailPageClient() {
 
   return (
     <div className="w-full space-y-6">
-      <Button variant="outline" onClick={() => routerHook.push('/dashboard/certificates')}>
+      <Button variant="outline" onClick={() => routerHook.push('/certificates')}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certificates List
       </Button>
       

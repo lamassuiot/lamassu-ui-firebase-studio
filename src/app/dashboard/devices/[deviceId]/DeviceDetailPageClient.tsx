@@ -277,7 +277,7 @@ export default function DeviceDetailPageClient() {
   if (errorDevice) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => router.push('/dashboard/devices')} className="mb-4">
+         <Button variant="outline" onClick={() => router.push('/devices')} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
           </Button>
         <Alert variant="destructive">
@@ -292,7 +292,7 @@ export default function DeviceDetailPageClient() {
   if (!device) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => router.push('/dashboard/devices')} className="mb-4">
+         <Button variant="outline" onClick={() => router.push('/devices')} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
           </Button>
         <Alert>
@@ -310,7 +310,7 @@ export default function DeviceDetailPageClient() {
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => router.push('/dashboard/devices')}>
+        <Button variant="outline" onClick={() => router.push('/devices')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
         </Button>
       </div>

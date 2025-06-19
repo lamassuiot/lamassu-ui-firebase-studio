@@ -334,7 +334,7 @@ export default function CreateCertificateAuthorityPage() {
         }
 
         toast({ title: "CA Creation Successful", description: `CA "${caName}" has been created.`, variant: "default" });
-        router.push('/dashboard/certificate-authorities');
+        router.push('/certificate-authorities');
 
       } catch (error: any) {
         console.error("CA Creation API Error:", error);
@@ -358,7 +358,7 @@ export default function CreateCertificateAuthorityPage() {
       };
       console.log(`Mock Creating CA (Mode: ${selectedMode}) with data:`, formData);
       toast({ title: "Mock CA Creation (Non-API)", description: `Mock CA Submission for mode: ${selectedModeDetails?.title}. Details in console.`, variant: "default" });
-      router.push('/dashboard/certificate-authorities');
+      router.push('/certificate-authorities');
     }
     setIsSubmitting(false);
   };

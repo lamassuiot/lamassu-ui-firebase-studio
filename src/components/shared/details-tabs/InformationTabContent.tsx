@@ -154,7 +154,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                 <ul className="list-disc list-inside space-y-1 pl-4">
                   {caDetails.children.map(child => (
                     <li key={child.id}>
-                      <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => routerHook.push(`/dashboard/certificate-authorities/${child.id}/details`)}>
+                      <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => routerHook.push(`/certificate-authorities/${child.id}/details`)}>
                         {child.name} (ID: {child.id})
                       </Button>
                     </li>

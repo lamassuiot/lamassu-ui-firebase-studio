@@ -46,7 +46,7 @@ export const CaHierarchyPathNode: React.FC<CaHierarchyPathNodeProps> = ({ ca, is
 
   const handleNodeClick = () => {
     if (!isCurrentCa) { 
-      router.push(`/dashboard/certificate-authorities/${ca.id}/details`);
+      router.push(`/certificate-authorities/${ca.id}/details`);
     }
   };
 
