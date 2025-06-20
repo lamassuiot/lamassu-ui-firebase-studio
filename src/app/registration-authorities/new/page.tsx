@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -8,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide } from "lucide-react";
+import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide, Image as ImageIcon } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,6 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from '@/components/ui/separator';
 import { TagInput } from '@/components/shared/TagInput';
+import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 
 
 export default function CreateRegistrationAuthorityPage() {
@@ -30,7 +30,7 @@ export default function CreateRegistrationAuthorityPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
 
   const [registrationMode, setRegistrationMode] = useState('JITP');
-  const [tags, setTags] = useState<string[]>(['iot']); // Changed to string array
+  const [tags, setTags] = useState<string[]>(['iot']);
   const [protocol, setProtocol] = useState('EST');
   const [enrollmentCa, setEnrollmentCa] = useState<CA | null>(null);
   const [allowOverrideEnrollment, setAllowOverrideEnrollment] = useState(true);
@@ -52,6 +52,9 @@ export default function CreateRegistrationAuthorityPage() {
   const [includeDownstreamCA, setIncludeDownstreamCA] = useState(true);
   const [includeEnrollmentCA, setIncludeEnrollmentCA] = useState(false);
   const [managedCAs, setManagedCAs] = useState<CA[]>([]);
+
+  const [selectedDeviceIconName, setSelectedDeviceIconName] = useState<string | null>('Router'); // Default icon
+  const [isDeviceIconModalOpen, setIsDeviceIconModalOpen] = useState(false);
 
   const [isEnrollmentCaModalOpen, setIsEnrollmentCaModalOpen] = useState(false);
   const [isValidationCaModalOpen, setIsValidationCaModalOpen] = useState(false);
@@ -101,13 +104,18 @@ export default function CreateRegistrationAuthorityPage() {
     );
   };
 
+  const handleDeviceIconSelected = (iconName: string) => {
+    setSelectedDeviceIconName(iconName);
+    setIsDeviceIconModalOpen(false);
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = {
       dmsName: 'ECS DMS',
       dmsId: 'ecs-dms',
       registrationMode,
-      tags, // Now an array of strings
+      tags,
       protocol,
       enrollmentCaId: enrollmentCa?.id,
       allowOverrideEnrollment,
@@ -126,6 +134,7 @@ export default function CreateRegistrationAuthorityPage() {
       includeDownstreamCA,
       includeEnrollmentCA,
       managedCaIds: managedCAs.map(ca => ca.id),
+      deviceIcon: selectedDeviceIconName,
     };
     console.log('Creating new RA with data:', formData);
     alert(`Mock RA Creation Submitted!\nCheck console for details.`);
@@ -185,6 +194,7 @@ export default function CreateRegistrationAuthorityPage() {
   };
 
   const sectionHeadingStyle = "text-lg font-semibold flex items-center mb-3 mt-6";
+  const SelectedIconComponent = selectedDeviceIconName ? getLucideIconByName(selectedDeviceIconName) : null;
 
   return (
     <div className="w-full space-y-6 mb-8">
@@ -250,6 +260,36 @@ export default function CreateRegistrationAuthorityPage() {
                       className="mt-1"
                     />
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Separator className="my-6"/>
+
+            <h3 className={cn(sectionHeadingStyle)}>
+              <ImageIcon className="mr-2 h-5 w-5 text-muted-foreground" /> Device Representation
+            </h3>
+            <Card className="border-border shadow-sm rounded-md">
+              <CardContent className="p-4">
+                <div className="space-y-2">
+                  <Label htmlFor="deviceIconButton">Device Icon</Label>
+                  <Button
+                    id="deviceIconButton"
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsDeviceIconModalOpen(true)}
+                    className="w-full justify-start text-left font-normal flex items-center gap-2"
+                  >
+                    {SelectedIconComponent ? (
+                      <>
+                        <SelectedIconComponent className="h-5 w-5 text-primary" />
+                        {selectedDeviceIconName}
+                      </>
+                    ) : (
+                      "Select Device Icon..."
+                    )}
+                  </Button>
+                   <p className="text-xs text-muted-foreground">Default icon for devices registered through this RA.</p>
                 </div>
               </CardContent>
             </Card>
@@ -500,6 +540,14 @@ export default function CreateRegistrationAuthorityPage() {
       >
         {renderMultiSelectCaDialogContent(managedCAs, setManagedCAs, setIsManagedCaModalOpen)}
       </CaSelectorModal>
+
+      <DeviceIconSelectorModal
+        isOpen={isDeviceIconModalOpen}
+        onOpenChange={setIsDeviceIconModalOpen}
+        onIconSelected={handleDeviceIconSelected}
+        currentSelectedIconName={selectedDeviceIconName}
+      />
+
     </div>
   );
 }
