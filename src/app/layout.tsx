@@ -53,7 +53,6 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'devices': "Devices",
   'device-groups': "Device Groups",
   'crypto-engines': "Crypto Engines",
-  // 'settings': "Settings", // Removed
 };
 
 function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
@@ -74,7 +73,6 @@ function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): Br
     const isLastSegment = i === pathSegments.length - 1;
     let hrefWithQuery = currentHref;
 
-    // For detail pages, try to append the relevant ID query param for navigation
     if (segment === 'details') {
         if (queryParams.get('caId')) hrefWithQuery += `?caId=${queryParams.get('caId')}`;
         else if (queryParams.get('certificateId')) hrefWithQuery += `?certificateId=${queryParams.get('certificateId')}`;
@@ -86,7 +84,7 @@ function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): Br
 
 
     if (isLastSegment) {
-      breadcrumbItems.push({ label }); // No href for the last item (current page)
+      breadcrumbItems.push({ label }); 
     } else {
       breadcrumbItems.push({ label, href: hrefWithQuery });
     }
@@ -138,9 +136,6 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
     { href: '/devices', label: 'Devices', icon: Router },
     { href: '/device-groups', label: 'Device Groups', icon: ServerCog },
   ];
-  // const appSettingsItems = [ // Removed Settings
-  //   { href: '/settings', label: 'Settings', icon: SettingsIconLucide },
-  // ];
 
   return (
     <SidebarProvider defaultOpen>
@@ -259,24 +254,6 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
                   
-                  {/* Removed Application Settings Section
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Application</SidebarGroupLabel>
-                   {appSettingsItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname.startsWith(item.href)}
-                        tooltip={{children: item.label, side: 'right', align: 'center' }}
-                      >
-                        <Link href={item.href} className="flex items-center w-full justify-start">
-                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                  */}
-
                 </SidebarMenu>
               </SidebarContent>
               <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
@@ -356,7 +333,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          <InnerLayout>{children}</InnerLayout>
+          <React.Suspense fallback={<LoadingState />}>
+            <InnerLayout>{children}</InnerLayout>
+          </React.Suspense>
           <Toaster />
         </AuthProvider>
       </body>
