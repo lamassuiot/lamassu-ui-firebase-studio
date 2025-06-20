@@ -32,7 +32,6 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'Server', IconComponent: LucideIcons.Server },
   { name: 'Cpu', IconComponent: LucideIcons.Cpu },
   { name: 'MemoryStick', IconComponent: LucideIcons.MemoryStick },
-  // { name: 'Chip', IconComponent: LucideIcons.Chip }, // Removed as it doesn't exist
   { name: 'Radio', IconComponent: LucideIcons.Radio },
   { name: 'Wifi', IconComponent: LucideIcons.Wifi },
   { name: 'Bluetooth', IconComponent: LucideIcons.Bluetooth },
@@ -50,7 +49,6 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'Plug', IconComponent: LucideIcons.Plug },
   { name: 'Speaker', IconComponent: LucideIcons.Speaker },
   { name: 'Printer', IconComponent: LucideIcons.Printer },
-  { name: 'Scanner', IconComponent: LucideIcons.Scanner },
   { name: 'Cloud', IconComponent: LucideIcons.Cloud },
   { name: 'Database', IconComponent: LucideIcons.Database },
   { name: 'Disc3', IconComponent: LucideIcons.Disc3 },
