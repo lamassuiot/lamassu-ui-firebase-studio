@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { CA } from '@/lib/ca-data';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'; // Added CardFooter
 import { Button } from '@/components/ui/button';
 import { format, parseISO, isPast, addMonths, addYears, subMonths, differenceInMilliseconds } from 'date-fns';
 import { cn } from '@/lib/utils';
