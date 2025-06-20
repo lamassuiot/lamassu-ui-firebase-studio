@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FilePlus2, KeyRound, Loader2, AlertTriangle, FileSignature, UploadCloud, ChevronRight } from "lucide-react";
+import { ArrowLeft, FilePlus2, KeyRound, Loader2, AlertTriangle, FileSignature, UploadCloud, ChevronRight, Copy, Check, Download as DownloadIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from '@/hooks/use-toast';
 
 import { CertificationRequest, AttributeTypeAndValue, Attribute, Extensions, Extension, GeneralName, GeneralNames, BasicConstraints } from "pkijs";
 import * as asn1js from "asn1js";
@@ -92,6 +93,7 @@ const ecdsaCurves = [
 export default function IssueCertificateFormClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toast } = useToast();
   const caId = searchParams.get('caId');
 
   const [modeChosen, setModeChosen] = useState<boolean>(false);
@@ -110,10 +112,10 @@ export default function IssueCertificateFormClient() {
   const [emailSans, setEmailSans] = useState('');
   const [uriSans, setUriSans] = useState('');
 
-  const [csrPem, setCsrPem] = useState(''); // This is the CSR that will be submitted (hidden input)
+  const [csrPem, setCsrPem] = useState('');
   const [generatedKeyPair, setGeneratedKeyPair] = useState<CryptoKeyPair | null>(null);
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
-  const [generatedCsrPemForDisplay, setGeneratedCsrPemForDisplay] = useState<string>(''); // For display after generation
+  const [generatedCsrPemForDisplay, setGeneratedCsrPemForDisplay] = useState<string>('');
   const [uploadedCsrFileName, setUploadedCsrFileName] = useState<string | null>(null);
   
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -123,6 +125,9 @@ export default function IssueCertificateFormClient() {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('RSA');
   const [selectedRsaKeySize, setSelectedRsaKeySize] = useState<string>('2048');
   const [selectedEcdsaCurve, setSelectedEcdsaCurve] = useState<string>('P-256');
+
+  const [privateKeyCopied, setPrivateKeyCopied] = useState(false);
+  const [csrCopied, setCsrCopied] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.crypto) {
@@ -140,12 +145,8 @@ export default function IssueCertificateFormClient() {
   }, []);
 
   useEffect(() => {
-    // Reset CSR generated state if any relevant form field for CSR generation changes
     if (issuanceMode === 'generate') {
       setIsCsrGenerated(false);
-      // Optionally clear displayed CSR/Key if user changes subject details after generation
-      // setGeneratedCsrPemForDisplay(''); 
-      // setGeneratedPrivateKeyPem('');
     }
   }, [commonName, organization, organizationalUnit, country, stateProvince, locality, 
       dnsSans, ipSans, emailSans, uriSans, 
@@ -160,6 +161,8 @@ export default function IssueCertificateFormClient() {
     setGeneratedKeyPair(null);
     setGenerationError(null);
     setIsCsrGenerated(false);
+    setPrivateKeyCopied(false);
+    setCsrCopied(false);
   };
 
   const handleModeSelection = (selectedMode: 'generate' | 'upload') => {
@@ -185,7 +188,7 @@ export default function IssueCertificateFormClient() {
     }
     
     let subjectDetailsForLog: any = {};
-    if (issuanceMode === 'generate') { // Only log these if they were used for generation
+    if (issuanceMode === 'generate') {
         subjectDetailsForLog = {
             commonName, organization, organizationalUnit, country, stateProvince, locality,
             dnsSans: dnsSans.split(',').map(s=>s.trim()).filter(s=>s),
@@ -199,11 +202,11 @@ export default function IssueCertificateFormClient() {
     console.log({
         caIdToIssueFrom: caId,
         mode: issuanceMode,
-        ...subjectDetailsForLog, // This will be empty if mode is 'upload'
-        certificateValidityDays: validityDays, // Keep validity for upload mode as well
+        ...subjectDetailsForLog, 
+        certificateValidityDays: validityDays,
         certificateSigningRequest: csrPem
     });
-    alert(`Mock issue certificate from CA ${caId}. CSR submitted (check console).`);
+    toast({title: "Mock Certificate Issued", description: `Certificate issued from CA ${caId.substring(0,8)}... (Check console for details).`})
   };
 
   const handleGenerateKeyPairAndCsr = async () => {
@@ -213,7 +216,10 @@ export default function IssueCertificateFormClient() {
     setGeneratedCsrPemForDisplay('');
     setCsrPem(''); 
     setGeneratedKeyPair(null);
-    // isCsrGenerated will be set to true upon successful generation
+    setIsCsrGenerated(false);
+    setPrivateKeyCopied(false);
+    setCsrCopied(false);
+
 
     if (!commonName.trim()) {
         setGenerationError("Common Name (CN) is required to generate a CSR.");
@@ -311,7 +317,7 @@ export default function IssueCertificateFormClient() {
         }));
       }
       
-      pkcs10.attributes = []; // Explicitly initialize/clear attributes
+      pkcs10.attributes = [];
       if (preparedExtensions.length > 0) {
         pkcs10.attributes.push(new Attribute({ 
           type: "1.2.840.113549.1.9.14", 
@@ -347,11 +353,12 @@ export default function IssueCertificateFormClient() {
       reader.onload = (e) => {
         const content = e.target?.result as string;
         setCsrPem(content); 
-        setGeneratedCsrPemForDisplay(''); // Clear generated CSR if uploading
+        setGeneratedCsrPemForDisplay(''); 
         setGeneratedPrivateKeyPem('');
         setGeneratedKeyPair(null);
         setGenerationError(null);
-        setIsCsrGenerated(false); // Not using generated CSR anymore
+        setIsCsrGenerated(false); 
+        setCsrCopied(false);
       };
       reader.readAsText(file);
     } else {
@@ -360,7 +367,58 @@ export default function IssueCertificateFormClient() {
     }
   };
 
-  if (!caId && typeof window !== 'undefined') { // Only render client-side after check
+  const handleCopyPrivateKey = async () => {
+    if (!generatedPrivateKeyPem) return;
+    try {
+      await navigator.clipboard.writeText(generatedPrivateKeyPem.replace(/\\n/g, '\n'));
+      setPrivateKeyCopied(true);
+      toast({ title: "Copied!", description: "Private Key PEM copied to clipboard." });
+      setTimeout(() => setPrivateKeyCopied(false), 2000);
+    } catch (err) {
+      toast({ title: "Copy Failed", description: "Could not copy Private Key PEM.", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadPrivateKey = () => {
+    if (!generatedPrivateKeyPem) return;
+    const blob = new Blob([generatedPrivateKeyPem.replace(/\\n/g, '\n')], { type: 'application/x-pem-file' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'private_key.pem';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyCsr = async () => {
+    if (!generatedCsrPemForDisplay) return;
+    try {
+      await navigator.clipboard.writeText(generatedCsrPemForDisplay.replace(/\\n/g, '\n'));
+      setCsrCopied(true);
+      toast({ title: "Copied!", description: "CSR PEM copied to clipboard." });
+      setTimeout(() => setCsrCopied(false), 2000);
+    } catch (err) {
+      toast({ title: "Copy Failed", description: "Could not copy CSR PEM.", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadCsr = () => {
+    if (!generatedCsrPemForDisplay) return;
+    const blob = new Blob([generatedCsrPemForDisplay.replace(/\\n/g, '\n')], { type: 'application/pkcs10' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'certificate_request.csr';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+
+  if (!caId && typeof window !== 'undefined') { 
     return (
       <div className="w-full space-y-6 p-4">
         <Button variant="outline" onClick={() => router.back()} className="mb-4">
@@ -375,7 +433,6 @@ export default function IssueCertificateFormClient() {
       </div>
     );
   }
-  // Show loader if caId is not yet available (could be due to SSR/initial client render mismatch before hydration)
   if (!caId && typeof window === 'undefined') { 
     return <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -483,7 +540,7 @@ export default function IssueCertificateFormClient() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="keyAlgorithm">Algorithm</Label>
-                                <Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm} disabled={isGenerating}>
+                                <Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm} disabled={isGenerating || isCsrGenerated}>
                                 <SelectTrigger id="keyAlgorithm" className="mt-1"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {availableAlgorithms.map(algo => (
@@ -495,7 +552,7 @@ export default function IssueCertificateFormClient() {
                             {selectedAlgorithm === 'RSA' && (
                                 <div>
                                 <Label htmlFor="rsaKeySize">RSA Key Size</Label>
-                                <Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize} disabled={isGenerating}>
+                                <Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize} disabled={isGenerating || isCsrGenerated}>
                                     <SelectTrigger id="rsaKeySize" className="mt-1"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                     {rsaKeySizes.map(size => (
@@ -508,7 +565,7 @@ export default function IssueCertificateFormClient() {
                             {selectedAlgorithm === 'ECDSA' && (
                                 <div>
                                 <Label htmlFor="ecdsaCurve">ECDSA Curve</Label>
-                                <Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve} disabled={isGenerating}>
+                                <Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve} disabled={isGenerating || isCsrGenerated}>
                                     <SelectTrigger id="ecdsaCurve" className="mt-1"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                     {ecdsaCurves.map(curve => (
@@ -522,8 +579,67 @@ export default function IssueCertificateFormClient() {
                         </div>
                     </section>
                     <Separator/>
+                    <section>
+                        <h3 className="text-lg font-medium mb-3">2. Certificate Subject &amp; Validity</h3>
+                        <p className="text-xs text-muted-foreground mb-3">These details will be embedded into the generated CSR and the resulting certificate.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                            <Label htmlFor="commonName">Common Name (CN)</Label>
+                            <Input id="commonName" name="commonName" type="text" placeholder="e.g., mydevice.example.com" required className="mt-1" value={commonName} onChange={e => setCommonName(e.target.value)} disabled={isCsrGenerated}/>
+                            </div>
+                            <div>
+                            <Label htmlFor="organization">Organization (O)</Label>
+                            <Input id="organization" name="organization" type="text" placeholder="e.g., LamassuIoT Corp" className="mt-1" value={organization} onChange={e => setOrganization(e.target.value)} disabled={isCsrGenerated}/>
+                            </div>
+                            <div>
+                            <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
+                            <Input id="organizationalUnit" name="organizationalUnit" type="text" placeholder="e.g., Engineering" className="mt-1" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)} disabled={isCsrGenerated}/>
+                            </div>
+                            <div>
+                            <Label htmlFor="country">Country (C) (2-letter code)</Label>
+                            <Input id="country" name="country" type="text" placeholder="e.g., US" maxLength={2} className="mt-1" value={country} onChange={e => setCountry(e.target.value.toUpperCase())} disabled={isCsrGenerated}/>
+                            </div>
+                            <div>
+                            <Label htmlFor="stateProvince">State/Province (ST)</Label>
+                            <Input id="stateProvince" name="stateProvince" type="text" placeholder="e.g., California" className="mt-1" value={stateProvince} onChange={e => setStateProvince(e.target.value)} disabled={isCsrGenerated}/>
+                            </div>
+                            <div>
+                            <Label htmlFor="locality">Locality (L)</Label>
+                            <Input id="locality" name="locality" type="text" placeholder="e.g., San Francisco" className="mt-1" value={locality} onChange={e => setLocality(e.target.value)} disabled={isCsrGenerated}/>
+                            </div>
+                            <div>
+                            <Label htmlFor="validityDays">Validity (Days)</Label>
+                            <Input id="validityDays" name="validityDays" type="number" value={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)} disabled={isCsrGenerated}/>
+                            </div>
+                        </div>
+                    </section>
+                    <Separator />
+                    <section>
+                        <h3 className="text-lg font-medium mb-3">3. Subject Alternative Names (SANs)</h3>
+                        <p className="text-xs text-muted-foreground mb-3">Specify any alternative names for the certificate subject.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="dnsSans">DNS Names (comma-separated)</Label>
+                                <Input id="dnsSans" value={dnsSans} onChange={e => setDnsSans(e.target.value)} placeholder="dns1.example.com, dns2.net" className="mt-1" disabled={isCsrGenerated}/>
+                            </div>
+                            <div>
+                                <Label htmlFor="ipSans">IP Addresses (comma-separated)</Label>
+                                <Input id="ipSans" value={ipSans} onChange={e => setIpSans(e.target.value)} placeholder="192.168.1.1, 10.0.0.1" className="mt-1" disabled={isCsrGenerated}/>
+                                <p className="text-xs text-muted-foreground mt-1">IPv4 supported. Basic IPv6 (no '::') may work.</p>
+                            </div>
+                            <div>
+                                <Label htmlFor="emailSans">Email Addresses (comma-separated)</Label>
+                                <Input id="emailSans" value={emailSans} onChange={e => setEmailSans(e.target.value)} placeholder="user@example.com, contact@domain.org" className="mt-1" disabled={isCsrGenerated}/>
+                            </div>
+                            <div>
+                                <Label htmlFor="uriSans">URIs (comma-separated)</Label>
+                                <Input id="uriSans" value={uriSans} onChange={e => setUriSans(e.target.value)} placeholder="https://service.example.com, urn:foo:bar" className="mt-1" disabled={isCsrGenerated}/>
+                            </div>
+                        </div>
+                    </section>
+                    <Separator/>
                      <section>
-                        <h3 className="text-lg font-medium mb-3">2. Generated Key Material &amp; CSR</h3>
+                        <h3 className="text-lg font-medium mb-3">4. Generated Key Material &amp; CSR</h3>
                          {generationError && (
                             <Alert variant="destructive" className="mt-2 mb-3">
                                 <AlertTriangle className="h-4 w-4" />
@@ -532,8 +648,19 @@ export default function IssueCertificateFormClient() {
                          )}
                         {generatedPrivateKeyPem && (
                         <div className="mt-4">
-                            <h4 className="text-md font-medium mb-1">Generated Private Key (PEM)</h4>
-                            <p className="text-xs text-destructive mb-2">Keep this secret! This is your only chance to copy it.</p>
+                            <div className="flex justify-between items-center mb-1">
+                                <h4 className="text-md font-medium">Generated Private Key (PEM)</h4>
+                                <div className="flex space-x-2">
+                                    <Button type="button" variant="outline" size="sm" onClick={handleCopyPrivateKey} disabled={!generatedPrivateKeyPem}>
+                                        {privateKeyCopied ? <Check className="mr-1.5 h-4 w-4 text-green-500" /> : <Copy className="mr-1.5 h-4 w-4" />}
+                                        {privateKeyCopied ? 'Copied' : 'Copy'}
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={handleDownloadPrivateKey} disabled={!generatedPrivateKeyPem}>
+                                        <DownloadIcon className="mr-1.5 h-4 w-4" /> Download
+                                    </Button>
+                                </div>
+                            </div>
+                            <p className="text-xs text-destructive mb-2">Keep this secret! This is your only chance to copy or download it.</p>
                             <Textarea
                             id="generatedKeyPem"
                             value={generatedPrivateKeyPem}
@@ -545,7 +672,18 @@ export default function IssueCertificateFormClient() {
                         )}
                         {generatedCsrPemForDisplay && (
                             <div className="mt-4">
-                                <h4 className="text-md font-medium mb-1">Generated CSR (PEM)</h4>
+                                 <div className="flex justify-between items-center mb-1">
+                                    <h4 className="text-md font-medium">Generated CSR (PEM)</h4>
+                                    <div className="flex space-x-2">
+                                        <Button type="button" variant="outline" size="sm" onClick={handleCopyCsr} disabled={!generatedCsrPemForDisplay}>
+                                            {csrCopied ? <Check className="mr-1.5 h-4 w-4 text-green-500" /> : <Copy className="mr-1.5 h-4 w-4" />}
+                                            {csrCopied ? 'Copied' : 'Copy'}
+                                        </Button>
+                                        <Button type="button" variant="outline" size="sm" onClick={handleDownloadCsr} disabled={!generatedCsrPemForDisplay}>
+                                            <DownloadIcon className="mr-1.5 h-4 w-4" /> Download
+                                        </Button>
+                                    </div>
+                                </div>
                                 <Textarea
                                 id="generatedCsrPemDisplay"
                                 value={generatedCsrPemForDisplay}
@@ -553,71 +691,11 @@ export default function IssueCertificateFormClient() {
                                 rows={8}
                                 className="mt-1 font-mono bg-background/50"
                                 />
-                                <p className="text-xs text-muted-foreground mt-1">This CSR will be used for submission.</p>
                             </div>
                         )}
-                         {!isCsrGenerated && !generationError && !generatedPrivateKeyPem && (
-                            <p className="text-sm text-muted-foreground">Fill Key Generation, Subject, and SAN details, then click "Generate Key Pair & CSR" in the footer.</p>
+                         {!isCsrGenerated && !generationError && !generatedPrivateKeyPem && !isCsrGenerated && (
+                            <p className="text-sm text-muted-foreground">Click "Generate Key Pair & CSR" in the footer once details are filled.</p>
                          )}
-                    </section>
-                    <Separator/>
-                    <section>
-                        <h3 className="text-lg font-medium mb-3">3. Certificate Subject &amp; Validity</h3>
-                        <p className="text-xs text-muted-foreground mb-3">These details will be embedded into the generated CSR and the resulting certificate.</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                            <Label htmlFor="commonName">Common Name (CN)</Label>
-                            <Input id="commonName" name="commonName" type="text" placeholder="e.g., mydevice.example.com" required className="mt-1" value={commonName} onChange={e => setCommonName(e.target.value)}/>
-                            </div>
-                            <div>
-                            <Label htmlFor="organization">Organization (O)</Label>
-                            <Input id="organization" name="organization" type="text" placeholder="e.g., LamassuIoT Corp" className="mt-1" value={organization} onChange={e => setOrganization(e.target.value)}/>
-                            </div>
-                            <div>
-                            <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
-                            <Input id="organizationalUnit" name="organizationalUnit" type="text" placeholder="e.g., Engineering" className="mt-1" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)}/>
-                            </div>
-                            <div>
-                            <Label htmlFor="country">Country (C) (2-letter code)</Label>
-                            <Input id="country" name="country" type="text" placeholder="e.g., US" maxLength={2} className="mt-1" value={country} onChange={e => setCountry(e.target.value.toUpperCase())}/>
-                            </div>
-                            <div>
-                            <Label htmlFor="stateProvince">State/Province (ST)</Label>
-                            <Input id="stateProvince" name="stateProvince" type="text" placeholder="e.g., California" className="mt-1" value={stateProvince} onChange={e => setStateProvince(e.target.value)}/>
-                            </div>
-                            <div>
-                            <Label htmlFor="locality">Locality (L)</Label>
-                            <Input id="locality" name="locality" type="text" placeholder="e.g., San Francisco" className="mt-1" value={locality} onChange={e => setLocality(e.target.value)}/>
-                            </div>
-                            <div>
-                            <Label htmlFor="validityDays">Validity (Days)</Label>
-                            <Input id="validityDays" name="validityDays" type="number" value={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
-                            </div>
-                        </div>
-                    </section>
-                    <Separator />
-                    <section>
-                        <h3 className="text-lg font-medium mb-3">4. Subject Alternative Names (SANs)</h3>
-                        <p className="text-xs text-muted-foreground mb-3">Specify any alternative names for the certificate subject.</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="dnsSans">DNS Names (comma-separated)</Label>
-                                <Input id="dnsSans" value={dnsSans} onChange={e => setDnsSans(e.target.value)} placeholder="dns1.example.com, dns2.net" className="mt-1"/>
-                            </div>
-                            <div>
-                                <Label htmlFor="ipSans">IP Addresses (comma-separated)</Label>
-                                <Input id="ipSans" value={ipSans} onChange={e => setIpSans(e.target.value)} placeholder="192.168.1.1, 10.0.0.1" className="mt-1"/>
-                                <p className="text-xs text-muted-foreground mt-1">IPv4 supported. Basic IPv6 (no '::') may work.</p>
-                            </div>
-                            <div>
-                                <Label htmlFor="emailSans">Email Addresses (comma-separated)</Label>
-                                <Input id="emailSans" value={emailSans} onChange={e => setEmailSans(e.target.value)} placeholder="user@example.com, contact@domain.org" className="mt-1"/>
-                            </div>
-                            <div>
-                                <Label htmlFor="uriSans">URIs (comma-separated)</Label>
-                                <Input id="uriSans" value={uriSans} onChange={e => setUriSans(e.target.value)} placeholder="https://service.example.com, urn:foo:bar" className="mt-1"/>
-                            </div>
-                        </div>
                     </section>
                 </>
                 )}
@@ -635,10 +713,10 @@ export default function IssueCertificateFormClient() {
                                 onChange={handleCsrFileUpload}
                                 className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                                 />
-                                {uploadedCsrFileName && <p className="text-xs text-muted-foreground">Selected file: {uploadedCsrFileName}. Its content will be submitted.</p>}
+                                {uploadedCsrFileName && <p className="text-xs text-muted-foreground">Selected file: {uploadedCsrFileName}. Its content will be used for submission.</p>}
                             </div>
                              <div>
-                                <Label htmlFor="validityDaysUpload">Validity (Days)</Label>
+                                <Label htmlFor="validityDaysUpload">Certificate Validity (Days)</Label>
                                 <Input id="validityDaysUpload" name="validityDaysUpload" type="number" value={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
                                 <p className="text-xs text-muted-foreground mt-1">Define how long the certificate issued from this CSR should be valid.</p>
                             </div>
