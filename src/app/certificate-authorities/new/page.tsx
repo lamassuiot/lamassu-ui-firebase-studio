@@ -452,27 +452,6 @@ export default function CreateCertificateAuthorityPage() {
                      {selectedMode === 'importFull' && <p className="text-xs text-muted-foreground mt-1">CA type will be determined from the imported certificate.</p>}
                   </div>
 
-                  {selectedMode === 'newKeyPair' && (
-                    <div>
-                      <Label htmlFor="cryptoEngine">Crypto Engine</Label>
-                      <CryptoEngineSelector
-                        value={cryptoEngineId}
-                        onValueChange={setCryptoEngineId}
-                        disabled={authLoading}
-                        className="mt-1"
-                      />
-                    </div>
-                  )}
-
-                  {selectedMode === 'reuseKeyPair' && (
-                     <div>
-                        <Label htmlFor="cryptoEngineReuse">Crypto Engine (determined by existing key)</Label>
-                        <Input id="cryptoEngineReuse" value="Determined by Existing Key Selection" disabled className="mt-1 bg-muted/50" />
-                        <p className="text-xs text-muted-foreground mt-1">Select the existing key below, its engine will be used.</p>
-                    </div>
-                  )}
-
-
                   {caType === 'intermediate' && selectedMode !== 'importFull' && (
                     <div>
                       <Label htmlFor="parentCa">Parent CA</Label>
@@ -529,38 +508,63 @@ export default function CreateCertificateAuthorityPage() {
                     {selectedMode === 'importFull' && <p className="text-xs text-muted-foreground mt-1">Common Name will be extracted from the imported certificate.</p>}
                     {!caName.trim() && selectedMode !== 'importFull' && <p className="text-xs text-destructive mt-1">CA Name (Common Name) cannot be empty.</p>}
                   </div>
-
-                  {selectedMode === 'newKeyPair' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="keyType">Key Type</Label>
-                        <Select value={keyType} onValueChange={handleKeyTypeChange}>
-                          <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="keySize">{keyType === 'ECDSA' ? 'ECDSA Curve' : 'Key Size'}</Label>
-                        <Select value={keySize} onValueChange={setKeySize}>
-                          <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {currentKeySizeOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-                   {selectedMode === 'reuseKeyPair' && (
-                    <div>
-                        <Label htmlFor="existingKeyId">Existing Key ID (from KMS)</Label>
-                        <Input id="existingKeyId" placeholder="Enter existing Key ID from your KMS" required className="mt-1"/>
-                        <p className="text-xs text-muted-foreground mt-1">Key type, size, and crypto engine will be determined by the existing key.</p>
-                    </div>
-                  )}
                 </div>
               </section>
+            )}
+            
+            {selectedMode === 'newKeyPair' && (
+                <section>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground" />KMS: New Key Pair Generation settings</h3>
+                    <div className="space-y-4 p-4 border rounded-md">
+                        <div>
+                            <Label htmlFor="cryptoEngine">Crypto Engine</Label>
+                            <CryptoEngineSelector
+                                value={cryptoEngineId}
+                                onValueChange={setCryptoEngineId}
+                                disabled={authLoading}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="keyType">Key Type</Label>
+                                <Select value={keyType} onValueChange={handleKeyTypeChange}>
+                                <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="keySize">{keyType === 'ECDSA' ? 'ECDSA Curve' : 'Key Size'}</Label>
+                                <Select value={keySize} onValueChange={setKeySize}>
+                                <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {currentKeySizeOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {selectedMode === 'reuseKeyPair' && (
+                 <section>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center"><Repeat className="mr-2 h-5 w-5 text-muted-foreground" />KMS: Reuse Existing Key Pair settings</h3>
+                    <div className="space-y-4 p-4 border rounded-md">
+                        <div>
+                            <Label htmlFor="cryptoEngineReuse">Crypto Engine (determined by existing key)</Label>
+                            <Input id="cryptoEngineReuse" value="Determined by Existing Key Selection" disabled className="mt-1 bg-muted/50" />
+                            <p className="text-xs text-muted-foreground mt-1">Select the existing key below, its engine will be used.</p>
+                        </div>
+                        <div>
+                            <Label htmlFor="existingKeyId">Existing Key ID (from KMS)</Label>
+                            <Input id="existingKeyId" placeholder="Enter existing Key ID from your KMS" required className="mt-1"/>
+                            <p className="text-xs text-muted-foreground mt-1">Key type, size, and crypto engine will be determined by the existing key.</p>
+                        </div>
+                    </div>
+                 </section>
             )}
 
             {selectedMode === 'importCertOnly' && (
@@ -707,3 +711,4 @@ export default function CreateCertificateAuthorityPage() {
     </div>
   );
 }
+
