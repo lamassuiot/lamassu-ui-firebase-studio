@@ -1,3 +1,4 @@
+
 import type { CertificateData } from '@/types/certificate';
 
 // API Response Structures for Issued Certificates
