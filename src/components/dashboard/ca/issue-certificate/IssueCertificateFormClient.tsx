@@ -37,6 +37,39 @@ function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'PUBLIC KEY' | 
   return `${header}\n${body}\n${footer}`;
 }
 
+// Helper function for IP to Buffer (IPv4 focus)
+function ipToBuffer(ip: string): ArrayBuffer | null {
+  const parts = ip.split('.');
+  if (parts.length === 4 && parts.every(part => {
+    const num = parseInt(part, 10);
+    return !isNaN(num) && num >= 0 && num <= 255;
+  })) {
+    const buffer = new Uint8Array(4);
+    for (let i = 0; i < 4; i++) {
+      buffer[i] = parseInt(parts[i], 10);
+    }
+    return buffer.buffer;
+  }
+  // Basic IPv6 check (very basic, not full validation or robust parsing)
+  if (ip.includes(':') && ip.split(':').length > 2 && ip.split(':').length <= 8) {
+      console.warn(`IPv6 SAN processing for "${ip}" is basic. Ensure it's a standard, uncompressed format if issues arise. Full IPv6 parsing is complex.`);
+      // Attempt to parse simple, full IPv6 (no '::' or mixed notation)
+      const hexGroups = ip.split(':');
+      if (hexGroups.length === 8 && hexGroups.every(group => /^[0-9a-fA-F]{1,4}$/.test(group))) {
+          const buffer = new Uint8Array(16);
+          let offset = 0;
+          for (const group of hexGroups) {
+              const value = parseInt(group, 16);
+              buffer[offset++] = (value >> 8) & 0xFF; // High byte
+              buffer[offset++] = value & 0xFF;        // Low byte
+          }
+          return buffer.buffer;
+      }
+      return null; 
+  }
+  return null; // Invalid IP format
+}
+
 
 const availableAlgorithms = [
   { value: 'RSA', label: 'RSA' },
@@ -70,13 +103,19 @@ export default function IssueCertificateFormClient() {
   const [locality, setLocality] = useState('');
   
   const [validityDays, setValidityDays] = useState('365');
-  const [sans, setSans] = useState(''); // Comma-separated: dns:example.com,ip:1.2.3.4
+  
+  // SANs state
+  const [dnsSans, setDnsSans] = useState('');
+  const [ipSans, setIpSans] = useState('');
+  const [emailSans, setEmailSans] = useState('');
+  const [uriSans, setUriSans] = useState('');
+  
   const [csrPem, setCsrPem] = useState('');
 
   // Key generation state
   const [generatedKeyPair, setGeneratedKeyPair] = useState<CryptoKeyPair | null>(null);
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
-  const [generatedCsrPem, setGeneratedCsrPem] = useState<string>(''); // For the signed CSR from pkijs
+  const [generatedCsrPem, setGeneratedCsrPem] = useState<string>(''); 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   
@@ -85,7 +124,6 @@ export default function IssueCertificateFormClient() {
   const [selectedEcdsaCurve, setSelectedEcdsaCurve] = useState<string>('P-256');
 
   useEffect(() => {
-    // Ensure pkijs uses WebCrypto
     if (typeof window !== 'undefined' && window.crypto) {
       try {
         setEngine("webcrypto", getCrypto());
@@ -127,7 +165,10 @@ export default function IssueCertificateFormClient() {
         subjectStateProvince: stateProvince,
         subjectLocality: locality,
         certificateValidityDays: validityDays, 
-        subjectAlternativeNames: sans,
+        dnsSans: dnsSans.split(',').map(s=>s.trim()).filter(s=>s),
+        ipSans: ipSans.split(',').map(s=>s.trim()).filter(s=>s),
+        emailSans: emailSans.split(',').map(s=>s.trim()).filter(s=>s),
+        uriSans: uriSans.split(',').map(s=>s.trim()).filter(s=>s),
         certificateSigningRequest: finalCsrPem
     });
     alert(`Mock issue certificate from CA ${caId}. CSR submitted (check console).`);
@@ -200,64 +241,59 @@ export default function IssueCertificateFormClient() {
       pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: commonName.trim() }) }));
 
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
-
+      
       const preparedExtensions: Extension[] = [];
 
-      // Basic Constraints
-      const basicConstraints = new BasicConstraints({ cA: false }); 
+      // Basic Constraints: CA:FALSE
+      const basicConstraints = new BasicConstraints({ cA: false });
       preparedExtensions.push(new Extension({
-          extnID: "2.5.29.19", 
-          critical: true, 
-          extnValue: basicConstraints.toSchema().toBER(false)
+        extnID: "2.5.29.19", // basicConstraints
+        critical: true,      // Typically critical for end-entity certs
+        extnValue: basicConstraints.toSchema().toBER(false)
       }));
-      
-      // Subject Alternative Names (SANs)
-      const sanArray = sans.split(',').map(s => s.trim()).filter(s => s);
-      const generalNamesArray: GeneralName[] = [];
-      if (sanArray.length > 0) {
-        sanArray.forEach(san => {
-          if (san.toLowerCase().startsWith('dns:')) {
-            generalNamesArray.push(new GeneralName({ type: 2, value: san.substring(4) }));
-          } else if (san.toLowerCase().startsWith('ip:')) {
-            console.warn(`IP SAN '${san}' detected. Full ASN.1 encoding for IP SANs is complex. This CSR might not correctly represent it.`);
-            // Attempting a simple string representation; proper IP SANs require OCTET STRING of binary IP.
-            // generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ... }) })); // Placeholder for complex logic
-          } else if (san.includes('@') && !san.toLowerCase().startsWith('email:')) { 
-            generalNamesArray.push(new GeneralName({ type: 1, value: san })); 
-          } else if (san.toLowerCase().startsWith('email:')) {
-            generalNamesArray.push(new GeneralName({ type: 1, value: san.substring(6) }));
-          } else if (san.includes('://') && !san.toLowerCase().startsWith('uri:')) { 
-            generalNamesArray.push(new GeneralName({ type: 6, value: san })); 
-          } else if (san.toLowerCase().startsWith('uri:')) {
-            generalNamesArray.push(new GeneralName({ type: 6, value: san.substring(4) }));
-          } else if (san) { 
-            generalNamesArray.push(new GeneralName({ type: 2, value: san })); // Default to DNS if no prefix
-          }
-        });
 
-        if (generalNamesArray.length > 0) {
-          const altNames = new GeneralNames({ names: generalNamesArray });
-          preparedExtensions.push(new Extension({
-            extnID: "2.5.29.17", 
-            critical: false,
-            extnValue: altNames.toSchema().toBER(false)
-          }));
+      // Subject Alternative Names (SANs)
+      const generalNamesArray: GeneralName[] = [];
+      
+      dnsSans.split(',').map(s => s.trim()).filter(s => s).forEach(dnsName => {
+        generalNamesArray.push(new GeneralName({ type: 2, value: dnsName })); // dNSName
+      });
+
+      ipSans.split(',').map(s => s.trim()).filter(s => s).forEach(ipAddress => {
+        const ipBuffer = ipToBuffer(ipAddress);
+        if (ipBuffer) {
+          generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) })); // iPAddress
+        } else {
+          console.warn(`Could not parse IP SAN: ${ipAddress}. It will be skipped.`);
         }
+      });
+      
+      emailSans.split(',').map(s => s.trim()).filter(s => s).forEach(email => {
+        generalNamesArray.push(new GeneralName({ type: 1, value: email })); // rfc822Name
+      });
+      
+      uriSans.split(',').map(s => s.trim()).filter(s => s).forEach(uri => {
+        generalNamesArray.push(new GeneralName({ type: 6, value: uri })); // uniformResourceIdentifier
+      });
+
+      if (generalNamesArray.length > 0) {
+        const altNames = new GeneralNames({ names: generalNamesArray });
+        preparedExtensions.push(new Extension({
+          extnID: "2.5.29.17", // subjectAlternativeName
+          critical: false,    // SAN is usually non-critical
+          extnValue: altNames.toSchema().toBER(false)
+        }));
       }
       
-      // Temporarily disable adding the extensionRequest attribute to isolate the 'toBER' error.
-      /*
       if (preparedExtensions.length > 0) {
-        // pkcs10.attributes is initialized as [] by CertificationRequest constructor, no need for || []
-        const extensionsAttribute = new Attribute({ 
+        pkcs10.attributes = pkcs10.attributes || [];
+        pkcs10.attributes.push(new Attribute({
           type: "1.2.840.113549.1.9.14", // pkcs-9-at-extensionRequest OID
-          values: [ 
+          values: [
             new Extensions({ extensions: preparedExtensions }).toSchema() 
           ]
-        });
-        pkcs10.attributes.push(extensionsAttribute);
+        }));
       }
-      */
             
       await pkcs10.sign(keyPair.privateKey, webCryptoHashName); 
 
@@ -347,14 +383,32 @@ export default function IssueCertificateFormClient() {
                   <Label htmlFor="validityDays">Validity (Days)</Label>
                   <Input id="validityDays" name="validityDays" type="number" defaultValue={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
                 </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="sans">Subject Alternative Names (SANs)</Label>
-                  <Input id="sans" name="sans" type="text" placeholder="dns:alt.example.com,ip:192.168.1.10,email:user@example.com" className="mt-1" value={sans} onChange={e => setSans(e.target.value)}/>
-                   <p className="text-xs text-muted-foreground mt-1">Comma-separated. Use prefixes like 'dns:', 'ip:', 'email:'. Default is DNS if no prefix.</p>
-                </div>
               </div>
             </section>
 
+            <Separator />
+             <section>
+                <h3 className="text-lg font-medium mb-3">Subject Alternative Names (SANs)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="dnsSans">DNS Names (comma-separated)</Label>
+                        <Input id="dnsSans" value={dnsSans} onChange={e => setDnsSans(e.target.value)} placeholder="dns1.example.com, dns2.net" className="mt-1"/>
+                    </div>
+                    <div>
+                        <Label htmlFor="ipSans">IP Addresses (comma-separated)</Label>
+                        <Input id="ipSans" value={ipSans} onChange={e => setIpSans(e.target.value)} placeholder="192.168.1.1, 10.0.0.1" className="mt-1"/>
+                        <p className="text-xs text-muted-foreground mt-1">IPv4 supported. Basic IPv6 (no '::') may work.</p>
+                    </div>
+                    <div>
+                        <Label htmlFor="emailSans">Email Addresses (comma-separated)</Label>
+                        <Input id="emailSans" value={emailSans} onChange={e => setEmailSans(e.target.value)} placeholder="user@example.com, contact@domain.org" className="mt-1"/>
+                    </div>
+                    <div>
+                        <Label htmlFor="uriSans">URIs (comma-separated)</Label>
+                        <Input id="uriSans" value={uriSans} onChange={e => setUriSans(e.target.value)} placeholder="https://service.example.com, urn:foo:bar" className="mt-1"/>
+                    </div>
+                </div>
+             </section>
             <Separator />
 
             <section>
@@ -471,3 +525,4 @@ export default function IssueCertificateFormClient() {
   );
 }
     
+
