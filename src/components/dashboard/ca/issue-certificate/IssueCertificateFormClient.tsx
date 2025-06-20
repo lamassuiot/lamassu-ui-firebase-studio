@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FilePlus2, KeyRound, Loader2, AlertTriangle, FileSignature } from "lucide-react";
+import { ArrowLeft, FilePlus2, KeyRound, Loader2, AlertTriangle, FileSignature, UploadCloud } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import { CertificationRequest, AttributeTypeAndValue, Attribute, Extensions, Extension, GeneralName, GeneralNames, BasicConstraints } from "pkijs";
 import * as asn1js from "asn1js";
@@ -50,24 +51,22 @@ function ipToBuffer(ip: string): ArrayBuffer | null {
     }
     return buffer.buffer;
   }
-  // Basic IPv6 check (very basic, not full validation or robust parsing)
   if (ip.includes(':') && ip.split(':').length > 2 && ip.split(':').length <= 8) {
       console.warn(`IPv6 SAN processing for "${ip}" is basic. Ensure it's a standard, uncompressed format if issues arise. Full IPv6 parsing is complex.`);
-      // Attempt to parse simple, full IPv6 (no '::' or mixed notation)
       const hexGroups = ip.split(':');
       if (hexGroups.length === 8 && hexGroups.every(group => /^[0-9a-fA-F]{1,4}$/.test(group))) {
           const buffer = new Uint8Array(16);
           let offset = 0;
           for (const group of hexGroups) {
               const value = parseInt(group, 16);
-              buffer[offset++] = (value >> 8) & 0xFF; // High byte
-              buffer[offset++] = value & 0xFF;        // Low byte
+              buffer[offset++] = (value >> 8) & 0xFF; 
+              buffer[offset++] = value & 0xFF;        
           }
           return buffer.buffer;
       }
       return null; 
   }
-  return null; // Invalid IP format
+  return null; 
 }
 
 
@@ -94,7 +93,8 @@ export default function IssueCertificateFormClient() {
   const router = useRouter();
   const caId = searchParams.get('caId');
 
-  // Form fields state for Subject DN
+  const [issuanceMode, setIssuanceMode] = useState<'generate' | 'upload'>('generate');
+
   const [commonName, setCommonName] = useState('');
   const [organization, setOrganization] = useState('');
   const [organizationalUnit, setOrganizationalUnit] = useState('');
@@ -104,18 +104,19 @@ export default function IssueCertificateFormClient() {
   
   const [validityDays, setValidityDays] = useState('365');
   
-  // SANs state
   const [dnsSans, setDnsSans] = useState('');
   const [ipSans, setIpSans] = useState('');
   const [emailSans, setEmailSans] = useState('');
   const [uriSans, setUriSans] = useState('');
   
-  const [csrPem, setCsrPem] = useState('');
+  const [csrPem, setCsrPem] = useState(''); // This is the main CSR for submission
 
-  // Key generation state
   const [generatedKeyPair, setGeneratedKeyPair] = useState<CryptoKeyPair | null>(null);
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
-  const [generatedCsrPem, setGeneratedCsrPem] = useState<string>(''); 
+  const [generatedCsrPemForDisplay, setGeneratedCsrPemForDisplay] = useState<string>(''); 
+  
+  const [uploadedCsrFileName, setUploadedCsrFileName] = useState<string | null>(null);
+
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   
@@ -138,6 +139,16 @@ export default function IssueCertificateFormClient() {
     }
   }, []);
 
+  const handleModeChange = (newMode: 'generate' | 'upload') => {
+    if (newMode === issuanceMode) return;
+    setIssuanceMode(newMode);
+    setCsrPem(''); // Clear the main CSR when switching modes to avoid confusion
+    setUploadedCsrFileName(null);
+    setGeneratedCsrPemForDisplay('');
+    setGeneratedPrivateKeyPem('');
+    setGeneratedKeyPair(null);
+    setGenerationError(null);
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -145,19 +156,20 @@ export default function IssueCertificateFormClient() {
       alert("Error: CA ID is missing from the URL.");
       return;
     }
-    const finalCsrPem = generatedCsrPem || csrPem;
-    if (!finalCsrPem) {
-      alert("Error: Please provide a CSR or generate a new key pair and CSR.");
+    if (!csrPem.trim()) {
+      alert("Error: CSR is required. Please generate or upload a CSR.");
       return;
     }
-    if (!commonName.trim() && !csrPem) { 
-        alert("Error: Common Name (CN) is required if generating CSR.");
+    // Common Name is good to have for context even if CSR is uploaded
+    if (!commonName.trim()) { 
+        alert("Error: Common Name (CN) is required.");
         return;
     }
 
     console.log(`Issuing certificate from CA: ${caId} with CSR and form data...`);
     console.log({
         caIdToIssueFrom: caId,
+        mode: issuanceMode,
         subjectCommonName: commonName, 
         subjectOrganization: organization, 
         subjectOrganizationalUnit: organizationalUnit,
@@ -169,7 +181,7 @@ export default function IssueCertificateFormClient() {
         ipSans: ipSans.split(',').map(s=>s.trim()).filter(s=>s),
         emailSans: emailSans.split(',').map(s=>s.trim()).filter(s=>s),
         uriSans: uriSans.split(',').map(s=>s.trim()).filter(s=>s),
-        certificateSigningRequest: finalCsrPem
+        certificateSigningRequest: csrPem 
     });
     alert(`Mock issue certificate from CA ${caId}. CSR submitted (check console).`);
   };
@@ -178,9 +190,10 @@ export default function IssueCertificateFormClient() {
     setIsGenerating(true);
     setGenerationError(null);
     setGeneratedPrivateKeyPem('');
-    setGeneratedCsrPem('');
+    setGeneratedCsrPemForDisplay('');
+    setCsrPem(''); // Clear main CSR as we are generating a new one
     setGeneratedKeyPair(null);
-    setCsrPem(''); 
+    setUploadedCsrFileName(null); // Clear uploaded file name
 
     if (!commonName.trim()) {
         setGenerationError("Common Name (CN) is required to generate a CSR.");
@@ -243,52 +256,44 @@ export default function IssueCertificateFormClient() {
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
       
       const preparedExtensions: Extension[] = [];
-
-      // Basic Constraints: CA:FALSE
       const basicConstraints = new BasicConstraints({ cA: false });
       preparedExtensions.push(new Extension({
-        extnID: "2.5.29.19", // basicConstraints
-        critical: true,      // Typically critical for end-entity certs
+        extnID: "2.5.29.19", 
+        critical: true,      
         extnValue: basicConstraints.toSchema().toBER(false)
       }));
 
-      // Subject Alternative Names (SANs)
       const generalNamesArray: GeneralName[] = [];
-      
       dnsSans.split(',').map(s => s.trim()).filter(s => s).forEach(dnsName => {
-        generalNamesArray.push(new GeneralName({ type: 2, value: dnsName })); // dNSName
+        generalNamesArray.push(new GeneralName({ type: 2, value: dnsName })); 
       });
-
       ipSans.split(',').map(s => s.trim()).filter(s => s).forEach(ipAddress => {
         const ipBuffer = ipToBuffer(ipAddress);
         if (ipBuffer) {
-          generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) })); // iPAddress
+          generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) }));
         } else {
           console.warn(`Could not parse IP SAN: ${ipAddress}. It will be skipped.`);
         }
       });
-      
       emailSans.split(',').map(s => s.trim()).filter(s => s).forEach(email => {
-        generalNamesArray.push(new GeneralName({ type: 1, value: email })); // rfc822Name
+        generalNamesArray.push(new GeneralName({ type: 1, value: email })); 
       });
-      
       uriSans.split(',').map(s => s.trim()).filter(s => s).forEach(uri => {
-        generalNamesArray.push(new GeneralName({ type: 6, value: uri })); // uniformResourceIdentifier
+        generalNamesArray.push(new GeneralName({ type: 6, value: uri })); 
       });
 
       if (generalNamesArray.length > 0) {
         const altNames = new GeneralNames({ names: generalNamesArray });
         preparedExtensions.push(new Extension({
-          extnID: "2.5.29.17", // subjectAlternativeName
-          critical: false,    // SAN is usually non-critical
+          extnID: "2.5.29.17", 
+          critical: false,    
           extnValue: altNames.toSchema().toBER(false)
         }));
       }
       
       if (preparedExtensions.length > 0) {
-        pkcs10.attributes = pkcs10.attributes || [];
-        pkcs10.attributes.push(new Attribute({
-          type: "1.2.840.113549.1.9.14", // pkcs-9-at-extensionRequest OID
+        pkcs10.attributes.push(new Attribute({ // Ensure Attribute is imported from pkijs
+          type: "1.2.840.113549.1.9.14", 
           values: [
             new Extensions({ extensions: preparedExtensions }).toSchema() 
           ]
@@ -299,14 +304,36 @@ export default function IssueCertificateFormClient() {
 
       const csrDerBuffer = pkcs10.toSchema().toBER(false);
       const signedCsrPem = formatAsPem(arrayBufferToBase64(csrDerBuffer), 'CERTIFICATE REQUEST');
-      setGeneratedCsrPem(signedCsrPem);
-      setCsrPem(signedCsrPem); 
+      setGeneratedCsrPemForDisplay(signedCsrPem); // For display in generation section
+      setCsrPem(signedCsrPem); // Populate main CSR field
 
     } catch (error: any) {
       console.error("Key pair or CSR generation error:", error);
       setGenerationError(`Failed to generate: ${error.message || String(error)}`);
     } finally {
       setIsGenerating(false);
+    }
+  };
+  
+  const handleCsrFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadedCsrFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setCsrPem(content); // Populate the main CSR textarea
+        // Clear generation specific states
+        setGeneratedCsrPemForDisplay('');
+        setGeneratedPrivateKeyPem('');
+        setGeneratedKeyPair(null);
+        setGenerationError(null);
+      };
+      reader.readAsText(file);
+    } else {
+      setUploadedCsrFileName(null);
+      // If file is cleared, and mode is upload, consider clearing csrPem too.
+      // For now, if user clears file selection, csrPem remains unless they manually clear it or switch mode.
     }
   };
 
@@ -346,7 +373,7 @@ export default function IssueCertificateFormClient() {
             <CardTitle className="text-xl font-headline">Issue Certificate from CA: {caId ? caId.substring(0, 12) : 'N/A'}...</CardTitle>
           </div>
           <CardDescription className="mt-1.5">
-            Fill out the details below to issue a new certificate. Provide a CSR or generate a new key pair and CSR.
+            Fill out the details below to issue a new certificate. Choose to generate key/CSR in browser or upload an existing CSR.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -412,109 +439,152 @@ export default function IssueCertificateFormClient() {
             <Separator />
 
             <section>
-              <h3 className="text-lg font-medium mb-1">Key Material & CSR</h3>
-              <p className="text-xs text-muted-foreground mb-3">Provide a CSR or generate a new key pair and CSR using browser crypto.</p>
+              <h3 className="text-lg font-medium mb-1">Certificate Signing Request (CSR)</h3>
+              <p className="text-xs text-muted-foreground mb-3">Select mode and provide CSR. Subject and SAN fields above are for CA policy and context.</p>
               
-              <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                <Label htmlFor="csr">Certificate Signing Request (CSR)</Label>
-                <Textarea 
-                    id="csr" 
-                    name="csr" 
-                    placeholder="-----BEGIN CERTIFICATE REQUEST-----\n..." 
-                    rows={6} 
-                    className="mt-1 font-mono bg-background" 
-                    value={csrPem}
-                    onChange={(e) => { setCsrPem(e.target.value); if (generatedCsrPem) { setGeneratedCsrPem(''); setGeneratedPrivateKeyPem(''); setGeneratedKeyPair(null); } }}
-                />
-                {generatedCsrPem && <p className="text-xs text-amber-600 dark:text-amber-400">CSR field auto-populated from generated key. Manual edits will clear generated key/CSR.</p>}
-              </div>
+              <ToggleGroup
+                type="single"
+                value={issuanceMode}
+                onValueChange={(value) => {
+                  if (value) handleModeChange(value as 'generate' | 'upload');
+                }}
+                className="mb-4 justify-start"
+                variant="outline"
+              >
+                <ToggleGroupItem value="generate" aria-label="Generate Key and CSR" className="rounded-r-none data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary">
+                  <KeyRound className="mr-2 h-4 w-4" /> Generate In Browser
+                </ToggleGroupItem>
+                <ToggleGroupItem value="upload" aria-label="Upload CSR" className="rounded-l-none data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary">
+                  <UploadCloud className="mr-2 h-4 w-4" /> Upload CSR
+                </ToggleGroupItem>
+              </ToggleGroup>
 
-              <div className="my-4 text-center text-sm text-muted-foreground">OR</div>
-
-              <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                <Label>Generate New Key Pair & CSR</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="keyAlgorithm">Algorithm</Label>
-                    <Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm} disabled={isGenerating}>
-                      <SelectTrigger id="keyAlgorithm" className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {availableAlgorithms.map(algo => (
-                          <SelectItem key={algo.value} value={algo.value}>{algo.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {selectedAlgorithm === 'RSA' && (
+              {issuanceMode === 'generate' && (
+                <div className="space-y-4 p-4 border rounded-md bg-muted/20">
+                  <Label className="text-base">Generate New Key Pair & CSR</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="rsaKeySize">RSA Key Size</Label>
-                      <Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize} disabled={isGenerating}>
-                        <SelectTrigger id="rsaKeySize" className="mt-1"><SelectValue /></SelectTrigger>
+                      <Label htmlFor="keyAlgorithm">Algorithm</Label>
+                      <Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm} disabled={isGenerating}>
+                        <SelectTrigger id="keyAlgorithm" className="mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {rsaKeySizes.map(size => (
-                            <SelectItem key={size.value} value={size.value}>{size.label}</SelectItem>
+                          {availableAlgorithms.map(algo => (
+                            <SelectItem key={algo.value} value={algo.value}>{algo.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
-                  {selectedAlgorithm === 'ECDSA' && (
-                    <div>
-                      <Label htmlFor="ecdsaCurve">ECDSA Curve</Label>
-                      <Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve} disabled={isGenerating}>
-                        <SelectTrigger id="ecdsaCurve" className="mt-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {ecdsaCurves.map(curve => (
-                            <SelectItem key={curve.value} value={curve.value}>{curve.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-                <Button type="button" variant="secondary" onClick={handleGenerateKeyPairAndCsr} disabled={isGenerating || !commonName.trim()} className="w-full sm:w-auto">
-                  {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
-                  {isGenerating ? 'Generating...' : 'Generate Key Pair & CSR'}
-                </Button>
-                 {!commonName.trim() && <p className="text-xs text-destructive mt-1">Common Name (CN) is required for CSR generation.</p>}
-                {generationError && (
-                  <Alert variant="destructive" className="mt-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>{generationError}</AlertDescription>
-                  </Alert>
-                )}
-                {generatedPrivateKeyPem && (
-                  <div className="mt-3 space-y-2">
-                    <Label htmlFor="generatedKeyPem">Generated Private Key (PEM) - Keep this secret!</Label>
-                    <Textarea
-                      id="generatedKeyPem"
-                      value={generatedPrivateKeyPem}
-                      readOnly
-                      rows={8}
-                      className="mt-1 font-mono bg-background/50"
-                    />
+                    {selectedAlgorithm === 'RSA' && (
+                      <div>
+                        <Label htmlFor="rsaKeySize">RSA Key Size</Label>
+                        <Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize} disabled={isGenerating}>
+                          <SelectTrigger id="rsaKeySize" className="mt-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {rsaKeySizes.map(size => (
+                              <SelectItem key={size.value} value={size.value}>{size.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {selectedAlgorithm === 'ECDSA' && (
+                      <div>
+                        <Label htmlFor="ecdsaCurve">ECDSA Curve</Label>
+                        <Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve} disabled={isGenerating}>
+                          <SelectTrigger id="ecdsaCurve" className="mt-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {ecdsaCurves.map(curve => (
+                              <SelectItem key={curve.value} value={curve.value}>{curve.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
-                )}
-                {generatedCsrPem && (
-                     <div className="mt-3 space-y-2">
-                        <Label htmlFor="generatedCsrPemDisplay">Generated CSR (PEM)</Label>
-                        <Textarea
-                        id="generatedCsrPemDisplay"
-                        value={generatedCsrPem}
+                  <Button type="button" variant="secondary" onClick={handleGenerateKeyPairAndCsr} disabled={isGenerating || !commonName.trim()} className="w-full sm:w-auto">
+                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
+                    {isGenerating ? 'Generating...' : 'Generate Key Pair & CSR'}
+                  </Button>
+                  {!commonName.trim() && <p className="text-xs text-destructive mt-1">Common Name (CN) is required for CSR generation.</p>}
+                  {generationError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>{generationError}</AlertDescription>
+                    </Alert>
+                  )}
+                  {generatedPrivateKeyPem && (
+                    <div className="mt-3 space-y-2">
+                      <Label htmlFor="generatedKeyPem">Generated Private Key (PEM) - Keep this secret!</Label>
+                      <Textarea
+                        id="generatedKeyPem"
+                        value={generatedPrivateKeyPem}
                         readOnly
                         rows={8}
                         className="mt-1 font-mono bg-background/50"
-                        />
-                        <p className="text-xs text-muted-foreground">This CSR has been auto-filled into the main CSR field above.</p>
+                      />
                     </div>
-                )}
+                  )}
+                  {generatedCsrPemForDisplay && (
+                       <div className="mt-3 space-y-2">
+                          <Label htmlFor="generatedCsrPemDisplay">Generated CSR (PEM)</Label>
+                          <Textarea
+                          id="generatedCsrPemDisplay"
+                          value={generatedCsrPemForDisplay}
+                          readOnly
+                          rows={8}
+                          className="mt-1 font-mono bg-background/50"
+                          />
+                          <p className="text-xs text-muted-foreground">This CSR has been auto-filled into the main CSR field below.</p>
+                      </div>
+                  )}
+                </div>
+              )}
+
+              {issuanceMode === 'upload' && (
+                <section className="space-y-4 p-4 border rounded-md bg-muted/20">
+                  <Label className="text-base">Upload Certificate Signing Request</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="csrFile">CSR File (.csr, .pem)</Label>
+                    <Input
+                      id="csrFile"
+                      type="file"
+                      accept=".csr,.pem,.txt" // .txt for convenience if PEM is in plain text
+                      onChange={handleCsrFileUpload}
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                    />
+                    {uploadedCsrFileName && <p className="text-xs text-muted-foreground">Selected file: {uploadedCsrFileName}. Content loaded into CSR field below.</p>}
+                  </div>
+                </section>
+              )}
+
+              <div className="mt-6">
+                <Label htmlFor="csrPemInput" className="text-base font-semibold">CSR for Submission (PEM format)</Label>
+                <Textarea 
+                    id="csrPemInput" 
+                    name="csrPemInput" 
+                    placeholder={issuanceMode === 'generate' ? "CSR will appear here after generation..." : "Paste CSR here or upload above..."}
+                    rows={8} 
+                    className="mt-1 font-mono bg-background" 
+                    value={csrPem}
+                    onChange={(e) => { 
+                        setCsrPem(e.target.value); 
+                        // If user edits manually, clear "generated" or "uploaded" specific states
+                        // as this is now custom input.
+                        setGeneratedCsrPemForDisplay('');
+                        setGeneratedPrivateKeyPem('');
+                        setGeneratedKeyPair(null);
+                        setUploadedCsrFileName(null);
+                    }}
+                    required
+                />
+                {!csrPem.trim() && <p className="text-xs text-destructive mt-1">CSR content is required for submission.</p>}
               </div>
             </section>
 
             <Separator />
             
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg" disabled={isGenerating || (!csrPem.trim() && !generatedCsrPem.trim())}>
+              <Button type="submit" size="lg" disabled={isGenerating || !csrPem.trim() || !commonName.trim()}>
                 <FileSignature className="mr-2 h-5 w-5" /> Issue Certificate
               </Button>
             </div>
@@ -525,4 +595,3 @@ export default function IssueCertificateFormClient() {
   );
 }
     
-
