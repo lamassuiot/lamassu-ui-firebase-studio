@@ -107,15 +107,23 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
 
 interface FetchIssuedCertificatesParams {
   accessToken: string;
-  apiQueryString?: string; // Changed from bookmark and pageSize to a single query string
+  apiQueryString?: string;
+  forCaId?: string; // Optional: ID of the CA to fetch certificates for
 }
 
 export async function fetchIssuedCertificates(
   params: FetchIssuedCertificatesParams
 ): Promise<{ certificates: CertificateData[]; nextToken: string | null }> {
-  const { accessToken, apiQueryString = 'sort_by=valid_from&sort_mode=desc&page_size=10' } = params;
+  const { accessToken, apiQueryString = 'sort_by=valid_from&sort_mode=desc&page_size=10', forCaId } = params;
   
-  const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates?${apiQueryString}`, {
+  let baseUrl = 'https://lab.lamassu.io/api/ca/v1/';
+  if (forCaId) {
+    baseUrl += `cas/${forCaId}/certificates`;
+  } else {
+    baseUrl += 'certificates';
+  }
+  
+  const response = await fetch(`${baseUrl}?${apiQueryString}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
     },
@@ -132,7 +140,6 @@ export async function fetchIssuedCertificates(
         errorMessage = `Failed to fetch issued certificates: ${errorJson.message}`;
       }
     } catch (e) {
-      // Response was not JSON or JSON parsing failed
       console.error("Failed to parse error response as JSON for fetchIssuedCertificates:", e);
     }
     throw new Error(errorMessage);
@@ -152,4 +159,3 @@ export async function fetchIssuedCertificates(
 export function findCertificateBySerialNumber(serialNumber: string, certificates: CertificateData[]): CertificateData | null {
   return certificates.find(cert => cert.serialNumber === serialNumber) || null;
 }
-
