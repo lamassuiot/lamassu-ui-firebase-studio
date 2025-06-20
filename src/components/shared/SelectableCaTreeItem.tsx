@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { FolderTree, ChevronRight, Minus } from "lucide-react";
 import type { CA } from '@/lib/ca-data'; // Assuming CA type is defined here
-import { formatDistanceToNowStrict, parseISO } from 'date-fns';
+import { formatDistanceToNowStrict, parseISO, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface SelectableCaTreeItemProps {
@@ -42,7 +42,20 @@ export const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
   };
 
   const isCurrentlySelected = !showCheckbox && currentSingleSelectedCaId === ca.id;
-  const timeToExpire = ca.expires ? formatDistanceToNowStrict(parseISO(ca.expires), { addSuffix: true }) : 'N/A';
+  
+  const expiryDate = parseISO(ca.expires);
+  const isTrulyExpired = isPast(expiryDate);
+  const isRevoked = ca.status === 'revoked';
+  const isCriticalStatus = isRevoked || isTrulyExpired;
+
+  let expiryDisplayText = '';
+  if (isRevoked) {
+    expiryDisplayText = 'Revoked';
+  } else if (isTrulyExpired) {
+    expiryDisplayText = `Expired ${formatDistanceToNowStrict(expiryDate, { addSuffix: true })}`;
+  } else {
+    expiryDisplayText = `Expires ${formatDistanceToNowStrict(expiryDate, { addSuffix: true })}`;
+  }
 
   return (
     <li className={`py-1 ${level > 0 ? 'pl-4 border-l border-dashed border-border ml-2' : ''} relative list-none`}>
@@ -78,15 +91,24 @@ export const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
             aria-label={isOpen ? `Collapse ${ca.name}` : `Expand ${ca.name}`}
           />
         )}
-        {/* Adjust placeholder for alignment based on checkbox presence */}
         {!hasChildren && !showCheckbox && <div className="w-4 shrink-0"></div>}
         {!hasChildren && showCheckbox && <div className="w-0 shrink-0"></div>} 
         
         <FolderTree className="h-4 w-4 text-primary flex-shrink-0" />
-        <span className={`flex-1 text-sm truncate ${ isCurrentlySelected || isMultiSelected ? 'font-semibold text-primary': ''}`}>
-          {ca.name} 
-          <span className="text-xs text-muted-foreground">
-            (ID: {ca.id.substring(0,8)}... - {timeToExpire})
+        <span className={cn(
+            "flex-1 text-sm truncate",
+            (isCurrentlySelected || isMultiSelected) && 'font-semibold text-primary'
+          )}
+        >
+          <span className={cn(isCriticalStatus && 'text-destructive')}>
+            {ca.name}
+          </span>
+          <span className={cn(
+              "text-xs ml-1",
+              isCriticalStatus ? "text-destructive" : "text-muted-foreground"
+            )}
+          >
+            {`(ID: ${ca.id.substring(0,8)}...) - ${expiryDisplayText}`}
           </span>
         </span>
       </div>
