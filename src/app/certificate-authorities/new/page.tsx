@@ -329,8 +329,20 @@ export default function CreateCertificateAuthorityPage() {
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
-          throw new Error(errorData.message || `Failed to create CA. Status: ${response.status}`);
+          let errorJson;
+          let errorMessage = `Failed to create CA. Status: ${response.status}`;
+          try {
+            errorJson = await response.json();
+            if (errorJson && errorJson.err) {
+              errorMessage = `Failed to create CA: ${errorJson.err}`;
+            } else if (errorJson && errorJson.message) {
+              errorMessage = `Failed to create CA: ${errorJson.message}`;
+            }
+          } catch (e) {
+            // Response was not JSON or JSON parsing failed
+             console.error("Failed to parse error response as JSON for CA creation:", e);
+          }
+          throw new Error(errorMessage);
         }
 
         toast({ title: "CA Creation Successful", description: `CA "${caName}" has been created.`, variant: "default" });

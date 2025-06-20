@@ -122,8 +122,20 @@ export async function fetchIssuedCertificates(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: "Failed to fetch issued certificates" }));
-    throw new Error(errorData.message || `HTTP error ${response.status}`);
+    let errorJson;
+    let errorMessage = `Failed to fetch issued certificates. HTTP error ${response.status}`;
+    try {
+      errorJson = await response.json();
+      if (errorJson && errorJson.err) {
+        errorMessage = `Failed to fetch issued certificates: ${errorJson.err}`;
+      } else if (errorJson && errorJson.message) {
+        errorMessage = `Failed to fetch issued certificates: ${errorJson.message}`;
+      }
+    } catch (e) {
+      // Response was not JSON or JSON parsing failed
+      console.error("Failed to parse error response as JSON for fetchIssuedCertificates:", e);
+    }
+    throw new Error(errorMessage);
   }
 
   const apiResponse: ApiIssuedCertificateListResponse = await response.json();

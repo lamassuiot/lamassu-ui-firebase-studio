@@ -122,8 +122,20 @@ export default function DeviceDetailsClient() { // Renamed component
           headers: { 'Authorization': `Bearer ${user.access_token}` },
         });
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: "Failed to fetch device details."}));
-          throw new Error(errorData.message || `HTTP error ${response.status}`);
+          let errorJson;
+          let errorMessage = `Failed to fetch device details. HTTP error ${response.status}`;
+          try {
+            errorJson = await response.json();
+            if (errorJson && errorJson.err) {
+              errorMessage = `Failed to fetch device details: ${errorJson.err}`;
+            } else if (errorJson && errorJson.message) {
+              errorMessage = `Failed to fetch device details: ${errorJson.message}`;
+            }
+          } catch (e) {
+            // Response was not JSON or JSON parsing failed
+            console.error("Failed to parse error response as JSON for device details:", e);
+          }
+          throw new Error(errorMessage);
         }
         const data: ApiDevice = await response.json();
         setDevice(data);
@@ -451,3 +463,4 @@ export default function DeviceDetailsClient() { // Renamed component
     </div>
   );
 }
+

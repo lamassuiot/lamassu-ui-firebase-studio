@@ -190,8 +190,20 @@ export default function DevicesPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Failed to fetch devices. Invalid response from server."}));
-        throw new Error(errorData.message || `HTTP error ${response.status}`);
+        let errorJson;
+        let errorMessage = `Failed to fetch devices. Invalid response from server. HTTP error ${response.status}`;
+        try {
+          errorJson = await response.json();
+          if (errorJson && errorJson.err) {
+            errorMessage = `Failed to fetch devices: ${errorJson.err}`;
+          } else if (errorJson && errorJson.message) { 
+            errorMessage = `Failed to fetch devices: ${errorJson.message}`;
+          }
+        } catch (e) {
+          // Response was not JSON or JSON parsing failed
+          console.error("Failed to parse error response as JSON for devices:", e);
+        }
+        throw new Error(errorMessage);
       }
 
       const data: ApiResponse = await response.json();
@@ -539,3 +551,4 @@ export default function DevicesPage() {
     </div>
   );
 }
+

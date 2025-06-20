@@ -1,3 +1,4 @@
+
 // Define the CA data structure
 
 // API Response Structures
@@ -168,8 +169,20 @@ export async function fetchAndProcessCAs(accessToken: string): Promise<CA[]> {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: "Failed to fetch CAs" }));
-    throw new Error(errorData.message || `HTTP error ${response.status}`);
+    let errorJson;
+    let errorMessage = `Failed to fetch CAs. HTTP error ${response.status}`;
+    try {
+      errorJson = await response.json();
+      if (errorJson && errorJson.err) {
+        errorMessage = `Failed to fetch CAs: ${errorJson.err}`;
+      } else if (errorJson && errorJson.message) {
+        errorMessage = `Failed to fetch CAs: ${errorJson.message}`;
+      }
+    } catch (e) {
+      // Response was not JSON or JSON parsing failed
+      console.error("Failed to parse error response as JSON for fetchAndProcessCAs:", e);
+    }
+    throw new Error(errorMessage);
   }
 
   const apiResponse: ApiResponseList = await response.json();
@@ -217,3 +230,4 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
   }
   return null;
 }
+

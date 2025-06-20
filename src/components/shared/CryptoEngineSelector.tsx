@@ -41,8 +41,20 @@ export const CryptoEngineSelector: React.FC<CryptoEngineSelectorProps> = ({ valu
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch crypto engines.' }));
-        throw new Error(errorData.message || `HTTP error ${response.status}`);
+        let errorJson;
+        let errorMessage = `Failed to fetch crypto engines. HTTP error ${response.status}`;
+        try {
+          errorJson = await response.json();
+          if (errorJson && errorJson.err) {
+            errorMessage = `Failed to fetch crypto engines: ${errorJson.err}`;
+          } else if (errorJson && errorJson.message) {
+            errorMessage = `Failed to fetch crypto engines: ${errorJson.message}`;
+          }
+        } catch (e) {
+          // Response was not JSON or JSON parsing failed
+          console.error("Failed to parse error response as JSON for crypto engines (selector):", e);
+        }
+        throw new Error(errorMessage);
       }
       const data: ApiCryptoEngine[] = await response.json();
       setEngines(data);

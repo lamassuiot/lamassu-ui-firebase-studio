@@ -219,8 +219,20 @@ export default function CertificateAuthoritiesPage() {
         headers: { 'Authorization': `Bearer ${user.access_token}` },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch crypto engines.' }));
-        throw new Error(errorData.message || `HTTP error ${response.status}`);
+        let errorJson;
+        let errorMessage = `Failed to fetch crypto engines. HTTP error ${response.status}`;
+        try {
+          errorJson = await response.json();
+          if (errorJson && errorJson.err) {
+            errorMessage = `Failed to fetch crypto engines: ${errorJson.err}`;
+          } else if (errorJson && errorJson.message) {
+            errorMessage = `Failed to fetch crypto engines: ${errorJson.message}`;
+          }
+        } catch (e) {
+          // Response was not JSON or JSON parsing failed
+          console.error("Failed to parse error response as JSON for crypto engines:", e);
+        }
+        throw new Error(errorMessage);
       }
       const enginesData: ApiCryptoEngine[] = await response.json();
       setAllCryptoEngines(enginesData);
