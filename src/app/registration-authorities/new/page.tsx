@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -53,8 +53,11 @@ export default function CreateRegistrationAuthorityPage() {
   const [includeEnrollmentCA, setIncludeEnrollmentCA] = useState(false);
   const [managedCAs, setManagedCAs] = useState<CA[]>([]);
 
-  const [selectedDeviceIconName, setSelectedDeviceIconName] = useState<string | null>('Router'); // Default icon
+  const [selectedDeviceIconName, setSelectedDeviceIconName] = useState<string | null>('Router');
+  const [selectedDeviceIconColor, setSelectedDeviceIconColor] = useState<string>('#0f67ff'); // Default primary blue
+  const [selectedDeviceIconBgColor, setSelectedDeviceIconBgColor] = useState<string>('#F0F8FF'); // Default AliceBlue
   const [isDeviceIconModalOpen, setIsDeviceIconModalOpen] = useState(false);
+
 
   const [isEnrollmentCaModalOpen, setIsEnrollmentCaModalOpen] = useState(false);
   const [isValidationCaModalOpen, setIsValidationCaModalOpen] = useState(false);
@@ -134,7 +137,9 @@ export default function CreateRegistrationAuthorityPage() {
       includeDownstreamCA,
       includeEnrollmentCA,
       managedCaIds: managedCAs.map(ca => ca.id),
-      deviceIcon: selectedDeviceIconName,
+      deviceIconName: selectedDeviceIconName,
+      deviceIconColor: selectedDeviceIconColor,
+      deviceIconBgColor: selectedDeviceIconBgColor,
     };
     console.log('Creating new RA with data:', formData);
     alert(`Mock RA Creation Submitted!\nCheck console for details.`);
@@ -260,36 +265,56 @@ export default function CreateRegistrationAuthorityPage() {
                       className="mt-1"
                     />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Separator className="my-6"/>
-
-            <h3 className={cn(sectionHeadingStyle)}>
-              <ImageIcon className="mr-2 h-5 w-5 text-muted-foreground" /> Device Representation
-            </h3>
-            <Card className="border-border shadow-sm rounded-md">
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <Label htmlFor="deviceIconButton">Device Icon</Label>
-                  <Button
-                    id="deviceIconButton"
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDeviceIconModalOpen(true)}
-                    className="w-full justify-start text-left font-normal flex items-center gap-2"
-                  >
-                    {SelectedIconComponent ? (
-                      <>
-                        <SelectedIconComponent className="h-5 w-5 text-primary" />
-                        {selectedDeviceIconName}
-                      </>
-                    ) : (
-                      "Select Device Icon..."
-                    )}
-                  </Button>
-                   <p className="text-xs text-muted-foreground">Default icon for devices registered through this RA.</p>
+                  <div className="pt-2">
+                    <Label htmlFor="deviceIconButton">Device Icon</Label>
+                    <Button
+                        id="deviceIconButton"
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsDeviceIconModalOpen(true)}
+                        className="w-full justify-start text-left font-normal flex items-center gap-2 mt-1"
+                    >
+                        {SelectedIconComponent ? (
+                        <div className="flex items-center gap-2">
+                            <div
+                            className="p-1 rounded-sm flex items-center justify-center"
+                            style={{ backgroundColor: selectedDeviceIconBgColor }}
+                            >
+                            <SelectedIconComponent
+                                className="h-5 w-5"
+                                style={{ color: selectedDeviceIconColor }}
+                            />
+                            </div>
+                            {selectedDeviceIconName}
+                        </div>
+                        ) : (
+                        "Select Device Icon..."
+                        )}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="deviceIconColor" className="text-sm">Icon Color</Label>
+                        <Input
+                        id="deviceIconColor"
+                        type="color"
+                        value={selectedDeviceIconColor}
+                        onChange={(e) => setSelectedDeviceIconColor(e.target.value)}
+                        className="mt-1 h-10 w-full p-1"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="deviceIconBgColor" className="text-sm">Background Color</Label>
+                        <Input
+                        id="deviceIconBgColor"
+                        type="color"
+                        value={selectedDeviceIconBgColor}
+                        onChange={(e) => setSelectedDeviceIconBgColor(e.target.value)}
+                        className="mt-1 h-10 w-full p-1"
+                        />
+                    </div>
+                  </div>
+                   <p className="text-xs text-muted-foreground">Default icon and colors for devices registered through this RA.</p>
                 </div>
               </CardContent>
             </Card>
@@ -551,3 +576,4 @@ export default function CreateRegistrationAuthorityPage() {
     </div>
   );
 }
+
