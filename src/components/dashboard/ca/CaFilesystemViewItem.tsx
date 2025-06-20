@@ -4,14 +4,15 @@
 import React, { useState } from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, ChevronRight, FileSearch, FilePlus2, Cpu as CpuIcon } from 'lucide-react'; // Changed Landmark to CpuIcon
+import { ShieldAlert, ChevronRight, FileSearch, FilePlus2, KeyRound, FolderTree } from 'lucide-react';
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 
-const getExpiryTextAndSimplifiedStatus = (expires: string, status: CA['status']): { text: string; isWarning: boolean; isCritical: boolean } => {
+const getExpiryTextAndSimplifiedStatus = (expires: string, status: CA['status']): { text: string; isCritical: boolean } => {
   const expiryDate = parseISO(expires);
   let text = '';
-  let isWarning = false;
   let isCritical = false;
 
   if (status === 'revoked') {
@@ -24,7 +25,7 @@ const getExpiryTextAndSimplifiedStatus = (expires: string, status: CA['status'])
     text = `Expires in ${formatDistanceToNowStrict(expiryDate)}`;
   }
   
-  return { text: `${status.toUpperCase()} \u00B7 ${text}`, isWarning, isCritical };
+  return { text: `${status.toUpperCase()} \u00B7 ${text}`, isCritical };
 };
 
 
@@ -33,9 +34,10 @@ interface CaFilesystemViewItemProps {
   level: number;
   router: ReturnType<typeof import('next/navigation').useRouter>;
   allCAs: CA[];
+  allCryptoEngines: ApiCryptoEngine[];
 }
 
-export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, level, router, allCAs }) => {
+export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, level, router, allCAs, allCryptoEngines }) => {
   const [isOpen, setIsOpen] = useState(level < 2); 
   const hasChildren = ca.children && ca.children.length > 0;
 
@@ -56,9 +58,21 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
     router.push(`/certificate-authorities/issue-certificate?caId=${ca.id}`);
   };
 
-  let IconComponent = CpuIcon; // Changed default icon to CpuIcon
+  let IconComponent: React.ReactNode;
+  let iconColorClass = "text-primary";
+
   if (isCritical) {
-    IconComponent = ShieldAlert; 
+    IconComponent = <ShieldAlert className={cn("h-5 w-5 flex-shrink-0", "text-destructive")} />;
+  } else if (ca.kmsKeyId) {
+    const engine = allCryptoEngines.find(e => e.id === ca.kmsKeyId);
+    if (engine) {
+      IconComponent = <CryptoEngineViewer engine={engine} iconOnly className="h-5 w-5 flex-shrink-0" />;
+      // CryptoEngineViewer handles its own color, so no need to set iconColorClass
+    } else {
+      IconComponent = <KeyRound className={cn("h-5 w-5 flex-shrink-0", iconColorClass)} />;
+    }
+  } else {
+    IconComponent = <FolderTree className={cn("h-5 w-5 flex-shrink-0", iconColorClass)} />;
   }
 
 
@@ -80,7 +94,7 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
         )}
         {!hasChildren && <div className="w-4 h-4 flex-shrink-0"></div>} 
         
-        <IconComponent className={cn("h-5 w-5 flex-shrink-0", isCritical ? "text-destructive" : "text-primary")} />
+        {IconComponent}
         
         <div className="flex-grow min-w-0">
           <p className="text-sm font-medium truncate">{ca.name}</p>
@@ -108,6 +122,7 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
               level={level + 1}
               router={router}
               allCAs={allCAs}
+              allCryptoEngines={allCryptoEngines}
             />
           ))}
         </ul>
@@ -116,3 +131,5 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
   );
 };
 
+
+    

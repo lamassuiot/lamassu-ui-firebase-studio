@@ -4,15 +4,16 @@
 import type React from 'react';
 import type { CA } from '@/lib/ca-data';
 import { CaFilesystemViewItem } from './CaFilesystemViewItem';
-import type { NextRouter } from 'next/router'; // Using a generic type as router type can vary
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 interface CaFilesystemViewProps {
   cas: CA[];
-  router: ReturnType<typeof import('next/navigation').useRouter>; // More specific type
+  router: ReturnType<typeof import('next/navigation').useRouter>; 
   allCAs: CA[];
+  allCryptoEngines: ApiCryptoEngine[];
 }
 
-export const CaFilesystemView: React.FC<CaFilesystemViewProps> = ({ cas, router, allCAs }) => {
+export const CaFilesystemView: React.FC<CaFilesystemViewProps> = ({ cas, router, allCAs, allCryptoEngines }) => {
   return (
     <ul className="space-y-1">
       {cas.map((ca) => (
@@ -22,8 +23,11 @@ export const CaFilesystemView: React.FC<CaFilesystemViewProps> = ({ cas, router,
           level={0}
           router={router}
           allCAs={allCAs}
+          allCryptoEngines={allCryptoEngines}
         />
       ))}
     </ul>
   );
 };
+
+    

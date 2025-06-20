@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network, Loader2, GitFork, AlertCircle } from "lucide-react";
+import { Landmark, ChevronRight, Minus, FileSearch, FilePlus2, PlusCircle, FolderTree, List, FolderKanban, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, Cpu } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { getCaDisplayName, fetchAndProcessCAs } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import dynamic from 'next/dynamic';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 const CaFilesystemView = dynamic(() => 
   import('@/components/dashboard/ca/CaFilesystemView').then(mod => mod.CaFilesystemView), 
@@ -92,12 +93,12 @@ const CaTreeItem: React.FC<{ ca: CA; level: number; router: ReturnType<typeof us
 
   const handleDetailsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/certificate-authorities/details?caId=${ca.id}`); // Updated navigation
+    router.push(`/certificate-authorities/details?caId=${ca.id}`);
   };
 
   const handleIssueCertClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/certificate-authorities/issue-certificate?caId=${ca.id}`); // Updated navigation
+    router.push(`/certificate-authorities/issue-certificate?caId=${ca.id}`);
   };
 
   const handleToggleOpen = (e: React.MouseEvent) => {
@@ -184,32 +185,59 @@ export default function CertificateAuthoritiesPage() {
   const [errorCas, setErrorCas] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
-  const loadCAs = useCallback(async () => {
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+  const [isLoadingCryptoEngines, setIsLoadingCryptoEngines] = useState(true);
+  const [errorCryptoEngines, setErrorCryptoEngines] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading && !isAuthenticated()){
            setErrorCas("User not authenticated. Please log in.");
+           setErrorCryptoEngines("User not authenticated. Please log in.");
            setIsLoadingCas(false);
+           setIsLoadingCryptoEngines(false);
       }
       return;
     }
     setIsLoadingCas(true);
     setErrorCas(null);
+    setIsLoadingCryptoEngines(true);
+    setErrorCryptoEngines(null);
+
     try {
       const fetchedCAs = await fetchAndProcessCAs(user.access_token);
       setCas(fetchedCAs);
     } catch (err: any) {
       setErrorCas(err.message || 'Failed to load Certificate Authorities.');
-      setCas([]); // Clear CAs on error
+      setCas([]); 
     } finally {
       setIsLoadingCas(false);
     }
+
+    try {
+      const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+        headers: { 'Authorization': `Bearer ${user.access_token}` },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch crypto engines.' }));
+        throw new Error(errorData.message || `HTTP error ${response.status}`);
+      }
+      const enginesData: ApiCryptoEngine[] = await response.json();
+      setAllCryptoEngines(enginesData);
+    } catch (err: any) {
+      setErrorCryptoEngines(err.message || 'Failed to load Crypto Engines.');
+      setAllCryptoEngines([]);
+    } finally {
+      setIsLoadingCryptoEngines(false);
+    }
+
   }, [user?.access_token, isAuthenticated, authLoading]);
 
   useEffect(() => {
-    if (!authLoading) { // Only fetch if auth state is resolved
-        loadCAs();
+    if (!authLoading) { 
+        loadData();
     }
-  }, [loadCAs, authLoading]);
+  }, [loadData, authLoading]);
 
 
   const handleCreateNewCAClick = () => {
@@ -231,13 +259,15 @@ export default function CertificateAuthoritiesPage() {
     currentViewTitle = "Graph View";
   }
 
-  if (authLoading || isLoadingCas) {
+  if (authLoading || (isLoadingCas && cas.length === 0) || (isLoadingCryptoEngines && viewMode === 'filesystem')) {
+    let loadingText = "Authenticating...";
+    if (!authLoading && isLoadingCas) loadingText = "Loading Certificate Authorities...";
+    else if (!authLoading && isLoadingCryptoEngines && viewMode === 'filesystem') loadingText = "Loading Crypto Engines for Filesystem View...";
+    
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">
-          {authLoading ? "Authenticating..." : "Loading Certificate Authorities..."}
-        </p>
+        <p className="text-lg text-muted-foreground">{loadingText}</p>
       </div>
     );
   }
@@ -278,14 +308,17 @@ export default function CertificateAuthoritiesPage() {
           <p className="text-sm text-muted-foreground">Currently viewing CAs in: <span className="font-semibold">{currentViewTitle}</span>. Manage your Certificate Authority configurations and trust stores.</p> 
         </div>
         <div className="pt-6"> 
-          {errorCas && (
+          {(errorCas || (viewMode === 'filesystem' && errorCryptoEngines)) && (
             <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error Loading CAs</AlertTitle>
-              <AlertDescription>{errorCas} <Button variant="link" onClick={loadCAs} className="p-0 h-auto">Try again?</Button></AlertDescription>
+              <AlertCircleIcon className="h-4 w-4" />
+              <AlertTitle>Error Loading Data</AlertTitle>
+              {errorCas && <AlertDescription>CAs: {errorCas}</AlertDescription>}
+              {viewMode === 'filesystem' && errorCryptoEngines && <AlertDescription>Crypto Engines: {errorCryptoEngines}</AlertDescription>}
+              <Button variant="link" onClick={loadData} className="p-0 h-auto">Try again?</Button>
             </Alert>
           )}
-          {!errorCas && cas.length > 0 ? (
+          
+          {!(errorCas || (viewMode === 'filesystem' && errorCryptoEngines)) && cas.length > 0 ? (
             <>
               {viewMode === 'list' && (
                 <ul className="space-y-2">
@@ -295,7 +328,7 @@ export default function CertificateAuthoritiesPage() {
                 </ul>
               )}
               {viewMode === 'filesystem' && (
-                <CaFilesystemView cas={cas} router={router} allCAs={cas} />
+                <CaFilesystemView cas={cas} router={router} allCAs={cas} allCryptoEngines={allCryptoEngines} />
               )}
               {viewMode === 'hierarchy' && (
                 <CaHierarchyView cas={cas} router={router} allCAs={cas} />
@@ -305,10 +338,13 @@ export default function CertificateAuthoritiesPage() {
               )}
             </>
           ) : (
-            !errorCas && <p className="text-muted-foreground">No Certificate Authorities configured or found.</p>
+            !errorCas && !(viewMode === 'filesystem' && errorCryptoEngines) && <p className="text-muted-foreground">No Certificate Authorities configured or found.</p>
           )}
         </div>
       </div>
     </div>
   );
 }
+
+
+    
