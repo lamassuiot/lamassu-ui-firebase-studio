@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { CertificateStatusChartCard } from '@/components/dashboard/home/CertificateStatusChartCard';
-import { CaExpiryTimeline } from '@/components/dashboard/home/CaExpiryTimeline';
+// import { CaExpiryTimelineJS } from '@/components/dashboard/home/CaExpiryTimelineJS'; // Removed due to install issue
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,14 +28,14 @@ function flattenCAs(cas: CA[]): CA[] {
 
 export default function HomePage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const [allCAs, setAllCAs] = useState<CA[]>([]);
+  const [allCAs, setAllCAs] = useState<CA[]>([]); // Still fetching for other potential uses or future re-integration
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
 
   const loadInitialData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading) {
-        setErrorCAs("User not authenticated. Cannot load CA data for timeline.");
+        setErrorCAs("User not authenticated. Cannot load CA data.");
         setIsLoadingCAs(false);
       }
       return;
@@ -44,10 +44,10 @@ export default function HomePage() {
     setErrorCAs(null);
     try {
       const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-      const flattenedCAs = flattenCAs(fetchedCAs); // Keep flattening if CaExpiryTimeline expects flat list
+      const flattenedCAs = flattenCAs(fetchedCAs); 
       setAllCAs(flattenedCAs);
     } catch (err: any) {
-      setErrorCAs(err.message || 'Failed to load CA data for timeline.');
+      setErrorCAs(err.message || 'Failed to load CA data.');
       setAllCAs([]);
     } finally {
       setIsLoadingCAs(false);
@@ -67,40 +67,39 @@ export default function HomePage() {
           <CertificateStatusChartCard />
         </div>
         <div className="lg:col-span-2">
-          {(isLoadingCAs || authLoading) && !errorCAs ? (
-            <Card className="shadow-lg w-full bg-primary text-primary-foreground">
-                <CardHeader>
-                    <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
-                        <p className="ml-3 text-primary-foreground/80">Loading CA timeline data...</p>
-                    </div>
-                </CardContent>
-            </Card>
-          ) : errorCAs ? (
-             <Card className="shadow-lg w-full bg-primary text-primary-foreground">
-                <CardHeader>
-                    <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Alert variant="destructive" className="bg-destructive/80 text-destructive-foreground">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Error Loading Timeline Data</AlertTitle>
-                        <AlertDescription className="text-destructive-foreground/90">
-                            {errorCAs}
-                            <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive-foreground hover:text-destructive-foreground/80 focus:text-destructive-foreground">Try again?</Button>
-                        </AlertDescription>
-                    </Alert>
-                </CardContent>
-            </Card>
-          ) : (
-            <CaExpiryTimeline cas={allCAs} />
-          )}
+          {/* Placeholder or alternative component for CA Expiry Timeline */}
+          <Card className="shadow-lg w-full bg-muted/30 text-muted-foreground">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold text-foreground">CA Expiry Information</CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[400px] p-6 flex flex-col items-center justify-center">
+              {(isLoadingCAs || authLoading) && !errorCAs ? (
+                <>
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-3 mt-2">Loading CA data...</p>
+                </>
+              ) : errorCAs ? (
+                <Alert variant="destructive" className="w-full">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Error Loading CA Data</AlertTitle>
+                  <AlertDescription>
+                    {errorCAs}
+                    <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1">Try again?</Button>
+                  </AlertDescription>
+                </Alert>
+              ) : allCAs.length > 0 ? (
+                <p className="text-center">
+                  CA Expiry Timeline component is temporarily unavailable due to an installation issue with its charting library.
+                  <br />
+                  ({allCAs.length} CAs loaded).
+                </p>
+              ) : (
+                 <p className="text-center">No CA data available to display expiry information.</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
   );
 }
-
