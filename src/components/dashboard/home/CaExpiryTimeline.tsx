@@ -26,13 +26,13 @@ interface TimelineEvent {
 export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
   if (!cas || cas.length === 0) {
     return (
-        <Card className="shadow-lg w-full bg-sky-50 dark:bg-sky-900/30">
+        <Card className="shadow-lg w-full bg-primary text-primary-foreground">
             <CardHeader>
                 <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-                <CardDescription>Visual overview of Certificate Authority expiry dates.</CardDescription>
+                <CardDescription className="text-primary-foreground/80">Visual overview of Certificate Authority expiry dates.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="p-4 text-center text-muted-foreground">No CA data to display.</div>
+                <div className="p-4 text-center text-primary-foreground/70">No CA data to display.</div>
             </CardContent>
         </Card>
     );
@@ -99,13 +99,13 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
 
   return (
     <TooltipProvider>
-      <Card className="shadow-lg w-full bg-sky-50 dark:bg-sky-900/30">
+      <Card className="shadow-lg w-full bg-primary text-primary-foreground">
         <CardHeader>
             <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-            <CardDescription>Visual overview of Certificate Authority expiry dates. You can pan and zoom.</CardDescription>
+            <CardDescription className="text-primary-foreground/80">Visual overview of Certificate Authority expiry dates. You can pan and zoom.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-2 pb-4 px-2 md:px-4">
-            <div className="relative w-full h-[200px] md:h-[250px] overflow-hidden border rounded-md bg-background dark:bg-muted/30">
+            <div className="relative w-full h-[200px] md:h-[250px] overflow-hidden border border-primary-foreground/20 rounded-md bg-primary/80 dark:bg-primary/70">
                 <TransformWrapper 
                     initialScale={1} 
                     minScale={0.3} 
@@ -113,7 +113,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                     centerOnInit
                     limitToBounds={false}
                 >
-                    {({ zoomIn, zoomOut, resetTransform, centerView }) => (
+                    {({ zoomIn, zoomOut, resetTransform }) => (
                     <>
                         <div className="absolute top-2 right-2 z-20 space-x-1">
                             <Button variant="outline" size="icon" onClick={() => zoomIn()} title="Zoom In"><ZoomIn className="h-4 w-4" /></Button>
@@ -122,17 +122,17 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                         </div>
                         <TransformComponent
                             wrapperStyle={{ width: '100%', height: '100%' }}
-                            contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}
+                            contentStyle={{ width: '200%', height: '200%', display: 'flex', alignItems: 'center', cursor: 'grab' }}
                         >
                             <div className="relative w-full h-12 my-auto"> {/* Timeline centered vertically */}
-                                <div className="absolute top-1/2 left-0 w-full h-1.5 bg-muted rounded-full transform -translate-y-1/2"></div>
+                                <div className="absolute top-1/2 left-0 w-full h-1.5 bg-primary-foreground/30 rounded-full transform -translate-y-1/2"></div>
                                 <div
                                     className="absolute top-0 h-full flex flex-col items-center z-10"
                                     style={{ left: `${nowPosition}%`, transform: 'translateX(-50%)' }}
                                 >
-                                    <div className="w-1 h-3 bg-primary rounded-t-sm"></div>
-                                    <CalendarClock className="h-5 w-5 text-primary my-0.5" />
-                                    <div className="text-xs font-semibold text-primary whitespace-nowrap mt-0.5">Now</div>
+                                    <div className="w-1 h-3 bg-primary-foreground rounded-t-sm"></div>
+                                    <CalendarClock className="h-5 w-5 text-primary-foreground my-0.5" />
+                                    <div className="text-xs font-semibold text-primary-foreground whitespace-nowrap mt-0.5">Now</div>
                                 </div>
                                 
                                 {ticks.map((tick, index) => (
@@ -141,8 +141,8 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                                     className="absolute top-1/2 h-full flex flex-col items-center"
                                     style={{ left: `${tick.position}%`, transform: 'translateX(-50%)' }}
                                     >
-                                    <div className="w-px h-2.5 bg-border -mt-2.5"></div>
-                                    <div className="text-[10px] text-muted-foreground whitespace-nowrap mt-5 pt-1">{tick.label}</div>
+                                    <div className="w-px h-2.5 bg-primary-foreground/50 -mt-2.5"></div>
+                                    <div className="text-[10px] text-primary-foreground/80 whitespace-nowrap mt-5 pt-1">{tick.label}</div>
                                     </div>
                                 ))}
 
@@ -159,7 +159,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                                         <TooltipTrigger asChild>
                                         <div
                                             className={cn(
-                                            "absolute top-1/2 w-4 h-4 rounded-full cursor-pointer transform -translate-x-1/2 border-2 border-background flex items-center justify-center shadow z-20",
+                                            "absolute top-1/2 w-4 h-4 rounded-full cursor-pointer transform -translate-x-1/2 border-2 border-primary-foreground/50 flex items-center justify-center shadow z-20",
                                             dotClass
                                             )}
                                             style={{ left: `${position}%`, transform: `translateX(-50%) translateY(${yOffset})` }}
@@ -191,11 +191,11 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                 </TransformWrapper>
             </div>
             
-            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs mt-2 border-t border-border pt-3">
-                <div className="flex items-center"><CheckCircle className="w-3 h-3 mr-1.5 text-green-500"/><span className="text-muted-foreground">Active</span></div>
-                <div className="flex items-center"><AlertCircle className="w-3 h-3 mr-1.5 text-orange-500"/><span className="text-muted-foreground">Expired</span></div>
-                <div className="flex items-center"><XCircle className="w-3 h-3 mr-1.5 text-destructive"/><span className="text-muted-foreground">Revoked</span></div>
-                <div className="flex items-center"><CalendarClock className="w-3 h-3 mr-1.5 text-primary"/><span className="text-muted-foreground">Current Time</span></div>
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs mt-2 border-t border-primary-foreground/20 pt-3">
+                <div className="flex items-center"><CheckCircle className="w-3 h-3 mr-1.5 text-green-400"/><span className="text-primary-foreground/80">Active</span></div>
+                <div className="flex items-center"><AlertCircle className="w-3 h-3 mr-1.5 text-orange-400"/><span className="text-primary-foreground/80">Expired</span></div>
+                <div className="flex items-center"><XCircle className="w-3 h-3 mr-1.5 text-red-400"/><span className="text-primary-foreground/80">Revoked</span></div>
+                <div className="flex items-center"><CalendarClock className="w-3 h-3 mr-1.5 text-primary-foreground"/><span className="text-primary-foreground/80">Current Time</span></div>
             </div>
 
         </CardContent>
