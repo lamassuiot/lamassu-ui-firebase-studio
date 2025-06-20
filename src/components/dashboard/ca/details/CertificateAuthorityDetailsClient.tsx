@@ -1,15 +1,16 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye, Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye, Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
@@ -24,6 +25,22 @@ import { InformationTabContent } from '@/components/shared/details-tabs/Informat
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
 import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTabContent';
 import { format, parseISO, isPast } from 'date-fns';
+
+// Define Sortable Columns and Direction for issued certificates list
+type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
+type SortDirection = 'asc' | 'desc';
+interface IssuedCertSortConfig {
+  column: SortableIssuedCertColumn;
+  direction: SortDirection;
+}
+
+const API_STATUS_VALUES_FOR_FILTER = {
+  ALL: 'ALL',
+  ACTIVE: 'ACTIVE',
+  EXPIRED: 'EXPIRED',
+  REVOKED: 'REVOKED',
+} as const;
+type ApiStatusFilterValue = typeof API_STATUS_VALUES_FOR_FILTER[keyof typeof API_STATUS_VALUES_FOR_FILTER];
 
 
 const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] => {
@@ -95,6 +112,7 @@ export default function CertificateAuthorityDetailsClient() {
 
   const [activeTab, setActiveTab] = useState<string>("information");
 
+  // State for Issued Certificates Tab
   const [issuedCertificatesList, setIssuedCertificatesList] = useState<CertificateData[]>([]);
   const [isLoadingIssuedCerts, setIsLoadingIssuedCerts] = useState(false);
   const [errorIssuedCerts, setErrorIssuedCerts] = useState<string | null>(null);
@@ -102,6 +120,29 @@ export default function CertificateAuthorityDetailsClient() {
   const [issuedCertsBookmarkStack, setIssuedCertsBookmarkStack] = useState<(string | null)[]>([null]);
   const [issuedCertsCurrentPageIndex, setIssuedCertsCurrentPageIndex] = useState<number>(0);
   const [issuedCertsNextTokenFromApi, setIssuedCertsNextTokenFromApi] = useState<string | null>(null);
+  
+  const [issuedCertsSearchTermCN, setIssuedCertsSearchTermCN] = useState('');
+  const [issuedCertsDebouncedSearchTermCN, setIssuedCertsDebouncedSearchTermCN] = useState('');
+  const [issuedCertsSearchTermSN, setIssuedCertsSearchTermSN] = useState('');
+  const [issuedCertsDebouncedSearchTermSN, setIssuedCertsDebouncedSearchTermSN] = useState('');
+  const [issuedCertsStatusFilter, setIssuedCertsStatusFilter] = useState<ApiStatusFilterValue>(API_STATUS_VALUES_FOR_FILTER.ALL);
+  const [issuedCertsSortConfig, setIssuedCertsSortConfig] = useState<IssuedCertSortConfig | null>({ column: 'expires', direction: 'desc' });
+
+
+  // Debounce search terms for issued certificates
+  useEffect(() => {
+    const cnHandler = setTimeout(() => setIssuedCertsDebouncedSearchTermCN(issuedCertsSearchTermCN), 500);
+    const snHandler = setTimeout(() => setIssuedCertsDebouncedSearchTermSN(issuedCertsSearchTermSN), 500);
+    return () => { clearTimeout(cnHandler); clearTimeout(snHandler); };
+  }, [issuedCertsSearchTermCN, issuedCertsSearchTermSN]);
+
+  // Reset pagination for issued certificates when filters or sorting change
+  useEffect(() => {
+    if (activeTab === 'issued') {
+      setIssuedCertsCurrentPageIndex(0);
+      setIssuedCertsBookmarkStack([null]);
+    }
+  }, [issuedCertsPageSize, issuedCertsDebouncedSearchTermCN, issuedCertsDebouncedSearchTermSN, issuedCertsStatusFilter, issuedCertsSortConfig, activeTab]);
 
 
   const mockLamassuMetadata = caId ? {
@@ -109,7 +150,7 @@ export default function CertificateAuthorityDetailsClient() {
     name: caDetails?.name,
     status: caDetails?.status,
     configuration: {
-      maxPathLength: caDetails?.issuer === 'Self-signed' ? -1 : (caDetails?.children && caDetails?.children.length > 0 ? 1 : 0),
+      maxPathLength: caDetails?.issuer === 'Self-signed' ? -1 : (caDetails?.children && caDetails.children.length > 0 ? 1 : 0),
       crlDistributionPoints: [`http://crl.example.com/${caDetails?.id.replace(/-/g, '')}.crl`],
       ocspServers: [`http://ocsp.example.com/${caDetails?.id.replace(/-/g, '')}`],
       defaultCertificateLifetime: '365d',
@@ -180,11 +221,37 @@ export default function CertificateAuthorityDetailsClient() {
     setErrorIssuedCerts(null);
     try {
       const apiParams = new URLSearchParams();
-      apiParams.append('sort_by', 'valid_from');
-      apiParams.append('sort_mode', 'desc');
+      if (issuedCertsSortConfig) {
+        let sortByApiField = '';
+        switch (issuedCertsSortConfig.column) {
+          case 'subject': sortByApiField = 'subject.common_name'; break;
+          case 'serialNumber': sortByApiField = 'serial_number'; break;
+          case 'expires': sortByApiField = 'valid_to'; break;
+          case 'status': sortByApiField = 'status'; break;
+          default: sortByApiField = 'valid_from'; 
+        }
+        apiParams.append('sort_by', sortByApiField);
+        apiParams.append('sort_mode', issuedCertsSortConfig.direction);
+      } else {
+        apiParams.append('sort_by', 'valid_from'); // Default sort
+        apiParams.append('sort_mode', 'desc');
+      }
+
       apiParams.append('page_size', issuedCertsPageSize);
       if (bookmark) apiParams.append('bookmark', bookmark);
 
+      const filtersToApply: string[] = [];
+      if (issuedCertsStatusFilter !== API_STATUS_VALUES_FOR_FILTER.ALL) {
+        filtersToApply.push(`status[equal]${issuedCertsStatusFilter}`);
+      }
+      if (issuedCertsDebouncedSearchTermCN.trim() !== '') {
+        filtersToApply.push(`subject.common_name[contains]${issuedCertsDebouncedSearchTermCN.trim()}`);
+      }
+      if (issuedCertsDebouncedSearchTermSN.trim() !== '') {
+        filtersToApply.push(`serial_number[contains]${issuedCertsDebouncedSearchTermSN.trim()}`);
+      }
+      filtersToApply.forEach(f => apiParams.append('filter', f));
+      
       const result = await fetchIssuedCertificates({
         accessToken: user.access_token,
         apiQueryString: apiParams.toString(),
@@ -199,20 +266,25 @@ export default function CertificateAuthorityDetailsClient() {
     } finally {
       setIsLoadingIssuedCerts(false);
     }
-  }, [caDetails?.id, user?.access_token, isAuthenticated, issuedCertsPageSize]);
+  }, [
+    caDetails?.id, user?.access_token, isAuthenticated, 
+    issuedCertsPageSize, issuedCertsSortConfig, 
+    issuedCertsDebouncedSearchTermCN, issuedCertsDebouncedSearchTermSN, issuedCertsStatusFilter
+  ]);
 
   useEffect(() => {
     if (activeTab === 'issued' && caDetails?.id) {
-      if (issuedCertificatesList.length === 0 || issuedCertsBookmarkStack.length === 1 && issuedCertsBookmarkStack[0] === null) {
-        setIssuedCertsBookmarkStack([null]);
-        setIssuedCertsCurrentPageIndex(0);
-        loadIssuedCertificatesByCa(null);
-      } else {
-         loadIssuedCertificatesByCa(issuedCertsBookmarkStack[issuedCertsCurrentPageIndex]);
-      }
+      // This effect triggers the API call when relevant state changes (filters, sort, pagination, or tab activation).
+      // Pagination reset useEffects handle resetting to first page on filter/sort changes.
+      loadIssuedCertificatesByCa(issuedCertsBookmarkStack[issuedCertsCurrentPageIndex]);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, caDetails?.id, loadIssuedCertificatesByCa, issuedCertsPageSize]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [
+      activeTab, caDetails?.id, 
+      issuedCertsCurrentPageIndex, // For pagination changes
+      issuedCertsPageSize, issuedCertsDebouncedSearchTermCN, issuedCertsDebouncedSearchTermSN, issuedCertsStatusFilter, issuedCertsSortConfig // For filter/sort changes that reset pagination
+  ]);
+
 
   useEffect(() => {
     if (activeTab !== 'issued' || (caDetails?.id && issuedCertificatesList.length > 0 && issuedCertificatesList[0]?.issuerCaId !== caDetails.id)) {
@@ -246,18 +318,44 @@ export default function CertificateAuthorityDetailsClient() {
   };
 
   const handleNextIssuedCertsPage = () => {
-    if (isLoadingIssuedCerts || !issuedCertsNextTokenFromApi) return;
-    const newStack = [...issuedCertsBookmarkStack, issuedCertsNextTokenFromApi];
-    setIssuedCertsBookmarkStack(newStack);
-    setIssuedCertsCurrentPageIndex(newStack.length - 1);
-    loadIssuedCertificatesByCa(issuedCertsNextTokenFromApi);
+    if (isLoadingIssuedCerts) return;
+    const potentialNextPageIndex = issuedCertsCurrentPageIndex + 1;
+    if (potentialNextPageIndex < issuedCertsBookmarkStack.length) {
+        setIssuedCertsCurrentPageIndex(potentialNextPageIndex);
+    } else if (issuedCertsNextTokenFromApi) {
+        const newStack = [...issuedCertsBookmarkStack, issuedCertsNextTokenFromApi];
+        setIssuedCertsBookmarkStack(newStack);
+        setIssuedCertsCurrentPageIndex(newStack.length -1);
+    }
   };
 
   const handlePreviousIssuedCertsPage = () => {
     if (isLoadingIssuedCerts || issuedCertsCurrentPageIndex === 0) return;
     const prevIndex = issuedCertsCurrentPageIndex - 1;
     setIssuedCertsCurrentPageIndex(prevIndex);
-    loadIssuedCertificatesByCa(issuedCertsBookmarkStack[prevIndex]);
+  };
+  
+  const requestSortForIssuedCerts = (column: SortableIssuedCertColumn) => {
+    let direction: SortDirection = 'asc';
+    if (issuedCertsSortConfig && issuedCertsSortConfig.column === column && issuedCertsSortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setIssuedCertsSortConfig({ column, direction });
+  };
+
+  const SortableIssuedCertHeader: React.FC<{ column: SortableIssuedCertColumn; title: string; className?: string }> = ({ column, title, className }) => {
+    const isSorted = issuedCertsSortConfig?.column === column;
+    let Icon = ChevronsUpDown;
+    if (isSorted) {
+      Icon = issuedCertsSortConfig?.direction === 'asc' ? (column === 'expires' ? ArrowUp01 : ArrowUpZA) : (column === 'expires' ? ArrowDown10 : ArrowDownAZ);
+    }
+    return (
+      <TableHead className={cn("cursor-pointer hover:bg-muted/50", className)} onClick={() => requestSortForIssuedCerts(column)}>
+        <div className="flex items-center gap-1">
+          {title} <Icon className={cn("h-4 w-4", isSorted ? "text-primary" : "text-muted-foreground/50")} />
+        </div>
+      </TableHead>
+    );
   };
 
 
@@ -313,7 +411,7 @@ export default function CertificateAuthorityDetailsClient() {
       statusVariant = 'destructive';
       break;
     default:
-      statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; // For 'unknown' or other statuses
+      statusColorClass = 'bg-yellow-500 hover:bg-yellow-600';
   }
 
   return (
@@ -389,7 +487,46 @@ export default function CertificateAuthorityDetailsClient() {
 
           <TabsContent value="issued">
             <div className="space-y-4 py-4">
-              <h3 className="text-lg font-semibold">Certificates Issued by: {caDetails.name}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mb-4">
+                <div className="relative col-span-1 md:col-span-1">
+                    <Label htmlFor="issuedCertSearchCN">Search CN</Label>
+                    <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                        id="issuedCertSearchCN"
+                        type="text"
+                        placeholder="Filter by Common Name..."
+                        value={issuedCertsSearchTermCN}
+                        onChange={(e) => setIssuedCertsSearchTermCN(e.target.value)}
+                        className="w-full pl-10 mt-1"
+                        disabled={isLoadingIssuedCerts || authLoading}
+                    />
+                </div>
+                <div className="relative col-span-1 md:col-span-1">
+                    <Label htmlFor="issuedCertSearchSN">Search SN</Label>
+                    <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                        id="issuedCertSearchSN"
+                        type="text"
+                        placeholder="Filter by Serial Number..."
+                        value={issuedCertsSearchTermSN}
+                        onChange={(e) => setIssuedCertsSearchTermSN(e.target.value)}
+                        className="w-full pl-10 mt-1"
+                        disabled={isLoadingIssuedCerts || authLoading}
+                    />
+                </div>
+                <div className="col-span-1 md:col-span-1">
+                    <Label htmlFor="issuedCertStatusFilter">Status</Label>
+                    <Select value={issuedCertsStatusFilter} onValueChange={(value) => setIssuedCertsStatusFilter(value as ApiStatusFilterValue)} disabled={isLoadingIssuedCerts || authLoading}>
+                        <SelectTrigger id="issuedCertStatusFilter" className="w-full mt-1">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {Object.entries(API_STATUS_VALUES_FOR_FILTER).map(([key, val]) => <SelectItem key={val} value={val}>{val === 'ALL' ? 'All Statuses' : key.charAt(0) + key.slice(1).toLowerCase()}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+              </div>
+
               {isLoadingIssuedCerts && (
                 <div className="flex items-center justify-center p-6">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -408,14 +545,14 @@ export default function CertificateAuthorityDetailsClient() {
               )}
               {!isLoadingIssuedCerts && !errorIssuedCerts && issuedCertificatesList.length > 0 && (
                 <>
-                  <div className="overflow-x-auto">
+                  <div className={cn("overflow-x-auto overflow-y-auto max-h-[60vh]", isLoadingIssuedCerts && "opacity-50")}>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Subject</TableHead>
-                          <TableHead className="hidden md:table-cell">Serial Number</TableHead>
-                          <TableHead>Expires</TableHead>
-                          <TableHead>Status</TableHead>
+                          <SortableIssuedCertHeader column="subject" title="Subject" />
+                          <SortableIssuedCertHeader column="serialNumber" title="Serial Number" className="hidden md:table-cell" />
+                          <SortableIssuedCertHeader column="expires" title="Expires" />
+                          <SortableIssuedCertHeader column="status" title="Status" />
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -500,3 +637,172 @@ export default function CertificateAuthorityDetailsClient() {
     </div>
   );
 }
+
+</content>
+  </change>
+  <change>
+    <file>src/lib/issued-certificate-data.ts</file>
+    <content><![CDATA[
+import type { CertificateData } from '@/types/certificate';
+
+// API Response Structures for Issued Certificates
+interface ApiKeyMetadata {
+  type: string;
+  bits?: number;
+  curve_name?: string;
+  strength?: string;
+}
+
+interface ApiDistinguishedName {
+  common_name: string;
+  organization?: string;
+  organization_unit?: string;
+  country?: string;
+  state?: string;
+  locality?: string;
+}
+
+interface ApiIssuerMetadata {
+  serial_number: string;
+  id: string; // Issuer CA's ID
+  level: number;
+}
+
+export interface ApiIssuedCertificateItem {
+  serial_number: string;
+  subject_key_id: string;
+  authority_key_id: string;
+  metadata: Record<string, any>;
+  status: string;                
+  certificate: string;           
+  key_metadata: ApiKeyMetadata;  
+  subject: ApiDistinguishedName; 
+  issuer: ApiDistinguishedName;  
+  valid_from: string;            
+  issuer_metadata: ApiIssuerMetadata; 
+  valid_to: string;              
+  revocation_timestamp?: string; 
+  revocation_reason?: string;   
+  type?: string;                  
+  engine_id?: string;             
+  is_ca: boolean;                
+}
+
+export interface ApiIssuedCertificateListResponse {
+  next: string | null;
+  list: ApiIssuedCertificateItem[];
+}
+
+function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): CertificateData {
+  let publicKeyAlgorithm = apiCert.key_metadata.type;
+  if (apiCert.key_metadata.bits) {
+    publicKeyAlgorithm += ` (${apiCert.key_metadata.bits} bit)`;
+  } else if (apiCert.key_metadata.curve_name) {
+    publicKeyAlgorithm += ` (${apiCert.key_metadata.curve_name})`;
+  }
+
+  const subjectDisplay = apiCert.subject.common_name || `SN:${apiCert.serial_number}`;
+  const issuerDisplay = apiCert.issuer.common_name || `CA_ID:${apiCert.issuer_metadata.id}`;
+
+  let pemData = '';
+  if (typeof window !== 'undefined' && apiCert.certificate) {
+    try {
+      pemData = window.atob(apiCert.certificate);
+    } catch (e) {
+      console.error("Failed to decode base64 PEM data for SN:", apiCert.serial_number, e);
+      pemData = "Error: Could not decode PEM data.";
+    }
+  }
+  
+  const subjectDNParts: string[] = [];
+  if (apiCert.subject.common_name) subjectDNParts.push(`CN=${apiCert.subject.common_name}`);
+  if (apiCert.subject.organization) subjectDNParts.push(`O=${apiCert.subject.organization}`);
+  if (apiCert.subject.organization_unit) subjectDNParts.push(`OU=${apiCert.subject.organization_unit}`);
+  if (apiCert.subject.locality) subjectDNParts.push(`L=${apiCert.subject.locality}`);
+  if (apiCert.subject.state) subjectDNParts.push(`ST=${apiCert.subject.state}`);
+  if (apiCert.subject.country) subjectDNParts.push(`C=${apiCert.subject.country}`);
+  const fullSubject = subjectDNParts.join(', ');
+
+  const issuerDNParts: string[] = [];
+  if (apiCert.issuer.common_name) issuerDNParts.push(`CN=${apiCert.issuer.common_name}`);
+  if (apiCert.issuer.organization) issuerDNParts.push(`O=${apiCert.issuer.organization}`);
+  if (apiCert.issuer.organization_unit) issuerDNParts.push(`OU=${apiCert.issuer.organization_unit}`);
+  const fullIssuer = issuerDNParts.join(', ');
+
+
+  return {
+    id: apiCert.serial_number, 
+    fileName: `${subjectDisplay.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'certificate'}.pem`,
+    subject: fullSubject || subjectDisplay, 
+    issuer: fullIssuer || issuerDisplay,
+    serialNumber: apiCert.serial_number,
+    validFrom: apiCert.valid_from,
+    validTo: apiCert.valid_to,
+    sans: apiCert.metadata?.sans || [], // Assuming SANs might be in metadata.sans
+    pemData: pemData,
+    apiStatus: apiCert.status,
+    publicKeyAlgorithm,
+    signatureAlgorithm: apiCert.metadata?.signature_algorithm || 'N/A (from API)', // Assuming sig algo in metadata
+    fingerprintSha256: apiCert.metadata?.fingerprint_sha256 || '', 
+    issuerCaId: apiCert.issuer_metadata.id,
+    rawApiData: apiCert,
+  };
+}
+
+interface FetchIssuedCertificatesParams {
+  accessToken: string;
+  apiQueryString?: string; // Now includes filters, sort, pagination
+  forCaId?: string; 
+}
+
+export async function fetchIssuedCertificates(
+  params: FetchIssuedCertificatesParams
+): Promise<{ certificates: CertificateData[]; nextToken: string | null }> {
+  const { accessToken, apiQueryString, forCaId } = params;
+  
+  let baseUrl = 'https://lab.lamassu.io/api/ca/v1/';
+  if (forCaId) {
+    baseUrl += `cas/${forCaId}/certificates`;
+  } else {
+    baseUrl += 'certificates';
+  }
+  
+  const finalQueryString = apiQueryString || 'sort_by=valid_from&sort_mode=desc&page_size=10';
+
+  const response = await fetch(`${baseUrl}?${finalQueryString}`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to fetch issued certificates. HTTP error ${response.status}`;
+    try {
+      errorJson = await response.json();
+      if (errorJson && errorJson.err) {
+        errorMessage = `Failed to fetch issued certificates: ${errorJson.err}`;
+      } else if (errorJson && errorJson.message) {
+        errorMessage = `Failed to fetch issued certificates: ${errorJson.message}`;
+      }
+    } catch (e) {
+      console.error("Failed to parse error response as JSON for fetchIssuedCertificates:", e);
+    }
+    throw new Error(errorMessage);
+  }
+
+  const apiResponse: ApiIssuedCertificateListResponse = await response.json();
+  if (!apiResponse.list) {
+    console.warn("API response for issued certificates is missing 'list' property:", apiResponse);
+    return { certificates: [], nextToken: null };
+  }
+
+  const certificates = apiResponse.list.map(transformApiIssuedCertificateToLocal);
+  return { certificates, nextToken: apiResponse.next };
+}
+
+// Helper to find a certificate by serial number from a list
+export function findCertificateBySerialNumber(serialNumber: string, certificates: CertificateData[]): CertificateData | null {
+  return certificates.find(cert => cert.serialNumber === serialNumber) || null;
+}
+

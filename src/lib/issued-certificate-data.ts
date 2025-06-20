@@ -1,4 +1,3 @@
-
 import type { CertificateData } from '@/types/certificate';
 
 // API Response Structures for Issued Certificates
@@ -107,14 +106,14 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
 
 interface FetchIssuedCertificatesParams {
   accessToken: string;
-  apiQueryString?: string;
-  forCaId?: string; // Optional: ID of the CA to fetch certificates for
+  apiQueryString?: string; // Now includes filters, sort, pagination
+  forCaId?: string; 
 }
 
 export async function fetchIssuedCertificates(
   params: FetchIssuedCertificatesParams
 ): Promise<{ certificates: CertificateData[]; nextToken: string | null }> {
-  const { accessToken, apiQueryString = 'sort_by=valid_from&sort_mode=desc&page_size=10', forCaId } = params;
+  const { accessToken, apiQueryString, forCaId } = params;
   
   let baseUrl = 'https://lab.lamassu.io/api/ca/v1/';
   if (forCaId) {
@@ -123,7 +122,9 @@ export async function fetchIssuedCertificates(
     baseUrl += 'certificates';
   }
   
-  const response = await fetch(`${baseUrl}?${apiQueryString}`, {
+  const finalQueryString = apiQueryString || 'sort_by=valid_from&sort_mode=desc&page_size=10';
+
+  const response = await fetch(`${baseUrl}?${finalQueryString}`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
     },
