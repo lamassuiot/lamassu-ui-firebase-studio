@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card imports
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 function flattenCAs(cas: CA[]): CA[] {
   const flatList: CA[] = [];
@@ -44,7 +44,7 @@ export default function HomePage() {
     setErrorCAs(null);
     try {
       const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-      const flattenedCAs = flattenCAs(fetchedCAs);
+      const flattenedCAs = flattenCAs(fetchedCAs); // Keep flattening if CaExpiryTimeline expects flat list
       setAllCAs(flattenedCAs);
     } catch (err: any) {
       setErrorCAs(err.message || 'Failed to load CA data for timeline.');
@@ -67,32 +67,31 @@ export default function HomePage() {
           <CertificateStatusChartCard />
         </div>
         <div className="lg:col-span-2">
-          {/* The CaExpiryTimeline component now renders its own Card and Title */}
-          {isLoadingCAs || authLoading ? (
-            <Card className="shadow-lg w-full bg-sky-50 dark:bg-sky-900/30">
+          {(isLoadingCAs || authLoading) && !errorCAs ? (
+            <Card className="shadow-lg w-full bg-primary text-primary-foreground">
                 <CardHeader>
                     <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center justify-center h-40 p-4">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
+                    <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
+                        <p className="ml-3 text-primary-foreground/80">Loading CA timeline data...</p>
                     </div>
                 </CardContent>
             </Card>
           ) : errorCAs ? (
-             <Card className="shadow-lg w-full bg-sky-50 dark:bg-sky-900/30">
+             <Card className="shadow-lg w-full bg-primary text-primary-foreground">
                 <CardHeader>
                     <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Error Loading Timeline Data</AlertTitle>
-                    <AlertDescription>
-                        {errorCAs}
-                        <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive focus:text-destructive">Try again?</Button>
-                    </AlertDescription>
+                    <Alert variant="destructive" className="bg-destructive/80 text-destructive-foreground">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Error Loading Timeline Data</AlertTitle>
+                        <AlertDescription className="text-destructive-foreground/90">
+                            {errorCAs}
+                            <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive-foreground hover:text-destructive-foreground/80 focus:text-destructive-foreground">Try again?</Button>
+                        </AlertDescription>
                     </Alert>
                 </CardContent>
             </Card>
@@ -104,3 +103,4 @@ export default function HomePage() {
     </div>
   );
 }
+
