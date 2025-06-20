@@ -157,9 +157,6 @@ export default function CertificateAuthorityDetailsClient() {
   }, [issuedCertsSearchTermCN, issuedCertsSearchTermSN]);
 
   useEffect(() => {
-    // This effect now also reacts to activeTab changes,
-    // so it will trigger pagination reset if the user switches to the 'issued' tab
-    // and then changes a filter on that tab.
     if (activeTab === 'issued') {
       setIssuedCertsCurrentPageIndex(0);
       setIssuedCertsBookmarkStack([null]);
@@ -289,7 +286,8 @@ export default function CertificateAuthorityDetailsClient() {
     isAuthenticated,
     user?.access_token,
     issuedCertsCurrentPageIndex,
-    issuedCertsBookmarkStack,
+    // Omitting issuedCertsBookmarkStack from deps intentionally, as it's updated by the fetch itself
+    // and its primary role is to provide the *current* bookmark, not trigger re-fetch on its own change
     issuedCertsPageSize,
     issuedCertsSortConfig,
     issuedCertsDebouncedSearchTermCN,
@@ -299,14 +297,15 @@ export default function CertificateAuthorityDetailsClient() {
   ]);
 
   useEffect(() => {
-    if (activeTab !== 'issued' && issuedCertificatesList.length > 0) {
+    // Clear stale issued certificate data if tab is not 'issued' or CA changes
+    if (activeTab !== 'issued' ) { // Removed: issuedCertificatesList.length > 0 from condition
       setIssuedCertificatesList([]);
       setIssuedCertsBookmarkStack([null]);
       setIssuedCertsCurrentPageIndex(0);
       setIssuedCertsNextTokenFromApi(null);
       setErrorIssuedCerts(null);
     }
-  }, [activeTab, caDetails?.id, issuedCertificatesList.length]);
+  }, [activeTab, caDetails?.id]); // Removed issuedCertificatesList from deps
 
 
   const handleCARevocation = () => {
@@ -522,7 +521,7 @@ export default function CertificateAuthorityDetailsClient() {
 
           <TabsContent value="issued">
             <div className="space-y-4 py-4">
-               <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-4">
+               <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end w-full sm:w-auto flex-grow">
                     <div className="relative col-span-1 md:col-span-1">
                         <Label htmlFor="issuedCertSearchCN">Search CN</Label>
@@ -562,7 +561,7 @@ export default function CertificateAuthorityDetailsClient() {
                         </Select>
                     </div>
                 </div>
-                 <div className="flex space-x-2 self-end sm:self-center mt-4 sm:mt-0">
+                 <div className="flex space-x-2 mt-4 sm:mt-0">
                     <Button onClick={handleRefreshIssuedCerts} variant="outline" disabled={isLoadingIssuedCerts}>
                         <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingIssuedCerts && "animate-spin")} /> Refresh
                     </Button>
