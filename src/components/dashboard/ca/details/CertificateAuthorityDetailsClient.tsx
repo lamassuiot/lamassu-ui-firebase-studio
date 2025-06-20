@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye, Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, fetchAndProcessCAs } from '@/lib/ca-data';
+import { findCaById, fetchAndProcessCAs, getCaDisplayName } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,21 +23,21 @@ import { RevocationModal } from '@/components/shared/RevocationModal';
 import { InformationTabContent } from '@/components/shared/details-tabs/InformationTabContent';
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
 import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTabContent';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isPast } from 'date-fns';
 
 
 const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] => {
   if (!targetCaId) return [];
   const path: CA[] = [];
   let current: CA | null = findCaById(targetCaId, allCAs);
-  let safetyNet = 0; 
-  while (current && safetyNet < 10) { 
-    path.unshift(current); 
-    if (current.issuer === 'Self-signed' || !current.issuer) {
+  let safetyNet = 0;
+  while (current && safetyNet < 10) {
+    path.unshift(current);
+    if (current.issuer === 'Self-signed' || !current.issuer || current.id === current.issuer) {
       break;
     }
     const parentCa = findCaById(current.issuer, allCAs);
-    if (!parentCa || path.some(p => p.id === parentCa.id)) { 
+    if (!parentCa || path.some(p => p.id === parentCa.id)) {
         break;
     }
     current = parentCa;
@@ -50,7 +50,7 @@ const IssuedCertApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => 
   if (!status) return <Badge variant="outline">Unknown</Badge>;
   const upperStatus = status.toUpperCase();
   let badgeClass = "bg-muted text-muted-foreground border-border";
-  let Icon = AlertCircle; 
+  let Icon = AlertCircle;
 
   if (upperStatus.includes('ACTIVE')) {
     badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
@@ -70,7 +70,7 @@ const IssuedCertApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => 
 
 const getCertSubjectCommonName = (subject: string): string => {
   const cnMatch = subject.match(/CN=([^,]+)/);
-  return cnMatch ? cnMatch[1] : subject; 
+  return cnMatch ? cnMatch[1] : subject;
 };
 
 
@@ -80,7 +80,7 @@ export default function CertificateAuthorityDetailsClient() {
   const { toast } = useToast();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const caId = searchParams.get('caId');
-  
+
   const [allCertificateAuthoritiesData, setAllCertificateAuthoritiesData] = useState<CA[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
@@ -89,13 +89,12 @@ export default function CertificateAuthorityDetailsClient() {
   const [caPathToRoot, setCaPathToRoot] = useState<CA[]>([]);
   const [placeholderSerial, setPlaceholderSerial] = useState<string>('');
   const [fullChainPemString, setFullChainPemString] = useState<string>('');
-  
+
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [caToRevoke, setCaToRevoke] = useState<CA | null>(null);
 
   const [activeTab, setActiveTab] = useState<string>("information");
 
-  // State for issued certificates list
   const [issuedCertificatesList, setIssuedCertificatesList] = useState<CertificateData[]>([]);
   const [isLoadingIssuedCerts, setIsLoadingIssuedCerts] = useState(false);
   const [errorIssuedCerts, setErrorIssuedCerts] = useState<string | null>(null);
@@ -105,14 +104,71 @@ export default function CertificateAuthorityDetailsClient() {
   const [issuedCertsNextTokenFromApi, setIssuedCertsNextTokenFromApi] = useState<string | null>(null);
 
 
-  const mockLamassuMetadata = caId ? { /* ... (existing mock metadata) ... */ } : {};
+  const mockLamassuMetadata = caId ? {
+    caId: caDetails?.id,
+    name: caDetails?.name,
+    status: caDetails?.status,
+    configuration: {
+      maxPathLength: caDetails?.issuer === 'Self-signed' ? -1 : (caDetails?.children && caDetails?.children.length > 0 ? 1 : 0),
+      crlDistributionPoints: [`http://crl.example.com/${caDetails?.id.replace(/-/g, '')}.crl`],
+      ocspServers: [`http://ocsp.example.com/${caDetails?.id.replace(/-/g, '')}`],
+      defaultCertificateLifetime: '365d',
+      allowedKeyTypes: ['RSA 2048', 'ECDSA P-256'],
+    },
+    usageStats: {
+      activeCertificates: Math.floor(Math.random() * 1000),
+      revokedCertificates: Math.floor(Math.random() * 50),
+      expiredCertificates: Math.floor(Math.random() * 100),
+      lastIssuedDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    auditLogSummary: [
+      { timestamp: new Date().toISOString(), action: "CA Created", user: "admin" },
+      { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), action: "Certificate Issued (SN: ...)", user: "system" },
+    ]
+  } : {};
 
   useEffect(() => {
-    const loadCAs = async () => { /* ... (existing CA loading logic) ... */ };
+    const loadCAs = async () => {
+      if (!isAuthenticated() || !user?.access_token) {
+        if (!authLoading) {
+          setErrorCAs("User not authenticated. Cannot load CA data.");
+        }
+        setIsLoadingCAs(false);
+        return;
+      }
+      setIsLoadingCAs(true);
+      setErrorCAs(null);
+      try {
+        const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+        setAllCertificateAuthoritiesData(fetchedCAs);
+      } catch (err: any) {
+        setErrorCAs(err.message || 'Failed to load CA data.');
+      } finally {
+        setIsLoadingCAs(false);
+      }
+    };
     if (!authLoading) loadCAs();
   }, [user?.access_token, isAuthenticated, authLoading]);
 
-  useEffect(() => { /* ... (existing caDetails and path logic) ... */ }, [caId, allCertificateAuthoritiesData, isLoadingCAs]);
+  useEffect(() => {
+    if (isLoadingCAs || !caId || allCertificateAuthoritiesData.length === 0) {
+      setCaDetails(null);
+      setCaPathToRoot([]);
+      setFullChainPemString('');
+      return;
+    }
+    const foundCa = findCaById(caId, allCertificateAuthoritiesData);
+    setCaDetails(foundCa);
+    if (foundCa) {
+      const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
+      setCaPathToRoot(path);
+      const chainPem = path.map(p => p.pemData).filter(Boolean).join('\\n\\n');
+      setFullChainPemString(chainPem);
+      setPlaceholderSerial(`${Math.random().toString(16).slice(2,10)}:${Math.random().toString(16).slice(2,10)}`);
+    } else {
+      setErrorCAs(`CA with ID "${caId}" not found.`);
+    }
+  }, [caId, allCertificateAuthoritiesData, isLoadingCAs]);
 
 
   const loadIssuedCertificatesByCa = useCallback(async (bookmark: string | null) => {
@@ -147,7 +203,6 @@ export default function CertificateAuthorityDetailsClient() {
 
   useEffect(() => {
     if (activeTab === 'issued' && caDetails?.id) {
-      // Reset pagination and load first page if data is not already loaded for this CA or if page size changes
       if (issuedCertificatesList.length === 0 || issuedCertsBookmarkStack.length === 1 && issuedCertsBookmarkStack[0] === null) {
         setIssuedCertsBookmarkStack([null]);
         setIssuedCertsCurrentPageIndex(0);
@@ -157,10 +212,9 @@ export default function CertificateAuthorityDetailsClient() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, caDetails?.id, loadIssuedCertificatesByCa, issuedCertsPageSize]); // Add issuedCertsPageSize to trigger reload on change
+  }, [activeTab, caDetails?.id, loadIssuedCertificatesByCa, issuedCertsPageSize]);
 
   useEffect(() => {
-    // Reset pagination when tab changes away from 'issued' or when caId changes
     if (activeTab !== 'issued' || (caDetails?.id && issuedCertificatesList.length > 0 && issuedCertificatesList[0]?.issuerCaId !== caDetails.id)) {
       setIssuedCertificatesList([]);
       setIssuedCertsBookmarkStack([null]);
@@ -171,10 +225,26 @@ export default function CertificateAuthorityDetailsClient() {
   }, [activeTab, caDetails?.id, issuedCertificatesList]);
 
 
+  const handleCARevocation = () => {
+    if (caDetails) {
+      setCaToRevoke(caDetails);
+      setIsRevocationModalOpen(true);
+    }
+  };
 
-  const handleCARevocation = () => { /* ... (existing CA revocation logic) ... */ };
-  const handleConfirmCARevocation = (reason: string) => { /* ... (existing CA confirm revocation logic) ... */ };
-  
+  const handleConfirmCARevocation = (reason: string) => {
+    if (caToRevoke) {
+      setCaDetails(prev => prev ? {...prev, status: 'revoked'} : null);
+      toast({
+        title: "CA Revocation (Mock)",
+        description: `CA "${caToRevoke.name}" marked as revoked with reason: ${reason}.`,
+        variant: "default"
+      });
+    }
+    setIsRevocationModalOpen(false);
+    setCaToRevoke(null);
+  };
+
   const handleNextIssuedCertsPage = () => {
     if (isLoadingIssuedCerts || !issuedCertsNextTokenFromApi) return;
     const newStack = [...issuedCertsBookmarkStack, issuedCertsNextTokenFromApi];
@@ -191,26 +261,72 @@ export default function CertificateAuthorityDetailsClient() {
   };
 
 
-  if (authLoading || isLoadingCAs) { /* ... (existing loading display) ... */ }
-  if (errorCAs && !caDetails) { /* ... (existing error display) ... */ }
-  if (!caDetails) { /* ... (existing CA not found display) ... */ }
+  if (authLoading || isLoadingCAs) {
+    return (
+      <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
+        <Loader2 className="h-12 w-12 text-primary animate-spin" />
+        <p className="text-muted-foreground">Loading CA details...</p>
+      </div>
+    );
+  }
+
+  if (errorCAs && !caDetails) {
+    return (
+      <div className="w-full space-y-4 p-4">
+         <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Loading CA</AlertTitle>
+          <AlertDescription>{errorCAs}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!caDetails) {
+    return (
+      <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
+        <FileText className="h-12 w-12 text-muted-foreground" />
+        <p className="text-muted-foreground">CA with ID "{caId || 'Unknown'}" not found or data is unavailable.</p>
+        <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')} className="mt-4">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+        </Button>
+      </div>
+    );
+  }
 
   let statusColorClass = '';
   let statusVariant: "default" | "secondary" | "destructive" | "outline" = "default";
-  switch (caDetails.status) { /* ... (existing status styling) ... */ }
+  switch (caDetails.status) {
+    case 'active':
+      statusColorClass = 'bg-green-500 hover:bg-green-600';
+      statusVariant = 'default';
+      break;
+    case 'revoked':
+      statusColorClass = 'bg-red-500 hover:bg-red-600';
+      statusVariant = 'destructive';
+      break;
+    case 'expired':
+      statusColorClass = 'bg-orange-500 hover:bg-orange-600';
+      statusVariant = 'destructive';
+      break;
+    default:
+      statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; // For 'unknown' or other statuses
+  }
 
   return (
     <div className="w-full space-y-6">
-      {/* ... (Back button, Header, Action buttons for CA) ... */}
        <div className="flex justify-between items-center mb-4">
         <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
         </Button>
       </div>
-      
+
       <div className="w-full">
         <div className="p-6 border-b">
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-2">
             <div>
               <div className="flex items-center space-x-3">
                 <FileText className="h-8 w-8 text-primary" />
@@ -220,7 +336,7 @@ export default function CertificateAuthorityDetailsClient() {
                 CA ID: {caDetails.id}
               </p>
             </div>
-             <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
+             <Badge variant={statusVariant} className={cn("text-sm self-start sm:self-auto mt-2 sm:mt-0", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
           </div>
         </div>
 
@@ -232,10 +348,10 @@ export default function CertificateAuthorityDetailsClient() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full p-6">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
-            <TabsTrigger value="information">Information</TabsTrigger>
-            <TabsTrigger value="certificate">Certificate PEM</TabsTrigger>
-            <TabsTrigger value="metadata">Lamassu Metadata</TabsTrigger>
-            <TabsTrigger value="issued">Issued Certificates</TabsTrigger>
+            <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Information</TabsTrigger>
+            <TabsTrigger value="certificate"><KeyRound className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Certificate PEM</TabsTrigger>
+            <TabsTrigger value="metadata"><Lock className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Lamassu Metadata</TabsTrigger>
+            <TabsTrigger value="issued"><ListChecks className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Issued Certificates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="information">
@@ -384,17 +500,3 @@ export default function CertificateAuthorityDetailsClient() {
     </div>
   );
 }
-
-// Ensure existing functions like buildCaPathToRoot, findCaById, fetchAndProcessCAs are correctly defined or imported
-// Ensure InformationTabContent, PemTabContent, MetadataTabContent, RevocationModal are correctly imported
-// Ensure DetailItem and CaHierarchyPathNode are correctly imported if they were separate, or defined if part of InformationTabContent
-// Ensure getCaDisplayName is correctly imported or defined
-// The mockLamassuMetadata object and other placeholder logic should be filled or removed as needed.
-
-// Helper local definitions if not imported:
-// const getCertSubjectCommonName = (subject: string): string => {
-//   const cnMatch = subject.match(/CN=([^,]+)/);
-//   return cnMatch ? cnMatch[1] : subject; 
-// };
-
-// const IssuedCertApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => { /* ... implementation ... */ };
