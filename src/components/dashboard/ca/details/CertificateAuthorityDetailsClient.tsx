@@ -521,7 +521,7 @@ export default function CertificateAuthorityDetailsClient() {
 
           <TabsContent value="issued">
             <div className="space-y-4 py-4">
-               <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
+               <div className="flex flex-col sm:flex-row justify-between items-end gap-3 mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end w-full sm:w-auto flex-grow">
                     <div className="relative col-span-1 md:col-span-1">
                         <Label htmlFor="issuedCertSearchCN">Search CN</Label>
