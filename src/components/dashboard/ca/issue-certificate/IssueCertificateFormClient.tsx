@@ -110,7 +110,7 @@ export default function IssueCertificateFormClient() {
   const [emailSans, setEmailSans] = useState('');
   const [uriSans, setUriSans] = useState('');
 
-  const [csrPem, setCsrPem] = useState(''); // This is the CSR that will be submitted
+  const [csrPem, setCsrPem] = useState(''); // This is the CSR that will be submitted (hidden input)
   const [generatedKeyPair, setGeneratedKeyPair] = useState<CryptoKeyPair | null>(null);
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
   const [generatedCsrPemForDisplay, setGeneratedCsrPemForDisplay] = useState<string>(''); // For display after generation
@@ -140,10 +140,16 @@ export default function IssueCertificateFormClient() {
   }, []);
 
   useEffect(() => {
+    // Reset CSR generated state if any relevant form field for CSR generation changes
     if (issuanceMode === 'generate') {
-      setIsCsrGenerated(false); 
+      setIsCsrGenerated(false);
+      // Optionally clear displayed CSR/Key if user changes subject details after generation
+      // setGeneratedCsrPemForDisplay(''); 
+      // setGeneratedPrivateKeyPem('');
     }
-  }, [commonName, organization, organizationalUnit, country, stateProvince, locality, dnsSans, ipSans, emailSans, uriSans, selectedAlgorithm, selectedRsaKeySize, selectedEcdsaCurve, issuanceMode]);
+  }, [commonName, organization, organizationalUnit, country, stateProvince, locality, 
+      dnsSans, ipSans, emailSans, uriSans, 
+      selectedAlgorithm, selectedRsaKeySize, selectedEcdsaCurve, issuanceMode]);
 
 
   const resetModeSpecificState = () => {
@@ -179,7 +185,7 @@ export default function IssueCertificateFormClient() {
     }
     
     let subjectDetailsForLog: any = {};
-    if (issuanceMode === 'generate') {
+    if (issuanceMode === 'generate') { // Only log these if they were used for generation
         subjectDetailsForLog = {
             commonName, organization, organizationalUnit, country, stateProvince, locality,
             dnsSans: dnsSans.split(',').map(s=>s.trim()).filter(s=>s),
@@ -193,8 +199,8 @@ export default function IssueCertificateFormClient() {
     console.log({
         caIdToIssueFrom: caId,
         mode: issuanceMode,
-        ...subjectDetailsForLog,
-        certificateValidityDays: validityDays,
+        ...subjectDetailsForLog, // This will be empty if mode is 'upload'
+        certificateValidityDays: validityDays, // Keep validity for upload mode as well
         certificateSigningRequest: csrPem
     });
     alert(`Mock issue certificate from CA ${caId}. CSR submitted (check console).`);
@@ -207,7 +213,7 @@ export default function IssueCertificateFormClient() {
     setGeneratedCsrPemForDisplay('');
     setCsrPem(''); 
     setGeneratedKeyPair(null);
-    setIsCsrGenerated(false);
+    // isCsrGenerated will be set to true upon successful generation
 
     if (!commonName.trim()) {
         setGenerationError("Common Name (CN) is required to generate a CSR.");
@@ -322,7 +328,7 @@ export default function IssueCertificateFormClient() {
       
       setGeneratedCsrPemForDisplay(signedCsrPem);
       setCsrPem(signedCsrPem); 
-      setIsCsrGenerated(true); 
+      setIsCsrGenerated(true);
 
     } catch (error: any) {
       console.error("Key pair or CSR generation error:", error);
@@ -341,11 +347,11 @@ export default function IssueCertificateFormClient() {
       reader.onload = (e) => {
         const content = e.target?.result as string;
         setCsrPem(content); 
-        setGeneratedCsrPemForDisplay('');
+        setGeneratedCsrPemForDisplay(''); // Clear generated CSR if uploading
         setGeneratedPrivateKeyPem('');
         setGeneratedKeyPair(null);
         setGenerationError(null);
-        setIsCsrGenerated(false);
+        setIsCsrGenerated(false); // Not using generated CSR anymore
       };
       reader.readAsText(file);
     } else {
@@ -354,7 +360,7 @@ export default function IssueCertificateFormClient() {
     }
   };
 
-  if (!caId && typeof window !== 'undefined') {
+  if (!caId && typeof window !== 'undefined') { // Only render client-side after check
     return (
       <div className="w-full space-y-6 p-4">
         <Button variant="outline" onClick={() => router.back()} className="mb-4">
@@ -369,6 +375,7 @@ export default function IssueCertificateFormClient() {
       </div>
     );
   }
+  // Show loader if caId is not yet available (could be due to SSR/initial client render mismatch before hydration)
   if (!caId && typeof window === 'undefined') { 
     return <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -457,7 +464,7 @@ export default function IssueCertificateFormClient() {
             <div className="flex items-center space-x-3">
                 {issuanceMode === 'generate' ? <KeyRound className="h-7 w-7 text-primary" /> : <UploadCloud className="h-7 w-7 text-primary" />}
                 <h1 className="text-2xl font-headline font-semibold">
-                    Issue Certificate - {issuanceMode === 'generate' ? 'Generate Key &amp; CSR' : 'Upload CSR'}
+                    Issue Certificate - {issuanceMode === 'generate' ? 'Generate Key & CSR' : 'Upload CSR'}
                 </h1>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -515,8 +522,47 @@ export default function IssueCertificateFormClient() {
                         </div>
                     </section>
                     <Separator/>
+                     <section>
+                        <h3 className="text-lg font-medium mb-3">2. Generated Key Material &amp; CSR</h3>
+                         {generationError && (
+                            <Alert variant="destructive" className="mt-2 mb-3">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertDescription>{generationError}</AlertDescription>
+                            </Alert>
+                         )}
+                        {generatedPrivateKeyPem && (
+                        <div className="mt-4">
+                            <h4 className="text-md font-medium mb-1">Generated Private Key (PEM)</h4>
+                            <p className="text-xs text-destructive mb-2">Keep this secret! This is your only chance to copy it.</p>
+                            <Textarea
+                            id="generatedKeyPem"
+                            value={generatedPrivateKeyPem}
+                            readOnly
+                            rows={8}
+                            className="mt-1 font-mono bg-background/50"
+                            />
+                        </div>
+                        )}
+                        {generatedCsrPemForDisplay && (
+                            <div className="mt-4">
+                                <h4 className="text-md font-medium mb-1">Generated CSR (PEM)</h4>
+                                <Textarea
+                                id="generatedCsrPemDisplay"
+                                value={generatedCsrPemForDisplay}
+                                readOnly
+                                rows={8}
+                                className="mt-1 font-mono bg-background/50"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">This CSR will be used for submission.</p>
+                            </div>
+                        )}
+                         {!isCsrGenerated && !generationError && !generatedPrivateKeyPem && (
+                            <p className="text-sm text-muted-foreground">Fill Key Generation, Subject, and SAN details, then click "Generate Key Pair & CSR" in the footer.</p>
+                         )}
+                    </section>
+                    <Separator/>
                     <section>
-                        <h3 className="text-lg font-medium mb-3">2. Certificate Subject &amp; Validity</h3>
+                        <h3 className="text-lg font-medium mb-3">3. Certificate Subject &amp; Validity</h3>
                         <p className="text-xs text-muted-foreground mb-3">These details will be embedded into the generated CSR and the resulting certificate.</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -545,13 +591,13 @@ export default function IssueCertificateFormClient() {
                             </div>
                             <div>
                             <Label htmlFor="validityDays">Validity (Days)</Label>
-                            <Input id="validityDays" name="validityDays" type="number" defaultValue={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
+                            <Input id="validityDays" name="validityDays" type="number" value={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
                             </div>
                         </div>
                     </section>
                     <Separator />
                     <section>
-                        <h3 className="text-lg font-medium mb-3">3. Subject Alternative Names (SANs)</h3>
+                        <h3 className="text-lg font-medium mb-3">4. Subject Alternative Names (SANs)</h3>
                         <p className="text-xs text-muted-foreground mb-3">Specify any alternative names for the certificate subject.</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -573,45 +619,6 @@ export default function IssueCertificateFormClient() {
                             </div>
                         </div>
                     </section>
-                    <Separator/>
-                     <section>
-                        <h3 className="text-lg font-medium mb-3">4. Generated Key Material &amp; CSR</h3>
-                        {generationError && (
-                        <Alert variant="destructive" className="mt-2 mb-3">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>{generationError}</AlertDescription>
-                        </Alert>
-                        )}
-                        {generatedPrivateKeyPem && (
-                        <div className="mt-4">
-                            <h4 className="text-md font-medium mb-1">Generated Private Key (PEM)</h4>
-                            <p className="text-xs text-destructive mb-2">Keep this secret! This is your only chance to copy it.</p>
-                            <Textarea
-                            id="generatedKeyPem"
-                            value={generatedPrivateKeyPem}
-                            readOnly
-                            rows={8}
-                            className="mt-1 font-mono bg-background/50"
-                            />
-                        </div>
-                        )}
-                        {generatedCsrPemForDisplay && (
-                            <div className="mt-4">
-                                <h4 className="text-md font-medium mb-1">Generated CSR (PEM)</h4>
-                                <Textarea
-                                id="generatedCsrPemDisplay"
-                                value={generatedCsrPemForDisplay}
-                                readOnly
-                                rows={8}
-                                className="mt-1 font-mono bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">This CSR has been auto-filled into the main CSR field below for submission.</p>
-                            </div>
-                        )}
-                         {!isCsrGenerated && !generationError && (
-                            <p className="text-sm text-muted-foreground">Click "Generate Key Pair &amp; CSR" in the footer after filling key, subject, and SAN details.</p>
-                         )}
-                    </section>
                 </>
                 )}
 
@@ -628,35 +635,16 @@ export default function IssueCertificateFormClient() {
                                 onChange={handleCsrFileUpload}
                                 className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                                 />
-                                {uploadedCsrFileName && <p className="text-xs text-muted-foreground">Selected file: {uploadedCsrFileName}. Content loaded into CSR field below.</p>}
+                                {uploadedCsrFileName && <p className="text-xs text-muted-foreground">Selected file: {uploadedCsrFileName}. Its content will be submitted.</p>}
+                            </div>
+                             <div>
+                                <Label htmlFor="validityDaysUpload">Validity (Days)</Label>
+                                <Input id="validityDaysUpload" name="validityDaysUpload" type="number" value={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
+                                <p className="text-xs text-muted-foreground mt-1">Define how long the certificate issued from this CSR should be valid.</p>
                             </div>
                         </div>
                     </section>
                 )}
-                
-                <Separator />
-                <section>
-                    <div className="mt-2">
-                        <Label htmlFor="csrPemInput" className="text-base font-semibold">CSR for Submission (PEM format)</Label>
-                        <Textarea
-                            id="csrPemInput"
-                            name="csrPemInput"
-                            placeholder={issuanceMode === 'generate' ? "CSR will appear here after generation..." : "Paste CSR here or upload above..."}
-                            rows={8}
-                            className="mt-1 font-mono bg-background"
-                            value={csrPem}
-                            onChange={(e) => {
-                                setCsrPem(e.target.value);
-                                if (issuanceMode === 'generate') {
-                                    setIsCsrGenerated(false); 
-                                }
-                                setUploadedCsrFileName(null);
-                            }}
-                            required
-                        />
-                        {!csrPem.trim() && <p className="text-xs text-destructive mt-1">CSR content is required for submission.</p>}
-                    </div>
-                </section>
             </CardContent>
             <CardFooter className="border-t pt-6">
                 <div className="flex justify-end w-full">
@@ -668,16 +656,16 @@ export default function IssueCertificateFormClient() {
                             disabled={isGenerating || !commonName.trim()}
                         >
                             {isGenerating ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <KeyRound className="mr-2 h-5 w-5" />} 
-                            Generate Key Pair &amp; CSR
+                            Generate Key Pair & CSR
                         </Button>
                     )}
-                    {issuanceMode === 'generate' && isCsrGenerated && (
+                     {issuanceMode === 'generate' && isCsrGenerated && (
                          <Button type="submit" size="lg" disabled={isGenerating || !csrPem.trim()}>
                             <FileSignature className="mr-2 h-5 w-5" /> Issue Certificate
                         </Button>
                     )}
                     {issuanceMode === 'upload' && (
-                        <Button type="submit" size="lg" disabled={isGenerating || !csrPem.trim()}>
+                        <Button type="submit" size="lg" disabled={!csrPem.trim()}>
                             <FileSignature className="mr-2 h-5 w-5" /> Issue Certificate
                         </Button>
                     )}
@@ -690,5 +678,6 @@ export default function IssueCertificateFormClient() {
 }
     
     
+
 
 
