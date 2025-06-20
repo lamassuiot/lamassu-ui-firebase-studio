@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useTheme } from 'next-themes';
-import { Loader2 } from 'lucide-react'; // For loading indicator
+import { Loader2, CheckCircle, AlertTriangle as AlertTriangleIcon, XCircle, Clock, Circle } from 'lucide-react'; // Added Clock and Circle for legend
 
 interface ChartData {
   name: string;
@@ -15,17 +15,11 @@ interface ChartData {
 
 // Initial static data, will be "fetched"
 const initialCertificateStatusData: ChartData[] = [
-  { name: 'Active', value: 70, color: 'rgb(34, 197, 94)' },
-  { name: 'About to expire', value: 15, color: 'hsl(var(--chart-3))' },
-  { name: 'Expired', value: 10, color: 'hsl(var(--chart-5))' },
-  { name: 'Revoked', value: 5, color: 'hsl(var(--destructive))' },
+  { name: 'Active', value: 70, color: 'rgb(34, 197, 94)' }, // Green
+  { name: 'About to expire', value: 15, color: 'hsl(30 80% 55%)' }, // Orange/Yellow (from resolved theme chart-3)
+  { name: 'Expired', value: 10, color: 'hsl(340 75% 55%)' }, // Purple/Pink (from resolved theme chart-5)
+  { name: 'Revoked', value: 5, color: 'hsl(0 72% 51%)' },  // Red (from resolved theme destructive)
 ];
-
-const fallbackColors = {
-    'hsl(var(--chart-3))': 'hsl(30 80% 55%)',
-    'hsl(var(--chart-5))': 'hsl(340 75% 55%)',
-    'hsl(var(--destructive))': 'hsl(0 72% 51%)',
-};
 
 
 export function CertificateStatusChartCard() {
@@ -40,13 +34,21 @@ export function CertificateStatusChartCard() {
       setIsLoading(true);
       setError(null);
       try {
-        // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 1000));
-        // In a real app, you would fetch from an API here:
-        // const response = await fetch('/api/certificate-status');
-        // const data = await response.json();
-        // For now, we use the initial static data
-        setChartData(initialCertificateStatusData);
+        
+        // Resolve CSS variables to actual HSL/RGB strings if they were used
+        const resolvedData = initialCertificateStatusData.map(item => {
+            let resolvedColor = item.color;
+            if (item.color.startsWith('hsl(var(--')) {
+                // Basic resolver for demo. A more robust one would parse the CSS var from the theme.
+                if (item.name === 'About to expire') resolvedColor = 'hsl(30 80% 55%)'; // chart-3
+                else if (item.name === 'Expired') resolvedColor = 'hsl(340 75% 55%)'; // chart-5
+                else if (item.name === 'Revoked') resolvedColor = 'hsl(0 72% 51%)'; // destructive
+            }
+            return { ...item, color: resolvedColor };
+        });
+        setChartData(resolvedData);
+
       } catch (err) {
         console.error("Failed to fetch chart data:", err);
         setError('Failed to load certificate status data.');
@@ -125,7 +127,7 @@ export function CertificateStatusChartCard() {
                   strokeWidth={2}
                 >
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={fallbackColors[entry.color as keyof typeof fallbackColors] || entry.color} />
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -140,7 +142,33 @@ export function CertificateStatusChartCard() {
                 <Legend
                   verticalAlign="bottom"
                   wrapperStyle={{ paddingTop: '20px', color: 'hsl(var(--primary-foreground))' }}
-                  formatter={(value) => <span style={{ color: 'hsl(var(--primary-foreground))' }}>{value}</span>}
+                  formatter={(value, entry, index) => {
+                    let IconComponent: React.ElementType = Circle;
+                    let iconColorStyle = entry.color; 
+
+                    if (value === 'Active') {
+                        IconComponent = CheckCircle;
+                        iconColorStyle = 'rgb(34, 197, 94)';
+                    } else if (value === 'About to expire') {
+                        IconComponent = Clock;
+                        iconColorStyle = 'hsl(30 80% 55%)';
+                    } else if (value === 'Expired') {
+                        IconComponent = AlertTriangleIcon;
+                        iconColorStyle = 'hsl(340 75% 55%)';
+                    } else if (value === 'Revoked') {
+                        IconComponent = XCircle;
+                        iconColorStyle = 'hsl(0 72% 51%)';
+                    }
+                
+                    return (
+                      <span style={{ color: 'hsl(var(--primary-foreground))' }} className="flex items-center text-xs">
+                        <div className="p-0.5 bg-white rounded-full mr-1.5 inline-flex items-center justify-center">
+                          <IconComponent className="w-3 h-3" style={{ color: iconColorStyle }} />
+                        </div>
+                        {value}
+                      </span>
+                    );
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
