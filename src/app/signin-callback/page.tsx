@@ -12,7 +12,6 @@ export default function SigninCallbackPage() {
   useEffect(() => {
     const userManager = getClientUserManager();
     if (!userManager) {
-        // This case should ideally not happen if getClientUserManager is robust
         console.error("SigninCallback: UserManager not available.");
         router.push('/'); // Fallback redirect
         return;
@@ -40,4 +39,3 @@ export default function SigninCallbackPage() {
     </div>
   );
 }
-

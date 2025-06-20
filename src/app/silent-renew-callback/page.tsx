@@ -1,22 +1,30 @@
 
-import React, { Suspense } from 'react';
-import dynamic from 'next/dynamic';
-import { Loader2 } from 'lucide-react';
+'use client';
 
-// Dynamically import the client component that contains the OIDC logic
-const SilentRenewCallbackClient = dynamic(
-  () => import('./SilentRenewCallbackClient'),
-  {
-    // ssr: false, // Not allowed in Server Components
-    loading: () => null, // Silent renew should be invisible
-  }
-);
+import { useEffect } from 'react';
+import { getClientUserManager } from '@/contexts/AuthContext';
 
-// Page component (Server Component shell)
-export default function SilentRenewCallbackPageContainer() {
-  return (
-    <Suspense fallback={null}> {/* Fallback should also be minimal/null for silent renew */}
-      <SilentRenewCallbackClient />
-    </Suspense>
-  );
+export default function SilentRenewCallbackPage() {
+  useEffect(() => {
+    const userManager = getClientUserManager();
+     if (!userManager) {
+        console.error("SilentRenewCallbackPage: UserManager not available.");
+        // Attempt to close the window/iframe if possible, or redirect parent.
+        // This part is tricky as it runs in an iframe.
+        // window.close(); // This might not always work due to security restrictions.
+        return;
+    }
+    
+    console.log("SilentRenewCallbackPage: Attempting to process silent renew...");
+    userManager.signinSilentCallback()
+      .then(() => {
+        console.log("SilentRenewCallbackPage: Silent renew successful.");
+      })
+      .catch(error => {
+        console.error('SilentRenewCallbackPage: Silent renew callback error:', error);
+      });
+  }, []);
+
+  // This page typically runs in an iframe and should not render any significant UI
+  return null; 
 }
