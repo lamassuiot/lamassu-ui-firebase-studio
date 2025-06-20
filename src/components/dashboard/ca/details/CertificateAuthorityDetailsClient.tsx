@@ -26,7 +26,6 @@ import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
 import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTabContent';
 import { format, parseISO, isPast } from 'date-fns';
 
-// Define Sortable Columns and Direction for issued certificates list
 type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
 type SortDirection = 'asc' | 'desc';
 interface IssuedCertSortConfig {
@@ -96,7 +95,7 @@ export default function CertificateAuthorityDetailsClient() {
   const routerHook = useRouter();
   const { toast } = useToast();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const caId = searchParams.get('caId');
+  const caIdFromUrl = searchParams.get('caId');
 
   const [allCertificateAuthoritiesData, setAllCertificateAuthoritiesData] = useState<CA[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
@@ -112,7 +111,6 @@ export default function CertificateAuthorityDetailsClient() {
 
   const [activeTab, setActiveTab] = useState<string>("information");
 
-  // State for Issued Certificates Tab
   const [issuedCertificatesList, setIssuedCertificatesList] = useState<CertificateData[]>([]);
   const [isLoadingIssuedCerts, setIsLoadingIssuedCerts] = useState(false);
   const [errorIssuedCerts, setErrorIssuedCerts] = useState<string | null>(null);
@@ -120,7 +118,7 @@ export default function CertificateAuthorityDetailsClient() {
   const [issuedCertsBookmarkStack, setIssuedCertsBookmarkStack] = useState<(string | null)[]>([null]);
   const [issuedCertsCurrentPageIndex, setIssuedCertsCurrentPageIndex] = useState<number>(0);
   const [issuedCertsNextTokenFromApi, setIssuedCertsNextTokenFromApi] = useState<string | null>(null);
-  
+
   const [issuedCertsSearchTermCN, setIssuedCertsSearchTermCN] = useState('');
   const [issuedCertsDebouncedSearchTermCN, setIssuedCertsDebouncedSearchTermCN] = useState('');
   const [issuedCertsSearchTermSN, setIssuedCertsSearchTermSN] = useState('');
@@ -128,31 +126,14 @@ export default function CertificateAuthorityDetailsClient() {
   const [issuedCertsStatusFilter, setIssuedCertsStatusFilter] = useState<ApiStatusFilterValue>(API_STATUS_VALUES_FOR_FILTER.ALL);
   const [issuedCertsSortConfig, setIssuedCertsSortConfig] = useState<IssuedCertSortConfig | null>({ column: 'expires', direction: 'desc' });
 
-
-  // Debounce search terms for issued certificates
-  useEffect(() => {
-    const cnHandler = setTimeout(() => setIssuedCertsDebouncedSearchTermCN(issuedCertsSearchTermCN), 500);
-    const snHandler = setTimeout(() => setIssuedCertsDebouncedSearchTermSN(issuedCertsSearchTermSN), 500);
-    return () => { clearTimeout(cnHandler); clearTimeout(snHandler); };
-  }, [issuedCertsSearchTermCN, issuedCertsSearchTermSN]);
-
-  // Reset pagination for issued certificates when filters or sorting change
-  useEffect(() => {
-    if (activeTab === 'issued') {
-      setIssuedCertsCurrentPageIndex(0);
-      setIssuedCertsBookmarkStack([null]);
-    }
-  }, [issuedCertsPageSize, issuedCertsDebouncedSearchTermCN, issuedCertsDebouncedSearchTermSN, issuedCertsStatusFilter, issuedCertsSortConfig, activeTab]);
-
-
-  const mockLamassuMetadata = caId ? {
-    caId: caDetails?.id,
-    name: caDetails?.name,
-    status: caDetails?.status,
+  const mockLamassuMetadata = caDetails ? { // Ensure caDetails is not null
+    caId: caDetails.id,
+    name: caDetails.name,
+    status: caDetails.status,
     configuration: {
-      maxPathLength: caDetails?.issuer === 'Self-signed' ? -1 : (caDetails?.children && caDetails.children.length > 0 ? 1 : 0),
-      crlDistributionPoints: [`http://crl.example.com/${caDetails?.id.replace(/-/g, '')}.crl`],
-      ocspServers: [`http://ocsp.example.com/${caDetails?.id.replace(/-/g, '')}`],
+      maxPathLength: caDetails.issuer === 'Self-signed' ? -1 : (caDetails.children && caDetails.children.length > 0 ? 1 : 0),
+      crlDistributionPoints: [`http://crl.example.com/${caDetails.id.replace(/-/g, '')}.crl`],
+      ocspServers: [`http://ocsp.example.com/${caDetails.id.replace(/-/g, '')}`],
       defaultCertificateLifetime: '365d',
       allowedKeyTypes: ['RSA 2048', 'ECDSA P-256'],
     },
@@ -167,6 +148,20 @@ export default function CertificateAuthorityDetailsClient() {
       { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), action: "Certificate Issued (SN: ...)", user: "system" },
     ]
   } : {};
+
+
+  useEffect(() => {
+    const cnHandler = setTimeout(() => setIssuedCertsDebouncedSearchTermCN(issuedCertsSearchTermCN), 500);
+    const snHandler = setTimeout(() => setIssuedCertsDebouncedSearchTermSN(issuedCertsSearchTermSN), 500);
+    return () => { clearTimeout(cnHandler); clearTimeout(snHandler); };
+  }, [issuedCertsSearchTermCN, issuedCertsSearchTermSN]);
+
+  useEffect(() => {
+    if (activeTab === 'issued') {
+      setIssuedCertsCurrentPageIndex(0);
+      setIssuedCertsBookmarkStack([null]);
+    }
+  }, [issuedCertsPageSize, issuedCertsDebouncedSearchTermCN, issuedCertsDebouncedSearchTermSN, issuedCertsStatusFilter, issuedCertsSortConfig, activeTab]);
 
   useEffect(() => {
     const loadCAs = async () => {
@@ -192,13 +187,13 @@ export default function CertificateAuthorityDetailsClient() {
   }, [user?.access_token, isAuthenticated, authLoading]);
 
   useEffect(() => {
-    if (isLoadingCAs || !caId || allCertificateAuthoritiesData.length === 0) {
+    if (isLoadingCAs || !caIdFromUrl || allCertificateAuthoritiesData.length === 0) {
       setCaDetails(null);
       setCaPathToRoot([]);
       setFullChainPemString('');
       return;
     }
-    const foundCa = findCaById(caId, allCertificateAuthoritiesData);
+    const foundCa = findCaById(caIdFromUrl, allCertificateAuthoritiesData);
     setCaDetails(foundCa);
     if (foundCa) {
       const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
@@ -207,82 +202,97 @@ export default function CertificateAuthorityDetailsClient() {
       setFullChainPemString(chainPem);
       setPlaceholderSerial(`${Math.random().toString(16).slice(2,10)}:${Math.random().toString(16).slice(2,10)}`);
     } else {
-      setErrorCAs(`CA with ID "${caId}" not found.`);
+      setErrorCAs(`CA with ID "${caIdFromUrl}" not found.`);
     }
-  }, [caId, allCertificateAuthoritiesData, isLoadingCAs]);
+  }, [caIdFromUrl, allCertificateAuthoritiesData, isLoadingCAs]);
 
-
-  const loadIssuedCertificatesByCa = useCallback(async (bookmark: string | null) => {
-    if (!caDetails?.id || !isAuthenticated() || !user?.access_token) {
-      setErrorIssuedCerts("Cannot load certificates: Missing CA ID or user not authenticated.");
-      return;
-    }
-    setIsLoadingIssuedCerts(true);
-    setErrorIssuedCerts(null);
-    try {
-      const apiParams = new URLSearchParams();
-      if (issuedCertsSortConfig) {
-        let sortByApiField = '';
-        switch (issuedCertsSortConfig.column) {
-          case 'subject': sortByApiField = 'subject.common_name'; break;
-          case 'serialNumber': sortByApiField = 'serial_number'; break;
-          case 'expires': sortByApiField = 'valid_to'; break;
-          case 'status': sortByApiField = 'status'; break;
-          default: sortByApiField = 'valid_from'; 
-        }
-        apiParams.append('sort_by', sortByApiField);
-        apiParams.append('sort_mode', issuedCertsSortConfig.direction);
-      } else {
-        apiParams.append('sort_by', 'valid_from'); // Default sort
-        apiParams.append('sort_mode', 'desc');
-      }
-
-      apiParams.append('page_size', issuedCertsPageSize);
-      if (bookmark) apiParams.append('bookmark', bookmark);
-
-      const filtersToApply: string[] = [];
-      if (issuedCertsStatusFilter !== API_STATUS_VALUES_FOR_FILTER.ALL) {
-        filtersToApply.push(`status[equal]${issuedCertsStatusFilter}`);
-      }
-      if (issuedCertsDebouncedSearchTermCN.trim() !== '') {
-        filtersToApply.push(`subject.common_name[contains]${issuedCertsDebouncedSearchTermCN.trim()}`);
-      }
-      if (issuedCertsDebouncedSearchTermSN.trim() !== '') {
-        filtersToApply.push(`serial_number[contains]${issuedCertsDebouncedSearchTermSN.trim()}`);
-      }
-      filtersToApply.forEach(f => apiParams.append('filter', f));
-      
-      const result = await fetchIssuedCertificates({
-        accessToken: user.access_token,
-        apiQueryString: apiParams.toString(),
-        forCaId: caDetails.id,
-      });
-      setIssuedCertificatesList(result.certificates);
-      setIssuedCertsNextTokenFromApi(result.nextToken);
-    } catch (err: any) {
-      setErrorIssuedCerts(err.message || 'Failed to load issued certificates for this CA.');
-      setIssuedCertificatesList([]);
-      setIssuedCertsNextTokenFromApi(null);
-    } finally {
-      setIsLoadingIssuedCerts(false);
-    }
-  }, [
-    caDetails?.id, user?.access_token, isAuthenticated, 
-    issuedCertsPageSize, issuedCertsSortConfig, 
-    issuedCertsDebouncedSearchTermCN, issuedCertsDebouncedSearchTermSN, issuedCertsStatusFilter
-  ]);
-
+  // Refactored data fetching for issued certificates
   useEffect(() => {
-    if (activeTab === 'issued' && caDetails?.id) {
-      // This effect triggers the API call when relevant state changes (filters, sort, pagination, or tab activation).
-      // Pagination reset useEffects handle resetting to first page on filter/sort changes.
-      loadIssuedCertificatesByCa(issuedCertsBookmarkStack[issuedCertsCurrentPageIndex]);
+    const actualLoadIssuedCertificatesByCa = async (
+      currentCaId: string,
+      accessToken: string,
+      bookmark: string | null,
+      pageSize: string,
+      sortConfig: IssuedCertSortConfig | null,
+      filterCN: string,
+      filterSN: string,
+      filterStatus: ApiStatusFilterValue
+    ) => {
+      setIsLoadingIssuedCerts(true);
+      setErrorIssuedCerts(null);
+      try {
+        const apiParams = new URLSearchParams();
+        if (sortConfig) {
+          let sortByApiField = '';
+          switch (sortConfig.column) {
+            case 'subject': sortByApiField = 'subject.common_name'; break;
+            case 'serialNumber': sortByApiField = 'serial_number'; break;
+            case 'expires': sortByApiField = 'valid_to'; break;
+            case 'status': sortByApiField = 'status'; break;
+            default: sortByApiField = 'valid_from';
+          }
+          apiParams.append('sort_by', sortByApiField);
+          apiParams.append('sort_mode', sortConfig.direction);
+        } else {
+          apiParams.append('sort_by', 'valid_from');
+          apiParams.append('sort_mode', 'desc');
+        }
+
+        apiParams.append('page_size', pageSize);
+        if (bookmark) apiParams.append('bookmark', bookmark);
+
+        const filtersToApply: string[] = [];
+        if (filterStatus !== API_STATUS_VALUES_FOR_FILTER.ALL) {
+          filtersToApply.push(`status[equal]${filterStatus}`);
+        }
+        if (filterCN.trim() !== '') {
+          filtersToApply.push(`subject.common_name[contains]${filterCN.trim()}`);
+        }
+        if (filterSN.trim() !== '') {
+          filtersToApply.push(`serial_number[contains]${filterSN.trim()}`);
+        }
+        filtersToApply.forEach(f => apiParams.append('filter', f));
+
+        const result = await fetchIssuedCertificates({
+          accessToken: accessToken,
+          apiQueryString: apiParams.toString(),
+          forCaId: currentCaId,
+        });
+        setIssuedCertificatesList(result.certificates);
+        setIssuedCertsNextTokenFromApi(result.nextToken);
+      } catch (err: any) {
+        setErrorIssuedCerts(err.message || 'Failed to load issued certificates for this CA.');
+        setIssuedCertificatesList([]);
+        setIssuedCertsNextTokenFromApi(null);
+      } finally {
+        setIsLoadingIssuedCerts(false);
+      }
+    };
+
+    if (activeTab === 'issued' && caDetails?.id && isAuthenticated() && user?.access_token) {
+      actualLoadIssuedCertificatesByCa(
+        caDetails.id,
+        user.access_token,
+        issuedCertsBookmarkStack[issuedCertsCurrentPageIndex],
+        issuedCertsPageSize,
+        issuedCertsSortConfig,
+        issuedCertsDebouncedSearchTermCN,
+        issuedCertsDebouncedSearchTermSN,
+        issuedCertsStatusFilter
+      );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps 
   }, [
-      activeTab, caDetails?.id, 
-      issuedCertsCurrentPageIndex, // For pagination changes
-      issuedCertsPageSize, issuedCertsDebouncedSearchTermCN, issuedCertsDebouncedSearchTermSN, issuedCertsStatusFilter, issuedCertsSortConfig // For filter/sort changes that reset pagination
+    activeTab,
+    caDetails?.id,
+    isAuthenticated,
+    user?.access_token,
+    issuedCertsCurrentPageIndex,
+    issuedCertsBookmarkStack,
+    issuedCertsPageSize,
+    issuedCertsSortConfig,
+    issuedCertsDebouncedSearchTermCN,
+    issuedCertsDebouncedSearchTermSN,
+    issuedCertsStatusFilter
   ]);
 
 
@@ -295,7 +305,6 @@ export default function CertificateAuthorityDetailsClient() {
       setErrorIssuedCerts(null);
     }
   }, [activeTab, caDetails?.id, issuedCertificatesList]);
-
 
   const handleCARevocation = () => {
     if (caDetails) {
@@ -334,7 +343,7 @@ export default function CertificateAuthorityDetailsClient() {
     const prevIndex = issuedCertsCurrentPageIndex - 1;
     setIssuedCertsCurrentPageIndex(prevIndex);
   };
-  
+
   const requestSortForIssuedCerts = (column: SortableIssuedCertColumn) => {
     let direction: SortDirection = 'asc';
     if (issuedCertsSortConfig && issuedCertsSortConfig.column === column && issuedCertsSortConfig.direction === 'asc') {
@@ -387,7 +396,7 @@ export default function CertificateAuthorityDetailsClient() {
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
         <FileText className="h-12 w-12 text-muted-foreground" />
-        <p className="text-muted-foreground">CA with ID "{caId || 'Unknown'}" not found or data is unavailable.</p>
+        <p className="text-muted-foreground">CA with ID "{caIdFromUrl || 'Unknown'}" not found or data is unavailable.</p>
         <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')} className="mt-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
         </Button>
@@ -397,6 +406,7 @@ export default function CertificateAuthorityDetailsClient() {
 
   let statusColorClass = '';
   let statusVariant: "default" | "secondary" | "destructive" | "outline" = "default";
+
   switch (caDetails.status) {
     case 'active':
       statusColorClass = 'bg-green-500 hover:bg-green-600';
@@ -411,8 +421,10 @@ export default function CertificateAuthorityDetailsClient() {
       statusVariant = 'destructive';
       break;
     default:
-      statusColorClass = 'bg-yellow-500 hover:bg-yellow-600';
+      statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; // Or some other default/unknown color
+      statusVariant = 'outline'; // Or a suitable default
   }
+
 
   return (
     <div className="w-full space-y-6">
@@ -539,7 +551,81 @@ export default function CertificateAuthorityDetailsClient() {
                   <AlertTitle>Error Loading Issued Certificates</AlertTitle>
                   <AlertDescription>
                     {errorIssuedCerts}
-                    <Button variant="link" onClick={() => loadIssuedCertificatesByCa(issuedCertsBookmarkStack[issuedCertsCurrentPageIndex])} className="p-0 h-auto ml-1">Try again?</Button>
+                    <Button variant="link" onClick={() => { /* Re-trigger fetch based on current params */
+                        if (caDetails?.id && user?.access_token) {
+                           // Directly call the refactored fetch logic here or a stable wrapper
+                            const actualLoadIssuedCertificatesByCa = async (
+                                currentCaId: string,
+                                accessToken: string,
+                                bookmark: string | null,
+                                pageSize: string,
+                                sortConfig: IssuedCertSortConfig | null,
+                                filterCN: string,
+                                filterSN: string,
+                                filterStatus: ApiStatusFilterValue
+                              ) => {
+                                setIsLoadingIssuedCerts(true);
+                                setErrorIssuedCerts(null);
+                                try {
+                                  const apiParams = new URLSearchParams();
+                                  if (sortConfig) {
+                                    let sortByApiField = '';
+                                    switch (sortConfig.column) {
+                                      case 'subject': sortByApiField = 'subject.common_name'; break;
+                                      case 'serialNumber': sortByApiField = 'serial_number'; break;
+                                      case 'expires': sortByApiField = 'valid_to'; break;
+                                      case 'status': sortByApiField = 'status'; break;
+                                      default: sortByApiField = 'valid_from';
+                                    }
+                                    apiParams.append('sort_by', sortByApiField);
+                                    apiParams.append('sort_mode', sortConfig.direction);
+                                  } else {
+                                    apiParams.append('sort_by', 'valid_from');
+                                    apiParams.append('sort_mode', 'desc');
+                                  }
+                          
+                                  apiParams.append('page_size', pageSize);
+                                  if (bookmark) apiParams.append('bookmark', bookmark);
+                          
+                                  const filtersToApply: string[] = [];
+                                  if (filterStatus !== API_STATUS_VALUES_FOR_FILTER.ALL) {
+                                    filtersToApply.push(`status[equal]${filterStatus}`);
+                                  }
+                                  if (filterCN.trim() !== '') {
+                                    filtersToApply.push(`subject.common_name[contains]${filterCN.trim()}`);
+                                  }
+                                  if (filterSN.trim() !== '') {
+                                    filtersToApply.push(`serial_number[contains]${filterSN.trim()}`);
+                                  }
+                                  filtersToApply.forEach(f => apiParams.append('filter', f));
+                          
+                                  const result = await fetchIssuedCertificates({
+                                    accessToken: accessToken,
+                                    apiQueryString: apiParams.toString(),
+                                    forCaId: currentCaId,
+                                  });
+                                  setIssuedCertificatesList(result.certificates);
+                                  setIssuedCertsNextTokenFromApi(result.nextToken);
+                                } catch (errInner: any) {
+                                  setErrorIssuedCerts(errInner.message || 'Failed to load issued certificates for this CA.');
+                                  setIssuedCertificatesList([]);
+                                  setIssuedCertsNextTokenFromApi(null);
+                                } finally {
+                                  setIsLoadingIssuedCerts(false);
+                                }
+                              };
+                              actualLoadIssuedCertificatesByCa(
+                                caDetails.id,
+                                user.access_token,
+                                issuedCertsBookmarkStack[issuedCertsCurrentPageIndex],
+                                issuedCertsPageSize,
+                                issuedCertsSortConfig,
+                                issuedCertsDebouncedSearchTermCN,
+                                issuedCertsDebouncedSearchTermSN,
+                                issuedCertsStatusFilter
+                              );
+                        }
+                    }} className="p-0 h-auto ml-1">Try again?</Button>
                   </AlertDescription>
                 </Alert>
               )}
@@ -637,3 +723,4 @@ export default function CertificateAuthorityDetailsClient() {
     </div>
   );
 }
+
