@@ -436,10 +436,47 @@ export default function CreateCertificateAuthorityPage() {
         <div className="p-6 pt-0">
           <form onSubmit={handleSubmit} className="space-y-8">
 
+             {selectedMode === 'newKeyPair' && (
+                <section>
+                    <h3 className="text-lg font-semibold mb-3 flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground" />KMS: New Key Pair Generation settings</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="cryptoEngine">Crypto Engine</Label>
+                            <CryptoEngineSelector
+                                value={cryptoEngineId}
+                                onValueChange={setCryptoEngineId}
+                                disabled={authLoading}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="keyType">Key Type</Label>
+                                <Select value={keyType} onValueChange={handleKeyTypeChange}>
+                                <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="keySize">{keyType === 'ECDSA' ? 'ECDSA Curve' : 'Key Size'}</Label>
+                                <Select value={keySize} onValueChange={setKeySize}>
+                                <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {currentKeySizeOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            )}
+
             {selectedMode !== 'importCertOnly' && (
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
-                <div className={cn("space-y-4", ['newKeyPair', 'reuseKeyPair', 'importFull'].includes(selectedMode || '') ? "" : "p-4 border rounded-md")}>
+                <div className={cn("space-y-4", ['reuseKeyPair', 'importFull'].includes(selectedMode || '') ? "p-4 border rounded-md" : "")}>
                   <div>
                     <Label htmlFor="caType">CA Type</Label>
                     <Select value={caType} onValueChange={handleCaTypeChange} disabled={selectedMode === 'importFull'}>
@@ -512,43 +549,6 @@ export default function CreateCertificateAuthorityPage() {
               </section>
             )}
             
-            {selectedMode === 'newKeyPair' && (
-                <section>
-                    <h3 className="text-lg font-semibold mb-3 flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground" />KMS: New Key Pair Generation settings</h3>
-                    <div className="space-y-4 p-4 border rounded-md">
-                        <div>
-                            <Label htmlFor="cryptoEngine">Crypto Engine</Label>
-                            <CryptoEngineSelector
-                                value={cryptoEngineId}
-                                onValueChange={setCryptoEngineId}
-                                disabled={authLoading}
-                                className="mt-1"
-                            />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="keyType">Key Type</Label>
-                                <Select value={keyType} onValueChange={handleKeyTypeChange}>
-                                <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
-                                </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label htmlFor="keySize">{keyType === 'ECDSA' ? 'ECDSA Curve' : 'Key Size'}</Label>
-                                <Select value={keySize} onValueChange={setKeySize}>
-                                <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {currentKeySizeOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
-                                </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            )}
-
             {selectedMode === 'reuseKeyPair' && (
                  <section>
                     <h3 className="text-lg font-semibold mb-3 flex items-center"><Repeat className="mr-2 h-5 w-5 text-muted-foreground" />KMS: Reuse Existing Key Pair settings</h3>
