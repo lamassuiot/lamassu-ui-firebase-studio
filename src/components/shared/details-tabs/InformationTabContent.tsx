@@ -215,7 +215,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <AccordionTrigger className={cn(accordionTriggerStyle)}>
               <Network className="mr-2 h-5 w-5" /> Issuance Chain
             </AccordionTrigger>
-            <AccordionContent className="px-4 pt-3">
+            <AccordionContent className="space-y-4 p-4 pt-3">
               <div className="flex flex-col items-center w-full">
                 {/* Render the CA chain first */}
                 {certificateSpecific.certificateChainForVisualizer.map((caNode, index) => (
@@ -231,7 +231,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                 {/* Render the end-entity certificate (current item) last */}
                 <div
                   className={cn(
-                    "w-full max-w-sm border-2 rounded-lg p-3 shadow-lg mt-0",
+                    "w-full max-w-sm border-2 rounded-lg p-3 shadow-lg mt-0", // mt-0 ensures it follows directly after the last CA
                     "bg-primary/10 border-primary" // Highlighting for "this" certificate
                   )}
                 >
