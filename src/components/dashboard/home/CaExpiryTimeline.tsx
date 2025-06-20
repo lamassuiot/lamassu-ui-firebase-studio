@@ -22,9 +22,8 @@ import {
 } from 'recharts';
 import {
   ChartContainer,
-  ChartTooltipContent as ShadcnChartTooltipContent,
   type ChartConfig
-} from "@/components/ui/chart";
+} from "@/components/ui/chart"; // ChartTooltipContent removed as not directly used
 
 interface CaExpiryTimelineProps {
   cas: CA[];
@@ -43,7 +42,7 @@ const chartConfig = {
   expired: { label: "Expired", color: "hsl(30 80% 55%)", icon: AlertCircle }, 
   revoked: { label: "Revoked", color: "hsl(0 72% 51%)", icon: XCircle }, 
   now: { label: "Now", color: "hsl(var(--accent))", icon: CalendarClock }, 
-  timeline: { label: "CA Expiry", color: "hsl(var(--primary))" } // Changed for visibility on white
+  timeline: { label: "CA Expiry", color: "hsl(var(--primary))" }
 } satisfies ChartConfig;
 
 const MIN_TIMELINE_DURATION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -68,7 +67,7 @@ const CustomDot = (props: any) => {
       cy={cy}
       r={6}
       fill={dotFill}
-      stroke="hsl(var(--background))" // Stroke with card background for contrast
+      stroke="hsl(var(--background))"
       strokeWidth={1.5}
     />
   );
@@ -167,7 +166,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
   const handleBrushChange = (newBrushState: { startIndex?: number; endIndex?: number } | undefined) => {
     if (newBrushState && newBrushState.startIndex != null && newBrushState.endIndex != null && lineChartData.length > 0) {
         const { startIndex, endIndex } = newBrushState;
-        if (startIndex === endIndex && lineChartData.length > 1) { // Avoid zooming if only one point or same start/end
+        if (startIndex === endIndex && lineChartData.length > 1) { 
              const singlePointTime = lineChartData[startIndex].timestamp;
              setViewStartDate(new Date(singlePointTime - MIN_TIMELINE_DURATION_MS / 20));
              setViewEndDate(new Date(singlePointTime + MIN_TIMELINE_DURATION_MS / 20));
@@ -184,10 +183,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                 setViewEndDate(newViewEnd);
             }
         } else {
-            // If startIndex >= endIndex but not equal (e.g. if brush allows inverse selection)
-            // or if lineChartData has only 1 item. For now, we'll handle this by not changing view
-            // or reset if that makes more sense. Here, we'll just try to set based on startIndex
-            // to prevent total freeze, ensuring some minimum duration.
             const singlePointTime = lineChartData[startIndex].timestamp;
             setViewStartDate(new Date(singlePointTime - MIN_TIMELINE_DURATION_MS / 20));
             setViewEndDate(new Date(singlePointTime + MIN_TIMELINE_DURATION_MS / 20));
@@ -214,7 +209,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
           <CardDescription>Visual overview of Certificate Authority expiry dates.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="p-4 text-center text-muted-foreground h-[200px] flex items-center justify-center">No CA data or initial view not configured.</div>
+          <div className="p-4 text-center text-muted-foreground h-[100px] md:h-[120px] flex items-center justify-center">No CA data or initial view not configured.</div>
         </CardContent>
       </Card>
     );
@@ -233,7 +228,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-2 pb-4 px-2 md:px-4 h-[300px] md:h-[350px]">
+      <CardContent className="pt-2 pb-4 px-2 md:px-4 h-[100px] md:h-[120px]">
         <ChartContainer config={chartConfig} className="w-full h-full">
           <LineChart
             data={lineChartData}
@@ -270,8 +265,8 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
             <Line
               type="step"
               dataKey="yValue"
-              stroke={chartConfig.timeline.color}
-              strokeWidth={1.5} // Slightly thicker line
+              stroke="hsl(var(--primary))" 
+              strokeWidth={1.5} 
               dot={<CustomDot />}
               activeDot={{ r: 8, strokeWidth: 2, stroke: 'hsl(var(--primary))' }}
               isAnimationActive={false}
@@ -286,10 +281,10 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
               endIndex={brushEndIndex}
               onChange={handleBrushChange}
               tickFormatter={(unixTime) => format(new Date(unixTime), 'MMM yy')}
-              className="text-muted-foreground" // For text inside brush
+              className="text-muted-foreground" 
             >
               <LineChart>
-                 <Line type="monotone" dataKey="yValue" stroke={chartConfig.timeline.color} dot={false} activeDot={false} />
+                 <Line type="monotone" dataKey="yValue" stroke="hsl(var(--primary))" dot={false} activeDot={false} />
               </LineChart>
             </Brush>
           </LineChart>
