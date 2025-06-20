@@ -54,7 +54,11 @@ export default function VerificationAuthoritiesPage() {
       const fetchedCAs = await fetchAndProcessCAs(user.access_token);
       setAvailableCAs(fetchedCAs);
     } catch (err: any) {
-      setErrorCAs(err.message || 'Failed to load available CAs.');
+      let errorMessage = 'Failed to load available CAs.';
+      if (err instanceof Error && err.message) {
+        errorMessage = err.message;
+      }
+      setErrorCAs(errorMessage);
       setAvailableCAs([]);
     } finally {
       setIsLoadingCAs(false);
@@ -123,14 +127,14 @@ export default function VerificationAuthoritiesPage() {
         </div>
         <div className="p-6 pt-0"> 
           <div className="mb-6 space-y-1">
-            <Label htmlFor="ca-select-button" className="text-base font-medium">
+            <Label htmlFor="ca-select-button" className="block text-base font-medium">
                 Select Certificate Authority to Configure
             </Label>
             <Button
                 id="ca-select-button"
                 variant="outline"
                 onClick={() => setIsCaSelectModalOpen(true)}
-                className="w-full md:w-2/3 lg:w-1/2 justify-start text-left font-normal mt-1"
+                className="w-full md:w-2/3 lg:w-1/2 justify-start text-left font-normal"
                 disabled={isLoadingCAs || authLoading}
             >
                 {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (selectedCaForConfig ? `${selectedCaForConfig.name} (${selectedCaForConfig.id.substring(0,8)}...)` : "Click to Select a CA...")}
@@ -191,7 +195,7 @@ export default function VerificationAuthoritiesPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="va-subjectKeyIDSigner">Subject Key ID Signer CA</Label>
+                  <Label htmlFor="va-subjectKeyIDSigner" className="block">Subject Key ID Signer CA</Label>
                   <Button
                     id="va-subjectKeyIDSigner"
                     type="button"
