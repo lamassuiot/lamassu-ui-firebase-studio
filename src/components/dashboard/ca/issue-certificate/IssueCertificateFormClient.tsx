@@ -141,15 +141,15 @@ export default function IssueCertificateFormClient() {
           name: "RSASSA-PKCS1-v1_5",
           modulusLength: parseInt(selectedRsaKeySize, 10),
           publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
-          hash: "SHA-256", // pkijs sign() will use this hash with the key's algorithm
+          hash: "SHA-256", 
         };
         keyUsages = ["sign", "verify"];
         webCryptoHashName = "SHA-256";
       } else if (selectedAlgorithm === 'ECDSA') {
-        let curveNameForWebCrypto: string = selectedEcdsaCurve; // P-256, P-384, P-521
+        let curveNameForWebCrypto: string = selectedEcdsaCurve; 
         if (selectedEcdsaCurve === 'P-256') webCryptoHashName = "SHA-256";
         else if (selectedEcdsaCurve === 'P-384') webCryptoHashName = "SHA-384";
-        else webCryptoHashName = "SHA-512"; // P-521 usually with SHA-512
+        else webCryptoHashName = "SHA-512"; 
 
         algorithmDetails = {
           name: "ECDSA",
@@ -168,21 +168,18 @@ export default function IssueCertificateFormClient() {
       const privateKeyBuffer = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
       setGeneratedPrivateKeyPem(formatAsPem(arrayBufferToBase64(privateKeyBuffer), 'PRIVATE KEY'));
       
-      // --- Create CSR using pkijs ---
       const pkcs10 = new CertificationRequest();
       pkcs10.version = 0;
 
-      // Subject DN
       if (country.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.6", value: new asn1js.PrintableString({ value: country.trim() }) })); // C
-      if (stateProvince.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.8", value: new asn1js.UTF8String({ value: stateProvince.trim() }) })); // ST
-      if (locality.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.7", value: new asn1js.UTF8String({ value: locality.trim() }) })); // L
-      if (organization.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.10", value: new asn1js.UTF8String({ value: organization.trim() }) })); // O
-      if (organizationalUnit.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.11", value: new asn1js.UTF8String({ value: organizationalUnit.trim() }) })); // OU
-      pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.UTF8String({ value: commonName.trim() }) })); // CN
+      if (stateProvince.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.8", value: new asn1js.Utf8String({ value: stateProvince.trim() }) })); // ST
+      if (locality.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.7", value: new asn1js.Utf8String({ value: locality.trim() }) })); // L
+      if (organization.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.10", value: new asn1js.Utf8String({ value: organization.trim() }) })); // O
+      if (organizationalUnit.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.11", value: new asn1js.Utf8String({ value: organizationalUnit.trim() }) })); // OU
+      pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: commonName.trim() }) })); // CN
 
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
 
-      // Handle SANs (Simplified for DNS only for now)
       const sanArray = sans.split(',').map(s => s.trim()).filter(s => s);
       const generalNames: GeneralName[] = [];
       if (sanArray.length > 0) {
@@ -190,16 +187,12 @@ export default function IssueCertificateFormClient() {
           if (san.toLowerCase().startsWith('dns:')) {
             generalNames.push(new GeneralName({ type: 2, value: san.substring(4) }));
           } else if (san.toLowerCase().startsWith('ip:')) {
-             // IP SANs are more complex to encode directly into GeneralName without external IP parsing/encoding libs
-             // For now, we'll add a note or skip, focusing on DNS.
              console.warn(`IP SAN '${san}' detected. Proper ASN.1 OCTET STRING encoding for IP SANs is complex and not fully implemented here. It might not be correctly processed by CAs.`);
-             // To truly support: parse IP to byte array, then new asn1js.OctetString({ valueHex: ipByteArray })
-             // generalNames.push(new GeneralName({ type: 7, value: san.substring(3) })); // This is incorrect, value needs to be OctetString
-          } else if (san.includes('@')) { // Basic email check
-            generalNames.push(new GeneralName({ type: 1, value: san })); // rfc822Name
-          } else if (san.includes('://')) { // Basic URI check
-            generalNames.push(new GeneralName({ type: 6, value: san })); // uniformResourceIdentifier
-          } else if (san) { // Default to DNS if no prefix
+          } else if (san.includes('@')) { 
+            generalNames.push(new GeneralName({ type: 1, value: san })); 
+          } else if (san.includes('://')) { 
+            generalNames.push(new GeneralName({ type: 6, value: san })); 
+          } else if (san) { 
             generalNames.push(new GeneralName({ type: 2, value: san }));
           }
         });
@@ -207,24 +200,22 @@ export default function IssueCertificateFormClient() {
         if (generalNames.length > 0) {
           const altNames = new GeneralNames({ names: generalNames });
           const subjectAltNameExtension = new Extension({
-            extnID: "2.5.29.17", // subjectAlternativeName
+            extnID: "2.5.29.17", 
             critical: false,
             extnValue: altNames.toSchema().toBER(false)
           });
           pkcs10.attributes = pkcs10.attributes || [];
-          pkcs10.attributes.push(new AttributeTypeAndValue({ // Using AttributeTypeAndValue structure for attribute
-            type: "1.2.840.113549.1.9.14", // pkcs-9-at-extensionRequest
+          pkcs10.attributes.push(new AttributeTypeAndValue({ 
+            type: "1.2.840.113549.1.9.14", 
             values: [new Extensions({ extensions: [subjectAltNameExtension] }).toSchema()]
           }));
         }
       }
       
-      // Add BasicConstraints: CA:FALSE if not already present and it's not a CA request (which this form isn't)
-      // This is good practice for end-entity certs.
       const basicConstraints = new BasicConstraints({ cA: false });
       const basicConstraintsExtension = new Extension({
-          extnID: "2.5.29.19", // basicConstraints
-          critical: true, // Usually critical for end-entity certs
+          extnID: "2.5.29.19", 
+          critical: true, 
           extnValue: basicConstraints.toSchema().toBER(false)
       });
        if (!pkcs10.attributes) pkcs10.attributes = [];
@@ -242,13 +233,12 @@ export default function IssueCertificateFormClient() {
             }));
        }
 
-
-      await pkcs10.sign(keyPair.privateKey, webCryptoHashName); // pkijs handles OID mapping
+      await pkcs10.sign(keyPair.privateKey, webCryptoHashName); 
 
       const csrDerBuffer = pkcs10.toSchema().toBER(false);
       const signedCsrPem = formatAsPem(arrayBufferToBase64(csrDerBuffer), 'CERTIFICATE REQUEST');
       setGeneratedCsrPem(signedCsrPem);
-      setCsrPem(signedCsrPem); // Auto-populate the main CSR field
+      setCsrPem(signedCsrPem); 
 
     } catch (error: any) {
       console.error("Key pair or CSR generation error:", error);
@@ -347,7 +337,6 @@ export default function IssueCertificateFormClient() {
                     className="mt-1 font-mono bg-background" 
                     value={csrPem}
                     onChange={(e) => { setCsrPem(e.target.value); if (generatedCsrPem) { setGeneratedCsrPem(''); setGeneratedPrivateKeyPem(''); setGeneratedKeyPair(null); } }}
-                    // disabled={!!generatedCsrPem} 
                 />
                 {generatedCsrPem && <p className="text-xs text-amber-600 dark:text-amber-400">CSR field auto-populated from generated key. Manual edits will clear generated key/CSR.</p>}
               </div>
