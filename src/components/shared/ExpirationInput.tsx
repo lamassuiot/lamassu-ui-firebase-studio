@@ -82,7 +82,7 @@ export const ExpirationInput: React.FC<ExpirationInputProps> = ({
   return (
     <div className="space-y-2">
       <Label htmlFor={`${idPrefix}-type`}>{label}</Label>
-      <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-2 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-2 items-start">
         <Select value={currentType} onValueChange={(val) => handleTypeChange(val as ExpirationType)}>
           <SelectTrigger id={`${idPrefix}-type`}>
             <SelectValue placeholder="Select type" />
