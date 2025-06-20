@@ -118,7 +118,7 @@ export default function IssueCertificateFormClient() {
   
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [isCsrGenerated, setIsCsrGenerated] = useState<boolean>(false); // New state for generate mode
+  const [isCsrGenerated, setIsCsrGenerated] = useState<boolean>(false); 
 
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('RSA');
   const [selectedRsaKeySize, setSelectedRsaKeySize] = useState<string>('2048');
@@ -139,10 +139,9 @@ export default function IssueCertificateFormClient() {
     }
   }, []);
 
-  // Reset CSR related states when mode changes or subject details change after generation
   useEffect(() => {
     if (issuanceMode === 'generate') {
-      setIsCsrGenerated(false); // Reset generation status if user changes subject info
+      setIsCsrGenerated(false); 
     }
   }, [commonName, organization, organizationalUnit, country, stateProvince, locality, dnsSans, ipSans, emailSans, uriSans, selectedAlgorithm, selectedRsaKeySize, selectedEcdsaCurve, issuanceMode]);
 
@@ -155,7 +154,6 @@ export default function IssueCertificateFormClient() {
     setGeneratedKeyPair(null);
     setGenerationError(null);
     setIsCsrGenerated(false);
-    // commonName etc. are kept as they might be useful across modes or for re-generation
   };
 
   const handleModeSelection = (selectedMode: 'generate' | 'upload') => {
@@ -191,7 +189,6 @@ export default function IssueCertificateFormClient() {
         };
     }
 
-
     console.log(`Issuing certificate from CA: ${caId} with CSR and form data...`);
     console.log({
         caIdToIssueFrom: caId,
@@ -208,7 +205,7 @@ export default function IssueCertificateFormClient() {
     setGenerationError(null);
     setGeneratedPrivateKeyPem('');
     setGeneratedCsrPemForDisplay('');
-    setCsrPem(''); // Clear main CSR as we are re-generating
+    setCsrPem(''); 
     setGeneratedKeyPair(null);
     setIsCsrGenerated(false);
 
@@ -263,7 +260,6 @@ export default function IssueCertificateFormClient() {
       const pkcs10 = new CertificationRequest();
       pkcs10.version = 0;
 
-      // Order for DN might matter for some CAs, typically: C, ST, L, O, OU, CN
       if (country.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.6", value: new asn1js.PrintableString({ value: country.trim() }) }));
       if (stateProvince.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.8", value: new asn1js.Utf8String({ value: stateProvince.trim() }) }));
       if (locality.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.7", value: new asn1js.Utf8String({ value: locality.trim() }) }));
@@ -276,42 +272,43 @@ export default function IssueCertificateFormClient() {
       const preparedExtensions: Extension[] = [];
       const basicConstraints = new BasicConstraints({ cA: false });
       preparedExtensions.push(new Extension({
-        extnID: "2.5.29.19", // basicConstraints
-        critical: true, // Basic constraints for end-entity is typically critical
+        extnID: "2.5.29.19", 
+        critical: true, 
         extnValue: basicConstraints.toSchema().toBER(false)
       }));
       
       const generalNamesArray: GeneralName[] = [];
       dnsSans.split(',').map(s => s.trim()).filter(s => s).forEach(dnsName => {
-        generalNamesArray.push(new GeneralName({ type: 2, value: dnsName })); // dNSName
+        generalNamesArray.push(new GeneralName({ type: 2, value: dnsName })); 
       });
       ipSans.split(',').map(s => s.trim()).filter(s => s).forEach(ipAddress => {
         const ipBuffer = ipToBuffer(ipAddress);
         if (ipBuffer) {
-          generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) })); // iPAddress
+          generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) }));
         } else {
           console.warn(`Could not parse IP SAN: ${ipAddress}. It will be skipped.`);
         }
       });
       emailSans.split(',').map(s => s.trim()).filter(s => s).forEach(email => {
-        generalNamesArray.push(new GeneralName({ type: 1, value: email })); // rfc822Name
+        generalNamesArray.push(new GeneralName({ type: 1, value: email })); 
       });
       uriSans.split(',').map(s => s.trim()).filter(s => s).forEach(uri => {
-        generalNamesArray.push(new GeneralName({ type: 6, value: uri })); // uniformResourceIdentifier
+        generalNamesArray.push(new GeneralName({ type: 6, value: uri })); 
       });
 
       if (generalNamesArray.length > 0) {
         const altNames = new GeneralNames({ names: generalNamesArray });
         preparedExtensions.push(new Extension({
-          extnID: "2.5.29.17", // subjectAlternativeName
-          critical: false, // SAN is usually non-critical
+          extnID: "2.5.29.17", 
+          critical: false, 
           extnValue: altNames.toSchema().toBER(false)
         }));
       }
       
+      pkcs10.attributes = []; // Explicitly initialize/clear attributes
       if (preparedExtensions.length > 0) {
-        pkcs10.attributes.push(new Attribute({ // Ensure 'Attribute' is imported from pkijs
-          type: "1.2.840.113549.1.9.14", // pkcs-9-at-extensionRequest
+        pkcs10.attributes.push(new Attribute({ 
+          type: "1.2.840.113549.1.9.14", 
           values: [
             new Extensions({ extensions: preparedExtensions }).toSchema()
           ]
@@ -324,8 +321,8 @@ export default function IssueCertificateFormClient() {
       const signedCsrPem = formatAsPem(arrayBufferToBase64(csrDerBuffer), 'CERTIFICATE REQUEST');
       
       setGeneratedCsrPemForDisplay(signedCsrPem);
-      setCsrPem(signedCsrPem); // Also populate the main CSR field
-      setIsCsrGenerated(true); // Mark CSR as generated
+      setCsrPem(signedCsrPem); 
+      setIsCsrGenerated(true); 
 
     } catch (error: any) {
       console.error("Key pair or CSR generation error:", error);
@@ -343,8 +340,7 @@ export default function IssueCertificateFormClient() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        setCsrPem(content); // Populate main CSR field
-        // Clear generate-specific states if any
+        setCsrPem(content); 
         setGeneratedCsrPemForDisplay('');
         setGeneratedPrivateKeyPem('');
         setGeneratedKeyPair(null);
@@ -354,7 +350,7 @@ export default function IssueCertificateFormClient() {
       reader.readAsText(file);
     } else {
       setUploadedCsrFileName(null);
-      setCsrPem(''); // Clear CSR if file is deselected
+      setCsrPem(''); 
     }
   };
 
@@ -373,13 +369,12 @@ export default function IssueCertificateFormClient() {
       </div>
     );
   }
-  if (!caId && typeof window === 'undefined') { // For SSR or prerendering, show loading
+  if (!caId && typeof window === 'undefined') { 
     return <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
             <p className="text-muted-foreground">Loading CA information...</p>
            </div>;
   }
-
 
   if (!modeChosen) {
     return (
@@ -467,9 +462,6 @@ export default function IssueCertificateFormClient() {
             </div>
             <p className="text-sm text-muted-foreground">
                 CA: <span className="font-mono text-primary">{caId ? caId.substring(0, 12) : 'N/A'}...</span>
-                {issuanceMode === 'generate' 
-                    ? " Fill key parameters, subject, and SAN info. Then generate. Finally, issue." 
-                    : " Upload your CSR, then issue the certificate."}
             </p>
         </div>
       
@@ -583,7 +575,7 @@ export default function IssueCertificateFormClient() {
                     </section>
                     <Separator/>
                      <section>
-                        <h3 className="text-lg font-medium mb-3">4. Generated Key Material</h3>
+                        <h3 className="text-lg font-medium mb-3">4. Generated Key Material &amp; CSR</h3>
                         {generationError && (
                         <Alert variant="destructive" className="mt-2 mb-3">
                             <AlertTriangle className="h-4 w-4" />
@@ -613,11 +605,11 @@ export default function IssueCertificateFormClient() {
                                 rows={8}
                                 className="mt-1 font-mono bg-background/50"
                                 />
-                                <p className="text-xs text-muted-foreground mt-1">This CSR has been auto-filled into the main CSR field below.</p>
+                                <p className="text-xs text-muted-foreground mt-1">This CSR has been auto-filled into the main CSR field below for submission.</p>
                             </div>
                         )}
-                         {!generatedPrivateKeyPem && !generatedCsrPemForDisplay && !generationError && (
-                            <p className="text-sm text-muted-foreground">Click "Generate Key Pair &amp; CSR" in the footer after filling details above.</p>
+                         {!isCsrGenerated && !generationError && (
+                            <p className="text-sm text-muted-foreground">Click "Generate Key Pair &amp; CSR" in the footer after filling key, subject, and SAN details.</p>
                          )}
                     </section>
                 </>
@@ -638,9 +630,6 @@ export default function IssueCertificateFormClient() {
                                 />
                                 {uploadedCsrFileName && <p className="text-xs text-muted-foreground">Selected file: {uploadedCsrFileName}. Content loaded into CSR field below.</p>}
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                Subject, SANs, and key information will be extracted from the uploaded CSR by the Certificate Authority.
-                            </p>
                         </div>
                     </section>
                 )}
@@ -659,12 +648,8 @@ export default function IssueCertificateFormClient() {
                             onChange={(e) => {
                                 setCsrPem(e.target.value);
                                 if (issuanceMode === 'generate') {
-                                    setGeneratedCsrPemForDisplay(''); // Clear display if manually edited
-                                    setIsCsrGenerated(false); // Requires re-generation or indicates manual override
+                                    setIsCsrGenerated(false); 
                                 }
-                                // Clear other generate-specific states if user manually edits CSR
-                                setGeneratedPrivateKeyPem('');
-                                setGeneratedKeyPair(null);
                                 setUploadedCsrFileName(null);
                             }}
                             required
@@ -679,18 +664,11 @@ export default function IssueCertificateFormClient() {
                         <Button 
                             type="button" 
                             size="lg" 
-                            onClick={async () => { 
-                                await handleGenerateKeyPairAndCsr(); 
-                                // Check if generation was successful before setting isCsrGenerated
-                                // This relies on generatedCsrPemForDisplay being set AND no error
-                                if (generatedCsrPemForDisplay && !generationError) {
-                                    // Defer setIsCsrGenerated to allow state to update and re-render button
-                                    // This check happens inside handleGenerateKeyPairAndCsr now.
-                                }
-                            }}
+                            onClick={handleGenerateKeyPairAndCsr}
                             disabled={isGenerating || !commonName.trim()}
                         >
-                            <KeyRound className="mr-2 h-5 w-5" /> Generate Key Pair &amp; CSR
+                            {isGenerating ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <KeyRound className="mr-2 h-5 w-5" />} 
+                            Generate Key Pair &amp; CSR
                         </Button>
                     )}
                     {issuanceMode === 'generate' && isCsrGenerated && (
@@ -711,6 +689,6 @@ export default function IssueCertificateFormClient() {
   );
 }
     
-
     
+
 
