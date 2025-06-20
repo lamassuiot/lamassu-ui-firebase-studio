@@ -157,7 +157,6 @@ export default function CertificateAuthorityDetailsClient() {
   }, [issuedCertsSearchTermCN, issuedCertsSearchTermSN]);
 
   useEffect(() => {
-    // This effect resets pagination when filters or sorting change for the 'issued' tab.
     if (activeTab === 'issued') {
       setIssuedCertsCurrentPageIndex(0);
       setIssuedCertsBookmarkStack([null]);
@@ -207,69 +206,68 @@ export default function CertificateAuthorityDetailsClient() {
     }
   }, [caIdFromUrl, allCertificateAuthoritiesData, isLoadingCAs]);
 
-  // Effect for fetching issued certificates
-  useEffect(() => {
-    const actualLoadIssuedCertificatesByCa = async (
-      currentCaId: string,
-      accessToken: string,
-      bookmark: string | null,
-      pageSize: string,
-      sortConfig: IssuedCertSortConfig | null,
-      filterCN: string,
-      filterSN: string,
-      filterStatus: ApiStatusFilterValue
-    ) => {
-      setIsLoadingIssuedCerts(true);
-      setErrorIssuedCerts(null);
-      try {
-        const apiParams = new URLSearchParams();
-        if (sortConfig) {
-          let sortByApiField = '';
-          switch (sortConfig.column) {
-            case 'subject': sortByApiField = 'subject.common_name'; break;
-            case 'serialNumber': sortByApiField = 'serial_number'; break;
-            case 'expires': sortByApiField = 'valid_to'; break;
-            case 'status': sortByApiField = 'status'; break;
-            default: sortByApiField = 'valid_from';
-          }
-          apiParams.append('sort_by', sortByApiField);
-          apiParams.append('sort_mode', sortConfig.direction);
-        } else {
-          apiParams.append('sort_by', 'valid_from');
-          apiParams.append('sort_mode', 'desc');
+  const actualLoadIssuedCertificatesByCa = useCallback(async (
+    currentCaId: string,
+    accessToken: string,
+    bookmark: string | null,
+    pageSize: string,
+    sortConfig: IssuedCertSortConfig | null,
+    filterCN: string,
+    filterSN: string,
+    filterStatus: ApiStatusFilterValue
+  ) => {
+    setIsLoadingIssuedCerts(true);
+    setErrorIssuedCerts(null);
+    try {
+      const apiParams = new URLSearchParams();
+      if (sortConfig) {
+        let sortByApiField = '';
+        switch (sortConfig.column) {
+          case 'subject': sortByApiField = 'subject.common_name'; break;
+          case 'serialNumber': sortByApiField = 'serial_number'; break;
+          case 'expires': sortByApiField = 'valid_to'; break;
+          case 'status': sortByApiField = 'status'; break;
+          default: sortByApiField = 'valid_from';
         }
-
-        apiParams.append('page_size', pageSize);
-        if (bookmark) apiParams.append('bookmark', bookmark);
-
-        const filtersToApply: string[] = [];
-        if (filterStatus !== API_STATUS_VALUES_FOR_FILTER.ALL) {
-          filtersToApply.push(`status[equal]${filterStatus}`);
-        }
-        if (filterCN.trim() !== '') {
-          filtersToApply.push(`subject.common_name[contains]${filterCN.trim()}`);
-        }
-        if (filterSN.trim() !== '') {
-          filtersToApply.push(`serial_number[contains]${filterSN.trim()}`);
-        }
-        filtersToApply.forEach(f => apiParams.append('filter', f));
-
-        const result = await fetchIssuedCertificates({
-          accessToken: accessToken,
-          apiQueryString: apiParams.toString(),
-          forCaId: currentCaId,
-        });
-        setIssuedCertificatesList(result.certificates);
-        setIssuedCertsNextTokenFromApi(result.nextToken);
-      } catch (err: any) {
-        setErrorIssuedCerts(err.message || 'Failed to load issued certificates for this CA.');
-        setIssuedCertificatesList([]);
-        setIssuedCertsNextTokenFromApi(null);
-      } finally {
-        setIsLoadingIssuedCerts(false);
+        apiParams.append('sort_by', sortByApiField);
+        apiParams.append('sort_mode', sortConfig.direction);
+      } else {
+        apiParams.append('sort_by', 'valid_from');
+        apiParams.append('sort_mode', 'desc');
       }
-    };
-    
+
+      apiParams.append('page_size', pageSize);
+      if (bookmark) apiParams.append('bookmark', bookmark);
+
+      const filtersToApply: string[] = [];
+      if (filterStatus !== API_STATUS_VALUES_FOR_FILTER.ALL) {
+        filtersToApply.push(`status[equal]${filterStatus}`);
+      }
+      if (filterCN.trim() !== '') {
+        filtersToApply.push(`subject.common_name[contains]${filterCN.trim()}`);
+      }
+      if (filterSN.trim() !== '') {
+        filtersToApply.push(`serial_number[contains]${filterSN.trim()}`);
+      }
+      filtersToApply.forEach(f => apiParams.append('filter', f));
+
+      const result = await fetchIssuedCertificates({
+        accessToken: accessToken,
+        apiQueryString: apiParams.toString(),
+        forCaId: currentCaId,
+      });
+      setIssuedCertificatesList(result.certificates);
+      setIssuedCertsNextTokenFromApi(result.nextToken);
+    } catch (err: any) {
+      setErrorIssuedCerts(err.message || 'Failed to load issued certificates for this CA.');
+      setIssuedCertificatesList([]);
+      setIssuedCertsNextTokenFromApi(null);
+    } finally {
+      setIsLoadingIssuedCerts(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'issued' && caDetails?.id && isAuthenticated() && user?.access_token) {
       actualLoadIssuedCertificatesByCa(
         caDetails.id,
@@ -288,29 +286,24 @@ export default function CertificateAuthorityDetailsClient() {
     isAuthenticated,
     user?.access_token,
     issuedCertsCurrentPageIndex,
-    // Use the specific bookmark for the current page as a dependency
-    // This is a string or null, so it's a stable primitive value.
-    issuedCertsBookmarkStack[issuedCertsCurrentPageIndex], 
+    issuedCertsBookmarkStack, // Make sure this is stable or correctly updated
     issuedCertsPageSize,
     issuedCertsSortConfig,
     issuedCertsDebouncedSearchTermCN,
     issuedCertsDebouncedSearchTermSN,
-    issuedCertsStatusFilter
+    issuedCertsStatusFilter,
+    actualLoadIssuedCertificatesByCa // Add the memoized function as a dependency
   ]);
 
-
-  // Effect for clearing stale issued certificate data
   useEffect(() => {
-    const isDifferentCa = caDetails?.id && issuedCertificatesList.length > 0 && issuedCertificatesList[0]?.issuerCaId !== caDetails.id;
-
-    if (activeTab !== 'issued' || isDifferentCa) {
+    if (activeTab !== 'issued' && issuedCertificatesList.length > 0) {
       setIssuedCertificatesList([]);
       setIssuedCertsBookmarkStack([null]);
       setIssuedCertsCurrentPageIndex(0);
       setIssuedCertsNextTokenFromApi(null);
       setErrorIssuedCerts(null);
     }
-  }, [activeTab, caDetails?.id]); // Only depend on activeTab and caDetails.id
+  }, [activeTab, caDetails?.id, issuedCertificatesList.length]);
 
 
   const handleCARevocation = () => {
@@ -414,22 +407,18 @@ export default function CertificateAuthorityDetailsClient() {
   let statusColorClass = '';
   let statusVariant: "default" | "secondary" | "destructive" | "outline" = "default";
 
-  switch (caDetails.status) {
-    case 'active':
-      statusColorClass = 'bg-green-500 hover:bg-green-600';
-      statusVariant = 'default';
-      break;
-    case 'revoked':
-      statusColorClass = 'bg-red-500 hover:bg-red-600';
-      statusVariant = 'destructive';
-      break;
-    case 'expired': // Assuming 'expired' is a possible status from your CA data processing
-      statusColorClass = 'bg-orange-500 hover:bg-orange-600';
-      statusVariant = 'destructive';
-      break;
-    default: // For 'unknown' or any other status
-      statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; 
-      statusVariant = 'outline'; 
+  if (caDetails.status === 'active' && !isPast(parseISO(caDetails.expires))) {
+    statusColorClass = 'bg-green-500 hover:bg-green-600';
+    statusVariant = 'default';
+  } else if (caDetails.status === 'revoked') {
+    statusColorClass = 'bg-red-500 hover:bg-red-600';
+    statusVariant = 'destructive';
+  } else if (isPast(parseISO(caDetails.expires))) { 
+    statusColorClass = 'bg-orange-500 hover:bg-orange-600';
+    statusVariant = 'destructive';
+  } else { 
+    statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; 
+    statusVariant = 'outline'; 
   }
 
 
@@ -560,69 +549,7 @@ export default function CertificateAuthorityDetailsClient() {
                     {errorIssuedCerts}
                     <Button variant="link" onClick={() => { 
                         if (caDetails?.id && user?.access_token) {
-                            // Re-trigger the fetch by explicitly calling a wrapper or directly
-                            // This is simplified; in a real app, you might have a stable fetch function
-                            const actualLoadIssuedCertificatesByCa = async (
-                                currentCaId: string,
-                                accessToken: string,
-                                bookmark: string | null,
-                                pageSize: string,
-                                sortConfig: IssuedCertSortConfig | null,
-                                filterCN: string,
-                                filterSN: string,
-                                filterStatus: ApiStatusFilterValue
-                              ) => {
-                                setIsLoadingIssuedCerts(true);
-                                setErrorIssuedCerts(null);
-                                try {
-                                  const apiParams = new URLSearchParams();
-                                  if (sortConfig) {
-                                    let sortByApiField = '';
-                                    switch (sortConfig.column) {
-                                      case 'subject': sortByApiField = 'subject.common_name'; break;
-                                      case 'serialNumber': sortByApiField = 'serial_number'; break;
-                                      case 'expires': sortByApiField = 'valid_to'; break;
-                                      case 'status': sortByApiField = 'status'; break;
-                                      default: sortByApiField = 'valid_from';
-                                    }
-                                    apiParams.append('sort_by', sortByApiField);
-                                    apiParams.append('sort_mode', sortConfig.direction);
-                                  } else {
-                                    apiParams.append('sort_by', 'valid_from');
-                                    apiParams.append('sort_mode', 'desc');
-                                  }
-                          
-                                  apiParams.append('page_size', pageSize);
-                                  if (bookmark) apiParams.append('bookmark', bookmark);
-                          
-                                  const filtersToApply: string[] = [];
-                                  if (filterStatus !== API_STATUS_VALUES_FOR_FILTER.ALL) {
-                                    filtersToApply.push(`status[equal]${filterStatus}`);
-                                  }
-                                  if (filterCN.trim() !== '') {
-                                    filtersToApply.push(`subject.common_name[contains]${filterCN.trim()}`);
-                                  }
-                                  if (filterSN.trim() !== '') {
-                                    filtersToApply.push(`serial_number[contains]${filterSN.trim()}`);
-                                  }
-                                  filtersToApply.forEach(f => apiParams.append('filter', f));
-                          
-                                  const result = await fetchIssuedCertificates({
-                                    accessToken: accessToken,
-                                    apiQueryString: apiParams.toString(),
-                                    forCaId: currentCaId,
-                                  });
-                                  setIssuedCertificatesList(result.certificates);
-                                  setIssuedCertsNextTokenFromApi(result.nextToken);
-                                } catch (errInner: any) {
-                                  setErrorIssuedCerts(errInner.message || 'Failed to load issued certificates for this CA.');
-                                  setIssuedCertificatesList([]);
-                                  setIssuedCertsNextTokenFromApi(null);
-                                } finally {
-                                  setIsLoadingIssuedCerts(false);
-                                }
-                              };
-                              actualLoadIssuedCertificatesByCa(
+                            actualLoadIssuedCertificatesByCa(
                                 caDetails.id,
                                 user.access_token,
                                 issuedCertsBookmarkStack[issuedCertsCurrentPageIndex],
@@ -731,4 +658,3 @@ export default function CertificateAuthorityDetailsClient() {
     </div>
   );
 }
-
