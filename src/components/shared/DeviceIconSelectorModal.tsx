@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -31,7 +32,7 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'Server', IconComponent: LucideIcons.Server },
   { name: 'Cpu', IconComponent: LucideIcons.Cpu },
   { name: 'MemoryStick', IconComponent: LucideIcons.MemoryStick },
-  { name: 'Chip', IconComponent: LucideIcons.Chip },
+  // { name: 'Chip', IconComponent: LucideIcons.Chip }, // Removed as it doesn't exist
   { name: 'Radio', IconComponent: LucideIcons.Radio },
   { name: 'Wifi', IconComponent: LucideIcons.Wifi },
   { name: 'Bluetooth', IconComponent: LucideIcons.Bluetooth },
@@ -150,3 +151,4 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
     </Dialog>
   );
 };
+
