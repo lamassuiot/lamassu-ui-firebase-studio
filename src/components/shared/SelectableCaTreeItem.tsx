@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { FolderTree, ChevronRight, Minus } from "lucide-react";
 import type { CA } from '@/lib/ca-data'; // Assuming CA type is defined here
+import { formatDistanceToNowStrict, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface SelectableCaTreeItemProps {
   ca: CA;
@@ -40,12 +42,16 @@ export const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
   };
 
   const isCurrentlySelected = !showCheckbox && currentSingleSelectedCaId === ca.id;
+  const timeToExpire = ca.expires ? formatDistanceToNowStrict(parseISO(ca.expires), { addSuffix: true }) : 'N/A';
 
   return (
     <li className={`py-1 ${level > 0 ? 'pl-4 border-l border-dashed border-border ml-2' : ''} relative list-none`}>
       {level > 0 && <Minus className="h-3 w-3 absolute -left-[0.4rem] top-3 text-border transform rotate-90" />}
       <div 
-        className={`flex items-center space-x-2 p-1.5 rounded-md hover:bg-muted/50 cursor-pointer ${ isCurrentlySelected || isMultiSelected ? 'bg-primary/10' : ''}`}
+        className={cn(
+            "flex items-center space-x-2 p-1.5 rounded-md hover:bg-muted/50 cursor-pointer",
+            (isCurrentlySelected || isMultiSelected) && 'bg-primary/10'
+        )}
         onClick={handleItemClick}
         role="button"
         tabIndex={0}
@@ -78,7 +84,10 @@ export const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
         
         <FolderTree className="h-4 w-4 text-primary flex-shrink-0" />
         <span className={`flex-1 text-sm truncate ${ isCurrentlySelected || isMultiSelected ? 'font-semibold text-primary': ''}`}>
-          {ca.name} <span className="text-xs text-muted-foreground">({ca.id.substring(0,8)}...)</span>
+          {ca.name} 
+          <span className="text-xs text-muted-foreground">
+            (ID: {ca.id.substring(0,8)}... - {timeToExpire})
+          </span>
         </span>
       </div>
       {hasChildren && isOpen && (
