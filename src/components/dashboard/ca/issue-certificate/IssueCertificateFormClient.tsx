@@ -86,8 +86,17 @@ export default function IssueCertificateFormClient() {
 
   useEffect(() => {
     // Ensure pkijs uses WebCrypto
-    if (typeof window !== 'undefined') {
-      setEngine("webcrypto", getCrypto());
+    if (typeof window !== 'undefined' && window.crypto) {
+      try {
+        setEngine("webcrypto", getCrypto());
+        console.log("PKI.js engine set to WebCrypto.");
+      } catch (e) {
+        console.error("Error setting PKI.js engine:", e);
+        setGenerationError("Failed to initialize cryptographic engine. Make sure your browser supports Web Crypto API.");
+      }
+    } else {
+        console.warn("Web Crypto API not available. CSR generation might fail.");
+        setGenerationError("Web Crypto API not available in this environment.");
     }
   }, []);
 
@@ -103,7 +112,7 @@ export default function IssueCertificateFormClient() {
       alert("Error: Please provide a CSR or generate a new key pair and CSR.");
       return;
     }
-    if (!commonName.trim() && !csrPem) { // Only require CN if CSR isn't manually pasted
+    if (!commonName.trim() && !csrPem) { 
         alert("Error: Common Name (CN) is required if generating CSR.");
         return;
     }
@@ -137,6 +146,11 @@ export default function IssueCertificateFormClient() {
         setIsGenerating(false);
         return;
     }
+    if (!window.crypto || !window.crypto.subtle) {
+        setGenerationError("Web Crypto API is not available in this browser. Cannot generate keys.");
+        setIsGenerating(false);
+        return;
+    }
 
     try {
       let algorithmDetails: RsaHashedKeyGenParams | EcKeyGenParams;
@@ -156,7 +170,7 @@ export default function IssueCertificateFormClient() {
         let curveNameForWebCrypto: string = selectedEcdsaCurve; 
         if (selectedEcdsaCurve === 'P-256') webCryptoHashName = "SHA-256";
         else if (selectedEcdsaCurve === 'P-384') webCryptoHashName = "SHA-384";
-        else webCryptoHashName = "SHA-512"; // P-521 uses SHA-512 for signatures typically
+        else webCryptoHashName = "SHA-512"; 
 
         algorithmDetails = {
           name: "ECDSA",
@@ -178,7 +192,6 @@ export default function IssueCertificateFormClient() {
       const pkcs10 = new CertificationRequest();
       pkcs10.version = 0;
 
-      // Populate Subject DN
       if (country.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.6", value: new asn1js.PrintableString({ value: country.trim() }) }));
       if (stateProvince.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.8", value: new asn1js.Utf8String({ value: stateProvince.trim() }) }));
       if (locality.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.7", value: new asn1js.Utf8String({ value: locality.trim() }) }));
@@ -188,9 +201,16 @@ export default function IssueCertificateFormClient() {
 
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
 
-      // Prepare extensions
       const preparedExtensions: Extension[] = [];
 
+      // Basic Constraints
+      const basicConstraints = new BasicConstraints({ cA: false }); 
+      preparedExtensions.push(new Extension({
+          extnID: "2.5.29.19", 
+          critical: true, 
+          extnValue: basicConstraints.toSchema().toBER(false)
+      }));
+      
       // Subject Alternative Names (SANs)
       const sanArray = sans.split(',').map(s => s.trim()).filter(s => s);
       const generalNamesArray: GeneralName[] = [];
@@ -199,7 +219,9 @@ export default function IssueCertificateFormClient() {
           if (san.toLowerCase().startsWith('dns:')) {
             generalNamesArray.push(new GeneralName({ type: 2, value: san.substring(4) }));
           } else if (san.toLowerCase().startsWith('ip:')) {
-            console.warn(`IP SAN '${san}' detected. Proper ASN.1 encoding for IP SANs is complex and not fully implemented here. It might not be correctly processed by CAs.`);
+            console.warn(`IP SAN '${san}' detected. Full ASN.1 encoding for IP SANs is complex. This CSR might not correctly represent it.`);
+            // Attempting a simple string representation; proper IP SANs require OCTET STRING of binary IP.
+            // generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ... }) })); // Placeholder for complex logic
           } else if (san.includes('@') && !san.toLowerCase().startsWith('email:')) { 
             generalNamesArray.push(new GeneralName({ type: 1, value: san })); 
           } else if (san.toLowerCase().startsWith('email:')) {
@@ -209,39 +231,34 @@ export default function IssueCertificateFormClient() {
           } else if (san.toLowerCase().startsWith('uri:')) {
             generalNamesArray.push(new GeneralName({ type: 6, value: san.substring(4) }));
           } else if (san) { 
-            generalNamesArray.push(new GeneralName({ type: 2, value: san }));
+            generalNamesArray.push(new GeneralName({ type: 2, value: san })); // Default to DNS if no prefix
           }
         });
 
         if (generalNamesArray.length > 0) {
           const altNames = new GeneralNames({ names: generalNamesArray });
           preparedExtensions.push(new Extension({
-            extnID: "2.5.29.17", // subjectAlternativeName
+            extnID: "2.5.29.17", 
             critical: false,
             extnValue: altNames.toSchema().toBER(false)
           }));
         }
       }
       
-      // Basic Constraints
-      const basicConstraints = new BasicConstraints({ cA: false }); 
-      preparedExtensions.push(new Extension({
-          extnID: "2.5.29.19", // basicConstraints
-          critical: true, 
-          extnValue: basicConstraints.toSchema().toBER(false)
-      }));
-
-      // Add extensions to CSR if any were prepared
+      // Temporarily disable adding the extensionRequest attribute to isolate the 'toBER' error.
+      /*
       if (preparedExtensions.length > 0) {
-        pkcs10.attributes = pkcs10.attributes || [];
-        pkcs10.attributes.push(new Attribute({ 
-          type: "1.2.840.1.13549.1.9.14", // pkcs-9-at-extensionRequest (Note: Corrected OID, was 1.2.840... before)
+        // pkcs10.attributes is initialized as [] by CertificationRequest constructor, no need for || []
+        const extensionsAttribute = new Attribute({ 
+          type: "1.2.840.113549.1.9.14", // pkcs-9-at-extensionRequest OID
           values: [ 
-            new Extensions({ extensions: preparedExtensions })
+            new Extensions({ extensions: preparedExtensions }).toSchema() 
           ]
-        }));
+        });
+        pkcs10.attributes.push(extensionsAttribute);
       }
-      
+      */
+            
       await pkcs10.sign(keyPair.privateKey, webCryptoHashName); 
 
       const csrDerBuffer = pkcs10.toSchema().toBER(false);
@@ -258,7 +275,7 @@ export default function IssueCertificateFormClient() {
   };
 
 
-  if (!caId && typeof window !== 'undefined') { // Check typeof window to ensure this runs client-side
+  if (!caId && typeof window !== 'undefined') { 
     return (
       <div className="w-full space-y-6 p-4">
         <Button variant="outline" onClick={() => router.back()} className="mb-4">
@@ -274,7 +291,6 @@ export default function IssueCertificateFormClient() {
     );
   }
   if (!caId && typeof window === 'undefined') {
-    // Render nothing or a placeholder on the server if caId is missing
     return <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
             <p className="text-muted-foreground">Loading CA information...</p>
@@ -454,5 +470,4 @@ export default function IssueCertificateFormClient() {
     </div>
   );
 }
-
     
