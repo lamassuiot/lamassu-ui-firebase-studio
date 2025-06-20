@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams, useParams } // Added useParams
+import { usePathname, useSearchParams }
 from 'next/navigation';
 import {
   SidebarProvider,
@@ -24,7 +24,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Settings } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,6 @@ import { Badge } from '@/components/ui/badge';
 import { jwtDecode } from 'jwt-decode';
 import Image from 'next/image'
 import Logo from './lamassu_full_white.svg'
-// import type { CA } from '@/lib/ca-data'; // Keep if needed for breadcrumbs later
 
 interface DecodedAccessToken {
   realm_access?: {
@@ -54,7 +53,7 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'devices': "Devices",
   'device-groups': "Device Groups",
   'crypto-engines': "Crypto Engines",
-  'settings': "Settings",
+  // 'settings': "Settings", // Removed
 };
 
 function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
@@ -108,7 +107,7 @@ const LoadingState = () => (
 const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, login, logout } = useAuth();
   const pathname = usePathname();
-  const searchParams = useSearchParams(); // Now used by generateBreadcrumbs
+  const searchParams = useSearchParams(); 
 
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
@@ -139,9 +138,9 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
     { href: '/devices', label: 'Devices', icon: Router },
     { href: '/device-groups', label: 'Device Groups', icon: ServerCog },
   ];
-  const appSettingsItems = [
-    { href: '/settings', label: 'Settings', icon: Settings },
-  ];
+  // const appSettingsItems = [ // Removed Settings
+  //   { href: '/settings', label: 'Settings', icon: SettingsIconLucide },
+  // ];
 
   return (
     <SidebarProvider defaultOpen>
@@ -260,6 +259,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
                   
+                  {/* Removed Application Settings Section
                   <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Application</SidebarGroupLabel>
                    {appSettingsItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
@@ -275,6 +275,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
+                  */}
 
                 </SidebarMenu>
               </SidebarContent>
@@ -316,9 +317,6 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
   const { isLoading: authIsLoading } = useAuth();
   const [clientMounted, setClientMounted] = React.useState(false);
   const pathname = usePathname();
-  
-  // Hooks must be called unconditionally at the top level
-  const params = useParams(); 
   const searchParams = useSearchParams(); 
 
   React.useEffect(() => {
@@ -331,18 +329,12 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     pathname === '/signout-callback';
 
   if (isCallbackPage) {
-    return <>{children}</>; // Render children directly for callback pages
+    return <>{children}</>; 
   }
 
-  // If not mounted or auth is still loading, show the main loading state
   if (!clientMounted || authIsLoading) {
     return <LoadingState />;
   }
-
-  // This section is now only rendered on the client after mount and auth resolution
-  // You can safely use hooks like useParams or fetch data based on searchParams here
-  // if MainLayoutContent needed them (it currently doesn't directly, but breadcrumbs do)
-  // const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
 
   return <MainLayoutContent>{children}</MainLayoutContent>;
 };
