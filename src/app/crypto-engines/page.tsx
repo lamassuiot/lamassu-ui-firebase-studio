@@ -6,11 +6,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Cpu, ShieldAlert, ShieldCheck, Shield, Settings, Tag, CheckSquare, RefreshCw, Cloud, HardDrive, ShieldQuestion as ShieldQuestionIcon, Database as DatabaseIcon } from 'lucide-react'; // Added DatabaseIcon
+import { Loader2, Cpu, ShieldAlert, ShieldCheck, Shield, Settings, Tag, CheckSquare, RefreshCw, Cloud, HardDrive, ShieldQuestion as ShieldQuestionIcon, Database as DatabaseIcon, FolderKey } from 'lucide-react'; // Added DatabaseIcon, FolderKey
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ApiCryptoEngine, ApiKeyTypeDetail } from '@/types/crypto-engine'; 
 import Image from 'next/image';
+import AWSKMSLogo from "@/components/shared/CryptoEngineIcons/AWS-KMS.png";
+import AWSSMLogo from "@/components/shared/CryptoEngineIcons/AWS-SM.png";
+import PKCS11Logo from "@/components/shared/CryptoEngineIcons/PKCS11.png";
+import VaultLogo from "@/components/shared/CryptoEngineIcons/HASHICORP-VAULT.png";
 
 
 // Helper to format supported key types for display
@@ -32,19 +36,47 @@ const getSecurityLevelInfo = (level: number): { text: string; Icon: React.Elemen
 const EngineIcon: React.FC<{ type: string, name: string }> = ({ type, name }) => {
   const typeUpper = type?.toUpperCase();
   const nameUpper = name?.toUpperCase();
+  let IconComponent: React.ElementType | null = null;
+  let iconColorClass = "text-muted-foreground";
+  let iconBGClass = "bg-transparent";
+  let imageSrc: any = null; // For next/image
 
-  if (typeUpper?.includes('AWS') || nameUpper?.includes('KMS') || nameUpper?.includes('AZURE') || nameUpper?.includes('VAULT')) {
-    return <Cloud className="mr-1.5 h-7 w-7 text-blue-500" />;
+  if (typeUpper === "GOLANG") {
+    IconComponent = FolderKey;
+    iconBGClass = "bg-black";
+    iconColorClass = "text-white";
+  } else if (typeUpper === "PKCS11") {
+    imageSrc = PKCS11Logo;
+  } else if (typeUpper === "AWS_SECRETS_MANAGER") {
+    imageSrc = AWSSMLogo;
+  } else if (typeUpper === "AWS_KMS") {
+    imageSrc = AWSKMSLogo;
+  } else if (typeUpper === "HASHICORP_VAULT") {
+    imageSrc = VaultLogo;
+  } else if (typeUpper?.includes('AWS') || nameUpper?.includes('KMS') || nameUpper?.includes('AZURE') || nameUpper?.includes('VAULT')) {
+    IconComponent = Cloud;
+    iconColorClass = "text-blue-500";
+  } else if (typeUpper?.includes('SOFTWARE') || typeUpper?.includes('LOCAL')) { // Catch-all for other software types if GOLANG isn't specific enough
+    IconComponent = Cpu;
+    iconColorClass = "text-green-500";
+  } else if (nameUpper?.includes('HSM')) { // Catch HSM by name if type isn't PKCS11
+    IconComponent = HardDrive;
+    iconColorClass = "text-gray-600";
+  } else if (typeUpper?.includes('DATABASE') || nameUpper?.includes('DB')) {
+    IconComponent = DatabaseIcon;
+    iconColorClass = "text-purple-500";
+  } else {
+    IconComponent = ShieldQuestionIcon;
   }
-  if (typeUpper?.includes('GOLANG') || nameUpper?.includes('SOFTWARE') || typeUpper?.includes('LOCAL')) {
-    return <Cpu className="mr-1.5 h-7 w-7 text-green-500" />;
+
+  if (imageSrc) {
+    return <Image src={imageSrc} alt={`${name} Icon`} width={30} height={30} className="mr-1.5 h-7 w-7"/>;
   }
-  if (typeUpper?.includes('PKCS11') || nameUpper?.includes('HSM')) {
-    return <HardDrive className="mr-1.5 h-7 w-7 text-gray-600" />;
+
+  if (IconComponent) {
+    return <IconComponent className={cn("mr-1.5 h-7 w-7 flex-shrink-0 p-0.5", iconColorClass, iconBGClass)} />;
   }
-  if (typeUpper?.includes('DATABASE') || nameUpper?.includes('DB')) {
-    return <DatabaseIcon className="mr-1.5 h-7 w-7 text-purple-500" />;
-  }
+  
   return <ShieldQuestionIcon className="mr-1.5 h-7 w-7 text-muted-foreground" />;
 };
 
@@ -173,7 +205,7 @@ export default function CryptoEnginesPage() {
                       {formatSupportedKeyTypes(engine.supported_key_types)}
                     </p>
                   </div>
-                  {Object.keys(engine.metadata).length > 0 && (
+                  {engine.metadata && Object.keys(engine.metadata).length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground mb-1 flex items-center">
                         <Tag className="mr-1.5 h-4 w-4" /> Additional Metadata:
