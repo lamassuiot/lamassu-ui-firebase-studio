@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, FilePlus2, KeyRound, Loader2, AlertTriangle, FileSignature } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+import { CertificationRequest, AttributeTypeAndValue, Extensions, Extension, GeneralName, GeneralNames, BasicConstraints } from "pkijs";
+import * as asn1js from "asn1js";
+import { getCrypto,setEngine } from "pkijs";
+
 
 // Helper to convert ArrayBuffer to Base64
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -32,6 +37,7 @@ function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'PUBLIC KEY' | 
   return `${header}\n${body}\n${footer}`;
 }
 
+
 const availableAlgorithms = [
   { value: 'RSA', label: 'RSA' },
   { value: 'ECDSA', label: 'ECDSA' },
@@ -49,65 +55,41 @@ const ecdsaCurves = [
   { value: 'P-521', label: 'P-521 (secp521r1)' },
 ];
 
-// Function to create a simplified, simulated CSR PEM string
-async function createSimulatedCsrPem(
-  keyPair: CryptoKeyPair,
-  subject: { cn: string; o?: string; ou?: string; l?: string; st?: string; c?: string }
-): Promise<string> {
-  // Export public key in SPKI format
-  const publicKeySpkiBuffer = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
-  const publicKeySpkiBase64 = arrayBufferToBase64(publicKeySpkiBuffer);
-
-  // Construct a simplified subject string for the CSR
-  let subjectString = `CN=${subject.cn}`;
-  if (subject.o) subjectString += `/O=${subject.o}`;
-  if (subject.ou) subjectString += `/OU=${subject.ou}`;
-  if (subject.l) subjectString += `/L=${subject.l}`;
-  if (subject.st) subjectString += `/ST=${subject.st}`;
-  if (subject.c) subjectString += `/C=${subject.c}`;
-
-  // Simulate the ASN.1 content (this is NOT a real ASN.1 structure)
-  const simulatedAsn1Content = `
-    Version: 0 (0x0)
-    Subject: ${subjectString}
-    Subject Public Key Info:
-        Public Key Algorithm: ${keyPair.publicKey.algorithm.name}
-        ${keyPair.publicKey.algorithm.name === 'RSA' ? `RSA Public-Key: (${(keyPair.publicKey.algorithm as RsaHashedKeyAlgorithm).modulusLength} bit)` : ''}
-        ${keyPair.publicKey.algorithm.name === 'ECDSA' ? `EC Public Key: (${(keyPair.publicKey.algorithm as EcKeyAlgorithm).namedCurve})` : ''}
-        pub:
-            ${publicKeySpkiBase64.match(/.{1,60}/g)?.join('\n            ') || ''}
-    Attributes:
-        a0:00
-  `;
-  // (Actual CSRs are binary ASN.1 DER encoded, then base64. This is a text placeholder.)
-
-  const simulatedCsrBodyBase64 = arrayBufferToBase64(new TextEncoder().encode(simulatedAsn1Content + `\n\n---SimulatedPublicKeyBelow---\n${publicKeySpkiBase64}`));
-  return formatAsPem(simulatedCsrBodyBase64, 'CERTIFICATE REQUEST');
-}
-
 
 export default function IssueCertificateFormClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const caId = searchParams.get('caId');
 
-  // Form fields state
+  // Form fields state for Subject DN
   const [commonName, setCommonName] = useState('');
   const [organization, setOrganization] = useState('');
+  const [organizationalUnit, setOrganizationalUnit] = useState('');
+  const [country, setCountry] = useState('');
+  const [stateProvince, setStateProvince] = useState('');
+  const [locality, setLocality] = useState('');
+  
   const [validityDays, setValidityDays] = useState('365');
-  const [sans, setSans] = useState('');
-  const [csrPem, setCsrPem] = useState(''); // For manual input or generated CSR
+  const [sans, setSans] = useState(''); // Comma-separated: dns:example.com,ip:1.2.3.4
+  const [csrPem, setCsrPem] = useState('');
 
   // Key generation state
   const [generatedKeyPair, setGeneratedKeyPair] = useState<CryptoKeyPair | null>(null);
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
-  const [generatedCsrPem, setGeneratedCsrPem] = useState<string>('');
+  const [generatedCsrPem, setGeneratedCsrPem] = useState<string>(''); // For the signed CSR from pkijs
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('RSA');
   const [selectedRsaKeySize, setSelectedRsaKeySize] = useState<string>('2048');
   const [selectedEcdsaCurve, setSelectedEcdsaCurve] = useState<string>('P-256');
+
+  useEffect(() => {
+    // Ensure pkijs uses WebCrypto
+    if (typeof window !== 'undefined') {
+      setEngine("webcrypto", getCrypto());
+    }
+  }, []);
 
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -116,28 +98,23 @@ export default function IssueCertificateFormClient() {
       alert("Error: CA ID is missing from the URL.");
       return;
     }
-
-    // Use generatedCsrPem if available, otherwise use manually entered csrPem
     const finalCsrPem = generatedCsrPem || csrPem;
-
-    if (!finalCsrPem && !generatedPrivateKeyPem) {
+    if (!finalCsrPem) {
       alert("Error: Please provide a CSR or generate a new key pair and CSR.");
       return;
     }
     if (!commonName.trim()) {
-        alert("Error: Common Name (CN) is required.");
+        alert("Error: Common Name (CN) is required for the CSR subject.");
         return;
     }
 
-    console.log(`Issuing certificate from CA: ${caId} with form data...`);
+    console.log(`Issuing certificate from CA: ${caId} with CSR and form data...`);
     console.log({
-        commonName,
-        organization,
-        validityDays,
-        sans,
+        commonName, organization, organizationalUnit, country, stateProvince, locality,
+        validityDays, sans,
         csrToSubmit: finalCsrPem
     });
-    alert(`Mock issue certificate from CA ${caId}. CSR submitted (check console). This would typically send the CSR to the CA API.`);
+    alert(`Mock issue certificate from CA ${caId}. CSR submitted (check console).`);
   };
 
   const handleGenerateKeyPairAndCsr = async () => {
@@ -146,24 +123,37 @@ export default function IssueCertificateFormClient() {
     setGeneratedPrivateKeyPem('');
     setGeneratedCsrPem('');
     setGeneratedKeyPair(null);
-    setCsrPem(''); // Clear manual CSR input
+    setCsrPem(''); 
+
+    if (!commonName.trim()) {
+        setGenerationError("Common Name (CN) is required to generate a CSR.");
+        setIsGenerating(false);
+        return;
+    }
 
     try {
-      let algorithmDetails: AlgorithmIdentifier | RsaHashedKeyGenParams | EcKeyGenParams;
+      let algorithmDetails: RsaHashedKeyGenParams | EcKeyGenParams;
       let keyUsages: KeyUsage[];
+      let webCryptoHashName: string; // For WebCrypto's sign method
 
       if (selectedAlgorithm === 'RSA') {
         algorithmDetails = {
           name: "RSASSA-PKCS1-v1_5",
           modulusLength: parseInt(selectedRsaKeySize, 10),
           publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
-          hash: "SHA-256",
+          hash: "SHA-256", // pkijs sign() will use this hash with the key's algorithm
         };
         keyUsages = ["sign", "verify"];
+        webCryptoHashName = "SHA-256";
       } else if (selectedAlgorithm === 'ECDSA') {
+        let curveNameForWebCrypto: string = selectedEcdsaCurve; // P-256, P-384, P-521
+        if (selectedEcdsaCurve === 'P-256') webCryptoHashName = "SHA-256";
+        else if (selectedEcdsaCurve === 'P-384') webCryptoHashName = "SHA-384";
+        else webCryptoHashName = "SHA-512"; // P-521 usually with SHA-512
+
         algorithmDetails = {
           name: "ECDSA",
-          namedCurve: selectedEcdsaCurve,
+          namedCurve: curveNameForWebCrypto,
         };
         keyUsages = ["sign", "verify"];
       } else {
@@ -171,33 +161,98 @@ export default function IssueCertificateFormClient() {
       }
 
       const keyPair = await window.crypto.subtle.generateKey(
-        algorithmDetails,
-        true, 
-        keyUsages
+        algorithmDetails, true, keyUsages
       );
       setGeneratedKeyPair(keyPair);
 
       const privateKeyBuffer = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-      const privateKeyBase64 = arrayBufferToBase64(privateKeyBuffer);
-      const privateKeyPemOutput = formatAsPem(privateKeyBase64, 'PRIVATE KEY');
-      setGeneratedPrivateKeyPem(privateKeyPemOutput);
+      setGeneratedPrivateKeyPem(formatAsPem(arrayBufferToBase64(privateKeyBuffer), 'PRIVATE KEY'));
       
-      // Gather subject info for CSR
-      const currentCN = (document.getElementById('commonName') as HTMLInputElement)?.value || 'example.com';
-      const currentOrg = (document.getElementById('organization') as HTMLInputElement)?.value || 'Example Org';
+      // --- Create CSR using pkijs ---
+      const pkcs10 = new CertificationRequest();
+      pkcs10.version = 0;
 
-      const csrSubject = {
-        cn: currentCN,
-        o: currentOrg,
-        // Add more subject fields if needed (OU, L, ST, C) from form
-      };
-      const simulatedCsr = await createSimulatedCsrPem(keyPair, csrSubject);
-      setGeneratedCsrPem(simulatedCsr);
-      setCsrPem(simulatedCsr); // Auto-populate the main CSR field
+      // Subject DN
+      if (country.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.6", value: new asn1js.PrintableString({ value: country.trim() }) })); // C
+      if (stateProvince.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.8", value: new asn1js.UTF8String({ value: stateProvince.trim() }) })); // ST
+      if (locality.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.7", value: new asn1js.UTF8String({ value: locality.trim() }) })); // L
+      if (organization.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.10", value: new asn1js.UTF8String({ value: organization.trim() }) })); // O
+      if (organizationalUnit.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.11", value: new asn1js.UTF8String({ value: organizationalUnit.trim() }) })); // OU
+      pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.UTF8String({ value: commonName.trim() }) })); // CN
+
+      await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
+
+      // Handle SANs (Simplified for DNS only for now)
+      const sanArray = sans.split(',').map(s => s.trim()).filter(s => s);
+      const generalNames: GeneralName[] = [];
+      if (sanArray.length > 0) {
+        sanArray.forEach(san => {
+          if (san.toLowerCase().startsWith('dns:')) {
+            generalNames.push(new GeneralName({ type: 2, value: san.substring(4) }));
+          } else if (san.toLowerCase().startsWith('ip:')) {
+             // IP SANs are more complex to encode directly into GeneralName without external IP parsing/encoding libs
+             // For now, we'll add a note or skip, focusing on DNS.
+             console.warn(`IP SAN '${san}' detected. Proper ASN.1 OCTET STRING encoding for IP SANs is complex and not fully implemented here. It might not be correctly processed by CAs.`);
+             // To truly support: parse IP to byte array, then new asn1js.OctetString({ valueHex: ipByteArray })
+             // generalNames.push(new GeneralName({ type: 7, value: san.substring(3) })); // This is incorrect, value needs to be OctetString
+          } else if (san.includes('@')) { // Basic email check
+            generalNames.push(new GeneralName({ type: 1, value: san })); // rfc822Name
+          } else if (san.includes('://')) { // Basic URI check
+            generalNames.push(new GeneralName({ type: 6, value: san })); // uniformResourceIdentifier
+          } else if (san) { // Default to DNS if no prefix
+            generalNames.push(new GeneralName({ type: 2, value: san }));
+          }
+        });
+
+        if (generalNames.length > 0) {
+          const altNames = new GeneralNames({ names: generalNames });
+          const subjectAltNameExtension = new Extension({
+            extnID: "2.5.29.17", // subjectAlternativeName
+            critical: false,
+            extnValue: altNames.toSchema().toBER(false)
+          });
+          pkcs10.attributes = pkcs10.attributes || [];
+          pkcs10.attributes.push(new AttributeTypeAndValue({ // Using AttributeTypeAndValue structure for attribute
+            type: "1.2.840.113549.1.9.14", // pkcs-9-at-extensionRequest
+            values: [new Extensions({ extensions: [subjectAltNameExtension] }).toSchema()]
+          }));
+        }
+      }
+      
+      // Add BasicConstraints: CA:FALSE if not already present and it's not a CA request (which this form isn't)
+      // This is good practice for end-entity certs.
+      const basicConstraints = new BasicConstraints({ cA: false });
+      const basicConstraintsExtension = new Extension({
+          extnID: "2.5.29.19", // basicConstraints
+          critical: true, // Usually critical for end-entity certs
+          extnValue: basicConstraints.toSchema().toBER(false)
+      });
+       if (!pkcs10.attributes) pkcs10.attributes = [];
+       const extReqAttr = pkcs10.attributes.find(a => a.type === "1.2.840.113549.1.9.14");
+       if (extReqAttr && extReqAttr.values[0]) {
+           const existingExtensions = Extensions.fromBER(extReqAttr.values[0].toBER(false));
+           if (!existingExtensions.extensions.some(e => e.extnID === "2.5.29.19")) {
+               existingExtensions.extensions.push(basicConstraintsExtension);
+               extReqAttr.values[0] = existingExtensions.toSchema();
+           }
+       } else {
+            pkcs10.attributes.push(new AttributeTypeAndValue({
+                type: "1.2.840.113549.1.9.14",
+                values: [new Extensions({ extensions: [basicConstraintsExtension] }).toSchema()]
+            }));
+       }
+
+
+      await pkcs10.sign(keyPair.privateKey, webCryptoHashName); // pkijs handles OID mapping
+
+      const csrDerBuffer = pkcs10.toSchema().toBER(false);
+      const signedCsrPem = formatAsPem(arrayBufferToBase64(csrDerBuffer), 'CERTIFICATE REQUEST');
+      setGeneratedCsrPem(signedCsrPem);
+      setCsrPem(signedCsrPem); // Auto-populate the main CSR field
 
     } catch (error: any) {
       console.error("Key pair or CSR generation error:", error);
-      setGenerationError(`Failed to generate: ${error.message}`);
+      setGenerationError(`Failed to generate: ${error.message || String(error)}`);
     } finally {
       setIsGenerating(false);
     }
@@ -231,8 +286,7 @@ export default function IssueCertificateFormClient() {
             <CardTitle className="text-xl font-headline">Issue Certificate from CA: {caId.substring(0, 12)}...</CardTitle>
           </div>
           <CardDescription className="mt-1.5">
-            Fill out the details below to issue a new certificate signed by this CA.
-            You can either provide a CSR or generate a new key pair and CSR.
+            Fill out the details below to issue a new certificate. Provide a CSR or generate a new key pair and CSR.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -240,7 +294,7 @@ export default function IssueCertificateFormClient() {
             
             <section>
               <h3 className="text-lg font-medium mb-3">Certificate Subject & Validity</h3>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="commonName">Common Name (CN)</Label>
                   <Input id="commonName" name="commonName" type="text" placeholder="e.g., mydevice.example.com" required className="mt-1" value={commonName} onChange={e => setCommonName(e.target.value)}/>
@@ -250,12 +304,29 @@ export default function IssueCertificateFormClient() {
                   <Input id="organization" name="organization" type="text" placeholder="e.g., LamassuIoT Corp" className="mt-1" value={organization} onChange={e => setOrganization(e.target.value)}/>
                 </div>
                 <div>
+                  <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
+                  <Input id="organizationalUnit" name="organizationalUnit" type="text" placeholder="e.g., Engineering" className="mt-1" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)}/>
+                </div>
+                <div>
+                  <Label htmlFor="country">Country (C) (2-letter code)</Label>
+                  <Input id="country" name="country" type="text" placeholder="e.g., US" maxLength={2} className="mt-1" value={country} onChange={e => setCountry(e.target.value.toUpperCase())}/>
+                </div>
+                <div>
+                  <Label htmlFor="stateProvince">State/Province (ST)</Label>
+                  <Input id="stateProvince" name="stateProvince" type="text" placeholder="e.g., California" className="mt-1" value={stateProvince} onChange={e => setStateProvince(e.target.value)}/>
+                </div>
+                <div>
+                  <Label htmlFor="locality">Locality (L)</Label>
+                  <Input id="locality" name="locality" type="text" placeholder="e.g., San Francisco" className="mt-1" value={locality} onChange={e => setLocality(e.target.value)}/>
+                </div>
+                 <div>
                   <Label htmlFor="validityDays">Validity (Days)</Label>
                   <Input id="validityDays" name="validityDays" type="number" defaultValue={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
                 </div>
-                <div>
-                  <Label htmlFor="sans">Subject Alternative Names (SANs, comma-separated)</Label>
-                  <Input id="sans" name="sans" type="text" placeholder="e.g., dns:alt.example.com,ip:192.168.1.10" className="mt-1" value={sans} onChange={e => setSans(e.target.value)}/>
+                <div className="md:col-span-2">
+                  <Label htmlFor="sans">Subject Alternative Names (SANs)</Label>
+                  <Input id="sans" name="sans" type="text" placeholder="dns:alt.example.com,ip:192.168.1.10,email:user@example.com" className="mt-1" value={sans} onChange={e => setSans(e.target.value)}/>
+                   <p className="text-xs text-muted-foreground mt-1">Comma-separated. Use prefixes like 'dns:', 'ip:', 'email:'. Default is DNS if no prefix.</p>
                 </div>
               </div>
             </section>
@@ -264,7 +335,7 @@ export default function IssueCertificateFormClient() {
 
             <section>
               <h3 className="text-lg font-medium mb-1">Key Material & CSR</h3>
-              <p className="text-xs text-muted-foreground mb-3">Provide a CSR or generate a new key pair and CSR.</p>
+              <p className="text-xs text-muted-foreground mb-3">Provide a CSR or generate a new key pair and CSR using browser crypto.</p>
               
               <div className="space-y-4 p-4 border rounded-md bg-muted/20">
                 <Label htmlFor="csr">Certificate Signing Request (CSR)</Label>
@@ -275,10 +346,10 @@ export default function IssueCertificateFormClient() {
                     rows={6} 
                     className="mt-1 font-mono bg-background" 
                     value={csrPem}
-                    onChange={(e) => setCsrPem(e.target.value)}
-                    disabled={!!generatedCsrPem} // Disable if CSR was auto-generated
+                    onChange={(e) => { setCsrPem(e.target.value); if (generatedCsrPem) { setGeneratedCsrPem(''); setGeneratedPrivateKeyPem(''); setGeneratedKeyPair(null); } }}
+                    // disabled={!!generatedCsrPem} 
                 />
-                {generatedCsrPem && <p className="text-xs text-amber-600 dark:text-amber-400">CSR field populated from generated key. Clear generated key to manually edit.</p>}
+                {generatedCsrPem && <p className="text-xs text-amber-600 dark:text-amber-400">CSR field auto-populated from generated key. Manual edits will clear generated key/CSR.</p>}
               </div>
 
               <div className="my-4 text-center text-sm text-muted-foreground">OR</div>
@@ -324,10 +395,11 @@ export default function IssueCertificateFormClient() {
                     </div>
                   )}
                 </div>
-                <Button type="button" variant="secondary" onClick={handleGenerateKeyPairAndCsr} disabled={isGenerating} className="w-full sm:w-auto">
+                <Button type="button" variant="secondary" onClick={handleGenerateKeyPairAndCsr} disabled={isGenerating || !commonName.trim()} className="w-full sm:w-auto">
                   {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
                   {isGenerating ? 'Generating...' : 'Generate Key Pair & CSR'}
                 </Button>
+                 {!commonName.trim() && <p className="text-xs text-destructive mt-1">Common Name (CN) is required for CSR generation.</p>}
                 {generationError && (
                   <Alert variant="destructive" className="mt-2">
                     <AlertTriangle className="h-4 w-4" />
@@ -346,25 +418,17 @@ export default function IssueCertificateFormClient() {
                     />
                   </div>
                 )}
-                 {generatedCsrPem && !generatedPrivateKeyPem && ( // Show only if key was generated but CSR failed for some reason (unlikely with simulation)
-                    <div className="mt-3 space-y-2">
-                        <Alert variant="default">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>Private key was generated, but CSR generation failed or is pending. You can copy the private key above.</AlertDescription>
-                        </Alert>
-                    </div>
-                )}
                 {generatedCsrPem && (
                      <div className="mt-3 space-y-2">
-                        <Label htmlFor="generatedCsrPem">Generated CSR (PEM)</Label>
+                        <Label htmlFor="generatedCsrPemDisplay">Generated CSR (PEM)</Label>
                         <Textarea
-                        id="generatedCsrPemDisplay" // Different ID from the main form field
+                        id="generatedCsrPemDisplay"
                         value={generatedCsrPem}
                         readOnly
                         rows={8}
                         className="mt-1 font-mono bg-background/50"
                         />
-                        <p className="text-xs text-muted-foreground">This CSR has been auto-filled into the CSR field above.</p>
+                        <p className="text-xs text-muted-foreground">This CSR has been auto-filled into the main CSR field above.</p>
                     </div>
                 )}
               </div>
@@ -373,8 +437,8 @@ export default function IssueCertificateFormClient() {
             <Separator />
             
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg" disabled={isGenerating}>
-                <FilePlus2 className="mr-2 h-5 w-5" /> Issue Certificate
+              <Button type="submit" size="lg" disabled={isGenerating || (!csrPem.trim() && !generatedCsrPem.trim())}>
+                <FileSignature className="mr-2 h-5 w-5" /> Issue Certificate
               </Button>
             </div>
           </form>
