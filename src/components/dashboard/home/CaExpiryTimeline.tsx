@@ -18,7 +18,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Brush,
-  DotProps,
+  type DotProps,
 } from 'recharts';
 import {
   ChartContainer,
@@ -38,11 +38,11 @@ interface TimelineEvent {
 }
 
 const chartConfig = {
-  active: { label: "Active", color: "hsl(142 71% 45%)", icon: CheckCircle },
-  expired: { label: "Expired", color: "hsl(30 80% 55%)", icon: AlertCircle },
-  revoked: { label: "Revoked", color: "hsl(0 72% 51%)", icon: XCircle },
-  now: { label: "Now", color: "hsl(250 60% 50%)", icon: CalendarClock },
-  timeline: { label: "CA Expiry", color: "hsl(var(--foreground))" } // Changed from primary
+  active: { label: "Active", color: "hsl(142 71% 45%)", icon: CheckCircle }, // Green
+  expired: { label: "Expired", color: "hsl(30 80% 55%)", icon: AlertCircle }, // Orange/Yellow
+  revoked: { label: "Revoked", color: "hsl(0 72% 51%)", icon: XCircle },   // Red
+  now: { label: "Now", color: "hsl(250 60% 50%)", icon: CalendarClock }, // Purple
+  timeline: { label: "CA Expiry", color: "hsl(var(--foreground))" }
 } satisfies ChartConfig;
 
 const MIN_TIMELINE_DURATION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -66,9 +66,24 @@ const CustomDot: React.FC<DotProps & { payload?: any }> = (props) => {
   }
 
   const iconSize = 14;
+  const padding = 2;
+  const dotContainerSize = iconSize + 2 * padding;
+
   return (
-    <g transform={`translate(${cx - iconSize / 2}, ${cy - iconSize / 2})`}>
-      <ResolvedIcon color={resolvedColor} size={iconSize} />
+    <g transform={`translate(${cx - dotContainerSize / 2}, ${cy - dotContainerSize / 2})`}>
+      <rect
+        x="0"
+        y="0"
+        width={dotContainerSize}
+        height={dotContainerSize}
+        fill="white"
+        rx="4"
+        stroke={resolvedColor}
+        strokeWidth="0.5"
+      />
+      <g transform={`translate(${padding}, ${padding})`}>
+        <ResolvedIcon color={resolvedColor} size={iconSize} />
+      </g>
     </g>
   );
 };
@@ -130,38 +145,48 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
   }, [events]);
 
   useEffect(() => {
-    if (!cas || cas.length === 0 || lineChartData.length === 0) return;
+    if (!cas || cas.length === 0 || lineChartData.length === 0) {
+        // Set a default view if no data
+        const defaultStart = subMonths(now, 1);
+        const defaultEnd = addMonths(now, 3);
+        setInitialViewConfig({ start: defaultStart, end: defaultEnd });
+        setViewStartDate(defaultStart);
+        setViewEndDate(defaultEnd);
+        setBrushStartIndex(undefined);
+        setBrushEndIndex(undefined);
+        return;
+    }
 
-    const allDates = lineChartData.map(d => new Date(d.timestamp));
-    allDates.push(now); // Ensure 'now' is part of the range calculation
+    const allEventTimestamps = lineChartData.map(d => d.timestamp);
+    allEventTimestamps.push(now.getTime()); 
 
-    let minDateOverall = new Date(Math.min(...allDates.map(d => d.getTime())));
-    let maxDateOverall = new Date(Math.max(...allDates.map(d => d.getTime())));
+    let minTimestampOverall = Math.min(...allEventTimestamps);
+    let maxTimestampOverall = Math.max(...allEventTimestamps);
     
-    if (maxDateOverall.getTime() - minDateOverall.getTime() < MIN_TIMELINE_DURATION_MS) {
-        if (minDateOverall > now) { // All events in future
-            maxDateOverall = addMonths(minDateOverall, 1);
-             minDateOverall = subMonths(now, 0); // Make sure 'now' is slightly before the earliest future event or at 'now'
-        } else if (maxDateOverall < now) { // All events in past
-            minDateOverall = subMonths(maxDateOverall, 1);
-            maxDateOverall = addMonths(now, 0); // Make sure 'now' is slightly after the latest past event or at 'now'
-        } else { // 'now' is within events, or events span 'now'
-             minDateOverall = subMonths(now, 1);
-             maxDateOverall = addMonths(now,1);
+    if (maxTimestampOverall - minTimestampOverall < MIN_TIMELINE_DURATION_MS) {
+        if (minTimestampOverall > now.getTime()) { 
+            maxTimestampOverall = addMonths(new Date(minTimestampOverall), 1).getTime();
+            minTimestampOverall = subMonths(now, 0).getTime();
+        } else if (maxTimestampOverall < now.getTime()) { 
+            minTimestampOverall = subMonths(new Date(maxTimestampOverall), 1).getTime();
+            maxTimestampOverall = addMonths(now, 0).getTime();
+        } else { 
+             minTimestampOverall = subMonths(now, 1).getTime();
+             maxTimestampOverall = addMonths(now,1).getTime();
         }
     }
     
-    const duration = maxDateOverall.getTime() - minDateOverall.getTime();
+    const duration = maxTimestampOverall - minTimestampOverall;
     const padding = Math.max(duration * 0.1, MIN_TIMELINE_DURATION_MS / 2); 
     
-    const paddedStart = new Date(minDateOverall.getTime() - padding);
-    const paddedEnd = new Date(maxDateOverall.getTime() + padding);
+    const paddedStart = new Date(minTimestampOverall - padding);
+    const paddedEnd = new Date(maxTimestampOverall + padding);
 
     setInitialViewConfig({ start: paddedStart, end: paddedEnd });
     setViewStartDate(paddedStart);
     setViewEndDate(paddedEnd);
     setBrushStartIndex(0);
-    setBrushEndIndex(lineChartData.length - 1);
+    setBrushEndIndex(lineChartData.length > 0 ? lineChartData.length - 1 : 0);
 
   }, [cas, now, lineChartData]);
 
@@ -184,14 +209,14 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                 setViewStartDate(newViewStart);
                 setViewEndDate(newViewEnd);
             }
-        } else { 
+        } else if (lineChartData.length > 0) { 
             const singlePointTime = lineChartData.length > 0 ? lineChartData[startIndex].timestamp : now.getTime();
             setViewStartDate(new Date(singlePointTime - MIN_TIMELINE_DURATION_MS / 20));
             setViewEndDate(new Date(singlePointTime + MIN_TIMELINE_DURATION_MS / 20));
         }
         setBrushStartIndex(startIndex);
         setBrushEndIndex(endIndex);
-    } else if (lineChartData.length > 0) { // Reset to full view if brush cleared
+    } else if (lineChartData.length > 0) { 
         handleResetView();
     }
   };
@@ -202,18 +227,23 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
       setViewEndDate(initialViewConfig.end);
       setBrushStartIndex(0);
       setBrushEndIndex(lineChartData.length - 1);
+    } else if (initialViewConfig) { 
+      setViewStartDate(initialViewConfig.start);
+      setViewEndDate(initialViewConfig.end);
+      setBrushStartIndex(undefined);
+      setBrushEndIndex(undefined);
     }
   };
 
-  if (!cas || cas.length === 0 || !initialViewConfig || lineChartData.length === 0) {
+  if (!initialViewConfig) { // Handle the case where initial config isn't set yet (e.g., no CAs)
     return (
       <Card className="shadow-lg w-full" style={{ backgroundColor: '#ABDBFF' }}>
         <CardHeader>
           <CardTitle className="text-xl font-semibold text-slate-800">CA Expiry Timeline</CardTitle>
           <CardDescription className="text-slate-600">Visual overview of Certificate Authority expiry dates.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="p-4 text-center text-slate-500 h-[100px] md:h-[120px] flex items-center justify-center">No CA data or initial view not configured.</div>
+        <CardContent className="pt-2 pb-4 px-2 md:px-4 h-[100px] md:h-[120px]">
+          <div className="p-4 text-center text-slate-500 h-full flex items-center justify-center">No CA data to display or initial view not configured.</div>
         </CardContent>
       </Card>
     );
@@ -240,7 +270,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
             data={lineChartData}
             margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.2)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" vertical={false} />
             <XAxis
               type="number"
               dataKey="timestamp"
@@ -263,6 +293,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
               stroke={chartConfig.now.color}
               strokeWidth={2}
               strokeDasharray="4 4"
+              ifOverflow="extendDomain"
             >
               <RechartsTooltip.Label
                 value={chartConfig.now.label}
@@ -286,8 +317,8 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                 <Brush
                     dataKey="timestamp"
                     height={30}
-                    stroke="hsl(var(--foreground))" // Darker border for brush handles/selection
-                    fill="rgba(255, 255, 255, 0.2)" // Light fill for selected area
+                    stroke="hsl(var(--foreground))" 
+                    fill="rgba(255, 255, 255, 0.3)" 
                     travellerWidth={10}
                     startIndex={brushStartIndex}
                     endIndex={brushEndIndex}
@@ -295,7 +326,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                     tickFormatter={(unixTime) => format(new Date(unixTime), 'MMM yy')}
                     className="text-slate-700" 
                 >
-                    <LineChart background={{ fill: 'rgba(255, 255, 255, 0.3)' }}> {/* Light background for brush context area */}
+                    <LineChart background={{ fill: 'rgba(255, 255, 255, 0.3)' }}>
                         <Line type="monotone" dataKey="yValue" stroke="hsl(var(--foreground))" dot={false} activeDot={false} />
                     </LineChart>
                 </Brush>
@@ -305,24 +336,22 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
       </CardContent>
       <CardFooter className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs pt-3 border-t border-slate-400/50">
         <div className="flex items-center">
-          <div className="p-0.5 bg-white rounded-full mr-1.5"><chartConfig.active.icon className="w-3 h-3" style={{ color: chartConfig.active.color }} /></div>
+          <div className="p-0.5 bg-white rounded-full mr-1.5 inline-flex items-center justify-center"><chartConfig.active.icon className="w-3 h-3" style={{ color: chartConfig.active.color }} /></div>
           <span className="text-slate-700">{chartConfig.active.label}</span>
         </div>
         <div className="flex items-center">
-          <div className="p-0.5 bg-white rounded-full mr-1.5"><chartConfig.expired.icon className="w-3 h-3" style={{ color: chartConfig.expired.color }} /></div>
+          <div className="p-0.5 bg-white rounded-full mr-1.5 inline-flex items-center justify-center"><chartConfig.expired.icon className="w-3 h-3" style={{ color: chartConfig.expired.color }} /></div>
           <span className="text-slate-700">{chartConfig.expired.label}</span>
         </div>
         <div className="flex items-center">
-          <div className="p-0.5 bg-white rounded-full mr-1.5"><chartConfig.revoked.icon className="w-3 h-3" style={{ color: chartConfig.revoked.color }} /></div>
+          <div className="p-0.5 bg-white rounded-full mr-1.5 inline-flex items-center justify-center"><chartConfig.revoked.icon className="w-3 h-3" style={{ color: chartConfig.revoked.color }} /></div>
           <span className="text-slate-700">{chartConfig.revoked.label}</span>
         </div>
         <div className="flex items-center">
-           <div className="p-0.5 bg-white rounded-full mr-1.5"><chartConfig.now.icon className="w-3 h-3" style={{ color: chartConfig.now.color }} /></div>
+           <div className="p-0.5 bg-white rounded-full mr-1.5 inline-flex items-center justify-center"><chartConfig.now.icon className="w-3 h-3" style={{ color: chartConfig.now.color }} /></div>
           <span className="text-slate-700">{chartConfig.now.label}</span>
         </div>
       </CardFooter>
     </Card>
   );
 };
-
-    
