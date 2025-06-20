@@ -37,10 +37,10 @@ interface TimelineEvent {
 }
 
 const chartConfig = {
-  active: { label: "Active", color: "hsl(142 71% 45%)", icon: CheckCircle },
-  expired: { label: "Expired", color: "hsl(30 80% 55%)", icon: AlertCircle },
-  revoked: { label: "Revoked", color: "hsl(0 72% 51%)", icon: XCircle },
-  now: { label: "Now", color: "hsl(var(--accent))", icon: CalendarClock },
+  active: { label: "Active", color: "hsl(142 71% 45%)", icon: CheckCircle }, // Green
+  expired: { label: "Expired", color: "hsl(30 80% 55%)", icon: AlertCircle }, // Orange
+  revoked: { label: "Revoked", color: "hsl(0 72% 51%)", icon: XCircle },    // Red
+  now: { label: "Now", color: "hsl(250 60% 50%)", icon: CalendarClock },      // A distinct purple for "Now"
   timeline: { label: "CA Expiry", color: "hsl(var(--primary))" }
 } satisfies ChartConfig;
 
@@ -64,7 +64,7 @@ const CustomDot = (props: any) => {
     resolvedColor = chartConfig.expired.color;
   }
 
-  const iconSize = 14; 
+  const iconSize = 14;
   return (
     <g transform={`translate(${cx - iconSize / 2}, ${cy - iconSize / 2})`}>
       <ResolvedIcon color={resolvedColor} size={iconSize} />
@@ -160,7 +160,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
     setBrushStartIndex(0);
     setBrushEndIndex(lineChartData.length - 1);
 
-  }, [cas, now, lineChartData.length]);
+  }, [cas, now, lineChartData]); // Ensure lineChartData itself is a dependency
 
   const handleBrushChange = (newBrushState: { startIndex?: number; endIndex?: number } | undefined) => {
     if (newBrushState && newBrushState.startIndex != null && newBrushState.endIndex != null && lineChartData.length > 0) {
@@ -202,10 +202,10 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
 
   if (!cas || cas.length === 0 || !initialViewConfig || lineChartData.length === 0) {
     return (
-      <Card className="shadow-lg w-full">
+      <Card className="shadow-lg w-full" style={{ backgroundColor: '#ABDBFF' }}>
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-          <CardDescription>Visual overview of Certificate Authority expiry dates.</CardDescription>
+          <CardTitle className="text-xl font-semibold text-card-foreground">CA Expiry Timeline</CardTitle>
+          <CardDescription className="text-card-foreground/80">Visual overview of Certificate Authority expiry dates.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="p-4 text-center text-muted-foreground h-[100px] md:h-[120px] flex items-center justify-center">No CA data or initial view not configured.</div>
@@ -215,15 +215,17 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
   }
 
   return (
-    <Card className="shadow-lg w-full">
+    <Card className="shadow-lg w-full" style={{ backgroundColor: '#ABDBFF' }}>
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-            <CardDescription>Visual overview of Certificate Authority expiry dates.</CardDescription>
+            <CardTitle className="text-xl font-semibold text-slate-800">CA Expiry Timeline</CardTitle>
+            <CardDescription className="text-slate-600">Visual overview of Certificate Authority expiry dates.</CardDescription>
           </div>
           <div className="flex space-x-1">
-            <Button variant="outline" size="icon" onClick={handleResetView} title="Reset View"><RotateCcw className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" onClick={handleResetView} title="Reset View" className="bg-white/50 hover:bg-white/70 border-slate-400 text-slate-700">
+              <RotateCcw className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -233,20 +235,24 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
             data={lineChartData}
             margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.2)" vertical={false} />
             <XAxis
               type="number"
               dataKey="timestamp"
               domain={[viewStartDate.getTime(), viewEndDate.getTime()]}
               tickFormatter={(unixTime) => format(new Date(unixTime), 'MMM yy')}
-              stroke="hsl(var(--muted-foreground))"
-              tickLine={{ stroke: "hsl(var(--muted-foreground))" }}
-              axisLine={{ stroke: "hsl(var(--muted-foreground))" }}
+              stroke="hsl(var(--foreground))" 
+              tick={{ fill: "hsl(var(--foreground))", fontSize: 10 }}
+              tickLine={{ stroke: "hsl(var(--foreground))" }}
+              axisLine={{ stroke: "hsl(var(--foreground))" }}
               padding={{ left: 10, right: 10 }}
               scale="time"
             />
             <YAxis type="number" dataKey="yValue" hide domain={[0, 1]} />
-            <RechartsTooltip content={<CustomTooltipContent />} cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }} />
+            <RechartsTooltip 
+                content={<CustomTooltipContent />} 
+                cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1 }} 
+            />
             <ReferenceLine
               x={now.getTime()}
               stroke={chartConfig.now.color}
@@ -259,6 +265,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                 fill={chartConfig.now.color}
                 fontSize={10}
                 dy={-5}
+                className="font-semibold"
               />
             </ReferenceLine>
             <Line
@@ -267,15 +274,15 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
               stroke="hsl(var(--primary))" 
               strokeWidth={1.5} 
               dot={<CustomDot />}
-              activeDot={{ r: 0 }} // Hide active dot as custom dot handles visuals
+              activeDot={{ r: 0 }} 
               isAnimationActive={false}
             />
-            {lineChartData.length > 1 && ( // Render Brush only if there's enough data
+            {lineChartData.length > 1 && ( 
                 <Brush
                 dataKey="timestamp"
                 height={30}
                 stroke="hsl(var(--primary))"
-                fill="hsl(var(--primary)/0.1)"
+                fill="hsla(var(--primary-hsl), 0.1)"
                 travellerWidth={10}
                 startIndex={brushStartIndex}
                 endIndex={brushEndIndex}
@@ -283,7 +290,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
                 tickFormatter={(unixTime) => format(new Date(unixTime), 'MMM yy')}
                 className="text-muted-foreground" 
                 >
-                {/* Nested LineChart for Brush should not have its own complex elements */}
                 <LineChart>
                     <Line type="monotone" dataKey="yValue" stroke="hsl(var(--primary))" dot={false} activeDot={false} />
                 </LineChart>
@@ -292,22 +298,22 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
           </LineChart>
         </ChartContainer>
       </CardContent>
-      <CardFooter className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs pt-3 border-t border-border">
+      <CardFooter className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs pt-3 border-t border-slate-400/50">
         <div className="flex items-center">
           <chartConfig.active.icon className="w-3 h-3 mr-1.5" style={{ color: chartConfig.active.color }} />
-          <span className="text-muted-foreground">{chartConfig.active.label}</span>
+          <span className="text-slate-700">{chartConfig.active.label}</span>
         </div>
         <div className="flex items-center">
           <chartConfig.expired.icon className="w-3 h-3 mr-1.5" style={{ color: chartConfig.expired.color }} />
-          <span className="text-muted-foreground">{chartConfig.expired.label}</span>
+          <span className="text-slate-700">{chartConfig.expired.label}</span>
         </div>
         <div className="flex items-center">
           <chartConfig.revoked.icon className="w-3 h-3 mr-1.5" style={{ color: chartConfig.revoked.color }} />
-          <span className="text-muted-foreground">{chartConfig.revoked.label}</span>
+          <span className="text-slate-700">{chartConfig.revoked.label}</span>
         </div>
         <div className="flex items-center">
           <chartConfig.now.icon className="w-3 h-3 mr-1.5" style={{ color: chartConfig.now.color }} />
-          <span className="text-muted-foreground">{chartConfig.now.label}</span>
+          <span className="text-slate-700">{chartConfig.now.label}</span>
         </div>
       </CardFooter>
     </Card>
