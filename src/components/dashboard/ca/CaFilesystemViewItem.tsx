@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Button } from "@/components/ui/button";
-import { Landmark, ShieldAlert, ChevronRight, FileSearch, FilePlus2 } from 'lucide-react'; 
+import { ShieldAlert, ChevronRight, FileSearch, FilePlus2, Cpu as CpuIcon } from 'lucide-react'; // Changed Landmark to CpuIcon
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -48,15 +48,15 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
   
   const handleDetailsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/certificate-authorities/details?caId=${ca.id}`); // Updated navigation
+    router.push(`/certificate-authorities/details?caId=${ca.id}`);
   };
 
   const handleIssueCertClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/certificate-authorities/issue-certificate?caId=${ca.id}`); // Updated navigation
+    router.push(`/certificate-authorities/issue-certificate?caId=${ca.id}`);
   };
 
-  let IconComponent = Landmark; 
+  let IconComponent = CpuIcon; // Changed default icon to CpuIcon
   if (isCritical) {
     IconComponent = ShieldAlert; 
   }
@@ -115,3 +115,4 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
     </li>
   );
 };
+

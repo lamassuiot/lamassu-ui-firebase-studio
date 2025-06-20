@@ -14,6 +14,7 @@ interface CryptoEngineViewerProps {
 
 export const CryptoEngineViewer: React.FC<CryptoEngineViewerProps> = ({ engine, className, iconOnly = false }) => {
   let Icon = ShieldQuestion; // Default icon
+  let iconColorClass = "text-muted-foreground"; // Default color
 
   // Determine icon based on engine type or name
   const engineTypeUpper = engine.type?.toUpperCase();
@@ -21,22 +22,26 @@ export const CryptoEngineViewer: React.FC<CryptoEngineViewerProps> = ({ engine, 
 
   if (engineTypeUpper?.includes('AWS') || engineNameUpper?.includes('KMS') || engineNameUpper?.includes('AZURE') || engineNameUpper?.includes('VAULT')) {
     Icon = Cloud;
+    iconColorClass = "text-blue-500";
   } else if (engineTypeUpper?.includes('GOLANG') || engineNameUpper?.includes('SOFTWARE') || engineTypeUpper?.includes('LOCAL')) {
     Icon = Cpu;
+    iconColorClass = "text-green-500";
   } else if (engineTypeUpper?.includes('PKCS11') || engineNameUpper?.includes('HSM')) {
     Icon = HardDrive;
+    iconColorClass = "text-gray-600";
   } else if (engineTypeUpper?.includes('DATABASE') || engineNameUpper?.includes('DB')) {
     Icon = Database;
+    iconColorClass = "text-purple-500";
   }
 
 
   if (iconOnly) {
-    return <Icon className={cn("h-5 w-5 text-muted-foreground", className)} />;
+    return <Icon className={cn("h-5 w-5", iconColorClass, className)} />;
   }
 
   return (
     <div className={cn("flex items-center space-x-2", className)}>
-      <Icon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+      <Icon className={cn("h-5 w-5 flex-shrink-0", iconColorClass)} />
       <div className="flex flex-col min-w-0">
         <span className="text-sm font-medium truncate" title={engine.name}>{engine.name}</span>
         <span className="text-xs text-muted-foreground truncate" title={`${engine.provider} - ID: ${engine.id}`}>
@@ -46,3 +51,4 @@ export const CryptoEngineViewer: React.FC<CryptoEngineViewerProps> = ({ engine, 
     </div>
   );
 };
+

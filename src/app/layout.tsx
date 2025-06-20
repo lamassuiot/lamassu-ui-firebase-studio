@@ -1,13 +1,14 @@
 
 'use client';
 
-import './globals.css'; // From old root layout
-import { Toaster } from "@/components/ui/toaster"; // From old root layout
-import { AuthProvider, useAuth } from '@/contexts/AuthContext'; // From old root layout + useAuth
+import './globals.css'; 
+import { Toaster } from "@/components/ui/toaster"; 
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'; 
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useParams } from 'next/navigation';
+import { usePathname, useSearchParams }
+from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -26,13 +27,11 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
-import type { CA } from '@/lib/ca-data';
-import { findCaById } from '@/lib/ca-data'; 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { jwtDecode } from 'jwt-decode';
 import Image from 'next/image'
-import Logo from './dashboard/lamassu_full_white.svg' // Path to logo might need adjustment after file moves by user
+import Logo from './lamassu_full_white.svg'
 
 interface DecodedAccessToken {
   realm_access?: {
@@ -54,52 +53,75 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'devices': "Devices",
   'device-groups': "Device Groups",
   'crypto-engines': "Crypto Engines",
+  // 'settings': "Settings", // Removed
 };
 
-function generateBreadcrumbs(pathname: string, params: ReturnType<typeof useParams>, allCAs: CA[] | null): BreadcrumbItem[] {
+function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
   const pathSegments = pathname.split('/').filter(segment => segment);
   const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/' }];
 
   if (pathname === '/') {
-    return [{ label: 'Home' }]; 
+    return [{ label: 'Home' }];
   }
 
-  let currentHref = ''; // Start from root for breadcrumbs
+  let currentHref = '';
 
-  for (let i = 0; i < pathSegments.length; i++) { // Start loop from 0 for root segments
+  for (let i = 0; i < pathSegments.length; i++) {
     const segment = pathSegments[i];
-    const isLastSegment = i === pathSegments.length - 1;
     let label = PATH_SEGMENT_TO_LABEL_MAP[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
     
     currentHref += `/${segment}`;
+    const isLastSegment = i === pathSegments.length - 1;
+    let hrefWithQuery = currentHref;
 
-    if (params.caId && segment === params.caId && pathSegments[i-1] === 'certificate-authorities' && allCAs) {
-      const ca = findCaById(segment, allCAs);
-      label = ca ? ca.name : segment; 
-    } else if (params.deviceId && segment === params.deviceId && pathSegments[i-1] === 'devices') {
-      label = `Device: ${segment}`; 
-    } else if (params.keyId && segment === params.keyId && pathSegments[i-2] === 'kms' && pathSegments[i-1] === 'keys') {
-      label = `Key: ${segment}`;
+    // For detail pages, try to append the relevant ID query param for navigation
+    if (segment === 'details') {
+        if (queryParams.get('caId')) hrefWithQuery += `?caId=${queryParams.get('caId')}`;
+        else if (queryParams.get('certificateId')) hrefWithQuery += `?certificateId=${queryParams.get('certificateId')}`;
+        else if (queryParams.get('keyId')) hrefWithQuery += `?keyId=${queryParams.get('keyId')}`;
+        else if (queryParams.get('deviceId')) hrefWithQuery += `?deviceId=${queryParams.get('deviceId')}`;
+    } else if (segment === 'issue-certificate' && queryParams.get('caId')) {
+        hrefWithQuery += `?caId=${queryParams.get('caId')}`;
     }
 
+
     if (isLastSegment) {
-      breadcrumbItems.push({ label });
+      breadcrumbItems.push({ label }); // No href for the last item (current page)
     } else {
-      breadcrumbItems.push({ label, href: currentHref });
+      breadcrumbItems.push({ label, href: hrefWithQuery });
     }
   }
   return breadcrumbItems;
 }
 
-// InnerLayout component to use hooks within AuthProvider context
-const InnerLayout = ({ children }: { children: React.ReactNode }) => {
-  const pathname = usePathname();
-  const params = useParams();
-  const { user, isLoading, login, logout, isAuthenticated } = useAuth();
-  
-  const [allCAsForBreadcrumbs, setAllCAsForBreadcrumbs] = React.useState<CA[] | null>(null);
 
-  // Updated hrefs to be root-relative
+const LoadingState = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
+      <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      <p className="mt-6 text-lg text-muted-foreground">
+        Loading authentication status...
+      </p>
+    </div>
+);
+
+const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user, login, logout } = useAuth();
+  const pathname = usePathname();
+  const searchParams = useSearchParams(); 
+
+  const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
+  let userRoles: string[] = [];
+  if (isAuthenticated() && user?.access_token) {
+    try {
+      const decodedToken = jwtDecode<DecodedAccessToken>(user.access_token);
+      if (decodedToken.realm_access && Array.isArray(decodedToken.realm_access.roles)) {
+        userRoles = decodedToken.realm_access.roles;
+      }
+    } catch (error) {
+      console.error("Error decoding access token:", error);
+    }
+  }
+
   const homeItem = { href: '/', label: 'Home', icon: HomeIcon };
   const kmsItems = [
     { href: '/kms/keys', label: 'Keys', icon: KeyRound },
@@ -116,31 +138,9 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     { href: '/devices', label: 'Devices', icon: Router },
     { href: '/device-groups', label: 'Device Groups', icon: ServerCog },
   ];
-
-  const breadcrumbItems = React.useMemo(() => {
-    return generateBreadcrumbs(pathname, params, allCAsForBreadcrumbs);
-  }, [pathname, params, allCAsForBreadcrumbs]);
-
-  let userRoles: string[] = [];
-  if (isAuthenticated() && user?.access_token) {
-    try {
-      const decodedToken = jwtDecode<DecodedAccessToken>(user.access_token);
-      if (decodedToken.realm_access && Array.isArray(decodedToken.realm_access.roles)) {
-        userRoles = decodedToken.realm_access.roles;
-      }
-    } catch (error) {
-      console.error("Error decoding access token:", error);
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-        <p className="mt-6 text-lg text-muted-foreground">Loading authentication status...</p>
-      </div>
-    );
-  }
+  // const appSettingsItems = [ // Removed Settings
+  //   { href: '/settings', label: 'Settings', icon: SettingsIconLucide },
+  // ];
 
   return (
     <SidebarProvider defaultOpen>
@@ -148,7 +148,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
         <header className="flex h-12 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" />
-            <Image 
+             <Image
               src={Logo}
               height={30}
               alt="LamassuIoT Logo"
@@ -163,7 +163,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                     {userRoles.map((role: string, index: number) => (
                       <Badge
                         key={index}
-                        variant="default" 
+                        variant="default"
                         className="text-xs font-normal px-1.5 py-0.5 border-primary text-black bg-primary-foreground hover:bg-primary-foreground/80"
                       >
                         {role}
@@ -216,7 +216,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > '/'.length)}
+                        isActive={pathname.startsWith(item.href)}
                         tooltip={{children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
@@ -232,7 +232,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > '/'.length)}
+                        isActive={pathname.startsWith(item.href)}
                         tooltip={{children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
@@ -248,7 +248,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && item.href.length > '/'.length)}
+                        isActive={pathname.startsWith(item.href)}
                         tooltip={{children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
@@ -259,6 +259,24 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
                   
+                  {/* Removed Application Settings Section
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Application</SidebarGroupLabel>
+                   {appSettingsItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname.startsWith(item.href)}
+                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                      >
+                        <Link href={item.href} className="flex items-center w-full justify-start">
+                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                  */}
+
                 </SidebarMenu>
               </SidebarContent>
               <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
@@ -292,7 +310,34 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
       </div>
     </SidebarProvider>
   );
-}
+};
+
+
+const InnerLayout = ({ children }: { children: React.ReactNode }) => {
+  const { isLoading: authIsLoading } = useAuth();
+  const [clientMounted, setClientMounted] = React.useState(false);
+  const pathname = usePathname();
+  const searchParams = useSearchParams(); 
+
+  React.useEffect(() => {
+    setClientMounted(true);
+  }, []);
+
+  const isCallbackPage =
+    pathname === '/signin-callback' ||
+    pathname === '/silent-renew-callback' ||
+    pathname === '/signout-callback';
+
+  if (isCallbackPage) {
+    return <>{children}</>; 
+  }
+
+  if (!clientMounted || authIsLoading) {
+    return <LoadingState />;
+  }
+
+  return <MainLayoutContent>{children}</MainLayoutContent>;
+};
 
 
 export default function RootLayout({
@@ -332,3 +377,4 @@ function CustomSidebarToggle() {
     </SidebarMenuButton>
   );
 }
+

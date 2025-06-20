@@ -6,17 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Cpu, ShieldAlert, ShieldCheck, Shield, Settings, Tag, CheckSquare, RefreshCw } from 'lucide-react';
+import { Loader2, Cpu, ShieldAlert, ShieldCheck, Shield, Settings, Tag, CheckSquare, RefreshCw, Cloud, HardDrive, ShieldQuestion as ShieldQuestionIcon, Database as DatabaseIcon } from 'lucide-react'; // Added DatabaseIcon
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { ApiCryptoEngine, ApiKeyTypeDetail } from '@/types/crypto-engine'; // Import from new types file
+import type { ApiCryptoEngine, ApiKeyTypeDetail } from '@/types/crypto-engine'; 
 import Image from 'next/image';
-// Assuming images are moved to public or use placeholder icons
-// For simplicity, I'll use generic icons here, but you can adapt the image logic
-// import AWSKMSLogo from '/images/crypto-engines/AWS-KMS.png'; // Example if images moved to public
-
-// Placeholder icons (replace with Image components if preferred and images are set up)
-import { Cloud as CloudIcon, Cpu as CpuIcon, HardDrive as HardDriveIcon, ShieldQuestion } from 'lucide-react';
 
 
 // Helper to format supported key types for display
@@ -40,15 +34,18 @@ const EngineIcon: React.FC<{ type: string, name: string }> = ({ type, name }) =>
   const nameUpper = name?.toUpperCase();
 
   if (typeUpper?.includes('AWS') || nameUpper?.includes('KMS') || nameUpper?.includes('AZURE') || nameUpper?.includes('VAULT')) {
-    return <CloudIcon className="mr-1.5 h-7 w-7 text-blue-500" />;
+    return <Cloud className="mr-1.5 h-7 w-7 text-blue-500" />;
   }
   if (typeUpper?.includes('GOLANG') || nameUpper?.includes('SOFTWARE') || typeUpper?.includes('LOCAL')) {
-    return <CpuIcon className="mr-1.5 h-7 w-7 text-green-500" />;
+    return <Cpu className="mr-1.5 h-7 w-7 text-green-500" />;
   }
   if (typeUpper?.includes('PKCS11') || nameUpper?.includes('HSM')) {
-    return <HardDriveIcon className="mr-1.5 h-7 w-7 text-gray-600" />;
+    return <HardDrive className="mr-1.5 h-7 w-7 text-gray-600" />;
   }
-  return <ShieldQuestion className="mr-1.5 h-7 w-7 text-muted-foreground" />;
+  if (typeUpper?.includes('DATABASE') || nameUpper?.includes('DB')) {
+    return <DatabaseIcon className="mr-1.5 h-7 w-7 text-purple-500" />;
+  }
+  return <ShieldQuestionIcon className="mr-1.5 h-7 w-7 text-muted-foreground" />;
 };
 
 
@@ -195,3 +192,4 @@ export default function CryptoEnginesPage() {
     </div>
   );
 }
+
