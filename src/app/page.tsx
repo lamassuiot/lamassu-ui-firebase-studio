@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card imports
 
 function flattenCAs(cas: CA[]): CA[] {
   const flatList: CA[] = [];
@@ -66,27 +67,37 @@ export default function HomePage() {
           <CertificateStatusChartCard />
         </div>
         <div className="lg:col-span-2">
-          <h2 className="text-xl font-semibold mb-4 text-foreground">CA Expiry Timeline</h2>
+          {/* The CaExpiryTimeline component now renders its own Card and Title */}
           {isLoadingCAs || authLoading ? (
-            <div className="flex items-center justify-center h-40 bg-card p-4 rounded-lg shadow">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
-            </div>
+            <Card className="shadow-lg w-full bg-sky-50 dark:bg-sky-900/30">
+                <CardHeader>
+                    <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-center h-40 p-4">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
+                    </div>
+                </CardContent>
+            </Card>
           ) : errorCAs ? (
-            <Alert variant="destructive" className="bg-card">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Error Loading Timeline Data</AlertTitle>
-              <AlertDescription>
-                {errorCAs}
-                <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive focus:text-destructive">Try again?</Button>
-              </AlertDescription>
-            </Alert>
-          ) : allCAs.length > 0 ? (
-            <CaExpiryTimeline cas={allCAs} />
+             <Card className="shadow-lg w-full bg-sky-50 dark:bg-sky-900/30">
+                <CardHeader>
+                    <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Error Loading Timeline Data</AlertTitle>
+                    <AlertDescription>
+                        {errorCAs}
+                        <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive focus:text-destructive">Try again?</Button>
+                    </AlertDescription>
+                    </Alert>
+                </CardContent>
+            </Card>
           ) : (
-            <div className="flex items-center justify-center h-40 bg-card p-4 rounded-lg shadow">
-              <p className="text-muted-foreground">No CA data available to display timeline.</p>
-            </div>
+            <CaExpiryTimeline cas={allCAs} />
           )}
         </div>
       </div>
