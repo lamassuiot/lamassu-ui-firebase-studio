@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 const IssueCertificateFormClient = dynamic(
   () => import('@/components/dashboard/ca/issue-certificate/IssueCertificateFormClient'),
   {
-    ssr: false,
+    // ssr: false, // Removed: Not allowed in Server Components
     loading: () => (
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
         <Loader2 className="h-12 w-12 text-primary animate-spin" />

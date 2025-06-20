@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 const VerificationAuthoritiesClient = dynamic(
   () => import('./VerificationAuthoritiesClient').then(mod => mod.VerificationAuthoritiesClient),
   {
-    ssr: false,
+    // ssr: false, // Removed: Not allowed in Server Components
     loading: () => (
       <div className="flex flex-col items-center justify-center flex-1 p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
