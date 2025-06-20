@@ -133,7 +133,10 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
                 onClick={() => handleSelect(name)}
                 title={name}
               >
-                <IconComponent className="h-8 w-8 mb-1 text-primary" />
+                <IconComponent className={cn(
+                    "h-8 w-8 mb-1", 
+                    currentSelectedIconName === name ? "text-primary-foreground" : "text-primary"
+                )} />
                 <span className="text-xs truncate w-full">{name}</span>
               </Button>
             ))}
