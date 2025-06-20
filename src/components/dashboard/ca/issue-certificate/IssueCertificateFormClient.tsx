@@ -8,11 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FilePlus2, KeyRound, Loader2, AlertTriangle, FileSignature, UploadCloud } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, FilePlus2, KeyRound, Loader2, AlertTriangle, FileSignature, UploadCloud, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+// Removed ToggleGroup import as it's no longer used directly in the main form area for mode selection.
 
 import { CertificationRequest, AttributeTypeAndValue, Attribute, Extensions, Extension, GeneralName, GeneralNames, BasicConstraints } from "pkijs";
 import * as asn1js from "asn1js";
@@ -93,6 +93,7 @@ export default function IssueCertificateFormClient() {
   const router = useRouter();
   const caId = searchParams.get('caId');
 
+  const [modeChosen, setModeChosen] = useState<boolean>(false);
   const [issuanceMode, setIssuanceMode] = useState<'generate' | 'upload'>('generate');
 
   const [commonName, setCommonName] = useState('');
@@ -109,7 +110,7 @@ export default function IssueCertificateFormClient() {
   const [emailSans, setEmailSans] = useState('');
   const [uriSans, setUriSans] = useState('');
   
-  const [csrPem, setCsrPem] = useState(''); // This is the main CSR for submission
+  const [csrPem, setCsrPem] = useState(''); 
 
   const [generatedKeyPair, setGeneratedKeyPair] = useState<CryptoKeyPair | null>(null);
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
@@ -139,15 +140,27 @@ export default function IssueCertificateFormClient() {
     }
   }, []);
 
-  const handleModeChange = (newMode: 'generate' | 'upload') => {
-    if (newMode === issuanceMode) return;
-    setIssuanceMode(newMode);
-    setCsrPem(''); // Clear the main CSR when switching modes to avoid confusion
+  const resetCsrState = () => {
+    setCsrPem('');
     setUploadedCsrFileName(null);
     setGeneratedCsrPemForDisplay('');
     setGeneratedPrivateKeyPem('');
     setGeneratedKeyPair(null);
     setGenerationError(null);
+  };
+
+  const handleModeSelection = (selectedMode: 'generate' | 'upload') => {
+    setIssuanceMode(selectedMode);
+    setModeChosen(true);
+    resetCsrState();
+  };
+
+  const handleChangeCsrMethod = () => {
+    setModeChosen(false);
+    resetCsrState();
+    // Optionally reset other form fields too, or preserve them
+    // setCommonName(''); 
+    // ... etc.
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -160,9 +173,8 @@ export default function IssueCertificateFormClient() {
       alert("Error: CSR is required. Please generate or upload a CSR.");
       return;
     }
-    // Common Name is good to have for context even if CSR is uploaded
     if (!commonName.trim()) { 
-        alert("Error: Common Name (CN) is required.");
+        alert("Error: Common Name (CN) is required for context, even if uploading CSR.");
         return;
     }
 
@@ -191,9 +203,9 @@ export default function IssueCertificateFormClient() {
     setGenerationError(null);
     setGeneratedPrivateKeyPem('');
     setGeneratedCsrPemForDisplay('');
-    setCsrPem(''); // Clear main CSR as we are generating a new one
+    setCsrPem(''); 
     setGeneratedKeyPair(null);
-    setUploadedCsrFileName(null); // Clear uploaded file name
+    setUploadedCsrFileName(null);
 
     if (!commonName.trim()) {
         setGenerationError("Common Name (CN) is required to generate a CSR.");
@@ -292,7 +304,8 @@ export default function IssueCertificateFormClient() {
       }
       
       if (preparedExtensions.length > 0) {
-        pkcs10.attributes.push(new Attribute({ // Ensure Attribute is imported from pkijs
+        pkcs10.attributes = pkcs10.attributes || []; // Ensure attributes array exists
+        pkcs10.attributes.push(new Attribute({
           type: "1.2.840.113549.1.9.14", 
           values: [
             new Extensions({ extensions: preparedExtensions }).toSchema() 
@@ -304,8 +317,8 @@ export default function IssueCertificateFormClient() {
 
       const csrDerBuffer = pkcs10.toSchema().toBER(false);
       const signedCsrPem = formatAsPem(arrayBufferToBase64(csrDerBuffer), 'CERTIFICATE REQUEST');
-      setGeneratedCsrPemForDisplay(signedCsrPem); // For display in generation section
-      setCsrPem(signedCsrPem); // Populate main CSR field
+      setGeneratedCsrPemForDisplay(signedCsrPem); 
+      setCsrPem(signedCsrPem); 
 
     } catch (error: any) {
       console.error("Key pair or CSR generation error:", error);
@@ -322,8 +335,7 @@ export default function IssueCertificateFormClient() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        setCsrPem(content); // Populate the main CSR textarea
-        // Clear generation specific states
+        setCsrPem(content); 
         setGeneratedCsrPemForDisplay('');
         setGeneratedPrivateKeyPem('');
         setGeneratedKeyPair(null);
@@ -332,11 +344,8 @@ export default function IssueCertificateFormClient() {
       reader.readAsText(file);
     } else {
       setUploadedCsrFileName(null);
-      // If file is cleared, and mode is upload, consider clearing csrPem too.
-      // For now, if user clears file selection, csrPem remains unless they manually clear it or switch mode.
     }
   };
-
 
   if (!caId && typeof window !== 'undefined') { 
     return (
@@ -360,20 +369,92 @@ export default function IssueCertificateFormClient() {
            </div>;
   }
 
+  if (!modeChosen) {
+    return (
+      <div className="w-full space-y-6">
+        <Button variant="outline" onClick={() => router.back()} className="mb-4">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CA Details
+        </Button>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center space-x-3">
+              <FilePlus2 className="h-7 w-7 text-primary" />
+              <CardTitle className="text-xl font-headline">Issue Certificate from CA: {caId ? caId.substring(0, 12) : 'N/A'}...</CardTitle>
+            </div>
+            <CardDescription className="mt-1.5">
+              Choose how you want to provide the Certificate Signing Request (CSR).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            <Card
+              className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col group"
+              onClick={() => handleModeSelection('generate')}
+            >
+              <CardHeader className="flex-grow">
+                <div className="flex items-start space-x-4">
+                  <KeyRound className="h-8 w-8 text-primary mt-1" />
+                  <div>
+                    <CardTitle className="text-lg group-hover:text-primary transition-colors">Generate Key & CSR In Browser</CardTitle>
+                    <CardDescription className="mt-1 text-sm">
+                      A new private key and CSR will be generated directly in your browser. The private key will be displayed for you to save.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardFooter>
+                <Button variant="default" className="w-full">
+                  Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <Card
+              className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col group"
+              onClick={() => handleModeSelection('upload')}
+            >
+              <CardHeader className="flex-grow">
+                <div className="flex items-center space-x-4">
+                  <UploadCloud className="h-8 w-8 text-primary mt-1" />
+                  <div>
+                    <CardTitle className="text-lg group-hover:text-primary transition-colors">Upload Existing CSR</CardTitle>
+                    <CardDescription className="mt-1 text-sm">
+                      Provide a pre-existing Certificate Signing Request (CSR) in PEM format.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardFooter>
+                <Button variant="default" className="w-full">
+                  Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6">
-      <Button variant="outline" onClick={() => router.back()} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to CA Details
-      </Button>
+      <div className="flex justify-between items-center mb-4">
+        <Button variant="outline" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CA Details
+        </Button>
+        <Button variant="ghost" onClick={handleChangeCsrMethod} className="text-primary hover:text-primary/80">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Change CSR Method
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <div className="flex items-center space-x-3">
-            <FilePlus2 className="h-7 w-7 text-primary" />
-            <CardTitle className="text-xl font-headline">Issue Certificate from CA: {caId ? caId.substring(0, 12) : 'N/A'}...</CardTitle>
+            {issuanceMode === 'generate' ? <KeyRound className="h-7 w-7 text-primary" /> : <UploadCloud className="h-7 w-7 text-primary" />}
+            <CardTitle className="text-xl font-headline">
+              Issue Certificate - {issuanceMode === 'generate' ? 'Generate Key & CSR' : 'Upload CSR'}
+            </CardTitle>
           </div>
           <CardDescription className="mt-1.5">
-            Fill out the details below to issue a new certificate. Choose to generate key/CSR in browser or upload an existing CSR.
+            CA: {caId ? caId.substring(0, 12) : 'N/A'}... Fill details and {issuanceMode === 'generate' ? 'generate a new key/CSR' : 'upload your CSR'}.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -440,25 +521,8 @@ export default function IssueCertificateFormClient() {
 
             <section>
               <h3 className="text-lg font-medium mb-1">Certificate Signing Request (CSR)</h3>
-              <p className="text-xs text-muted-foreground mb-3">Select mode and provide CSR. Subject and SAN fields above are for CA policy and context.</p>
+              <p className="text-xs text-muted-foreground mb-3">Subject and SAN fields above are for CA policy and context, and will be used for CSR generation.</p>
               
-              <ToggleGroup
-                type="single"
-                value={issuanceMode}
-                onValueChange={(value) => {
-                  if (value) handleModeChange(value as 'generate' | 'upload');
-                }}
-                className="mb-4 justify-start"
-                variant="outline"
-              >
-                <ToggleGroupItem value="generate" aria-label="Generate Key and CSR" className="rounded-r-none data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary">
-                  <KeyRound className="mr-2 h-4 w-4" /> Generate In Browser
-                </ToggleGroupItem>
-                <ToggleGroupItem value="upload" aria-label="Upload CSR" className="rounded-l-none data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary">
-                  <UploadCloud className="mr-2 h-4 w-4" /> Upload CSR
-                </ToggleGroupItem>
-              </ToggleGroup>
-
               {issuanceMode === 'generate' && (
                 <div className="space-y-4 p-4 border rounded-md bg-muted/20">
                   <Label className="text-base">Generate New Key Pair & CSR</Label>
@@ -548,7 +612,7 @@ export default function IssueCertificateFormClient() {
                     <Input
                       id="csrFile"
                       type="file"
-                      accept=".csr,.pem,.txt" // .txt for convenience if PEM is in plain text
+                      accept=".csr,.pem,.txt" 
                       onChange={handleCsrFileUpload}
                       className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                     />
@@ -568,9 +632,9 @@ export default function IssueCertificateFormClient() {
                     value={csrPem}
                     onChange={(e) => { 
                         setCsrPem(e.target.value); 
-                        // If user edits manually, clear "generated" or "uploaded" specific states
-                        // as this is now custom input.
-                        setGeneratedCsrPemForDisplay('');
+                        if (issuanceMode === 'generate') {
+                            setGeneratedCsrPemForDisplay(''); 
+                        }
                         setGeneratedPrivateKeyPem('');
                         setGeneratedKeyPair(null);
                         setUploadedCsrFileName(null);
