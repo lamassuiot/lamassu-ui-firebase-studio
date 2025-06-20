@@ -6,7 +6,7 @@ import type { CA } from '@/lib/ca-data';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { format, parseISO, differenceInMilliseconds, isPast, addMonths, addYears, subMonths, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInMilliseconds, isPast, addMonths, addYears, subMonths, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CalendarClock, AlertCircle, CheckCircle, XCircle, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
