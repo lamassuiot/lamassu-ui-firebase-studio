@@ -7,18 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ShieldCheck, Settings, PlusCircle, Loader2 } from "lucide-react";
+import { ShieldCheck, Settings, PlusCircle, Loader2, FileText } from "lucide-react"; // Added FileText for cert signer
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, findCaById } from '@/lib/ca-data';
+import { fetchAndProcessCAs } from '@/lib/ca-data';
+import type { CertificateData } from '@/types/certificate'; // Import CertificateData
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal'; 
+import { CertificateSelectorModal } from '@/components/shared/CertificateSelectorModal'; // Import new modal
 
 interface VAConfig {
   caId: string; 
   refreshInterval: string; 
   validity: string;        
-  subjectKeyIDSigner: string | null; 
+  subjectKeyIDSigner: string | null; // Will now store certificate serial number
   regenerateOnRevoke: boolean;
 }
 
@@ -36,11 +38,14 @@ export default function VerificationAuthoritiesPage() {
   const [config, setConfig] = useState<VAConfig | null>(null);
   
   const [isCaSelectModalOpen, setIsCaSelectModalOpen] = useState(false);
-  const [isSubjectKeyIdSignerModalOpen, setIsSubjectKeyIdSignerModalOpen] = useState(false);
+  const [isCertificateSignerModalOpen, setIsCertificateSignerModalOpen] = useState(false); // New modal state
   
   const [availableCAs, setAvailableCAs] = useState<CA[]>([]); 
   const [isLoadingCAs, setIsLoadingCAs] = useState(false);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
+
+  const [selectedCertificateSignerDisplay, setSelectedCertificateSignerDisplay] = useState<CertificateData | null>(null);
+
 
   const loadCAs = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -74,9 +79,12 @@ export default function VerificationAuthoritiesPage() {
   useEffect(() => {
     if (selectedCaForConfig) {
       console.log(`Fetching/loading VA config for CA: ${selectedCaForConfig.id}`);
+      // Reset previously selected signer when CA changes
+      setSelectedCertificateSignerDisplay(null); 
       setConfig(getDefaultVAConfig(selectedCaForConfig.id));
     } else {
       setConfig(null);
+      setSelectedCertificateSignerDisplay(null);
     }
   }, [selectedCaForConfig]);
 
@@ -85,11 +93,12 @@ export default function VerificationAuthoritiesPage() {
     setIsCaSelectModalOpen(false);
   };
 
-  const handleSubjectKeyIdSignerSelected = (ca: CA) => {
+  const handleCertificateSignerSelected = (certificate: CertificateData) => {
     if (config) {
-      setConfig({ ...config, subjectKeyIDSigner: ca.id });
+      setConfig({ ...config, subjectKeyIDSigner: certificate.serialNumber });
+      setSelectedCertificateSignerDisplay(certificate); // Store for display
     }
-    setIsSubjectKeyIdSignerModalOpen(false);
+    setIsCertificateSignerModalOpen(false);
   };
 
   const handleInputChange = (key: 'refreshInterval' | 'validity', value: string) => {
@@ -110,10 +119,6 @@ export default function VerificationAuthoritiesPage() {
       alert(`Mock saving configuration for CA: ${selectedCaForConfig.name}`);
     }
   };
-  
-  const subjectKeyIdSignerCaDetails = config?.subjectKeyIDSigner 
-    ? findCaById(config.subjectKeyIDSigner, availableCAs) 
-    : null;
   
   return (
     <div className="space-y-6 w-full">
@@ -194,26 +199,31 @@ export default function VerificationAuthoritiesPage() {
                   <p className="text-xs text-muted-foreground mt-1">Maximum time to consider a cached CRL valid. Units: h, m, d.</p>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="va-subjectKeyIDSigner" className="block">Subject Key ID Signer CA</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="va-certificateSigner" className="block">Certificate Signer</Label>
                   <Button
-                    id="va-subjectKeyIDSigner"
+                    id="va-certificateSigner"
                     type="button"
                     variant="outline"
-                    onClick={() => setIsSubjectKeyIdSignerModalOpen(true)}
+                    onClick={() => setIsCertificateSignerModalOpen(true)}
                     className="w-full md:w-2/3 lg:w-1/2 justify-start text-left font-normal"
-                    disabled={isLoadingCAs || authLoading}
+                    disabled={authLoading} // Disable if auth is loading, modal handles its own cert loading
                   >
-                    {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
-                     subjectKeyIdSignerCaDetails ? `${subjectKeyIdSignerCaDetails.name} (${subjectKeyIdSignerCaDetails.id.substring(0,8)}...)` 
-                     : "Select Signer CA..."}
+                    {authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+                     selectedCertificateSignerDisplay ? `${selectedCertificateSignerDisplay.subject.substring(0,30)}... (SN: ${selectedCertificateSignerDisplay.serialNumber.substring(0,8)}...)` 
+                     : "Select Signer Certificate..."}
                   </Button>
-                  {subjectKeyIdSignerCaDetails && (
-                    <div className="mt-2">
-                      <CaVisualizerCard ca={subjectKeyIdSignerCaDetails} className="shadow-none border-border max-w-xs" />
+                  {selectedCertificateSignerDisplay && (
+                    <div className="mt-2 p-2 border rounded-md bg-muted/30 max-w-md">
+                      <p className="text-sm font-medium text-foreground truncate" title={selectedCertificateSignerDisplay.subject}>
+                        Selected: {selectedCertificateSignerDisplay.subject}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Serial: <span className="font-mono">{selectedCertificateSignerDisplay.serialNumber}</span>
+                      </p>
                     </div>
                   )}
-                   <p className="text-xs text-muted-foreground mt-1">CA responsible for signing the certificate used for SubjectKeyIdentifier checks.</p>
+                   <p className="text-xs text-muted-foreground mt-1">Certificate whose public key corresponds to the SubjectKeyIdentifier in generated CRLs.</p>
                 </div>
 
                 <div className="flex items-center space-x-2 pt-2">
@@ -225,18 +235,13 @@ export default function VerificationAuthoritiesPage() {
                   <Label htmlFor="va-regenerateOnRevoke">Regenerate CRL Immediately on Revocation</Label>
                 </div>
 
-                <CaSelectorModal
-                    isOpen={isSubjectKeyIdSignerModalOpen}
-                    onOpenChange={setIsSubjectKeyIdSignerModalOpen}
-                    title="Select Subject Key ID Signer CA"
-                    description="Choose the CA whose key will be used to sign certificates for SubjectKeyIdentifier matching."
-                    availableCAs={availableCAs} 
-                    isLoadingCAs={isLoadingCAs}
-                    errorCAs={errorCAs}
-                    loadCAsAction={loadCAs}
-                    onCaSelected={handleSubjectKeyIdSignerSelected}
-                    currentSelectedCaId={config.subjectKeyIDSigner}
-                    isAuthLoading={authLoading}
+                <CertificateSelectorModal
+                    isOpen={isCertificateSignerModalOpen}
+                    onOpenChange={setIsCertificateSignerModalOpen}
+                    title="Select Certificate Signer"
+                    description="Choose the certificate whose public key will be used for the SubjectKeyIdentifier in CRLs generated by this VA."
+                    onCertificateSelected={handleCertificateSignerSelected}
+                    currentSelectedCertificateId={config.subjectKeyIDSigner}
                 />
 
                 <div className="mt-8 flex justify-end">
