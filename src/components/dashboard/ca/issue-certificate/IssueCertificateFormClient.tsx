@@ -110,13 +110,16 @@ export default function IssueCertificateFormClient() {
   const [emailSans, setEmailSans] = useState('');
   const [uriSans, setUriSans] = useState('');
 
-  const [csrPem, setCsrPem] = useState('');
+  const [csrPem, setCsrPem] = useState(''); // This is the CSR that will be submitted
   const [generatedKeyPair, setGeneratedKeyPair] = useState<CryptoKeyPair | null>(null);
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
-  const [generatedCsrPemForDisplay, setGeneratedCsrPemForDisplay] = useState<string>('');
+  const [generatedCsrPemForDisplay, setGeneratedCsrPemForDisplay] = useState<string>(''); // For display after generation
   const [uploadedCsrFileName, setUploadedCsrFileName] = useState<string | null>(null);
+  
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [isCsrGenerated, setIsCsrGenerated] = useState<boolean>(false); // New state for generate mode
+
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('RSA');
   const [selectedRsaKeySize, setSelectedRsaKeySize] = useState<string>('2048');
   const [selectedEcdsaCurve, setSelectedEcdsaCurve] = useState<string>('P-256');
@@ -136,6 +139,14 @@ export default function IssueCertificateFormClient() {
     }
   }, []);
 
+  // Reset CSR related states when mode changes or subject details change after generation
+  useEffect(() => {
+    if (issuanceMode === 'generate') {
+      setIsCsrGenerated(false); // Reset generation status if user changes subject info
+    }
+  }, [commonName, organization, organizationalUnit, country, stateProvince, locality, dnsSans, ipSans, emailSans, uriSans, selectedAlgorithm, selectedRsaKeySize, selectedEcdsaCurve, issuanceMode]);
+
+
   const resetModeSpecificState = () => {
     setCsrPem('');
     setUploadedCsrFileName(null);
@@ -143,8 +154,8 @@ export default function IssueCertificateFormClient() {
     setGeneratedPrivateKeyPem('');
     setGeneratedKeyPair(null);
     setGenerationError(null);
-    // Optionally reset subject/SAN fields if desired when changing mode
-    // setCommonName(''); setOrganization(''); ... setUriSans('');
+    setIsCsrGenerated(false);
+    // commonName etc. are kept as they might be useful across modes or for re-generation
   };
 
   const handleModeSelection = (selectedMode: 'generate' | 'upload') => {
@@ -168,26 +179,25 @@ export default function IssueCertificateFormClient() {
       alert("Error: CSR is required. Please generate or upload a CSR.");
       return;
     }
-    if (issuanceMode === 'generate' && !commonName.trim()) {
-        alert("Error: Common Name (CN) is required for generating a CSR.");
-        return;
+    
+    let subjectDetailsForLog: any = {};
+    if (issuanceMode === 'generate') {
+        subjectDetailsForLog = {
+            commonName, organization, organizationalUnit, country, stateProvince, locality,
+            dnsSans: dnsSans.split(',').map(s=>s.trim()).filter(s=>s),
+            ipSans: ipSans.split(',').map(s=>s.trim()).filter(s=>s),
+            emailSans: emailSans.split(',').map(s=>s.trim()).filter(s=>s),
+            uriSans: uriSans.split(',').map(s=>s.trim()).filter(s=>s),
+        };
     }
+
 
     console.log(`Issuing certificate from CA: ${caId} with CSR and form data...`);
     console.log({
         caIdToIssueFrom: caId,
         mode: issuanceMode,
-        subjectCommonName: commonName,
-        subjectOrganization: organization,
-        subjectOrganizationalUnit: organizationalUnit,
-        subjectCountry: country,
-        subjectStateProvince: stateProvince,
-        subjectLocality: locality,
+        ...subjectDetailsForLog,
         certificateValidityDays: validityDays,
-        dnsSans: dnsSans.split(',').map(s=>s.trim()).filter(s=>s),
-        ipSans: ipSans.split(',').map(s=>s.trim()).filter(s=>s),
-        emailSans: emailSans.split(',').map(s=>s.trim()).filter(s=>s),
-        uriSans: uriSans.split(',').map(s=>s.trim()).filter(s=>s),
         certificateSigningRequest: csrPem
     });
     alert(`Mock issue certificate from CA ${caId}. CSR submitted (check console).`);
@@ -198,9 +208,9 @@ export default function IssueCertificateFormClient() {
     setGenerationError(null);
     setGeneratedPrivateKeyPem('');
     setGeneratedCsrPemForDisplay('');
-    setCsrPem('');
+    setCsrPem(''); // Clear main CSR as we are re-generating
     setGeneratedKeyPair(null);
-    setUploadedCsrFileName(null);
+    setIsCsrGenerated(false);
 
     if (!commonName.trim()) {
         setGenerationError("Common Name (CN) is required to generate a CSR.");
@@ -253,6 +263,7 @@ export default function IssueCertificateFormClient() {
       const pkcs10 = new CertificationRequest();
       pkcs10.version = 0;
 
+      // Order for DN might matter for some CAs, typically: C, ST, L, O, OU, CN
       if (country.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.6", value: new asn1js.PrintableString({ value: country.trim() }) }));
       if (stateProvince.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.8", value: new asn1js.Utf8String({ value: stateProvince.trim() }) }));
       if (locality.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.7", value: new asn1js.Utf8String({ value: locality.trim() }) }));
@@ -265,42 +276,41 @@ export default function IssueCertificateFormClient() {
       const preparedExtensions: Extension[] = [];
       const basicConstraints = new BasicConstraints({ cA: false });
       preparedExtensions.push(new Extension({
-        extnID: "2.5.29.19",
-        critical: true,
+        extnID: "2.5.29.19", // basicConstraints
+        critical: true, // Basic constraints for end-entity is typically critical
         extnValue: basicConstraints.toSchema().toBER(false)
       }));
       
       const generalNamesArray: GeneralName[] = [];
       dnsSans.split(',').map(s => s.trim()).filter(s => s).forEach(dnsName => {
-        generalNamesArray.push(new GeneralName({ type: 2, value: dnsName }));
+        generalNamesArray.push(new GeneralName({ type: 2, value: dnsName })); // dNSName
       });
       ipSans.split(',').map(s => s.trim()).filter(s => s).forEach(ipAddress => {
         const ipBuffer = ipToBuffer(ipAddress);
         if (ipBuffer) {
-          generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) }));
+          generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) })); // iPAddress
         } else {
           console.warn(`Could not parse IP SAN: ${ipAddress}. It will be skipped.`);
         }
       });
       emailSans.split(',').map(s => s.trim()).filter(s => s).forEach(email => {
-        generalNamesArray.push(new GeneralName({ type: 1, value: email }));
+        generalNamesArray.push(new GeneralName({ type: 1, value: email })); // rfc822Name
       });
       uriSans.split(',').map(s => s.trim()).filter(s => s).forEach(uri => {
-        generalNamesArray.push(new GeneralName({ type: 6, value: uri }));
+        generalNamesArray.push(new GeneralName({ type: 6, value: uri })); // uniformResourceIdentifier
       });
 
       if (generalNamesArray.length > 0) {
         const altNames = new GeneralNames({ names: generalNamesArray });
         preparedExtensions.push(new Extension({
-          extnID: "2.5.29.17",
-          critical: false,
+          extnID: "2.5.29.17", // subjectAlternativeName
+          critical: false, // SAN is usually non-critical
           extnValue: altNames.toSchema().toBER(false)
         }));
       }
       
       if (preparedExtensions.length > 0) {
-        pkcs10.attributes = pkcs10.attributes || [];
-        pkcs10.attributes.push(new Attribute({
+        pkcs10.attributes.push(new Attribute({ // Ensure 'Attribute' is imported from pkijs
           type: "1.2.840.113549.1.9.14", // pkcs-9-at-extensionRequest
           values: [
             new Extensions({ extensions: preparedExtensions }).toSchema()
@@ -312,12 +322,15 @@ export default function IssueCertificateFormClient() {
 
       const csrDerBuffer = pkcs10.toSchema().toBER(false);
       const signedCsrPem = formatAsPem(arrayBufferToBase64(csrDerBuffer), 'CERTIFICATE REQUEST');
+      
       setGeneratedCsrPemForDisplay(signedCsrPem);
-      setCsrPem(signedCsrPem);
+      setCsrPem(signedCsrPem); // Also populate the main CSR field
+      setIsCsrGenerated(true); // Mark CSR as generated
 
     } catch (error: any) {
       console.error("Key pair or CSR generation error:", error);
       setGenerationError(`Failed to generate: ${error.message || String(error)}`);
+      setIsCsrGenerated(false);
     } finally {
       setIsGenerating(false);
     }
@@ -330,11 +343,13 @@ export default function IssueCertificateFormClient() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        setCsrPem(content);
+        setCsrPem(content); // Populate main CSR field
+        // Clear generate-specific states if any
         setGeneratedCsrPemForDisplay('');
         setGeneratedPrivateKeyPem('');
         setGeneratedKeyPair(null);
         setGenerationError(null);
+        setIsCsrGenerated(false);
       };
       reader.readAsText(file);
     } else {
@@ -358,12 +373,13 @@ export default function IssueCertificateFormClient() {
       </div>
     );
   }
-  if (!caId && typeof window === 'undefined') {
+  if (!caId && typeof window === 'undefined') { // For SSR or prerendering, show loading
     return <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
             <p className="text-muted-foreground">Loading CA information...</p>
            </div>;
   }
+
 
   if (!modeChosen) {
     return (
@@ -390,7 +406,7 @@ export default function IssueCertificateFormClient() {
                     <KeyRound className="h-8 w-8 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg group-hover:text-primary transition-colors">Generate Key & CSR In Browser</CardTitle>
+                    <CardTitle className="text-lg group-hover:text-primary transition-colors">Generate Key &amp; CSR In Browser</CardTitle>
                     <CardDescription className="mt-1 text-sm">
                       A new private key and CSR will be generated directly in your browser. The private key will be displayed for you to save.
                     </CardDescription>
@@ -399,7 +415,7 @@ export default function IssueCertificateFormClient() {
               </CardHeader>
               <CardFooter>
                 <Button variant="default" className="w-full bg-primary/90 hover:bg-primary">
-                  Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
+                  Select &amp; Continue <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
             </Card>
@@ -423,7 +439,7 @@ export default function IssueCertificateFormClient() {
               </CardHeader>
               <CardFooter>
                 <Button variant="default" className="w-full bg-primary/90 hover:bg-primary">
-                  Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
+                  Select &amp; Continue <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
             </Card>
@@ -434,42 +450,32 @@ export default function IssueCertificateFormClient() {
 
   return (
     <div className="w-full space-y-6 p-4 md:p-6">
-      <div className="flex justify-between items-center mb-4">
-        <Button variant="outline" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CA Details
-        </Button>
-        <Button variant="ghost" onClick={handleChangeCsrMethod} className="text-primary hover:text-primary/80">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Change CSR Method
-        </Button>
-      </div>
-      <div className="space-y-2">
-        <div className="flex items-center space-x-3">
-            {issuanceMode === 'generate' ? <KeyRound className="h-7 w-7 text-primary" /> : <UploadCloud className="h-7 w-7 text-primary" />}
-            <h1 className="text-2xl font-headline font-semibold">
-                Issue Certificate - {issuanceMode === 'generate' ? 'Generate Key & CSR' : 'Upload CSR'}
-            </h1>
+        <div className="flex justify-between items-center mb-4">
+            <Button variant="outline" onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to CA Details
+            </Button>
+            <Button variant="ghost" onClick={handleChangeCsrMethod} className="text-primary hover:text-primary/80">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Change CSR Method
+            </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-            CA: <span className="font-mono text-primary">{caId ? caId.substring(0, 12) : 'N/A'}...</span>
-            {issuanceMode === 'generate' 
-                ? " Fill details to generate a new key/CSR, then provide subject and SAN info." 
-                : " Upload your CSR."}
-        </p>
-      </div>
+        <div className="space-y-2">
+            <div className="flex items-center space-x-3">
+                {issuanceMode === 'generate' ? <KeyRound className="h-7 w-7 text-primary" /> : <UploadCloud className="h-7 w-7 text-primary" />}
+                <h1 className="text-2xl font-headline font-semibold">
+                    Issue Certificate - {issuanceMode === 'generate' ? 'Generate Key &amp; CSR' : 'Upload CSR'}
+                </h1>
+            </div>
+            <p className="text-sm text-muted-foreground">
+                CA: <span className="font-mono text-primary">{caId ? caId.substring(0, 12) : 'N/A'}...</span>
+                {issuanceMode === 'generate' 
+                    ? " Fill key parameters, subject, and SAN info. Then generate. Finally, issue." 
+                    : " Upload your CSR, then issue the certificate."}
+            </p>
+        </div>
       
       <Card className="mt-6">
-        <CardHeader>
-            <CardTitle>
-                {issuanceMode === 'generate' ? "Certificate Request Configuration" : "Upload Certificate Request"}
-            </CardTitle>
-            <CardDescription>
-                {issuanceMode === 'generate' 
-                    ? "Step 1: Define key parameters and generate. Step 2: Provide subject details for the certificate." 
-                    : "Upload your pre-existing Certificate Signing Request (CSR) in PEM format."}
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <form id="issueCertForm" onSubmit={handleSubmit} className="space-y-8">
+        <form id="issueCertForm" onSubmit={handleSubmit}>
+            <CardContent className="pt-6 space-y-8">
                 {issuanceMode === 'generate' && (
                 <>
                     <section>
@@ -518,47 +524,7 @@ export default function IssueCertificateFormClient() {
                     </section>
                     <Separator/>
                     <section>
-                        <Button type="button" variant="secondary" onClick={handleGenerateKeyPairAndCsr} disabled={isGenerating || !commonName.trim()} className="w-full sm:w-auto mt-4">
-                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
-                            {isGenerating ? 'Generating...' : 'Generate Key Pair & CSR'}
-                        </Button>
-                        {!commonName.trim() && <p className="text-xs text-destructive mt-1">Common Name (CN) is required for CSR generation (see step 2 below).</p>}
-                        {generationError && (
-                        <Alert variant="destructive" className="mt-2">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>{generationError}</AlertDescription>
-                        </Alert>
-                        )}
-                        {generatedPrivateKeyPem && (
-                        <div className="mt-4">
-                            <h3 className="text-md font-medium mb-1">Generated Private Key (PEM)</h3>
-                            <p className="text-xs text-destructive mb-2">Keep this secret! This is your only chance to copy it.</p>
-                            <Textarea
-                            id="generatedKeyPem"
-                            value={generatedPrivateKeyPem}
-                            readOnly
-                            rows={8}
-                            className="mt-1 font-mono bg-background/50"
-                            />
-                        </div>
-                        )}
-                        {generatedCsrPemForDisplay && (
-                            <div className="mt-4">
-                                <h3 className="text-md font-medium mb-1">Generated CSR (PEM)</h3>
-                                <Textarea
-                                id="generatedCsrPemDisplay"
-                                value={generatedCsrPemForDisplay}
-                                readOnly
-                                rows={8}
-                                className="mt-1 font-mono bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">This CSR has been auto-filled into the main CSR field below.</p>
-                            </div>
-                        )}
-                    </section>
-                    <Separator />
-                    <section>
-                        <h3 className="text-lg font-medium mb-3">2. Certificate Subject & Validity</h3>
+                        <h3 className="text-lg font-medium mb-3">2. Certificate Subject &amp; Validity</h3>
                         <p className="text-xs text-muted-foreground mb-3">These details will be embedded into the generated CSR and the resulting certificate.</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -615,6 +581,45 @@ export default function IssueCertificateFormClient() {
                             </div>
                         </div>
                     </section>
+                    <Separator/>
+                     <section>
+                        <h3 className="text-lg font-medium mb-3">4. Generated Key Material</h3>
+                        {generationError && (
+                        <Alert variant="destructive" className="mt-2 mb-3">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription>{generationError}</AlertDescription>
+                        </Alert>
+                        )}
+                        {generatedPrivateKeyPem && (
+                        <div className="mt-4">
+                            <h4 className="text-md font-medium mb-1">Generated Private Key (PEM)</h4>
+                            <p className="text-xs text-destructive mb-2">Keep this secret! This is your only chance to copy it.</p>
+                            <Textarea
+                            id="generatedKeyPem"
+                            value={generatedPrivateKeyPem}
+                            readOnly
+                            rows={8}
+                            className="mt-1 font-mono bg-background/50"
+                            />
+                        </div>
+                        )}
+                        {generatedCsrPemForDisplay && (
+                            <div className="mt-4">
+                                <h4 className="text-md font-medium mb-1">Generated CSR (PEM)</h4>
+                                <Textarea
+                                id="generatedCsrPemDisplay"
+                                value={generatedCsrPemForDisplay}
+                                readOnly
+                                rows={8}
+                                className="mt-1 font-mono bg-background/50"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">This CSR has been auto-filled into the main CSR field below.</p>
+                            </div>
+                        )}
+                         {!generatedPrivateKeyPem && !generatedCsrPemForDisplay && !generationError && (
+                            <p className="text-sm text-muted-foreground">Click "Generate Key Pair &amp; CSR" in the footer after filling details above.</p>
+                         )}
+                    </section>
                 </>
                 )}
 
@@ -654,8 +659,10 @@ export default function IssueCertificateFormClient() {
                             onChange={(e) => {
                                 setCsrPem(e.target.value);
                                 if (issuanceMode === 'generate') {
-                                    setGeneratedCsrPemForDisplay('');
+                                    setGeneratedCsrPemForDisplay(''); // Clear display if manually edited
+                                    setIsCsrGenerated(false); // Requires re-generation or indicates manual override
                                 }
+                                // Clear other generate-specific states if user manually edits CSR
                                 setGeneratedPrivateKeyPem('');
                                 setGeneratedKeyPair(null);
                                 setUploadedCsrFileName(null);
@@ -665,15 +672,40 @@ export default function IssueCertificateFormClient() {
                         {!csrPem.trim() && <p className="text-xs text-destructive mt-1">CSR content is required for submission.</p>}
                     </div>
                 </section>
-            </form>
-        </CardContent>
-        <CardFooter className="border-t pt-6">
-            <div className="flex justify-end w-full">
-                <Button type="submit" size="lg" form="issueCertForm" disabled={isGenerating || !csrPem.trim() || (issuanceMode === 'generate' && !commonName.trim())}>
-                    <FileSignature className="mr-2 h-5 w-5" /> Issue Certificate
-                </Button>
-            </div>
-        </CardFooter>
+            </CardContent>
+            <CardFooter className="border-t pt-6">
+                <div className="flex justify-end w-full">
+                    {issuanceMode === 'generate' && !isCsrGenerated && (
+                        <Button 
+                            type="button" 
+                            size="lg" 
+                            onClick={async () => { 
+                                await handleGenerateKeyPairAndCsr(); 
+                                // Check if generation was successful before setting isCsrGenerated
+                                // This relies on generatedCsrPemForDisplay being set AND no error
+                                if (generatedCsrPemForDisplay && !generationError) {
+                                    // Defer setIsCsrGenerated to allow state to update and re-render button
+                                    // This check happens inside handleGenerateKeyPairAndCsr now.
+                                }
+                            }}
+                            disabled={isGenerating || !commonName.trim()}
+                        >
+                            <KeyRound className="mr-2 h-5 w-5" /> Generate Key Pair &amp; CSR
+                        </Button>
+                    )}
+                    {issuanceMode === 'generate' && isCsrGenerated && (
+                         <Button type="submit" size="lg" disabled={isGenerating || !csrPem.trim()}>
+                            <FileSignature className="mr-2 h-5 w-5" /> Issue Certificate
+                        </Button>
+                    )}
+                    {issuanceMode === 'upload' && (
+                        <Button type="submit" size="lg" disabled={isGenerating || !csrPem.trim()}>
+                            <FileSignature className="mr-2 h-5 w-5" /> Issue Certificate
+                        </Button>
+                    )}
+                </div>
+            </CardFooter>
+        </form>
       </Card>
     </div>
   );
@@ -681,3 +713,4 @@ export default function IssueCertificateFormClient() {
     
 
     
+
