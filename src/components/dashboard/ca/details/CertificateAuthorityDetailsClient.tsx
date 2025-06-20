@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye, Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye, Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, RefreshCw, PlusCircle, FilePlus2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -157,6 +157,9 @@ export default function CertificateAuthorityDetailsClient() {
   }, [issuedCertsSearchTermCN, issuedCertsSearchTermSN]);
 
   useEffect(() => {
+    // This effect now also reacts to activeTab changes,
+    // so it will trigger pagination reset if the user switches to the 'issued' tab
+    // and then changes a filter on that tab.
     if (activeTab === 'issued') {
       setIssuedCertsCurrentPageIndex(0);
       setIssuedCertsBookmarkStack([null]);
@@ -286,13 +289,13 @@ export default function CertificateAuthorityDetailsClient() {
     isAuthenticated,
     user?.access_token,
     issuedCertsCurrentPageIndex,
-    issuedCertsBookmarkStack, // Make sure this is stable or correctly updated
+    issuedCertsBookmarkStack,
     issuedCertsPageSize,
     issuedCertsSortConfig,
     issuedCertsDebouncedSearchTermCN,
     issuedCertsDebouncedSearchTermSN,
     issuedCertsStatusFilter,
-    actualLoadIssuedCertificatesByCa // Add the memoized function as a dependency
+    actualLoadIssuedCertificatesByCa
   ]);
 
   useEffect(() => {
@@ -351,6 +354,30 @@ export default function CertificateAuthorityDetailsClient() {
     }
     setIssuedCertsSortConfig({ column, direction });
   };
+  
+  const handleRefreshIssuedCerts = () => {
+     if (caDetails?.id && user?.access_token) {
+        actualLoadIssuedCertificatesByCa(
+            caDetails.id,
+            user.access_token,
+            issuedCertsBookmarkStack[issuedCertsCurrentPageIndex],
+            issuedCertsPageSize,
+            issuedCertsSortConfig,
+            issuedCertsDebouncedSearchTermCN,
+            issuedCertsDebouncedSearchTermSN,
+            issuedCertsStatusFilter
+        );
+    }
+  };
+
+  const handleIssueNewCertificate = () => {
+    if (caDetails?.id) {
+        routerHook.push(`/certificate-authorities/issue-certificate?caId=${caDetails.id}`);
+    } else {
+        toast({ title: "Error", description: "Cannot issue certificate, CA ID is missing.", variant: "destructive" });
+    }
+  };
+
 
   const SortableIssuedCertHeader: React.FC<{ column: SortableIssuedCertColumn; title: string; className?: string }> = ({ column, title, className }) => {
     const isSorted = issuedCertsSortConfig?.column === column;
@@ -495,45 +522,56 @@ export default function CertificateAuthorityDetailsClient() {
 
           <TabsContent value="issued">
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mb-4">
-                <div className="relative col-span-1 md:col-span-1">
-                    <Label htmlFor="issuedCertSearchCN">Search CN</Label>
-                    <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                        id="issuedCertSearchCN"
-                        type="text"
-                        placeholder="Filter by Common Name..."
-                        value={issuedCertsSearchTermCN}
-                        onChange={(e) => setIssuedCertsSearchTermCN(e.target.value)}
-                        className="w-full pl-10 mt-1"
-                        disabled={isLoadingIssuedCerts || authLoading}
-                    />
+               <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end w-full sm:w-auto flex-grow">
+                    <div className="relative col-span-1 md:col-span-1">
+                        <Label htmlFor="issuedCertSearchCN">Search CN</Label>
+                        <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                            id="issuedCertSearchCN"
+                            type="text"
+                            placeholder="Filter by Common Name..."
+                            value={issuedCertsSearchTermCN}
+                            onChange={(e) => setIssuedCertsSearchTermCN(e.target.value)}
+                            className="w-full pl-10 mt-1"
+                            disabled={isLoadingIssuedCerts || authLoading}
+                        />
+                    </div>
+                    <div className="relative col-span-1 md:col-span-1">
+                        <Label htmlFor="issuedCertSearchSN">Search SN</Label>
+                        <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                            id="issuedCertSearchSN"
+                            type="text"
+                            placeholder="Filter by Serial Number..."
+                            value={issuedCertsSearchTermSN}
+                            onChange={(e) => setIssuedCertsSearchTermSN(e.target.value)}
+                            className="w-full pl-10 mt-1"
+                            disabled={isLoadingIssuedCerts || authLoading}
+                        />
+                    </div>
+                    <div className="col-span-1 md:col-span-1">
+                        <Label htmlFor="issuedCertStatusFilter">Status</Label>
+                        <Select value={issuedCertsStatusFilter} onValueChange={(value) => setIssuedCertsStatusFilter(value as ApiStatusFilterValue)} disabled={isLoadingIssuedCerts || authLoading}>
+                            <SelectTrigger id="issuedCertStatusFilter" className="w-full mt-1">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.entries(API_STATUS_VALUES_FOR_FILTER).map(([key, val]) => <SelectItem key={val} value={val}>{val === 'ALL' ? 'All Statuses' : key.charAt(0) + key.slice(1).toLowerCase()}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-                <div className="relative col-span-1 md:col-span-1">
-                    <Label htmlFor="issuedCertSearchSN">Search SN</Label>
-                    <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                        id="issuedCertSearchSN"
-                        type="text"
-                        placeholder="Filter by Serial Number..."
-                        value={issuedCertsSearchTermSN}
-                        onChange={(e) => setIssuedCertsSearchTermSN(e.target.value)}
-                        className="w-full pl-10 mt-1"
-                        disabled={isLoadingIssuedCerts || authLoading}
-                    />
-                </div>
-                <div className="col-span-1 md:col-span-1">
-                    <Label htmlFor="issuedCertStatusFilter">Status</Label>
-                    <Select value={issuedCertsStatusFilter} onValueChange={(value) => setIssuedCertsStatusFilter(value as ApiStatusFilterValue)} disabled={isLoadingIssuedCerts || authLoading}>
-                        <SelectTrigger id="issuedCertStatusFilter" className="w-full mt-1">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.entries(API_STATUS_VALUES_FOR_FILTER).map(([key, val]) => <SelectItem key={val} value={val}>{val === 'ALL' ? 'All Statuses' : key.charAt(0) + key.slice(1).toLowerCase()}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
+                 <div className="flex space-x-2 self-end sm:self-center mt-4 sm:mt-0">
+                    <Button onClick={handleRefreshIssuedCerts} variant="outline" disabled={isLoadingIssuedCerts}>
+                        <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingIssuedCerts && "animate-spin")} /> Refresh
+                    </Button>
+                    <Button onClick={handleIssueNewCertificate} variant="default" disabled={!caDetails || caDetails.status !== 'active' || isPast(parseISO(caDetails.expires))}>
+                        <FilePlus2 className="mr-2 h-4 w-4" /> Issue New
+                    </Button>
                 </div>
               </div>
+
 
               {isLoadingIssuedCerts && (
                 <div className="flex items-center justify-center p-6">
@@ -547,20 +585,7 @@ export default function CertificateAuthorityDetailsClient() {
                   <AlertTitle>Error Loading Issued Certificates</AlertTitle>
                   <AlertDescription>
                     {errorIssuedCerts}
-                    <Button variant="link" onClick={() => { 
-                        if (caDetails?.id && user?.access_token) {
-                            actualLoadIssuedCertificatesByCa(
-                                caDetails.id,
-                                user.access_token,
-                                issuedCertsBookmarkStack[issuedCertsCurrentPageIndex],
-                                issuedCertsPageSize,
-                                issuedCertsSortConfig,
-                                issuedCertsDebouncedSearchTermCN,
-                                issuedCertsDebouncedSearchTermSN,
-                                issuedCertsStatusFilter
-                              );
-                        }
-                    }} className="p-0 h-auto ml-1">Try again?</Button>
+                    <Button variant="link" onClick={handleRefreshIssuedCerts} className="p-0 h-auto ml-1">Try again?</Button>
                   </AlertDescription>
                 </Alert>
               )}
@@ -658,3 +683,4 @@ export default function CertificateAuthorityDetailsClient() {
     </div>
   );
 }
+
