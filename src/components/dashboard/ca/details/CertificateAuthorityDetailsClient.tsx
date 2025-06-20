@@ -126,7 +126,7 @@ export default function CertificateAuthorityDetailsClient() {
   const [issuedCertsStatusFilter, setIssuedCertsStatusFilter] = useState<ApiStatusFilterValue>(API_STATUS_VALUES_FOR_FILTER.ALL);
   const [issuedCertsSortConfig, setIssuedCertsSortConfig] = useState<IssuedCertSortConfig | null>({ column: 'expires', direction: 'desc' });
 
-  const mockLamassuMetadata = caDetails ? { // Ensure caDetails is not null
+  const mockLamassuMetadata = useMemo(() => (caDetails ? {
     caId: caDetails.id,
     name: caDetails.name,
     status: caDetails.status,
@@ -147,7 +147,7 @@ export default function CertificateAuthorityDetailsClient() {
       { timestamp: new Date().toISOString(), action: "CA Created", user: "admin" },
       { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), action: "Certificate Issued (SN: ...)", user: "system" },
     ]
-  } : {};
+  } : {}), [caDetails]);
 
 
   useEffect(() => {
@@ -157,6 +157,7 @@ export default function CertificateAuthorityDetailsClient() {
   }, [issuedCertsSearchTermCN, issuedCertsSearchTermSN]);
 
   useEffect(() => {
+    // This effect resets pagination when filters or sorting change for the 'issued' tab.
     if (activeTab === 'issued') {
       setIssuedCertsCurrentPageIndex(0);
       setIssuedCertsBookmarkStack([null]);
@@ -206,7 +207,7 @@ export default function CertificateAuthorityDetailsClient() {
     }
   }, [caIdFromUrl, allCertificateAuthoritiesData, isLoadingCAs]);
 
-  // Refactored data fetching for issued certificates
+  // Effect for fetching issued certificates
   useEffect(() => {
     const actualLoadIssuedCertificatesByCa = async (
       currentCaId: string,
@@ -268,7 +269,7 @@ export default function CertificateAuthorityDetailsClient() {
         setIsLoadingIssuedCerts(false);
       }
     };
-
+    
     if (activeTab === 'issued' && caDetails?.id && isAuthenticated() && user?.access_token) {
       actualLoadIssuedCertificatesByCa(
         caDetails.id,
@@ -287,7 +288,9 @@ export default function CertificateAuthorityDetailsClient() {
     isAuthenticated,
     user?.access_token,
     issuedCertsCurrentPageIndex,
-    issuedCertsBookmarkStack,
+    // Use the specific bookmark for the current page as a dependency
+    // This is a string or null, so it's a stable primitive value.
+    issuedCertsBookmarkStack[issuedCertsCurrentPageIndex], 
     issuedCertsPageSize,
     issuedCertsSortConfig,
     issuedCertsDebouncedSearchTermCN,
@@ -296,15 +299,19 @@ export default function CertificateAuthorityDetailsClient() {
   ]);
 
 
+  // Effect for clearing stale issued certificate data
   useEffect(() => {
-    if (activeTab !== 'issued' || (caDetails?.id && issuedCertificatesList.length > 0 && issuedCertificatesList[0]?.issuerCaId !== caDetails.id)) {
+    const isDifferentCa = caDetails?.id && issuedCertificatesList.length > 0 && issuedCertificatesList[0]?.issuerCaId !== caDetails.id;
+
+    if (activeTab !== 'issued' || isDifferentCa) {
       setIssuedCertificatesList([]);
       setIssuedCertsBookmarkStack([null]);
       setIssuedCertsCurrentPageIndex(0);
       setIssuedCertsNextTokenFromApi(null);
       setErrorIssuedCerts(null);
     }
-  }, [activeTab, caDetails?.id, issuedCertificatesList]);
+  }, [activeTab, caDetails?.id]); // Only depend on activeTab and caDetails.id
+
 
   const handleCARevocation = () => {
     if (caDetails) {
@@ -416,13 +423,13 @@ export default function CertificateAuthorityDetailsClient() {
       statusColorClass = 'bg-red-500 hover:bg-red-600';
       statusVariant = 'destructive';
       break;
-    case 'expired':
+    case 'expired': // Assuming 'expired' is a possible status from your CA data processing
       statusColorClass = 'bg-orange-500 hover:bg-orange-600';
       statusVariant = 'destructive';
       break;
-    default:
-      statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; // Or some other default/unknown color
-      statusVariant = 'outline'; // Or a suitable default
+    default: // For 'unknown' or any other status
+      statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; 
+      statusVariant = 'outline'; 
   }
 
 
@@ -551,9 +558,10 @@ export default function CertificateAuthorityDetailsClient() {
                   <AlertTitle>Error Loading Issued Certificates</AlertTitle>
                   <AlertDescription>
                     {errorIssuedCerts}
-                    <Button variant="link" onClick={() => { /* Re-trigger fetch based on current params */
+                    <Button variant="link" onClick={() => { 
                         if (caDetails?.id && user?.access_token) {
-                           // Directly call the refactored fetch logic here or a stable wrapper
+                            // Re-trigger the fetch by explicitly calling a wrapper or directly
+                            // This is simplified; in a real app, you might have a stable fetch function
                             const actualLoadIssuedCertificatesByCa = async (
                                 currentCaId: string,
                                 accessToken: string,
