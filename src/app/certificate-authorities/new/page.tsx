@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// ScrollArea is now used within CaSelectorModal
 import { ArrowLeft, PlusCircle, FolderTree, ChevronRight, Minus, Settings, Info, CalendarDays, KeyRound, Repeat, UploadCloud, FileText, Loader2, AlertTriangle } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
@@ -23,59 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 import { formatISO } from 'date-fns';
-
-
-interface SelectableCaTreeItemProps {
-  ca: CA;
-  level: number;
-  onSelect: (ca: CA) => void;
-  currentParentId?: string | null;
-}
-
-const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({ ca, level, onSelect, currentParentId }) => {
-  const [isOpen, setIsOpen] = useState(level < 1);
-  const hasChildren = ca.children && ca.children.length > 0;
-  const isSelectable = true;
-
-  const handleSelect = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isSelectable) {
-      onSelect(ca);
-    }
-  };
-
-  return (
-    <li className={`py-1 ${level > 0 ? 'pl-4 border-l border-dashed border-border ml-2' : ''} relative list-none`}>
-      {level > 0 && (
-         <Minus className="h-3 w-3 absolute -left-[0.4rem] top-3 text-border transform rotate-90" />
-      )}
-      <div className="flex items-center space-x-2">
-        {hasChildren && (
-          <ChevronRight
-            className={`h-4 w-4 text-muted-foreground transition-transform duration-150 cursor-pointer ${isOpen ? 'rotate-90' : ''}`}
-            onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-          />
-        )}
-        {!hasChildren && <div className="w-4 h-4"></div>} {/* Placeholder for alignment */}
-
-        <FolderTree className="h-4 w-4 text-primary flex-shrink-0" />
-        <span
-          className={`flex-1 text-sm ${isSelectable ? 'cursor-pointer hover:underline' : 'text-muted-foreground'} ${currentParentId === ca.id ? 'font-bold text-primary': ''}`}
-          onClick={isSelectable ? handleSelect : undefined}
-        >
-          {ca.name}
-        </span>
-      </div>
-      {hasChildren && isOpen && (
-        <ul className="mt-1 pl-3">
-          {ca.children?.map((childCa) => (
-            <SelectableCaTreeItem key={childCa.id} ca={childCa} level={level + 1} onSelect={onSelect} currentParentId={currentParentId} />
-          ))}
-        </ul>
-      )}
-    </li>
-  );
-};
+import { CaSelectorModal } from '@/components/shared/CaSelectorModal'; // Import shared modal
 
 const keyTypes = [
   { value: 'RSA', label: 'RSA' },
@@ -173,7 +120,7 @@ export default function CreateCertificateAuthorityPage() {
     setErrorParentCAs(null);
     try {
       const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-      setAvailableParentCAs(fetchedCAs);
+      setAvailableParentCAs(fetchedCAs); 
     } catch (err: any) {
       setErrorParentCAs(err.message || 'Failed to load available parent CAs.');
       setAvailableParentCAs([]);
@@ -212,7 +159,15 @@ export default function CreateCertificateAuthorityPage() {
 
   const currentKeySizeOptions = keyType === 'RSA' ? rsaKeySizes : ecdsaKeySizes;
 
-  const handleParentCaSelect = (ca: CA) => {
+  const handleParentCaSelectFromModal = (ca: CA) => {
+    if (ca.rawApiData?.certificate.type === 'EXTERNAL_PUBLIC' || ca.status !== 'active') {
+        toast({
+            title: "Invalid Parent CA",
+            description: `CA "${ca.name}" cannot be used as a parent as it's external-public or not active.`,
+            variant: "destructive"
+        });
+        return;
+    }
     setSelectedParentCa(ca);
     setIsParentCaModalOpen(false);
   };
@@ -236,7 +191,6 @@ export default function CreateCertificateAuthorityPage() {
     if (config.type === "Indefinite") {
       return { type: "Date", time: INDEFINITE_DATE_API_VALUE };
     }
-    // Fallback or error, though UI should prevent this
     return { type: "Duration", duration: "1y" }; 
   };
 
@@ -339,7 +293,6 @@ export default function CreateCertificateAuthorityPage() {
               errorMessage = `Failed to create CA: ${errorJson.message}`;
             }
           } catch (e) {
-            // Response was not JSON or JSON parsing failed
              console.error("Failed to parse error response as JSON for CA creation:", e);
           }
           throw new Error(errorMessage);
@@ -354,7 +307,6 @@ export default function CreateCertificateAuthorityPage() {
       }
 
     } else {
-      // Mock submission for other modes
       const subjectDN = { C: country, ST: stateProvince, L: locality, O: organization, OU: organizationalUnit, CN: caName };
       const formData = {
         creationMode: selectedMode,
@@ -674,53 +626,19 @@ export default function CreateCertificateAuthorityPage() {
         </div>
       </div>
 
-      <Dialog open={isParentCaModalOpen} onOpenChange={setIsParentCaModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Select Parent Certificate Authority</DialogTitle>
-            <DialogDescription>
-              Choose an existing CA to be the issuer for this new intermediate CA.
-            </DialogDescription>
-          </DialogHeader>
-          {(isLoadingParentCAs || authLoading) && (
-            <div className="flex items-center justify-center h-72">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-2">{authLoading ? "Authenticating..." : "Loading CAs..."}</p>
-            </div>
-          )}
-          {errorParentCAs && !isLoadingParentCAs && !authLoading && (
-             <Alert variant="destructive" className="my-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Error Loading Parent CAs</AlertTitle>
-                <AlertDescription>{errorParentCAs} <Button variant="link" onClick={loadParentCAs} className="p-0 h-auto">Try again?</Button></AlertDescription>
-            </Alert>
-          )}
-          {!isLoadingParentCAs && !authLoading && !errorParentCAs && availableParentCAs.length > 0 && (
-            <ScrollArea className="h-72 my-4">
-                <ul className="space-y-1 pr-2">
-                {availableParentCAs.filter(ca => ca.status === 'active').map((ca) => (
-                    <SelectableCaTreeItem
-                    key={ca.id}
-                    ca={ca}
-                    level={0}
-                    onSelect={handleParentCaSelect}
-                    currentParentId={selectedParentCa?.id}
-                    />
-                ))}
-                </ul>
-            </ScrollArea>
-          )}
-          {!isLoadingParentCAs && !authLoading && !errorParentCAs && availableParentCAs.length === 0 && (
-            <p className="text-muted-foreground text-center my-4">No active CAs available to select as parent.</p>
-          )}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CaSelectorModal
+        isOpen={isParentCaModalOpen}
+        onOpenChange={setIsParentCaModalOpen}
+        title="Select Parent Certificate Authority"
+        description="Choose an existing CA to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
+        availableCAs={availableParentCAs}
+        isLoadingCAs={isLoadingParentCAs}
+        errorCAs={errorParentCAs}
+        loadCAsAction={loadParentCAs}
+        onCaSelected={handleParentCaSelectFromModal}
+        currentSelectedCaId={selectedParentCa?.id}
+        isAuthLoading={authLoading}
+      />
     </div>
   );
 }
-

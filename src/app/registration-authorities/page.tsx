@@ -14,20 +14,20 @@ export default function RegistrationAuthoritiesPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <div> {/* Was Card */}
-        <div className="mb-4"> {/* Was CardHeader */}
+      <div> 
+        <div className="mb-4"> 
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-3">
               <Users className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-headline font-semibold">Registration Authorities</h1> {/* Was CardTitle */}
+              <h1 className="text-2xl font-headline font-semibold">Registration Authorities</h1> 
             </div>
             <Button variant="default" onClick={handleCreateNewRAClick}>
               <PlusCircle className="mr-2 h-4 w-4" /> Create New RA
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground">Oversee Registration Authority (RA) settings and operations. Manage existing RAs or create new ones.</p> {/* Was CardDescription */}
+          <p className="text-sm text-muted-foreground">Oversee Registration Authority (RA) settings and operations. Manage existing RAs or create new ones.</p> 
         </div>
-        <div> {/* Was CardContent */}
+        <div> 
           <p className="text-muted-foreground mb-4">
             This section is for managing Registration Authorities. Below you would typically see a list of configured RAs.
           </p>
@@ -40,3 +40,4 @@ export default function RegistrationAuthoritiesPage() {
     </div>
   );
 }
+
