@@ -5,14 +5,14 @@ import React from 'react';
 import type { CA } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, ChevronDown } from "lucide-react"; 
+import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, ChevronDown } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DetailItem } from '@/components/shared/DetailItem';
-import { CaHierarchyPathNode } from '@/components/dashboard/ca/details/CaHierarchyPathNode'; 
-import { getCaDisplayName } from '@/lib/ca-data'; 
+import { CaHierarchyPathNode } from '@/components/dashboard/ca/details/CaHierarchyPathNode';
+import { getCaDisplayName } from '@/lib/ca-data';
 import { format, parseISO } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'; // For routerHook type
 
@@ -23,7 +23,7 @@ interface InformationTabContentProps {
     pathToRoot: CA[];
     allCAsForLinking: CA[];
     currentCaId: string;
-    placeholderSerial?: string; 
+    placeholderSerial?: string;
   };
   certificateSpecific?: {
     certificateChainForVisualizer: CA[];
@@ -169,7 +169,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   } else if (itemType === 'certificate' && certificateSpecific) {
     const certDetails = item as CertificateData;
     return (
-      <Accordion type="multiple" defaultValue={['general', 'keyInfo']} className="w-full space-y-3">
+      <Accordion type="multiple" defaultValue={['general', 'keyInfo', 'chain-visualizer']} className="w-full space-y-3">
         <AccordionItem value="general" className="border-b-0">
           <AccordionTrigger className={cn(accordionTriggerStyle)}>
             <Info className="mr-2 h-5 w-5" /> General Information
@@ -210,34 +210,48 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
           </AccordionItem>
         )}
 
-        {certificateSpecific.certificateChainForVisualizer && certificateSpecific.certificateChainForVisualizer.length >= 0 && ( 
+        {certificateSpecific.certificateChainForVisualizer && (
           <AccordionItem value="chain-visualizer" className="border-b-0">
             <AccordionTrigger className={cn(accordionTriggerStyle)}>
               <Network className="mr-2 h-5 w-5" /> Issuance Chain
             </AccordionTrigger>
             <AccordionContent className="px-4 pt-3">
               <div className="flex flex-col items-center w-full">
-                <div className="relative flex flex-col items-center group w-full max-w-sm border border-primary/50 rounded-lg p-3 shadow-sm bg-primary/5">
-                  <div className="flex items-center space-x-3 w-full">
-                    <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate text-primary">{certDetails.subject}</p>
-                      <p className="text-xs text-muted-foreground truncate">End-Entity Certificate (This Cert)</p>
-                    </div>
-                  </div>
-                </div>
-                {certificateSpecific.certificateChainForVisualizer.length > 0 && (
-                  <ChevronDown className="h-5 w-5 text-border my-1" />
-                )}
+                {/* Render the CA chain first */}
                 {certificateSpecific.certificateChainForVisualizer.map((caNode, index) => (
                   <CaHierarchyPathNode
                     key={caNode.id}
                     ca={caNode}
-                    isCurrentCa={false} 
-                    hasNext={index < certificateSpecific.certificateChainForVisualizer.length - 1}
-                    isFirst={true} 
+                    isCurrentCa={false} // These are parent CAs
+                    hasNext={true}      // Each CA in the chain is followed by another element (either another CA or this cert)
+                    isFirst={index === 0}
                   />
                 ))}
+
+                {/* Render the end-entity certificate (current item) last */}
+                <div
+                  className={cn(
+                    "w-full max-w-sm border-2 rounded-lg p-3 shadow-lg mt-0",
+                    "bg-primary/10 border-primary" // Highlighting for "this" certificate
+                  )}
+                >
+                  <div className={cn("flex items-center space-x-3")}>
+                    <div className={cn("p-2 rounded-full bg-primary/20")}>
+                      <FileText className={cn("h-5 w-5 text-primary")} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm font-semibold truncate text-primary")}>
+                        {certDetails.subject}
+                      </p>
+                      <p className={cn("text-xs text-muted-foreground truncate")}>This Certificate</p>
+                    </div>
+                    <Badge variant={certificateSpecific.statusBadgeVariant} className={cn(certificateSpecific.statusBadgeVariant !== 'outline' ? certificateSpecific.statusBadgeClass : '')}>
+                      {certificateSpecific.apiStatusText}
+                    </Badge>
+                  </div>
+                </div>
+                {/* Add a small spacer if it's the last item */}
+                <div className="h-2"></div>
               </div>
             </AccordionContent>
           </AccordionItem>
