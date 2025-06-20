@@ -95,31 +95,27 @@ export default function IssueCertificateFormClient() {
   const [modeChosen, setModeChosen] = useState<boolean>(false);
   const [issuanceMode, setIssuanceMode] = useState<'generate' | 'upload'>('generate');
 
+  // Fields for Subject DN, Validity, SANs (primarily used in 'generate' mode)
   const [commonName, setCommonName] = useState('');
   const [organization, setOrganization] = useState('');
   const [organizationalUnit, setOrganizationalUnit] = useState('');
   const [country, setCountry] = useState('');
   const [stateProvince, setStateProvince] = useState('');
   const [locality, setLocality] = useState('');
-
   const [validityDays, setValidityDays] = useState('365');
-
   const [dnsSans, setDnsSans] = useState('');
   const [ipSans, setIpSans] = useState('');
   const [emailSans, setEmailSans] = useState('');
   const [uriSans, setUriSans] = useState('');
 
-  const [csrPem, setCsrPem] = useState('');
-
+  // CSR and Key Generation State
+  const [csrPem, setCsrPem] = useState(''); // This is the main CSR that will be submitted
   const [generatedKeyPair, setGeneratedKeyPair] = useState<CryptoKeyPair | null>(null);
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
-  const [generatedCsrPemForDisplay, setGeneratedCsrPemForDisplay] = useState<string>('');
-
+  const [generatedCsrPemForDisplay, setGeneratedCsrPemForDisplay] = useState<string>(''); // For display after generation
   const [uploadedCsrFileName, setUploadedCsrFileName] = useState<string | null>(null);
-
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('RSA');
   const [selectedRsaKeySize, setSelectedRsaKeySize] = useState<string>('2048');
   const [selectedEcdsaCurve, setSelectedEcdsaCurve] = useState<string>('P-256');
@@ -146,17 +142,18 @@ export default function IssueCertificateFormClient() {
     setGeneratedPrivateKeyPem('');
     setGeneratedKeyPair(null);
     setGenerationError(null);
+    // Do not reset subject/SAN fields here as they might be pre-filled or intended for generation
   };
 
   const handleModeSelection = (selectedMode: 'generate' | 'upload') => {
     setIssuanceMode(selectedMode);
     setModeChosen(true);
-    resetCsrState();
+    resetCsrState(); // Reset CSR specific fields when mode is chosen
   };
 
   const handleChangeCsrMethod = () => {
     setModeChosen(false);
-    resetCsrState();
+    resetCsrState(); // Also reset when going back to mode selection
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -169,8 +166,11 @@ export default function IssueCertificateFormClient() {
       alert("Error: CSR is required. Please generate or upload a CSR.");
       return;
     }
-    if (!commonName.trim()) {
-        alert("Error: Common Name (CN) is required for context, even if uploading CSR.");
+    // In 'generate' mode, CN is vital for CSR generation.
+    // In 'upload' mode, CA policies might still use these fields for context or override.
+    // For now, we keep CN as a general requirement if mode is 'generate'.
+    if (issuanceMode === 'generate' && !commonName.trim()) {
+        alert("Error: Common Name (CN) is required for generating a CSR.");
         return;
     }
 
@@ -178,6 +178,8 @@ export default function IssueCertificateFormClient() {
     console.log({
         caIdToIssueFrom: caId,
         mode: issuanceMode,
+        // Only include subject/SANs/validity if they were relevant for the mode (e.g., 'generate')
+        // Or if the CA policies always require them for context
         subjectCommonName: commonName,
         subjectOrganization: organization,
         subjectOrganizationalUnit: organizationalUnit,
@@ -199,7 +201,7 @@ export default function IssueCertificateFormClient() {
     setGenerationError(null);
     setGeneratedPrivateKeyPem('');
     setGeneratedCsrPemForDisplay('');
-    setCsrPem('');
+    setCsrPem(''); // Clear main CSR field
     setGeneratedKeyPair(null);
     setUploadedCsrFileName(null);
 
@@ -294,11 +296,11 @@ export default function IssueCertificateFormClient() {
         const altNames = new GeneralNames({ names: generalNamesArray });
         preparedExtensions.push(new Extension({
           extnID: "2.5.29.17",
-          critical: false,
+          critical: false, // SAN is typically non-critical
           extnValue: altNames.toSchema().toBER(false)
         }));
       }
-
+      
       if (preparedExtensions.length > 0) {
         pkcs10.attributes = []; // Ensure attributes array is initialized
         pkcs10.attributes.push(new Attribute({
@@ -313,8 +315,8 @@ export default function IssueCertificateFormClient() {
 
       const csrDerBuffer = pkcs10.toSchema().toBER(false);
       const signedCsrPem = formatAsPem(arrayBufferToBase64(csrDerBuffer), 'CERTIFICATE REQUEST');
-      setGeneratedCsrPemForDisplay(signedCsrPem);
-      setCsrPem(signedCsrPem);
+      setGeneratedCsrPemForDisplay(signedCsrPem); // For display in its own textarea
+      setCsrPem(signedCsrPem); // Populate the main CSR field
 
     } catch (error: any) {
       console.error("Key pair or CSR generation error:", error);
@@ -331,7 +333,8 @@ export default function IssueCertificateFormClient() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        setCsrPem(content);
+        setCsrPem(content); // Populate main CSR field
+        // Clear generation specific fields
         setGeneratedCsrPemForDisplay('');
         setGeneratedPrivateKeyPem('');
         setGeneratedKeyPair(null);
@@ -455,168 +458,177 @@ export default function IssueCertificateFormClient() {
       </div>
       <div className="pt-2">
           <form onSubmit={handleSubmit} className="space-y-8">
-
-            <section>
-              <h3 className="text-lg font-medium mb-3">Certificate Subject & Validity</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="commonName">Common Name (CN)</Label>
-                  <Input id="commonName" name="commonName" type="text" placeholder="e.g., mydevice.example.com" required className="mt-1" value={commonName} onChange={e => setCommonName(e.target.value)}/>
-                </div>
-                <div>
-                  <Label htmlFor="organization">Organization (O)</Label>
-                  <Input id="organization" name="organization" type="text" placeholder="e.g., LamassuIoT Corp" className="mt-1" value={organization} onChange={e => setOrganization(e.target.value)}/>
-                </div>
-                <div>
-                  <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
-                  <Input id="organizationalUnit" name="organizationalUnit" type="text" placeholder="e.g., Engineering" className="mt-1" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)}/>
-                </div>
-                <div>
-                  <Label htmlFor="country">Country (C) (2-letter code)</Label>
-                  <Input id="country" name="country" type="text" placeholder="e.g., US" maxLength={2} className="mt-1" value={country} onChange={e => setCountry(e.target.value.toUpperCase())}/>
-                </div>
-                <div>
-                  <Label htmlFor="stateProvince">State/Province (ST)</Label>
-                  <Input id="stateProvince" name="stateProvince" type="text" placeholder="e.g., California" className="mt-1" value={stateProvince} onChange={e => setStateProvince(e.target.value)}/>
-                </div>
-                <div>
-                  <Label htmlFor="locality">Locality (L)</Label>
-                  <Input id="locality" name="locality" type="text" placeholder="e.g., San Francisco" className="mt-1" value={locality} onChange={e => setLocality(e.target.value)}/>
-                </div>
-                 <div>
-                  <Label htmlFor="validityDays">Validity (Days)</Label>
-                  <Input id="validityDays" name="validityDays" type="number" defaultValue={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
-                </div>
-              </div>
-            </section>
-
-            <Separator />
-             <section>
-                <h3 className="text-lg font-medium mb-3">Subject Alternative Names (SANs)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="dnsSans">DNS Names (comma-separated)</Label>
-                        <Input id="dnsSans" value={dnsSans} onChange={e => setDnsSans(e.target.value)} placeholder="dns1.example.com, dns2.net" className="mt-1"/>
-                    </div>
-                    <div>
-                        <Label htmlFor="ipSans">IP Addresses (comma-separated)</Label>
-                        <Input id="ipSans" value={ipSans} onChange={e => setIpSans(e.target.value)} placeholder="192.168.1.1, 10.0.0.1" className="mt-1"/>
-                        <p className="text-xs text-muted-foreground mt-1">IPv4 supported. Basic IPv6 (no '::') may work.</p>
-                    </div>
-                    <div>
-                        <Label htmlFor="emailSans">Email Addresses (comma-separated)</Label>
-                        <Input id="emailSans" value={emailSans} onChange={e => setEmailSans(e.target.value)} placeholder="user@example.com, contact@domain.org" className="mt-1"/>
-                    </div>
-                    <div>
-                        <Label htmlFor="uriSans">URIs (comma-separated)</Label>
-                        <Input id="uriSans" value={uriSans} onChange={e => setUriSans(e.target.value)} placeholder="https://service.example.com, urn:foo:bar" className="mt-1"/>
-                    </div>
-                </div>
-             </section>
-            <Separator />
-
-            <section>
-              <h3 className="text-lg font-medium mb-1">Certificate Signing Request (CSR)</h3>
-              <p className="text-xs text-muted-foreground mb-3">Subject and SAN fields above are for CA policy and context, and will be used for CSR generation.</p>
-
-              {issuanceMode === 'generate' && (
-                <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                  <Label className="text-base">Generate New Key Pair & CSR</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="keyAlgorithm">Algorithm</Label>
-                      <Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm} disabled={isGenerating}>
-                        <SelectTrigger id="keyAlgorithm" className="mt-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {availableAlgorithms.map(algo => (
-                            <SelectItem key={algo.value} value={algo.value}>{algo.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {selectedAlgorithm === 'RSA' && (
+            
+            {issuanceMode === 'generate' && (
+              <>
+                <section>
+                  <h3 className="text-lg font-medium mb-3">1. Key Generation Parameters</h3>
+                  <div className="space-y-4 p-4 border rounded-md bg-muted/20">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="rsaKeySize">RSA Key Size</Label>
-                        <Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize} disabled={isGenerating}>
-                          <SelectTrigger id="rsaKeySize" className="mt-1"><SelectValue /></SelectTrigger>
+                        <Label htmlFor="keyAlgorithm">Algorithm</Label>
+                        <Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm} disabled={isGenerating}>
+                          <SelectTrigger id="keyAlgorithm" className="mt-1"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {rsaKeySizes.map(size => (
-                              <SelectItem key={size.value} value={size.value}>{size.label}</SelectItem>
+                            {availableAlgorithms.map(algo => (
+                              <SelectItem key={algo.value} value={algo.value}>{algo.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    )}
-                    {selectedAlgorithm === 'ECDSA' && (
-                      <div>
-                        <Label htmlFor="ecdsaCurve">ECDSA Curve</Label>
-                        <Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve} disabled={isGenerating}>
-                          <SelectTrigger id="ecdsaCurve" className="mt-1"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {ecdsaCurves.map(curve => (
-                              <SelectItem key={curve.value} value={curve.value}>{curve.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {selectedAlgorithm === 'RSA' && (
+                        <div>
+                          <Label htmlFor="rsaKeySize">RSA Key Size</Label>
+                          <Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize} disabled={isGenerating}>
+                            <SelectTrigger id="rsaKeySize" className="mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {rsaKeySizes.map(size => (
+                                <SelectItem key={size.value} value={size.value}>{size.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      {selectedAlgorithm === 'ECDSA' && (
+                        <div>
+                          <Label htmlFor="ecdsaCurve">ECDSA Curve</Label>
+                          <Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve} disabled={isGenerating}>
+                            <SelectTrigger id="ecdsaCurve" className="mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {ecdsaCurves.map(curve => (
+                                <SelectItem key={curve.value} value={curve.value}>{curve.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                    <Button type="button" variant="secondary" onClick={handleGenerateKeyPairAndCsr} disabled={isGenerating || !commonName.trim()} className="w-full sm:w-auto">
+                      {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
+                      {isGenerating ? 'Generating...' : 'Generate Key Pair & CSR'}
+                    </Button>
+                    {!commonName.trim() && <p className="text-xs text-destructive mt-1">Common Name (CN) is required for CSR generation (see step 2).</p>}
+                    {generationError && (
+                      <Alert variant="destructive" className="mt-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>{generationError}</AlertDescription>
+                      </Alert>
                     )}
                   </div>
-                  <Button type="button" variant="secondary" onClick={handleGenerateKeyPairAndCsr} disabled={isGenerating || !commonName.trim()} className="w-full sm:w-auto">
-                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
-                    {isGenerating ? 'Generating...' : 'Generate Key Pair & CSR'}
-                  </Button>
-                  {!commonName.trim() && <p className="text-xs text-destructive mt-1">Common Name (CN) is required for CSR generation.</p>}
-                  {generationError && (
-                    <Alert variant="destructive" className="mt-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>{generationError}</AlertDescription>
-                    </Alert>
-                  )}
-                  {generatedPrivateKeyPem && (
-                    <div className="mt-3 space-y-2">
-                      <Label htmlFor="generatedKeyPem">Generated Private Key (PEM) - Keep this secret!</Label>
-                      <Textarea
-                        id="generatedKeyPem"
-                        value={generatedPrivateKeyPem}
+                </section>
+
+                {generatedPrivateKeyPem && (
+                  <section>
+                    <h3 className="text-lg font-medium mb-1">Generated Private Key (PEM)</h3>
+                    <p className="text-xs text-destructive mb-2">Keep this secret! This is your only chance to copy it.</p>
+                    <Textarea
+                      id="generatedKeyPem"
+                      value={generatedPrivateKeyPem}
+                      readOnly
+                      rows={8}
+                      className="mt-1 font-mono bg-background/50"
+                    />
+                  </section>
+                )}
+                {generatedCsrPemForDisplay && (
+                    <section>
+                        <h3 className="text-lg font-medium mb-1">Generated CSR (PEM)</h3>
+                        <Textarea
+                        id="generatedCsrPemDisplay"
+                        value={generatedCsrPemForDisplay}
                         readOnly
                         rows={8}
                         className="mt-1 font-mono bg-background/50"
-                      />
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">This CSR has been auto-filled into the main CSR field below.</p>
+                    </section>
+                )}
+                <Separator />
+                <section>
+                  <h3 className="text-lg font-medium mb-3">2. Certificate Subject & Validity</h3>
+                   <p className="text-xs text-muted-foreground mb-3">These details will be embedded into the generated CSR and the resulting certificate.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="commonName">Common Name (CN)</Label>
+                      <Input id="commonName" name="commonName" type="text" placeholder="e.g., mydevice.example.com" required className="mt-1" value={commonName} onChange={e => setCommonName(e.target.value)}/>
                     </div>
-                  )}
-                  {generatedCsrPemForDisplay && (
-                       <div className="mt-3 space-y-2">
-                          <Label htmlFor="generatedCsrPemDisplay">Generated CSR (PEM)</Label>
-                          <Textarea
-                          id="generatedCsrPemDisplay"
-                          value={generatedCsrPemForDisplay}
-                          readOnly
-                          rows={8}
-                          className="mt-1 font-mono bg-background/50"
-                          />
-                          <p className="text-xs text-muted-foreground">This CSR has been auto-filled into the main CSR field below.</p>
-                      </div>
-                  )}
-                </div>
-              )}
-
-              {issuanceMode === 'upload' && (
-                <section className="space-y-4 p-4 border rounded-md bg-muted/20">
-                  <Label className="text-base">Upload Certificate Signing Request</Label>
-                  <div className="space-y-2">
-                    <Label htmlFor="csrFile">CSR File (.csr, .pem)</Label>
-                    <Input
-                      id="csrFile"
-                      type="file"
-                      accept=".csr,.pem,.txt"
-                      onChange={handleCsrFileUpload}
-                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                    />
-                    {uploadedCsrFileName && <p className="text-xs text-muted-foreground">Selected file: {uploadedCsrFileName}. Content loaded into CSR field below.</p>}
+                    <div>
+                      <Label htmlFor="organization">Organization (O)</Label>
+                      <Input id="organization" name="organization" type="text" placeholder="e.g., LamassuIoT Corp" className="mt-1" value={organization} onChange={e => setOrganization(e.target.value)}/>
+                    </div>
+                    <div>
+                      <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
+                      <Input id="organizationalUnit" name="organizationalUnit" type="text" placeholder="e.g., Engineering" className="mt-1" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)}/>
+                    </div>
+                    <div>
+                      <Label htmlFor="country">Country (C) (2-letter code)</Label>
+                      <Input id="country" name="country" type="text" placeholder="e.g., US" maxLength={2} className="mt-1" value={country} onChange={e => setCountry(e.target.value.toUpperCase())}/>
+                    </div>
+                    <div>
+                      <Label htmlFor="stateProvince">State/Province (ST)</Label>
+                      <Input id="stateProvince" name="stateProvince" type="text" placeholder="e.g., California" className="mt-1" value={stateProvince} onChange={e => setStateProvince(e.target.value)}/>
+                    </div>
+                    <div>
+                      <Label htmlFor="locality">Locality (L)</Label>
+                      <Input id="locality" name="locality" type="text" placeholder="e.g., San Francisco" className="mt-1" value={locality} onChange={e => setLocality(e.target.value)}/>
+                    </div>
+                    <div>
+                      <Label htmlFor="validityDays">Validity (Days)</Label>
+                      <Input id="validityDays" name="validityDays" type="number" defaultValue={validityDays} required className="mt-1" onChange={e => setValidityDays(e.target.value)}/>
+                    </div>
                   </div>
                 </section>
-              )}
+                <Separator />
+                <section>
+                    <h3 className="text-lg font-medium mb-3">3. Subject Alternative Names (SANs)</h3>
+                    <p className="text-xs text-muted-foreground mb-3">Specify any alternative names for the certificate subject.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="dnsSans">DNS Names (comma-separated)</Label>
+                            <Input id="dnsSans" value={dnsSans} onChange={e => setDnsSans(e.target.value)} placeholder="dns1.example.com, dns2.net" className="mt-1"/>
+                        </div>
+                        <div>
+                            <Label htmlFor="ipSans">IP Addresses (comma-separated)</Label>
+                            <Input id="ipSans" value={ipSans} onChange={e => setIpSans(e.target.value)} placeholder="192.168.1.1, 10.0.0.1" className="mt-1"/>
+                            <p className="text-xs text-muted-foreground mt-1">IPv4 supported. Basic IPv6 (no '::') may work.</p>
+                        </div>
+                        <div>
+                            <Label htmlFor="emailSans">Email Addresses (comma-separated)</Label>
+                            <Input id="emailSans" value={emailSans} onChange={e => setEmailSans(e.target.value)} placeholder="user@example.com, contact@domain.org" className="mt-1"/>
+                        </div>
+                        <div>
+                            <Label htmlFor="uriSans">URIs (comma-separated)</Label>
+                            <Input id="uriSans" value={uriSans} onChange={e => setUriSans(e.target.value)} placeholder="https://service.example.com, urn:foo:bar" className="mt-1"/>
+                        </div>
+                    </div>
+                </section>
+                <Separator />
+              </>
+            )}
 
+            {issuanceMode === 'upload' && (
+                <section>
+                    <h3 className="text-lg font-medium mb-3">Upload Certificate Signing Request</h3>
+                    <div className="space-y-4 p-4 border rounded-md bg-muted/20">
+                        <div className="space-y-2">
+                            <Label htmlFor="csrFile">CSR File (.csr, .pem)</Label>
+                            <Input
+                            id="csrFile"
+                            type="file"
+                            accept=".csr,.pem,.txt"
+                            onChange={handleCsrFileUpload}
+                            className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                            />
+                            {uploadedCsrFileName && <p className="text-xs text-muted-foreground">Selected file: {uploadedCsrFileName}. Content loaded into CSR field below.</p>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Subject, SANs, and key information will be extracted from the uploaded CSR by the Certificate Authority.
+                        </p>
+                    </div>
+                </section>
+            )}
+            
+            <section>
               <div className="mt-6">
                 <Label htmlFor="csrPemInput" className="text-base font-semibold">CSR for Submission (PEM format)</Label>
                 <Textarea
@@ -628,12 +640,13 @@ export default function IssueCertificateFormClient() {
                     value={csrPem}
                     onChange={(e) => {
                         setCsrPem(e.target.value);
+                        // If user manually edits CSR, clear generated key/CSR display fields
                         if (issuanceMode === 'generate') {
-                            setGeneratedCsrPemForDisplay('');
+                            setGeneratedCsrPemForDisplay(''); // Clear the display field, csrPem is now king
                         }
-                        setGeneratedPrivateKeyPem('');
+                        setGeneratedPrivateKeyPem(''); // Always clear private key if CSR is manually changed
                         setGeneratedKeyPair(null);
-                        setUploadedCsrFileName(null);
+                        setUploadedCsrFileName(null); // Clear uploaded file name if manual edit
                     }}
                     required
                 />
@@ -644,7 +657,7 @@ export default function IssueCertificateFormClient() {
             <Separator />
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg" disabled={isGenerating || !csrPem.trim() || !commonName.trim()}>
+              <Button type="submit" size="lg" disabled={isGenerating || !csrPem.trim() || (issuanceMode === 'generate' && !commonName.trim())}>
                 <FileSignature className="mr-2 h-5 w-5" /> Issue Certificate
               </Button>
             </div>
@@ -653,4 +666,6 @@ export default function IssueCertificateFormClient() {
     </div>
   );
 }
+    
+
     
