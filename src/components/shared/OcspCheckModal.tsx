@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock, Download } from "lucide-react";
+import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock, Download, Copy, Check } from "lucide-react";
 import * as asn1js from "asn1js";
 import {
     Certificate,
@@ -19,7 +19,10 @@ import {
     Extension,
     getRandomValues,
     ResponseBytes,
-    CertID
+    CertID,
+    TBSRequest,
+    Request as PkijsRequest,
+    GeneralName
 } from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
@@ -27,6 +30,7 @@ import { format } from 'date-fns';
 import { DetailItem } from './DetailItem';
 import { Badge } from '../ui/badge';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 interface OcspCheckModalProps {
   isOpen: boolean;
@@ -108,11 +112,15 @@ const downloadPem = (derBuffer: ArrayBuffer | null, type: 'OCSP REQUEST' | 'OCSP
 };
 
 export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose, certificate, issuerCertificate }) => {
+    const { toast } = useToast();
     const [ocspUrl, setOcspUrl] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const [responseDetails, setResponseDetails] = useState<OcspResponseDetails | null>(null);
     const [requestDer, setRequestDer] = useState<ArrayBuffer | null>(null);
     const [responseDer, setResponseDer] = useState<ArrayBuffer | null>(null);
+    const [requestPemCopied, setRequestPemCopied] = useState(false);
+    const [responsePemCopied, setResponsePemCopied] = useState(false);
+
 
     useEffect(() => {
         if (isOpen && certificate?.ocspUrls && certificate.ocspUrls.length > 0) {
@@ -123,7 +131,23 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
         setResponseDetails(null); // Reset on open
         setRequestDer(null);
         setResponseDer(null);
+        setRequestPemCopied(false);
+        setResponsePemCopied(false);
     }, [isOpen, certificate]);
+    
+    const handleCopyPem = async (derBuffer: ArrayBuffer | null, type: 'OCSP REQUEST' | 'OCSP RESPONSE', setCopied: (isCopied: boolean) => void) => {
+        if (!derBuffer) return;
+        const pemString = formatAsPem(arrayBufferToBase64(derBuffer), type);
+        try {
+          await navigator.clipboard.writeText(pemString);
+          setCopied(true);
+          toast({ title: "Copied!", description: `${type} PEM copied to clipboard.` });
+          setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+          toast({ title: "Copy Failed", description: `Could not copy ${type} PEM.`, variant: "destructive" });
+        }
+    };
+
 
     const handleSendRequest = async () => {
         if (!ocspUrl || !certificate || !issuerCertificate?.pemData) {
@@ -135,6 +159,8 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
         setResponseDetails(null);
         setRequestDer(null);
         setResponseDer(null);
+        setRequestPemCopied(false);
+        setResponsePemCopied(false);
 
         try {
             if (typeof window !== 'undefined') {
@@ -161,11 +187,12 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             }
 
             const ocspReq = new OCSPRequest();
+
             await ocspReq.createForCertificate(targetCert, {
                 hashAlgorithm: "SHA-256",
-                issuerCertificate: issuerCert
+                issuerCertificate: issuerCert,
             });
-
+            
             const nonce = getRandomValues(new Uint8Array(10));
             ocspReq.tbsRequest.requestExtensions = [
                 new Extension({
@@ -348,8 +375,12 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                                 </div>
                                 <div className="mt-6 space-y-4">
                                     <div className="space-y-2">
-                                        <Label className="font-semibold">Download Request</Label>
+                                        <Label className="font-semibold">Download/Copy Request</Label>
                                         <div className="flex space-x-2">
+                                            <Button variant="outline" size="sm" onClick={() => handleCopyPem(requestDer, 'OCSP REQUEST', setRequestPemCopied)} disabled={!requestDer}>
+                                                {requestPemCopied ? <Check className="mr-2 h-4 w-4 text-green-500"/> : <Copy className="mr-2 h-4 w-4"/>}
+                                                {requestPemCopied ? 'Copied' : 'Copy PEM'}
+                                            </Button>
                                             <Button variant="outline" size="sm" onClick={() => downloadPem(requestDer, 'OCSP REQUEST', 'ocsp_request.pem')} disabled={!requestDer}>
                                                 <Download className="mr-2 h-4 w-4"/>Download PEM
                                             </Button>
@@ -359,8 +390,12 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="font-semibold">Download Response</Label>
+                                        <Label className="font-semibold">Download/Copy Response</Label>
                                         <div className="flex space-x-2">
+                                            <Button variant="outline" size="sm" onClick={() => handleCopyPem(responseDer, 'OCSP RESPONSE', setResponsePemCopied)} disabled={!responseDer}>
+                                                {responsePemCopied ? <Check className="mr-2 h-4 w-4 text-green-500"/> : <Copy className="mr-2 h-4 w-4"/>}
+                                                {responsePemCopied ? 'Copied' : 'Copy PEM'}
+                                            </Button>
                                             <Button variant="outline" size="sm" onClick={() => downloadPem(responseDer, 'OCSP RESPONSE', 'ocsp_response.pem')} disabled={!responseDer}>
                                                 <Download className="mr-2 h-4 w-4"/>Download PEM
                                             </Button>
