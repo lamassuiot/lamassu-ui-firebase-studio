@@ -16,4 +16,6 @@ export interface CertificateData {
   apiStatus?: string; // To store the raw status from the API
   rawApiData?: any; // To store the original API response for this certificate
   ocspUrls?: string[]; // Added for OCSP check feature
+  crlDistributionPoints?: string[];
+  caIssuersUrls?: string[];
 }

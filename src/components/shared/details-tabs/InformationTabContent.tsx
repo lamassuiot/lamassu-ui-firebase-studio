@@ -34,6 +34,20 @@ interface InformationTabContentProps {
   routerHook: AppRouterInstance; // Using specific type
 }
 
+const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
+  if (!urls || urls.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      <h5 className="font-medium text-sm mt-1">{listTitle}</h5>
+      <ul className="list-disc list-inside space-y-1 pl-4">
+        {urls.map((url, i) => <li key={i}><a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{url}</a></li>)}
+      </ul>
+    </>
+  );
+}
+
 export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   item,
   itemType,
@@ -67,12 +81,8 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
           <AccordionContent className="space-y-1 px-4 pt-3">
             <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
             <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
-            {caSpecific.placeholderSerial && (
-              <>
-                <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{caDetails.subjectKeyId || `${caSpecific.placeholderSerial.split(':')[0]}:... (placeholder)`}</span>} />
-                <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{caDetails.authorityKeyId || `${caSpecific.placeholderSerial.split(':')[1]}:... (placeholder)`}</span>} />
-              </>
-            )}
+            <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{caDetails.subjectKeyId || 'N/A'}</span>} />
+            <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{caDetails.authorityKeyId || 'N/A'}</span>} />
           </AccordionContent>
         </AccordionItem>
 
@@ -96,14 +106,9 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
               </div>
             } />
             <Separator className="my-2" />
-            <DetailItem label="Extended Key Usage" value={
-              <div className="flex flex-wrap gap-1">
-                <Badge variant="outline">Server Authentication (placeholder)</Badge>
-                <Badge variant="outline">Client Authentication (placeholder)</Badge>
-              </div>
-            } />
+            <DetailItem label="Extended Key Usage" value={"Not Specified"} />
             <Separator className="my-2" />
-            <DetailItem label="Certificate Policies" value={"Policy ID: 2.5.29.32.0 (anyPolicy) (placeholder)"} />
+            <DetailItem label="Certificate Policies" value={"anyPolicy (placeholder)"} />
           </AccordionContent>
         </AccordionItem>
 
@@ -111,19 +116,14 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
           <AccordionTrigger className={cn(accordionTriggerStyle)}>
             <LinkIcon className="mr-2 h-5 w-5" /> Distribution Points
           </AccordionTrigger>
-          <AccordionContent className="space-y-1 px-4 pt-3">
-            <DetailItem label="CRL Distribution Points (CDP)" value={
-              <ul className="list-disc list-inside space-y-1">
-                <li>URI: http://crl.example.com/{caDetails.id.replace(/-/g, '')}.crl (placeholder)</li>
-              </ul>
-            } fullWidthValue />
-            <Separator className="my-2" />
-            <DetailItem label="Authority Information Access (AIA)" value={
-              <ul className="list-disc list-inside space-y-1">
-                <li>OCSP - URI: http://ocsp.example.com/{caDetails.id.replace(/-/g, '')} (placeholder)</li>
-                <li>CA Issuers - URI: http://crt.example.com/{caDetails.issuer === 'Self-signed' ? caDetails.id.replace(/-/g, '') : caDetails.issuer.replace(/-/g, '')}.crt (placeholder)</li>
-              </ul>
-            } fullWidthValue />
+          <AccordionContent className="space-y-3 px-4 pt-3">
+             {renderUrlList(caDetails.crlDistributionPoints, 'CRL Distribution Points (CDP)')}
+             {caDetails.crlDistributionPoints && (caDetails.ocspUrls || caDetails.caIssuersUrls) && <Separator/>}
+             {renderUrlList(caDetails.ocspUrls, 'OCSP Responders (from AIA)')}
+             {renderUrlList(caDetails.caIssuersUrls, 'CA Issuers (from AIA)')}
+             {(!caDetails.crlDistributionPoints || caDetails.crlDistributionPoints.length === 0) && (!caDetails.ocspUrls || caDetails.ocspUrls.length === 0) && (!caDetails.caIssuersUrls || caDetails.caIssuersUrls.length === 0) && (
+                <p className="text-sm text-muted-foreground">No distribution points specified in certificate.</p>
+             )}
           </AccordionContent>
         </AccordionItem>
 
@@ -206,6 +206,20 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
               <div className="flex flex-wrap gap-1">
                 {certDetails.sans.map((san, index) => <Badge key={index} variant="secondary">{san}</Badge>)}
               </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {(certDetails.crlDistributionPoints || certDetails.ocspUrls || certDetails.caIssuersUrls) && (
+          <AccordionItem value="distribution" className="border-b-0">
+            <AccordionTrigger className={cn(accordionTriggerStyle)}>
+              <LinkIcon className="mr-2 h-5 w-5" /> Distribution Points
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 px-4 pt-3">
+               {renderUrlList(certDetails.crlDistributionPoints, 'CRL Distribution Points (CDP)')}
+               {(certDetails.crlDistributionPoints && certDetails.crlDistributionPoints.length > 0) && (certDetails.ocspUrls || certDetails.caIssuersUrls) && <Separator/>}
+               {renderUrlList(certDetails.ocspUrls, 'OCSP Responders (from AIA)')}
+               {renderUrlList(certDetails.caIssuersUrls, 'CA Issuers (from AIA)')}
             </AccordionContent>
           </AccordionItem>
         )}

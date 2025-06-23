@@ -1,7 +1,7 @@
 
 import type { CertificateData } from '@/types/certificate';
 import * as asn1js from "asn1js";
-import { Certificate } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess } from "pkijs";
 
 
 // API Response Structures for Issued Certificates
@@ -52,7 +52,49 @@ export interface ApiIssuedCertificateListResponse {
   list: ApiIssuedCertificateItem[];
 }
 
-function parseOcspUrlsFromPem(pem: string): string[] {
+function parseAiaUrls(pem: string): { ocsp: string[], caIssuers: string[] } {
+    const result = { ocsp: [], caIssuers: [] };
+    if (typeof window === 'undefined' || !pem) return result;
+    try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const binaryString = window.atob(pemString);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const asn1 = asn1js.fromBER(bytes.buffer);
+        if (asn1.offset === -1) return result;
+
+        const certificate = new Certificate({ schema: asn1.result });
+        const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
+        
+        if (!aiaExtension || !aiaExtension.parsedValue) {
+          return result;
+        }
+
+        const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
+        
+        aia.accessDescriptions.forEach((desc: any) => {
+            if (desc.accessMethod === "1.3.6.1.5.5.7.48.1") { // id-ad-ocsp
+                if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
+                    result.ocsp.push(desc.accessLocation.value);
+                }
+            } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2") { // id-ad-caIssuers
+                if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
+                    result.caIssuers.push(desc.accessLocation.value);
+                }
+            }
+        });
+        return result;
+
+    } catch (e) {
+        console.error("Failed to parse AIA URLs from certificate PEM:", e);
+        return result;
+    }
+}
+
+function parseCrlUrlsFromPem(pem: string): string[] {
     if (typeof window === 'undefined' || !pem) return [];
     try {
         const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
@@ -66,20 +108,31 @@ function parseOcspUrlsFromPem(pem: string): string[] {
         if (asn1.offset === -1) return [];
 
         const certificate = new Certificate({ schema: asn1.result });
-        const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
+        const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31"); // id-ce-cRLDistributionPoints
         
-        if (!aiaExtension || !aiaExtension.parsedValue) {
+        if (!cdpExtension || !cdpExtension.parsedValue) {
           return [];
         }
 
-        const aia = aiaExtension.parsedValue;
+        const crlDistributionPoints = cdpExtension.parsedValue as CRLDistributionPoints;
+        const urls: string[] = [];
         
-        return aia.accessDescriptions
-            .filter((desc: any) => desc.accessMethod === "1.3.6.1.5.5.7.48.1") // id-ad-ocsp
-            .map((desc: any) => desc.accessLocation.value);
+        crlDistributionPoints.distributionPoints?.forEach((point: any) => {
+            if (point.distributionPoint) {
+                if (point.distributionPoint.type === 0) { 
+                  const generalNames = point.distributionPoint.value;
+                  generalNames.names?.forEach((generalName: any) => {
+                      if (generalName.type === 6) { // uniformResourceIdentifier
+                          urls.push(generalName.value);
+                      }
+                  });
+                }
+            }
+        });
+        return urls;
 
     } catch (e) {
-        console.error("Failed to parse OCSP URLs from certificate PEM:", e);
+        console.error("Failed to parse CRL URLs from certificate PEM:", e);
         return [];
     }
 }
@@ -121,7 +174,8 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
   if (apiCert.issuer.organization_unit) issuerDNParts.push(`OU=${apiCert.issuer.organization_unit}`);
   const fullIssuer = issuerDNParts.join(', ');
 
-  const ocspUrls = parseOcspUrlsFromPem(pemData);
+  const aiaUrls = parseAiaUrls(pemData);
+  const crlUrls = parseCrlUrlsFromPem(pemData);
 
 
   return {
@@ -139,7 +193,9 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
     signatureAlgorithm: apiCert.metadata?.signature_algorithm || 'N/A (from API)', // Assuming sig algo in metadata
     fingerprintSha256: apiCert.metadata?.fingerprint_sha256 || '', 
     issuerCaId: apiCert.issuer_metadata.id,
-    ocspUrls: ocspUrls,
+    ocspUrls: aiaUrls.ocsp,
+    crlDistributionPoints: crlUrls,
+    caIssuersUrls: aiaUrls.caIssuers,
     rawApiData: apiCert,
   };
 }

@@ -2,7 +2,7 @@
 
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess } from "pkijs";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -85,7 +85,9 @@ export interface CA {
   issuerDN?: ApiDistinguishedName;
   isCa?: boolean;
   level?: number; // Store the original level from API
-  crlDistributionPoints?: string[]; // Added for CRL check feature
+  crlDistributionPoints?: string[];
+  ocspUrls?: string[];
+  caIssuersUrls?: string[];
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
 }
 
@@ -109,15 +111,12 @@ function parseCrlUrlsFromPem(pem: string): string[] {
           return [];
         }
 
-        // Directly use the parsedValue, which is already a CRLDistributionPoints object.
         const crlDistributionPoints = cdpExtension.parsedValue as CRLDistributionPoints;
         const urls: string[] = [];
         
         crlDistributionPoints.distributionPoints?.forEach((point: any) => {
             if (point.distributionPoint) {
-                // distributionPoint is a choice, often GeneralNames
-                if (point.distributionPoint.type === 0) { // distributionPoint is index 0, which is GeneralNames
-                  // The value of the choice is the GeneralNames object
+                if (point.distributionPoint.type === 0) { 
                   const generalNames = point.distributionPoint.value;
                   generalNames.names?.forEach((generalName: any) => {
                       if (generalName.type === 6) { // uniformResourceIdentifier
@@ -134,6 +133,49 @@ function parseCrlUrlsFromPem(pem: string): string[] {
         return [];
     }
 }
+
+function parseAiaUrls(pem: string): { ocsp: string[], caIssuers: string[] } {
+    const result = { ocsp: [], caIssuers: [] };
+    if (typeof window === 'undefined' || !pem) return result;
+    try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const binaryString = window.atob(pemString);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const asn1 = asn1js.fromBER(bytes.buffer);
+        if (asn1.offset === -1) return result;
+
+        const certificate = new Certificate({ schema: asn1.result });
+        const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
+        
+        if (!aiaExtension || !aiaExtension.parsedValue) {
+          return result;
+        }
+
+        const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
+        
+        aia.accessDescriptions.forEach((desc: any) => {
+            if (desc.accessMethod === "1.3.6.1.5.5.7.48.1") { // id-ad-ocsp
+                if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
+                    result.ocsp.push(desc.accessLocation.value);
+                }
+            } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2") { // id-ad-caIssuers
+                if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
+                    result.caIssuers.push(desc.accessLocation.value);
+                }
+            }
+        });
+        return result;
+
+    } catch (e) {
+        console.error("Failed to parse AIA URLs from certificate PEM:", e);
+        return result;
+    }
+}
+
 
 // Helper to transform API CA item to local CA structure (without children)
 function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
@@ -156,6 +198,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
 
   const pemData = typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : ''; // Decode base64 PEM
   const crlUrls = parseCrlUrlsFromPem(pemData);
+  const aiaUrls = parseAiaUrls(pemData);
 
   return {
     id: apiCa.id,
@@ -175,6 +218,8 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     isCa: apiCa.certificate.is_ca,
     level: apiCa.level,
     crlDistributionPoints: crlUrls,
+    ocspUrls: aiaUrls.ocsp,
+    caIssuersUrls: aiaUrls.caIssuers,
     rawApiData: apiCa,
   };
 }
