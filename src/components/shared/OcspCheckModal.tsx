@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock, Download } from "lucide-react";
 import * as asn1js from "asn1js";
 import {
     Certificate,
@@ -17,7 +17,9 @@ import {
     setEngine,
     BasicOCSPResponse,
     Extension,
-    getRandomValues
+    getRandomValues,
+    ResponseBytes,
+    CertID
 } from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
@@ -61,10 +63,56 @@ const getRevocationReasonFromCode = (code?: number): string => {
     return reasons[code] || `Unknown (${code})`;
 };
 
+// Helper functions for downloads
+const downloadFile = (data: ArrayBuffer, filename: string, mimeType: string) => {
+    const blob = new Blob([data], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
+const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+};
+
+const formatAsPem = (base64String: string, type: 'OCSP REQUEST' | 'OCSP RESPONSE'): string => {
+    const header = `-----BEGIN ${type}-----`;
+    const footer = `-----END ${type}-----`;
+    const body = base64String.match(/.{1,64}/g)?.join('\n') || '';
+    return `${header}\n${body}\n${footer}`;
+};
+
+const downloadPem = (derBuffer: ArrayBuffer | null, type: 'OCSP REQUEST' | 'OCSP RESPONSE', filename: string) => {
+    if (!derBuffer) return;
+    const pemString = formatAsPem(arrayBufferToBase64(derBuffer), type);
+    const blob = new Blob([pemString], { type: 'application/x-pem-file' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
 export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose, certificate, issuerCertificate }) => {
     const [ocspUrl, setOcspUrl] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const [responseDetails, setResponseDetails] = useState<OcspResponseDetails | null>(null);
+    const [requestDer, setRequestDer] = useState<ArrayBuffer | null>(null);
+    const [responseDer, setResponseDer] = useState<ArrayBuffer | null>(null);
 
     useEffect(() => {
         if (isOpen && certificate?.ocspUrls && certificate.ocspUrls.length > 0) {
@@ -73,6 +121,8 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             setOcspUrl('');
         }
         setResponseDetails(null); // Reset on open
+        setRequestDer(null);
+        setResponseDer(null);
     }, [isOpen, certificate]);
 
     const handleSendRequest = async () => {
@@ -83,14 +133,14 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
 
         setIsLoading(true);
         setResponseDetails(null);
+        setRequestDer(null);
+        setResponseDer(null);
 
         try {
-            // Initialize crypto engine
             if (typeof window !== 'undefined') {
                 setEngine("webcrypto", getCrypto());
             }
 
-            // 1. Parse target and issuer certificates
             const parsePem = (pem: string) => {
                 const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
                 const binary = window.atob(pemString);
@@ -110,26 +160,23 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                 throw new Error("WebCrypto API is not available.");
             }
 
-            // 2. Create OCSP request using the high-level API
             const ocspReq = new OCSPRequest();
             await ocspReq.createForCertificate(targetCert, {
                 hashAlgorithm: "SHA-256",
                 issuerCertificate: issuerCert
             });
-            
-            // Add a nonce extension to prevent replay attacks
+
             const nonce = getRandomValues(new Uint8Array(10));
             ocspReq.tbsRequest.requestExtensions = [
                 new Extension({
-                    extnID: "1.3.6.1.5.5.7.48.1.2", // id-pkix-ocsp-nonce
+                    extnID: "1.3.6.1.5.5.7.48.1.2",
                     extnValue: new asn1js.OctetString({ valueHex: nonce.buffer }).toBER(false)
                 })
             ];
 
-            // 3. Encode OCSP request
             const requestBody = ocspReq.toSchema(true).toBER(false);
+            setRequestDer(requestBody);
 
-            // 4. Send Request
             const response = await fetch(ocspUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/ocsp-request' },
@@ -140,8 +187,9 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                 throw new Error(`OCSP server responded with HTTP ${response.status}`);
             }
 
-            // 5. Parse Response
             const responseBody = await response.arrayBuffer();
+            setResponseDer(responseBody);
+
             const asn1Resp = asn1js.fromBER(responseBody);
             if (asn1Resp.offset === -1) {
               throw new Error("Failed to parse OCSP response from server.");
@@ -152,8 +200,7 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                  throw new Error(`OCSP response status is not 'successful'. Status: ${ocspResponse.responseStatus}`);
             }
             
-            // The responseBytes.response is an OCTET STRING containing the DER-encoded BasicOCSPResponse
-            if (!ocspResponse.responseBytes || !ocspResponse.responseBytes.response.valueBlock.valueHex) {
+            if (!ocspResponse.responseBytes?.response.valueBlock.valueHex) {
               throw new Error("OCSP response is missing the 'responseBytes' block.");
             }
             
@@ -170,7 +217,8 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             if(basicResponse.tbsResponseData.responderID.byName) {
                 responderId = basicResponse.tbsResponseData.responderID.byName.typesAndValues.map((tv: any) => `${tv.type}=${tv.value.valueBlock.value}`).join(', ');
             } else if (basicResponse.tbsResponseData.responderID.byKey) {
-                responderId = `KeyHash: ${Buffer.from(basicResponse.tbsResponseData.responderID.byKey.valueBlock.valueHex).toString('hex')}`;
+                const keyHash = basicResponse.tbsResponseData.responderID.byKey.valueBlock.valueHex;
+                responderId = `KeyHash: ${Buffer.from(keyHash).toString('hex')}`;
             }
 
             const certStatus = getCertStatusFromTag(singleResponse.certStatus.tag);
@@ -288,19 +336,45 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                                 <AlertDescription>{responseDetails.errorDetails}</AlertDescription>
                             </Alert>
                          ) : (
-                            <div className="space-y-2">
-                                <DetailItem label="Status" value={<StatusDisplay details={responseDetails} />} />
-                                <DetailItem label="Responder ID" value={responseDetails.responderId} isMono />
-                                <DetailItem label="Produced At" value={responseDetails.producedAt} />
-                                <DetailItem label="This Update" value={responseDetails.thisUpdate} />
-                                <DetailItem label="Next Update" value={responseDetails.nextUpdate} />
-                                {responseDetails.status === 'revoked' && (
-                                <>
-                                    <DetailItem label="Revocation Time" value={responseDetails.revocationTime} />
-                                    <DetailItem label="Revocation Reason" value={responseDetails.revocationReason} />
-                                </>
-                                )}
-                            </div>
+                            <>
+                                <div className="space-y-2">
+                                    <DetailItem label="Status" value={<StatusDisplay details={responseDetails} />} />
+                                    <DetailItem label="Responder ID" value={responseDetails.responderId} isMono />
+                                    <DetailItem label="Produced At" value={responseDetails.producedAt} />
+                                    <DetailItem label="This Update" value={responseDetails.thisUpdate} />
+                                    <DetailItem label="Next Update" value={responseDetails.nextUpdate} />
+                                    {responseDetails.status === 'revoked' && (
+                                    <>
+                                        <DetailItem label="Revocation Time" value={responseDetails.revocationTime} />
+                                        <DetailItem label="Revocation Reason" value={responseDetails.revocationReason} />
+                                    </>
+                                    )}
+                                </div>
+                                <div className="mt-6 space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="font-semibold">Download Request</Label>
+                                        <div className="flex space-x-2">
+                                            <Button variant="outline" size="sm" onClick={() => downloadPem(requestDer, 'OCSP REQUEST', 'ocsp_request.pem')} disabled={!requestDer}>
+                                                <Download className="mr-2 h-4 w-4"/>Download PEM
+                                            </Button>
+                                            <Button variant="outline" size="sm" onClick={() => downloadFile(requestDer!, 'ocsp_request.der', 'application/ocsp-request')} disabled={!requestDer}>
+                                                <Download className="mr-2 h-4 w-4"/>Download DER
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="font-semibold">Download Response</Label>
+                                        <div className="flex space-x-2">
+                                            <Button variant="outline" size="sm" onClick={() => downloadPem(responseDer, 'OCSP RESPONSE', 'ocsp_response.pem')} disabled={!responseDer}>
+                                                <Download className="mr-2 h-4 w-4"/>Download PEM
+                                            </Button>
+                                            <Button variant="outline" size="sm" onClick={() => downloadFile(responseDer!, 'ocsp_response.der', 'application/ocsp-response')} disabled={!responseDer}>
+                                                <Download className="mr-2 h-4 w-4"/>Download DER
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
                          )}
                     </div>
                 )}
