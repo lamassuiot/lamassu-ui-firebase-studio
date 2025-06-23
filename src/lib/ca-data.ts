@@ -109,13 +109,15 @@ function parseCrlUrlsFromPem(pem: string): string[] {
           return [];
         }
 
-        const crlDistributionPoints = new CRLDistributionPoints({ schema: cdpExtension.parsedValue });
+        // Directly use the parsedValue, which is already a CRLDistributionPoints object.
+        const crlDistributionPoints = cdpExtension.parsedValue as CRLDistributionPoints;
         const urls: string[] = [];
         
         crlDistributionPoints.distributionPoints?.forEach((point: any) => {
             if (point.distributionPoint) {
                 // distributionPoint is a choice, often GeneralNames
                 if (point.distributionPoint.type === 0) { // distributionPoint is index 0, which is GeneralNames
+                  // The value of the choice is the GeneralNames object
                   const generalNames = point.distributionPoint.value;
                   generalNames.names?.forEach((generalName: any) => {
                       if (generalName.type === 6) { // uniformResourceIdentifier
@@ -281,6 +283,3 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
   }
   return null;
 }
-
-
-
