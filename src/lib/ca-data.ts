@@ -115,8 +115,9 @@ function parseCrlUrlsFromPem(pem: string): string[] {
         crlDistributionPoints.distributionPoints?.forEach((point: any) => {
             if (point.distributionPoint) {
                 // distributionPoint is a choice, often GeneralNames
-                if (point.distributionPoint.type === 0) { // distributionPoint is index 0
-                  point.distributionPoint.value.forEach((generalName: any) => {
+                if (point.distributionPoint.type === 0) { // distributionPoint is index 0, which is GeneralNames
+                  const generalNames = point.distributionPoint.value;
+                  generalNames.names?.forEach((generalName: any) => {
                       if (generalName.type === 6) { // uniformResourceIdentifier
                           urls.push(generalName.value);
                       }
@@ -280,5 +281,6 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
   }
   return null;
 }
+
 
 
