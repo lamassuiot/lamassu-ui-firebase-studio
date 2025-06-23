@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -8,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock } from "lucide-react";
 import * as asn1js from "asn1js";
-import { Certificate, OCSPRequest, Request as PkijsRequest, CertID, OCSPResponse, getCrypto } from "pkijs";
+import { Certificate, OCSPRequest, Request as PkijsRequest, CertID, OCSPResponse, getCrypto, TBSRequest } from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
 import { format } from 'date-fns';
@@ -90,7 +91,7 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             const issuerCertAsn1 = parsePem(issuerCertificate.pemData);
             const issuerCert = new Certificate({ schema: issuerCertAsn1.result });
 
-            // 2. Create CertID manually instead of using the problematic static method
+            // 2. Create CertID manually
             const certId = new CertID();
             const crypto = getCrypto();
             if (!crypto) {
@@ -107,12 +108,13 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             
             certId.serialNumber = targetCert.serialNumber;
             
-            // 3. Create OCSP Request
-            const ocspRequest = new OCSPRequest({
-                tbsRequest: {
-                    requestList: [new PkijsRequest({ reqCert: certId })]
-                }
+            // 3. Create OCSP Request step-by-step for reliability
+            const tbsRequest = new TBSRequest({
+                requestList: [new PkijsRequest({ reqCert: certId })]
             });
+            
+            const ocspRequest = new OCSPRequest({ tbsRequest });
+
 
             // 4. Send Request
             const requestBody = ocspRequest.toSchema().toBER(false);
