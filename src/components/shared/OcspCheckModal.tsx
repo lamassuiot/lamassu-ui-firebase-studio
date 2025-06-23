@@ -92,29 +92,23 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             const issuerCert = new Certificate({ schema: issuerCertAsn1.result });
 
             // 2. Create CertID manually
-            const certId = new CertID();
             const crypto = getCrypto();
             if (!crypto) {
                 throw new Error("WebCrypto API is not available. Could not get crypto engine.");
             }
             
             const hashAlgorithm = "SHA-1"; // OCSP standard hash algorithm for CertID
-            
             const issuerNameBuffer = issuerCert.subject.toSchema().toBER(false);
-            certId.issuerNameHash = await crypto.digest(hashAlgorithm, issuerNameBuffer);
-            
             const issuerKeyBuffer = issuerCert.subjectPublicKeyInfo.toSchema().toBER(false);
+
+            const certId = new CertID();
+            certId.issuerNameHash = await crypto.digest(hashAlgorithm, issuerNameBuffer);
             certId.issuerKeyHash = await crypto.digest(hashAlgorithm, issuerKeyBuffer);
-            
             certId.serialNumber = targetCert.serialNumber;
             
-            // 3. Create OCSP Request step-by-step for reliability
-            const tbsRequest = new TBSRequest({
-                requestList: [new PkijsRequest({ reqCert: certId })]
-            });
-            
-            const ocspRequest = new OCSPRequest({ tbsRequest });
-
+            // 3. Create OCSP Request imperatively (step-by-step) for reliability
+            const ocspRequest = new OCSPRequest();
+            ocspRequest.tbsRequest.requestList.push(new PkijsRequest({ reqCert: certId }));
 
             // 4. Send Request
             const requestBody = ocspRequest.toSchema().toBER(false);
