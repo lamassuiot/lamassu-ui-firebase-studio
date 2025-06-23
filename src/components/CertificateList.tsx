@@ -141,14 +141,14 @@ export function CertificateList({
       <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
         <Table>
           <TableHeader>
-            <TableRow>
-              <SortableHeader column="commonName" title="Common Name" />
-              <SortableHeader column="serialNumber" title="Serial Number" className="hidden md:table-cell" />
-              <TableHead className="hidden lg:table-cell">CA Issuer</TableHead> {/* Changed to regular TableHead */}
-              <SortableHeader column="expires" title="Expires" />
-              <SortableHeader column="status" title="API Status" />
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
+            <TableRow>{/*
+          */}<SortableHeader column="commonName" title="Common Name" />{/*
+          */}<SortableHeader column="serialNumber" title="Serial Number" className="hidden md:table-cell" />{/*
+          */}<TableHead className="hidden lg:table-cell">CA Issuer</TableHead>{/*
+          */}<SortableHeader column="expires" title="Expires" />{/*
+          */}<SortableHeader column="status" title="API Status" />{/*
+          */}<TableHead className="text-right">Actions</TableHead>{/*
+        */}</TableRow>
           </TableHeader>
           <TableBody>
             {certificates.map((cert) => {
@@ -156,10 +156,10 @@ export function CertificateList({
               const issuerDisplayName = issuerCa ? issuerCa.name : getCommonName(cert.issuer);
 
               return (
-                <TableRow key={cert.id}>
-                  <TableCell className="font-medium truncate max-w-[150px] sm:max-w-xs">{getCommonName(cert.subject)}</TableCell>
-                  <TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[120px]">{cert.serialNumber}</TableCell>
-                  <TableCell className="hidden lg:table-cell truncate max-w-[200px]">
+                <TableRow key={cert.id}>{/*
+                  */}<TableCell className="font-medium truncate max-w-[150px] sm:max-w-xs">{getCommonName(cert.subject)}</TableCell>{/*
+                  */}<TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[120px]">{cert.serialNumber}</TableCell>{/*
+                  */}<TableCell className="hidden lg:table-cell truncate max-w-[200px]">
                     {issuerCa ? (
                       <Button
                         variant="link"
@@ -172,12 +172,12 @@ export function CertificateList({
                     ) : (
                       issuerDisplayName
                     )}
-                  </TableCell>
-                  <TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>
-                  <TableCell>
+                  </TableCell>{/*
+                  */}<TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>{/*
+                  */}<TableCell>
                     <ApiStatusBadge status={cert.apiStatus} />
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
+                  </TableCell>{/*
+                  */}<TableCell className="text-right space-x-1">
                     <Button 
                       variant="outline" 
                       size="icon" 
@@ -224,8 +224,8 @@ export function CertificateList({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                  </TableCell>{/*
+                */}</TableRow>
               );
             })}
           </TableBody>
