@@ -1,7 +1,7 @@
 
 import type { CertificateData } from '@/types/certificate';
 import * as asn1js from "asn1js";
-import { Certificate, AuthorityInfoAccess, AccessDescription } from "pkijs";
+import { Certificate } from "pkijs";
 
 
 // API Response Structures for Issued Certificates
@@ -67,12 +67,17 @@ function parseOcspUrlsFromPem(pem: string): string[] {
 
         const certificate = new Certificate({ schema: asn1.result });
         const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
-        if (!aiaExtension) return [];
+        
+        if (!aiaExtension || !aiaExtension.parsedValue) {
+          return [];
+        }
 
-        const aia = new AuthorityInfoAccess({ schema: aiaExtension.extnValue });
+        const aia = aiaExtension.parsedValue;
+        
         return aia.accessDescriptions
-            .filter((desc: AccessDescription) => desc.accessMethod === "1.3.6.1.5.5.7.48.1") // id-ad-ocsp
-            .map((desc: AccessDescription) => desc.accessLocation.value);
+            .filter((desc: any) => desc.accessMethod === "1.3.6.1.5.5.7.48.1") // id-ad-ocsp
+            .map((desc: any) => desc.accessLocation.value);
+
     } catch (e) {
         console.error("Failed to parse OCSP URLs from certificate PEM:", e);
         return [];
