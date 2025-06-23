@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock } from "lucide-react";
 import * as asn1js from "asn1js";
-import { Certificate, OCSPRequest, Request as PkijsRequest, CertID, OCSPResponse, getCrypto, TBSRequest, BasicOCSPResponse, AlgorithmIdentifier } from "pkijs";
+import {
+    Certificate,
+    OCSPRequest,
+    OCSPResponse,
+    getCrypto,
+    setEngine,
+    BasicOCSPResponse,
+    GeneralName,
+    Extension,
+    getRandomValues
+} from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
 import { format } from 'date-fns';
@@ -76,6 +86,11 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
         setResponseDetails(null);
 
         try {
+            // Initialize crypto engine
+            if (typeof window !== 'undefined') {
+                setEngine("webcrypto", getCrypto());
+            }
+
             // 1. Parse target and issuer certificates
             const parsePem = (pem: string) => {
                 const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
@@ -91,30 +106,32 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             const issuerCertAsn1 = parsePem(issuerCertificate.pemData);
             const issuerCert = new Certificate({ schema: issuerCertAsn1.result });
 
-            // 2. Get Crypto Engine
             const crypto = getCrypto();
             if (!crypto) {
-                throw new Error("WebCrypto API is not available. Could not get crypto engine.");
+                throw new Error("WebCrypto API is not available.");
             }
-            
-            // 3. Create CertID imperatively
-            const hashAlgorithm = "SHA-1"; // OCSP standard hash algorithm for CertID
-            const issuerNameBuffer = issuerCert.subject.toSchema().toBER(false);
-            const issuerKeyBuffer = issuerCert.subjectPublicKeyInfo.toSchema().toBER(false);
-            
-            const certId = new CertID();
-            certId.hashAlgorithm = new AlgorithmIdentifier({ algorithmId: "1.3.14.3.2.26" }); // SHA-1
-            certId.issuerNameHash = await crypto.digest(hashAlgorithm, issuerNameBuffer);
-            certId.issuerKeyHash = await crypto.digest(hashAlgorithm, issuerKeyBuffer);
-            certId.serialNumber = targetCert.serialNumber;
 
-            // 4. Create OCSP Request imperatively
-            const request = new PkijsRequest({ reqCert: certId });
-            const ocspRequest = new OCSPRequest();
-            ocspRequest.tbsRequest.requestList.push(request);
+            // 2. Create OCSP request using the high-level API
+            const ocspReq = new OCSPRequest();
             
-            // 5. Send Request
-            const requestBody = ocspRequest.toSchema().toBER(false);
+            await ocspReq.createForCertificate(targetCert, {
+                hashAlgorithm: "SHA-256",
+                issuerCertificate: issuerCert
+            });
+            
+            // Add a nonce extension to prevent replay attacks
+            const nonce = getRandomValues(new Uint8Array(10));
+            ocspReq.tbsRequest.requestExtensions = [
+                new Extension({
+                    extnID: "1.3.6.1.5.5.7.48.1.2", // id-pkix-ocsp-nonce
+                    extnValue: new asn1js.OctetString({ valueHex: nonce.buffer }).toBER(false)
+                })
+            ];
+
+            // 3. Encode OCSP request
+            const requestBody = ocspReq.toSchema(true).toBER(false);
+
+            // 4. Send Request
             const response = await fetch(ocspUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/ocsp-request' },
@@ -125,7 +142,7 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                 throw new Error(`OCSP server responded with HTTP ${response.status}`);
             }
 
-            // 6. Parse Response
+            // 5. Parse Response
             const responseBody = await response.arrayBuffer();
             const asn1Resp = asn1js.fromBER(responseBody);
             const ocspResponse = new OCSPResponse({ schema: asn1Resp.result });
