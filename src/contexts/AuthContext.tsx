@@ -16,7 +16,7 @@ const createUserManager = (): UserManager | null => {
       client_id: 'frontend',
       redirect_uri: `${window.location.origin}/signin-callback`,
       silent_redirect_uri: `${window.location.origin}/silent-renew-callback`,
-      post_logout_redirect_uri: `${window.location.origin}/signout-callback.html`,
+      post_logout_redirect_uri: `${window.location.origin}/signout-callback`,
       response_type: 'code',
       scope: 'openid profile email', // Standard scopes
       userStore: new WebStorageStateStore({ store: window.localStorage }), // Persist user session

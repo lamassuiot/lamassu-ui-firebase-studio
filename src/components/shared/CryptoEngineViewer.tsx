@@ -24,14 +24,12 @@ export const CryptoEngineViewer: React.FC<CryptoEngineViewerProps> = ({ engine, 
 
   // Determine icon based on engine type or name
   const engineTypeUpper = engine.type?.toUpperCase();
-  const engineNameUpper = engine.name?.toUpperCase();
-
   var icon = <></>
 
   switch (engineTypeUpper) {
     case "GOLANG":
       Icon = FolderKey;
-      iconBGClass = "bg-black";
+      iconBGClass = "bg-gray-800";
       iconColorClass = "text-white";
       icon = <Icon className={cn("h-7 w-7 flex-shrink-0 p-1", iconColorClass, iconBGClass)} />
       break;
@@ -71,21 +69,10 @@ export const CryptoEngineViewer: React.FC<CryptoEngineViewerProps> = ({ engine, 
       break;
   }
 
-  if (engineTypeUpper?.includes('AWS') || engineNameUpper?.includes('KMS') || engineNameUpper?.includes('AZURE') || engineNameUpper?.includes('VAULT')) {
-    Icon = Cloud;
-    iconColorClass = "text-blue-500";
-  } else if (engineTypeUpper?.includes('GOLANG') || engineNameUpper?.includes('SOFTWARE') || engineTypeUpper?.includes('LOCAL')) {
-  } else if (engineTypeUpper?.includes('PKCS11') || engineNameUpper?.includes('HSM')) {
-    Icon = HardDrive;
-    iconColorClass = "text-gray-600";
-  } else if (engineTypeUpper?.includes('DATABASE') || engineNameUpper?.includes('DB')) {
-    Icon = Database;
-    iconColorClass = "text-purple-500";
-  }
-
-
   if (iconOnly) {
-    return <Icon className={cn("h-5 w-5", iconColorClass, className)} />;
+    return <>
+      {icon}
+    </>
   }
 
   return (

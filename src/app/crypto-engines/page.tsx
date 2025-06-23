@@ -41,6 +41,8 @@ const EngineIcon: React.FC<{ type: string, name: string }> = ({ type, name }) =>
   let iconBGClass = "bg-transparent";
   let imageSrc: any = null; // For next/image
 
+  console.log(typeUpper);
+  
   if (typeUpper === "GOLANG") {
     IconComponent = FolderKey;
     iconBGClass = "bg-black";
@@ -53,19 +55,7 @@ const EngineIcon: React.FC<{ type: string, name: string }> = ({ type, name }) =>
     imageSrc = AWSKMSLogo;
   } else if (typeUpper === "HASHICORP_VAULT") {
     imageSrc = VaultLogo;
-  } else if (typeUpper?.includes('AWS') || nameUpper?.includes('KMS') || nameUpper?.includes('AZURE') || nameUpper?.includes('VAULT')) {
-    IconComponent = Cloud;
-    iconColorClass = "text-blue-500";
-  } else if (typeUpper?.includes('SOFTWARE') || typeUpper?.includes('LOCAL')) { // Catch-all for other software types if GOLANG isn't specific enough
-    IconComponent = Cpu;
-    iconColorClass = "text-green-500";
-  } else if (nameUpper?.includes('HSM')) { // Catch HSM by name if type isn't PKCS11
-    IconComponent = HardDrive;
-    iconColorClass = "text-gray-600";
-  } else if (typeUpper?.includes('DATABASE') || nameUpper?.includes('DB')) {
-    IconComponent = DatabaseIcon;
-    iconColorClass = "text-purple-500";
-  } else {
+  } else{
     IconComponent = ShieldQuestionIcon;
   }
 
