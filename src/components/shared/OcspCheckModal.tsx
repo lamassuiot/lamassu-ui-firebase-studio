@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock } from "lucide-react";
 import * as asn1js from "asn1js";
-import { Certificate, OCSPRequest, Request as PkijsRequest, CertID, OCSPResponse } from "pkijs";
+import { Certificate, OCSPRequest, Request as PkijsRequest, CertID, OCSPResponse, getCrypto } from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
 import { format } from 'date-fns';
@@ -90,8 +90,22 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             const issuerCertAsn1 = parsePem(issuerCertificate.pemData);
             const issuerCert = new Certificate({ schema: issuerCertAsn1.result });
 
-            // 2. Create CertID
-            const certId = await CertID.createForCertificate(targetCert, { issuerCertificate: issuerCert });
+            // 2. Create CertID manually instead of using the problematic static method
+            const certId = new CertID();
+            const crypto = getCrypto();
+            if (!crypto) {
+                throw new Error("WebCrypto API is not available. Could not get crypto engine.");
+            }
+            
+            const hashAlgorithm = "SHA-1"; // OCSP standard hash algorithm for CertID
+            
+            const issuerNameBuffer = issuerCert.subject.toSchema().toBER(false);
+            certId.issuerNameHash = await crypto.digest(hashAlgorithm, issuerNameBuffer);
+            
+            const issuerKeyBuffer = issuerCert.subjectPublicKeyInfo.toSchema().toBER(false);
+            certId.issuerKeyHash = await crypto.digest(hashAlgorithm, issuerKeyBuffer);
+            
+            certId.serialNumber = targetCert.serialNumber;
             
             // 3. Create OCSP Request
             const ocspRequest = new OCSPRequest({
