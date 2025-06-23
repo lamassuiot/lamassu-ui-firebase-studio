@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock } from "lucide-react";
 import * as asn1js from "asn1js";
-import { Certificate, OCSPRequest, Request as PkijsRequest, CertID, OCSPResponse, getCrypto, TBSRequest } from "pkijs";
+import { Certificate, OCSPRequest, Request as PkijsRequest, CertID, OCSPResponse, getCrypto, TBSRequest, BasicOCSPResponse } from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
 import { format } from 'date-fns';
@@ -91,7 +91,7 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             const issuerCertAsn1 = parsePem(issuerCertificate.pemData);
             const issuerCert = new Certificate({ schema: issuerCertAsn1.result });
 
-            // 2. Create CertID manually
+            // 2. Create CertID using constructor
             const crypto = getCrypto();
             if (!crypto) {
                 throw new Error("WebCrypto API is not available. Could not get crypto engine.");
@@ -101,14 +101,18 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             const issuerNameBuffer = issuerCert.subject.toSchema().toBER(false);
             const issuerKeyBuffer = issuerCert.subjectPublicKeyInfo.toSchema().toBER(false);
 
-            const certId = new CertID();
-            certId.issuerNameHash = await crypto.digest(hashAlgorithm, issuerNameBuffer);
-            certId.issuerKeyHash = await crypto.digest(hashAlgorithm, issuerKeyBuffer);
-            certId.serialNumber = targetCert.serialNumber;
+            const certId = new CertID({
+                hashAlgorithm: { algorithmId: "1.3.14.3.2.26" }, // SHA-1 OID
+                issuerNameHash: await crypto.digest(hashAlgorithm, issuerNameBuffer),
+                issuerKeyHash: await crypto.digest(hashAlgorithm, issuerKeyBuffer),
+                serialNumber: targetCert.serialNumber,
+            });
             
-            // 3. Create OCSP Request imperatively (step-by-step) for reliability
+            // 3. Create OCSP Request declaratively
+            const request = new PkijsRequest({ reqCert: certId });
+            
             const ocspRequest = new OCSPRequest();
-            ocspRequest.tbsRequest.requestList.push(new PkijsRequest({ reqCert: certId }));
+            ocspRequest.tbsRequest.requestList = [request];
 
             // 4. Send Request
             const requestBody = ocspRequest.toSchema().toBER(false);
@@ -131,8 +135,9 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                  throw new Error(`OCSP response status is not 'successful'. Status: ${ocspResponse.responseStatus}`);
             }
 
-            if (!ocspResponse.responseBytes) throw new Error("No responseBytes in OCSP response.");
-            const basicResponse = ocspResponse.responseBytes.response.valueBlock.value[0];
+            if (!ocspResponse.responseBytes?.response) throw new Error("No responseBytes in OCSP response.");
+            
+            const basicResponse = new BasicOCSPResponse({ schema: ocspResponse.responseBytes.response });
             const singleResponse = basicResponse.tbsResponseData.responses[0];
 
             let responderId = "N/A";
