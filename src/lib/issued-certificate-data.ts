@@ -1,5 +1,8 @@
 
 import type { CertificateData } from '@/types/certificate';
+import * as asn1js from "asn1js";
+import { Certificate, AuthorityInfoAccess, AccessDescription } from "pkijs";
+
 
 // API Response Structures for Issued Certificates
 interface ApiKeyMetadata {
@@ -49,6 +52,34 @@ export interface ApiIssuedCertificateListResponse {
   list: ApiIssuedCertificateItem[];
 }
 
+function parseOcspUrlsFromPem(pem: string): string[] {
+    if (typeof window === 'undefined' || !pem) return [];
+    try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const binaryString = window.atob(pemString);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const asn1 = asn1js.fromBER(bytes.buffer);
+        if (asn1.offset === -1) return [];
+
+        const certificate = new Certificate({ schema: asn1.result });
+        const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
+        if (!aiaExtension) return [];
+
+        const aia = new AuthorityInfoAccess({ schema: aiaExtension.extnValue });
+        return aia.accessDescriptions
+            .filter((desc: AccessDescription) => desc.accessMethod === "1.3.6.1.5.5.7.48.1") // id-ad-ocsp
+            .map((desc: AccessDescription) => desc.accessLocation.value);
+    } catch (e) {
+        console.error("Failed to parse OCSP URLs from certificate PEM:", e);
+        return [];
+    }
+}
+
+
 function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): CertificateData {
   let publicKeyAlgorithm = apiCert.key_metadata.type;
   if (apiCert.key_metadata.bits) {
@@ -85,6 +116,8 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
   if (apiCert.issuer.organization_unit) issuerDNParts.push(`OU=${apiCert.issuer.organization_unit}`);
   const fullIssuer = issuerDNParts.join(', ');
 
+  const ocspUrls = parseOcspUrlsFromPem(pemData);
+
 
   return {
     id: apiCert.serial_number, 
@@ -101,6 +134,7 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
     signatureAlgorithm: apiCert.metadata?.signature_algorithm || 'N/A (from API)', // Assuming sig algo in metadata
     fingerprintSha256: apiCert.metadata?.fingerprint_sha256 || '', 
     issuerCaId: apiCert.issuer_metadata.id,
+    ocspUrls: ocspUrls,
     rawApiData: apiCert,
   };
 }

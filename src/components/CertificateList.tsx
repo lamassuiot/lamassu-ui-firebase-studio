@@ -6,7 +6,7 @@ import type { CertificateData } from '@/types/certificate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, ChevronsUpDown, ShieldAlert, FileText } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, ChevronsUpDown, ShieldAlert, FileText, ShieldCheck } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,7 @@ import { findCaById } from '@/lib/ca-data';
 import { cn } from '@/lib/utils';
 import { RevocationModal } from '@/components/shared/RevocationModal';
 import type { CertSortConfig, SortableCertColumn } from '@/app/certificates/page'; // Import shared types
+import { OcspCheckModal } from '@/components/shared/OcspCheckModal';
 
 interface CertificateListProps {
   certificates: CertificateData[];
@@ -76,6 +77,11 @@ export function CertificateList({
 
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
+  
+  const [isOcspModalOpen, setIsOcspModalOpen] = useState(false);
+  const [certForOcsp, setCertForOcsp] = useState<CertificateData | null>(null);
+  const [issuerForOcsp, setIssuerForOcsp] = useState<CA | null>(null);
+
 
   const SortableHeader: React.FC<{ column: SortableCertColumn; title: string; className?: string }> = ({ column, title, className }) => {
     const isSorted = sortConfig?.column === column;
@@ -114,6 +120,16 @@ export function CertificateList({
     }
     setIsRevocationModalOpen(false);
     setCertificateToRevoke(null);
+  };
+
+  const handleOpenOcspModal = (certificate: CertificateData, issuer: CA | null) => {
+    if (!issuer) {
+        toast({ title: "Error", description: "Issuer CA details are not available for this certificate. Cannot perform OCSP check.", variant: "destructive" });
+        return;
+    }
+    setCertForOcsp(certificate);
+    setIssuerForOcsp(issuer);
+    setIsOcspModalOpen(true);
   };
   
   if (certificates.length === 0 && !isLoading) {
@@ -193,6 +209,9 @@ export function CertificateList({
                         <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
                           <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenOcspModal(cert, issuerCa)} disabled={!cert.ocspUrls || cert.ocspUrls.length === 0}>
+                           <ShieldCheck className="mr-2 h-4 w-4" /> OCSP Check
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
                           <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
                         </DropdownMenuItem>
@@ -222,6 +241,14 @@ export function CertificateList({
           onConfirm={handleConfirmCertificateRevocation}
           itemName={getCommonName(certificateToRevoke.subject)}
           itemType="Certificate"
+        />
+      )}
+      {certForOcsp && issuerForOcsp && (
+        <OcspCheckModal
+            isOpen={isOcspModalOpen}
+            onClose={() => setIsOcspModalOpen(false)}
+            certificate={certForOcsp}
+            issuerCertificate={issuerForOcsp}
         />
       )}
     </div>
