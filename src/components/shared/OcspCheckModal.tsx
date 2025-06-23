@@ -16,7 +16,6 @@ import {
     getCrypto,
     setEngine,
     BasicOCSPResponse,
-    GeneralName,
     Extension,
     getRandomValues
 } from "pkijs";
@@ -113,7 +112,6 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
 
             // 2. Create OCSP request using the high-level API
             const ocspReq = new OCSPRequest();
-            
             await ocspReq.createForCertificate(targetCert, {
                 hashAlgorithm: "SHA-256",
                 issuerCertificate: issuerCert
@@ -145,15 +143,27 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             // 5. Parse Response
             const responseBody = await response.arrayBuffer();
             const asn1Resp = asn1js.fromBER(responseBody);
+            if (asn1Resp.offset === -1) {
+              throw new Error("Failed to parse OCSP response from server.");
+            }
             const ocspResponse = new OCSPResponse({ schema: asn1Resp.result });
 
             if (ocspResponse.responseStatus !== 0) {
                  throw new Error(`OCSP response status is not 'successful'. Status: ${ocspResponse.responseStatus}`);
             }
-
-            if (!ocspResponse.responseBytes?.response) throw new Error("No responseBytes in OCSP response.");
             
-            const basicResponse = new BasicOCSPResponse({ schema: ocspResponse.responseBytes.response });
+            // The responseBytes.response is an OCTET STRING containing the DER-encoded BasicOCSPResponse
+            if (!ocspResponse.responseBytes || !ocspResponse.responseBytes.response.valueBlock.valueHex) {
+              throw new Error("OCSP response is missing the 'responseBytes' block.");
+            }
+            
+            const basicResponseDer = ocspResponse.responseBytes.response.valueBlock.valueHex;
+            const asn1BasicResp = asn1js.fromBER(basicResponseDer);
+            if (asn1BasicResp.offset === -1) {
+              throw new Error("Failed to parse the BasicOCSPResponse from the responseBytes.");
+            }
+            
+            const basicResponse = new BasicOCSPResponse({ schema: asn1BasicResp.result });
             const singleResponse = basicResponse.tbsResponseData.responses[0];
 
             let responderId = "N/A";
