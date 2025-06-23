@@ -92,88 +92,82 @@ export interface CA {
 }
 
 function parseCrlUrlsFromPem(pem: string): string[] {
-    if (typeof window === 'undefined' || !pem) return [];
-    try {
-        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
-        const binaryString = window.atob(pemString);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const asn1 = asn1js.fromBER(bytes.buffer);
-        if (asn1.offset === -1) return [];
-
-        const certificate = new Certificate({ schema: asn1.result });
-        const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31"); // id-ce-cRLDistributionPoints
-        
-        if (!cdpExtension || !cdpExtension.parsedValue) {
-          return [];
-        }
-
-        const crlDistributionPoints = cdpExtension.parsedValue as CRLDistributionPoints;
-        const urls: string[] = [];
-        
-        crlDistributionPoints.distributionPoints?.forEach((point: any) => {
-            if (point.distributionPoint) {
-                if (point.distributionPoint.type === 0) { 
-                  const generalNames = point.distributionPoint.value;
-                  generalNames.names?.forEach((generalName: any) => {
-                      if (generalName.type === 6) { // uniformResourceIdentifier
-                          urls.push(generalName.value);
-                      }
-                  });
-                }
-            }
-        });
-        return urls;
-
-    } catch (e) {
-        console.error("Failed to parse CRL URLs from certificate PEM:", e);
-        return [];
+  if (typeof window === 'undefined' || !pem) return [];
+  try {
+    const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+    const binaryString = window.atob(pemString);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
     }
+
+    const asn1 = asn1js.fromBER(bytes.buffer);
+    if (asn1.offset === -1) return [];
+
+    const certificate = new Certificate({ schema: asn1.result });
+    const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31"); // id-ce-cRLDistributionPoints
+
+    if (!cdpExtension || !cdpExtension.parsedValue) {
+      return [];
+    }
+
+    const crlDistributionPoints = cdpExtension.parsedValue as CRLDistributionPoints;
+    const urls: string[] = [];
+
+    crlDistributionPoints.distributionPoints?.forEach((point: any) => {
+      if (point.distributionPoint && point.distributionPoint[0]) {
+        const generalName = point.distributionPoint[0];
+        urls.push(generalName.value);
+      }
+    });
+    return urls;
+
+  } catch (e) {
+    console.error("Failed to parse CRL URLs from certificate PEM:", e);
+    return [];
+  }
 }
 
 function parseAiaUrls(pem: string): { ocsp: string[], caIssuers: string[] } {
-    const result = { ocsp: [], caIssuers: [] };
-    if (typeof window === 'undefined' || !pem) return result;
-    try {
-        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
-        const binaryString = window.atob(pemString);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const asn1 = asn1js.fromBER(bytes.buffer);
-        if (asn1.offset === -1) return result;
-
-        const certificate = new Certificate({ schema: asn1.result });
-        const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
-        
-        if (!aiaExtension || !aiaExtension.parsedValue) {
-          return result;
-        }
-
-        const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
-        
-        aia.accessDescriptions.forEach((desc: any) => {
-            if (desc.accessMethod === "1.3.6.1.5.5.7.48.1") { // id-ad-ocsp
-                if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
-                    result.ocsp.push(desc.accessLocation.value);
-                }
-            } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2") { // id-ad-caIssuers
-                if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
-                    result.caIssuers.push(desc.accessLocation.value);
-                }
-            }
-        });
-        return result;
-
-    } catch (e) {
-        console.error("Failed to parse AIA URLs from certificate PEM:", e);
-        return result;
+  const result = { ocsp: [], caIssuers: [] };
+  if (typeof window === 'undefined' || !pem) return result;
+  try {
+    const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+    const binaryString = window.atob(pemString);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
     }
+
+    const asn1 = asn1js.fromBER(bytes.buffer);
+    if (asn1.offset === -1) return result;
+
+    const certificate = new Certificate({ schema: asn1.result });
+    const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
+
+    if (!aiaExtension || !aiaExtension.parsedValue) {
+      return result;
+    }
+
+    const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
+
+    aia.accessDescriptions.forEach((desc: any) => {
+      if (desc.accessMethod === "1.3.6.1.5.5.7.48.1") { // id-ad-ocsp
+        if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
+          result.ocsp.push(desc.accessLocation.value);
+        }
+      } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2") { // id-ad-caIssuers
+        if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
+          result.caIssuers.push(desc.accessLocation.value);
+        }
+      }
+    });
+    return result;
+
+  } catch (e) {
+    console.error("Failed to parse AIA URLs from certificate PEM:", e);
+    return result;
+  }
 }
 
 
@@ -238,11 +232,11 @@ function buildCaHierarchy(flatCaList: Omit<CA, 'children'>[]): CA[] {
   Object.values(caMap).forEach(ca => {
     if (ca.issuer && ca.issuer !== 'Self-signed' && caMap[ca.issuer]) {
       caMap[ca.issuer].children?.push(ca);
-    } else if (ca.issuer === 'Self-signed' || !caMap[ca.issuer] ) { // Root or orphan (orphans become roots)
+    } else if (ca.issuer === 'Self-signed' || !caMap[ca.issuer]) { // Root or orphan (orphans become roots)
       roots.push(ca);
     }
   });
-  
+
   // Sort children by name for consistent display
   const sortChildrenRecursive = (nodes: CA[]) => {
     nodes.sort((a, b) => a.name.localeCompare(b.name));
@@ -288,7 +282,7 @@ export async function fetchAndProcessCAs(accessToken: string): Promise<CA[]> {
     console.warn("API response for CAs is missing 'list' property:", apiResponse);
     return [];
   }
-  
+
   const transformedFlatList = apiResponse.list.map(apiCa => transformApiCaToLocalCa(apiCa));
   return buildCaHierarchy(transformedFlatList);
 }
@@ -297,7 +291,7 @@ export async function fetchAndProcessCAs(accessToken: string): Promise<CA[]> {
 // Helper function to get CA display name for issuer
 export function getCaDisplayName(caId: string, allCAs: CA[]): string {
   if (caId === 'Self-signed') return 'Self-signed';
-  
+
   const ca = findCaById(caId, allCAs);
   return ca ? ca.name : caId; // Fallback to ID if not found
 }
@@ -320,7 +314,7 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
   if (!commonName) return null;
   for (const ca of cas) {
     // Ensure ca.name is used as it's the transformed common_name
-    if (ca.name && ca.name.toLowerCase() === commonName.toLowerCase()) return ca; 
+    if (ca.name && ca.name.toLowerCase() === commonName.toLowerCase()) return ca;
     if (ca.children) {
       const found = findCaByCommonName(commonName, ca.children);
       if (found) return found;
