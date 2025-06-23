@@ -1,5 +1,8 @@
 
+
 // Define the CA data structure
+import * as asn1js from "asn1js";
+import { Certificate, CRLDistributionPoints } from "pkijs";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -82,7 +85,51 @@ export interface CA {
   issuerDN?: ApiDistinguishedName;
   isCa?: boolean;
   level?: number; // Store the original level from API
+  crlDistributionPoints?: string[]; // Added for CRL check feature
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
+}
+
+function parseCrlUrlsFromPem(pem: string): string[] {
+    if (typeof window === 'undefined' || !pem) return [];
+    try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const binaryString = window.atob(pemString);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const asn1 = asn1js.fromBER(bytes.buffer);
+        if (asn1.offset === -1) return [];
+
+        const certificate = new Certificate({ schema: asn1.result });
+        const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31"); // id-ce-cRLDistributionPoints
+        
+        if (!cdpExtension || !cdpExtension.parsedValue) {
+          return [];
+        }
+
+        const crlDistributionPoints = new CRLDistributionPoints({ schema: cdpExtension.parsedValue });
+        const urls: string[] = [];
+        
+        crlDistributionPoints.distributionPoints?.forEach((point: any) => {
+            if (point.distributionPoint) {
+                // distributionPoint is a choice, often GeneralNames
+                if (point.distributionPoint.type === 0) { // distributionPoint is index 0
+                  point.distributionPoint.value.forEach((generalName: any) => {
+                      if (generalName.type === 6) { // uniformResourceIdentifier
+                          urls.push(generalName.value);
+                      }
+                  });
+                }
+            }
+        });
+        return urls;
+
+    } catch (e) {
+        console.error("Failed to parse CRL URLs from certificate PEM:", e);
+        return [];
+    }
 }
 
 // Helper to transform API CA item to local CA structure (without children)
@@ -104,6 +151,8 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     keyAlgorithm += ` (${apiCa.certificate.key_metadata.curve_name})`;
   }
 
+  const pemData = typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : ''; // Decode base64 PEM
+  const crlUrls = parseCrlUrlsFromPem(pemData);
 
   return {
     id: apiCa.id,
@@ -115,13 +164,14 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     keyAlgorithm: keyAlgorithm,
     signatureAlgorithm: 'N/A (from API)', // Placeholder, not directly in this part of API response
     kmsKeyId: apiCa.certificate.engine_id,
-    pemData: typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : '', // Decode base64 PEM
+    pemData: pemData,
     subjectKeyId: apiCa.certificate.subject_key_id,
     authorityKeyId: apiCa.certificate.authority_key_id,
     subjectDN: apiCa.certificate.subject,
     issuerDN: apiCa.certificate.issuer,
     isCa: apiCa.certificate.is_ca,
     level: apiCa.level,
+    crlDistributionPoints: crlUrls,
     rawApiData: apiCa,
   };
 }
@@ -230,4 +280,5 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
   }
   return null;
 }
+
 

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -20,6 +21,7 @@ import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
+import { CrlCheckModal } from '@/components/shared/CrlCheckModal'; // New Import
 
 import { InformationTabContent } from '@/components/shared/details-tabs/InformationTabContent';
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
@@ -109,6 +111,9 @@ export default function CertificateAuthorityDetailsClient() {
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [caToRevoke, setCaToRevoke] = useState<CA | null>(null);
 
+  const [isCrlModalOpen, setIsCrlModalOpen] = useState(false); // New state for CRL modal
+  const [caForCrlCheck, setCaForCrlCheck] = useState<CA | null>(null); // New state for CRL modal
+
   const [activeTab, setActiveTab] = useState<string>("information");
 
   const [issuedCertificatesList, setIssuedCertificatesList] = useState<CertificateData[]>([]);
@@ -132,7 +137,7 @@ export default function CertificateAuthorityDetailsClient() {
     status: caDetails.status,
     configuration: {
       maxPathLength: caDetails.issuer === 'Self-signed' ? -1 : (caDetails.children && caDetails.children.length > 0 ? 1 : 0),
-      crlDistributionPoints: [`http://crl.example.com/${caDetails.id.replace(/-/g, '')}.crl`],
+      crlDistributionPoints: caDetails.crlDistributionPoints || [`http://crl.example.com/${caDetails.id.replace(/-/g, '')}.crl`],
       ocspServers: [`http://ocsp.example.com/${caDetails.id.replace(/-/g, '')}`],
       defaultCertificateLifetime: '365d',
       allowedKeyTypes: ['RSA 2048', 'ECDSA P-256'],
@@ -328,6 +333,13 @@ export default function CertificateAuthorityDetailsClient() {
     setCaToRevoke(null);
   };
 
+  const handleOpenCrlModal = () => { // New handler
+    if (caDetails) {
+      setCaForCrlCheck(caDetails);
+      setIsCrlModalOpen(true);
+    }
+  };
+
   const handleNextIssuedCertsPage = () => {
     if (isLoadingIssuedCerts) return;
     const potentialNextPageIndex = issuedCertsCurrentPageIndex + 1;
@@ -473,7 +485,7 @@ export default function CertificateAuthorityDetailsClient() {
         </div>
 
         <div className="p-6 space-x-2 border-b">
-          <Button variant="outline" onClick={() => alert('Download CRL (placeholder)')}><Download className="mr-2 h-4 w-4" /> Download CRL</Button>
+          <Button variant="outline" onClick={handleOpenCrlModal}><Download className="mr-2 h-4 w-4" /> Download/View CRL</Button>
           <Button variant="destructive" onClick={handleCARevocation} disabled={caDetails.status === 'revoked'}><ShieldAlert className="mr-2 h-4 w-4" /> Revoke CA</Button>
           <Button variant="outline" onClick={() => alert('Edit Configuration (placeholder)')}><Edit className="mr-2 h-4 w-4" /> Edit Configuration</Button>
         </div>
@@ -679,7 +691,15 @@ export default function CertificateAuthorityDetailsClient() {
           itemType="CA"
         />
       )}
+      {caForCrlCheck && (
+        <CrlCheckModal
+          isOpen={isCrlModalOpen}
+          onClose={() => setIsCrlModalOpen(false)}
+          ca={caForCrlCheck}
+        />
+      )}
     </div>
   );
 }
+
 
