@@ -81,11 +81,12 @@ const downloadFile = (data: ArrayBuffer, filename: string, mimeType: string) => 
 };
 
 const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
-    let binary = '';
     const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
+    const chunkSize = 8192;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        // Using spread syntax on a chunk is safe and modern
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
     }
     return window.btoa(binary);
 };
@@ -187,7 +188,6 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             }
 
             const ocspReq = new OCSPRequest();
-
             await ocspReq.createForCertificate(targetCert, {
                 hashAlgorithm: "SHA-256",
                 issuerCertificate: issuerCert,
