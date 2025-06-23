@@ -196,10 +196,6 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             }
             const ocspResponse = new OCSPResponse({ schema: asn1Resp.result });
 
-            if (ocspResponse.responseStatus !== 0) {
-                 throw new Error(`OCSP response status is not 'successful'. Status: ${ocspResponse.responseStatus}`);
-            }
-            
             if (!ocspResponse.responseBytes?.response.valueBlock.valueHex) {
               throw new Error("OCSP response is missing the 'responseBytes' block.");
             }
