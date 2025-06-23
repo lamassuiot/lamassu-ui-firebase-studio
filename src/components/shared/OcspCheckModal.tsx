@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -15,6 +14,7 @@ import type { CA } from '@/lib/ca-data';
 import { format } from 'date-fns';
 import { DetailItem } from './DetailItem';
 import { Badge } from '../ui/badge';
+import { Input } from '@/components/ui/input';
 
 interface OcspCheckModalProps {
   isOpen: boolean;
@@ -52,21 +52,21 @@ const getRevocationReasonFromCode = (code?: number): string => {
 };
 
 export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose, certificate, issuerCertificate }) => {
-    const [selectedUrl, setSelectedUrl] = useState<string>('');
+    const [ocspUrl, setOcspUrl] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const [responseDetails, setResponseDetails] = useState<OcspResponseDetails | null>(null);
 
     useEffect(() => {
         if (isOpen && certificate?.ocspUrls && certificate.ocspUrls.length > 0) {
-            setSelectedUrl(certificate.ocspUrls[0]);
+            setOcspUrl(certificate.ocspUrls[0]);
         } else {
-            setSelectedUrl('');
+            setOcspUrl('');
         }
         setResponseDetails(null); // Reset on open
     }, [isOpen, certificate]);
 
     const handleSendRequest = async () => {
-        if (!selectedUrl || !certificate || !issuerCertificate?.pemData) {
+        if (!ocspUrl || !certificate || !issuerCertificate?.pemData) {
             setResponseDetails({ status: 'error', statusText: 'Missing Information', errorDetails: 'OCSP URL, target certificate, or issuer certificate is missing.' });
             return;
         }
@@ -116,7 +116,7 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
 
             // 4. Send Request
             const requestBody = ocspRequest.toSchema().toBER(false);
-            const response = await fetch(selectedUrl, {
+            const response = await fetch(ocspUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/ocsp-request' },
                 body: requestBody
@@ -205,21 +205,47 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                 </DialogHeader>
 
                 <div className="py-2 space-y-4">
-                    <div className="space-y-1">
-                        <Label htmlFor="ocsp-url-select">OCSP Responder URL</Label>
-                        <Select value={selectedUrl} onValueChange={setSelectedUrl} disabled={isLoading}>
-                            <SelectTrigger id="ocsp-url-select">
-                                <SelectValue placeholder="Select an OCSP URL..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {certificate?.ocspUrls?.map(url => (
-                                    <SelectItem key={url} value={url}>{url}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="space-y-3">
+                        <div>
+                            <Label htmlFor="ocsp-url-select">Select a discovered URL</Label>
+                            <Select value={ocspUrl} onValueChange={setOcspUrl} disabled={isLoading || !certificate?.ocspUrls?.length}>
+                                <SelectTrigger id="ocsp-url-select">
+                                    <SelectValue placeholder="Select from certificate's AIA..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {certificate?.ocspUrls?.map(url => (
+                                        <SelectItem key={url} value={url}>{url}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-background px-2 text-muted-foreground">
+                                    Or
+                                </span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="ocsp-url-input">Enter URL manually</Label>
+                            <Input
+                                id="ocsp-url-input"
+                                type="text"
+                                placeholder="http://ocsp.example.com"
+                                value={ocspUrl}
+                                onChange={(e) => setOcspUrl(e.target.value)}
+                                disabled={isLoading}
+                                className="mt-1"
+                            />
+                        </div>
                     </div>
 
-                    <Button onClick={handleSendRequest} disabled={!selectedUrl || isLoading} className="w-full">
+                    <Button onClick={handleSendRequest} disabled={!ocspUrl || isLoading} className="w-full">
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                         Send OCSP Request
                     </Button>
