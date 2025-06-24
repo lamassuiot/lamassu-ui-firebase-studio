@@ -59,7 +59,7 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
   };
 
   let IconComponent: React.ReactNode;
-  let iconColorClass = "text-primary";
+  const iconColorClass = "text-primary";
 
   if (isCritical) {
     IconComponent = <ShieldAlert className={cn("h-5 w-5 flex-shrink-0", "text-destructive")} />;
@@ -67,7 +67,6 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
     const engine = allCryptoEngines.find(e => e.id === ca.kmsKeyId);
     if (engine) {
       IconComponent = <CryptoEngineViewer engine={engine} iconOnly className="h-5 w-5 flex-shrink-0" />;
-      // CryptoEngineViewer handles its own color, so no need to set iconColorClass
     } else {
       IconComponent = <KeyRound className={cn("h-5 w-5 flex-shrink-0", iconColorClass)} />;
     }
@@ -130,6 +129,3 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
     </li>
   );
 };
-
-
-    
