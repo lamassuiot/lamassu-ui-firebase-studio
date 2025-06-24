@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,10 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide } from "lucide-react";
+import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide, ScrollTextIcon } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipContent } from "@/components/ui/tooltip";
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,6 +26,14 @@ import { TagInput } from '@/components/shared/TagInput';
 import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 
 
+const mockSigningProfiles = [
+  { id: 'profile-iot-standard', name: 'IoT Device Standard Profile' },
+  { id: 'profile-web-server-tls', name: 'Web Server TLS Profile' },
+  { id: 'profile-code-signing', name: 'Code Signing Profile' },
+  { id: 'profile-short-lived-api', name: 'Short-Lived API Client Profile' },
+];
+
+
 export default function CreateRegistrationAuthorityPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -32,6 +41,7 @@ export default function CreateRegistrationAuthorityPage() {
   const [registrationMode, setRegistrationMode] = useState('JITP');
   const [tags, setTags] = useState<string[]>(['iot']);
   const [protocol, setProtocol] = useState('EST');
+  const [signingProfileId, setSigningProfileId] = useState<string | null>(mockSigningProfiles[0].id);
   const [enrollmentCa, setEnrollmentCa] = useState<CA | null>(null);
   const [allowOverrideEnrollment, setAllowOverrideEnrollment] = useState(true);
   const [authMode, setAuthMode] = useState('Client Certificate');
@@ -120,6 +130,7 @@ export default function CreateRegistrationAuthorityPage() {
       registrationMode,
       tags,
       protocol,
+      signingProfileId,
       enrollmentCaId: enrollmentCa?.id,
       allowOverrideEnrollment,
       authMode,
@@ -337,6 +348,26 @@ export default function CreateRegistrationAuthorityPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  
+                  <div>
+                    <Label htmlFor="signingProfile">Signing Profile</Label>
+                    <Select value={signingProfileId ?? ''} onValueChange={setSigningProfileId}>
+                      <SelectTrigger id="signingProfile" className="mt-1">
+                        <SelectValue placeholder="Select a signing profile..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mockSigningProfiles.map(profile => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The policy that defines certificate parameters like duration and key usage.
+                    </p>
+                  </div>
+
                   <div>
                     <Label htmlFor="enrollmentCa">Enrollment CA</Label>
                     <Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingCAsForSelection || authLoading}>
@@ -576,4 +607,3 @@ export default function CreateRegistrationAuthorityPage() {
     </div>
   );
 }
-
