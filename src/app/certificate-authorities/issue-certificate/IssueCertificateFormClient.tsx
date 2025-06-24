@@ -126,7 +126,7 @@ const EKU_OPTIONS = [{ id: "ServerAuth", label: "Server Authentication" }, { id:
 
 // --- Stepper Component ---
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Details", "Review CSR", "Configure", "Issued"];
+  const steps = ["Details", "Review", "Configure", "Issue"];
   return (
     <div className="flex items-center space-x-4 mb-8">
       {steps.map((label, index) => {
@@ -357,7 +357,7 @@ export default function IssueCertificateFormClient() {
         return;
     }
     const payload = {
-        csr: window.btoa(csrPem),
+        csr: window.btoa(csrPem.replace(/(-{5}(BEGIN|END) (NEW )?CERTIFICATE REQUEST-{5})/g, "").replace(/\s/g, "")),
         profile: {
             extended_key_usage: extendedKeyUsages,
             key_usage: keyUsages,
@@ -459,7 +459,18 @@ export default function IssueCertificateFormClient() {
              <div className="space-y-6 mt-6">
                 {generatedPrivateKeyPem && (
                     <div className="space-y-2">
-                        <div className="flex justify-between items-center"><h3 className="font-medium text-lg">Generated Private Key</h3><div className="flex space-x-2"><Button type="button" variant="outline" size="sm" onClick={()=>handleCopy(generatedPrivateKeyPem, "Private Key", setPrivateKeyCopied)}>{privateKeyCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}{privateKeyCopied?'Copied':'Copy'}</Button><Button type="button" variant="outline" size="sm" onClick={()=>handleDownload(generatedPrivateKeyPem, "private_key.pem", "application/x-pem-file")}><DownloadIcon className="mr-1 h-4 w-4"/>Download</Button></div></div>
+                        <div className="flex justify-between items-center">
+                            <h3 className="font-medium text-lg">Generated Private Key</h3>
+                            <div className="flex space-x-2">
+                                <Button type="button" variant="outline" size="sm" onClick={()=>handleCopy(generatedPrivateKeyPem, "Private Key", setPrivateKeyCopied)}>
+                                    {privateKeyCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}
+                                    {privateKeyCopied?'Copied':'Copy'}
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={()=>handleDownload(generatedPrivateKeyPem, "private_key.pem", "application/x-pem-file")}>
+                                    <DownloadIcon className="mr-1 h-4 w-4"/>Download
+                                </Button>
+                            </div>
+                        </div>
                         <p className="text-xs text-destructive">This is your only chance to save the private key. Store it securely.</p>
                         <Textarea readOnly value={generatedPrivateKeyPem} rows={8} className="font-mono bg-muted/50"/>
                     </div>
@@ -524,8 +535,8 @@ export default function IssueCertificateFormClient() {
         <CardFooter className="flex justify-between">
             {step < 4 ? <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1}>Back</Button> : <div/> /* Spacer */}
             <div className="flex space-x-2">
-                {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndReview} disabled={isGenerating || !commonName.trim()}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Next: Review CSR</Button>}
-                {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleReviewUploadedCsr} disabled={!csrPem.trim()}>Next: Review CSR</Button>}
+                {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndReview} disabled={isGenerating || !commonName.trim()}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Next: Review</Button>}
+                {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleReviewUploadedCsr} disabled={!csrPem.trim()}>Next: Review</Button>}
                 {step === 2 && <Button type="button" onClick={() => setStep(3)}>Next: Configure</Button>}
                 {step === 3 && <Button type="button" onClick={handleIssueCertificate} disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Issue Certificate</Button>}
                 {step === 4 && (
