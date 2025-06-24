@@ -13,9 +13,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, PlusCircle, Settings2, KeyRound, ListChecks } from "lucide-react"; 
+import { ArrowLeft, PlusCircle, Settings2, KeyRound, ListChecks, Info } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
 const ecdsaCurves = ["P-256", "P-384", "P-521"] as const;
@@ -40,14 +42,23 @@ const signingProfileSchema = z.object({
   profileName: z.string().min(3, "Profile name must be at least 3 characters long."),
   description: z.string().optional(),
   duration: z.string().min(1, "Duration is required (e.g., '1y', '90d')."),
-  subjectPolicyNotes: z.string().optional(),
-  extensionsPolicyNotes: z.string().optional(),
+  
+  honorSubject: z.boolean().default(true),
+  overrideCountry: z.string().optional(),
+  overrideState: z.string().optional(),
+  overrideOrganization: z.string().optional(),
+  overrideOrgUnit: z.string().optional(),
+
   allowRsa: z.boolean().default(false),
   allowEcdsa: z.boolean().default(false),
   rsaKeyStrength: z.enum(rsaKeyStrengths).optional(),
   ecdsaCurve: z.enum(ecdsaCurves).optional(),
   defaultSignatureAlgorithm: z.enum(signatureAlgorithms).optional(),
+  
+  honorKeyUsage: z.boolean().default(false),
   keyUsages: z.array(z.enum(keyUsageOptions)).optional().default([]),
+  
+  honorExtendedKeyUsage: z.boolean().default(false),
   extendedKeyUsages: z.array(z.enum(extendedKeyUsageOptions)).optional().default([]),
 }).refine(data => data.allowRsa || data.allowEcdsa, {
   message: "At least one key type (RSA or ECDSA) must be allowed.",
@@ -80,18 +91,22 @@ export default function CreateSigningProfilePage() {
       profileName: '',
       description: '',
       duration: '1y',
-      subjectPolicyNotes: '',
-      extensionsPolicyNotes: '',
+      honorSubject: true,
       allowRsa: true,
       allowEcdsa: false,
       rsaKeyStrength: "2048",
-      keyUsages: ['digitalSignature', 'keyEncipherment'], // Example default
-      extendedKeyUsages: ['clientAuth'], // Example default
+      honorKeyUsage: false,
+      keyUsages: ['digitalSignature', 'keyEncipherment'],
+      honorExtendedKeyUsage: false,
+      extendedKeyUsages: ['clientAuth'],
     },
   });
 
   const watchAllowRsa = form.watch("allowRsa");
   const watchAllowEcdsa = form.watch("allowEcdsa");
+  const watchHonorSubject = form.watch("honorSubject");
+  const watchHonorKeyUsage = form.watch("honorKeyUsage");
+  const watchHonorExtendedKeyUsage = form.watch("honorExtendedKeyUsage");
 
   function onSubmit(data: SigningProfileFormValues) {
     console.log('New Signing Profile Data:', data);
@@ -170,34 +185,62 @@ export default function CreateSigningProfilePage() {
               />
 
               <FormField
-                control={form.control}
-                name="subjectPolicyNotes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subject Policy Notes</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Describe how subject DN attributes are handled. E.g., 'Respects CSR CN, O, OU. Appends specific L, ST, C.'" {...field} />
-                    </FormControl>
-                    <FormDescription>Notes on subject distinguished name (DN) handling for this profile.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  control={form.control}
+                  name="honorSubject"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Honor Subject From CSR</FormLabel>
+                        <FormDescription>
+                          Use the Subject DN fields from the CSR. If off, you can specify override values.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="extensionsPolicyNotes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Extensions Policy Notes</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Describe how X.509 extensions are handled. E.g., 'Adds KeyUsage (Digital Sig, Key Encipherment), EKU (Client Auth). Basic Constraints CA:FALSE.'" {...field} />
-                    </FormControl>
-                    <FormDescription>Notes on X.509 extensions (Key Usage, EKU, SANs, etc.) for this profile.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                {!watchHonorSubject && (
+                  <div className="space-y-4 p-4 border rounded-md ml-4 -mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="overrideCountry" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Country (C)</FormLabel>
+                                <FormControl><Input placeholder="e.g., US (2-letter code)" maxLength={2} {...field} /></FormControl>
+                            </FormItem>
+                        )}/>
+                        <FormField control={form.control} name="overrideState" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>State / Province (ST)</FormLabel>
+                                <FormControl><Input placeholder="e.g., California" {...field} /></FormControl>
+                            </FormItem>
+                        )}/>
+                        <FormField control={form.control} name="overrideOrganization" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Organization (O)</FormLabel>
+                                <FormControl><Input placeholder="e.g., LamassuIoT Corp" {...field} /></FormControl>
+                            </FormItem>
+                        )}/>
+                        <FormField control={form.control} name="overrideOrgUnit" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Organizational Unit (OU)</FormLabel>
+                                <FormControl><Input placeholder="e.g., Secure Devices" {...field} /></FormControl>
+                            </FormItem>
+                        )}/>
+                    </div>
+                     <div className="flex items-start space-x-2 text-muted-foreground bg-muted/50 p-2 rounded-md">
+                        <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs">
+                          The Common Name (CN) from the CSR's subject is always honored and used. These fields will be appended to or replace other subject attributes.
+                        </p>
+                    </div>
+                  </div>
                 )}
-              />
 
               <Separator />
               <h3 className="text-lg font-semibold flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground"/>Cryptographic Settings</h3>
@@ -317,95 +360,145 @@ export default function CreateSigningProfilePage() {
               <Separator />
               <h3 className="text-lg font-semibold flex items-center"><ListChecks className="mr-2 h-5 w-5 text-muted-foreground"/>Certificate Usage Policies</h3>
               
-              <FormField
-                control={form.control}
-                name="keyUsages"
-                render={() => ( // Main render for the group
-                  <FormItem>
-                    <FormLabel>Key Usage</FormLabel>
-                    <FormDescription>Select the allowed key usages for certificates signed with this profile.</FormDescription>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 mt-2 border p-3 rounded-md shadow-sm">
-                      {keyUsageOptions.map((item) => (
-                        <FormField
-                          key={item}
-                          control={form.control}
-                          name="keyUsages" // The array field
-                          render={({ field }) => {
-                            return (
-                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(item)}
-                                    onCheckedChange={(checked) => {
-                                      const currentValue = field.value || [];
-                                      return checked
-                                        ? field.onChange([...currentValue, item])
-                                        : field.onChange(
-                                            currentValue.filter(
-                                              (value) => value !== item
-                                            )
-                                          );
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal cursor-pointer">
-                                  {toTitleCase(item)}
-                                </FormLabel>
-                              </FormItem>
-                            );
-                          }}
+               <FormField
+                  control={form.control}
+                  name="honorKeyUsage"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Honor Key Usage From CSR</FormLabel>
+                        <FormDescription>
+                          Use the Key Usage extension from the CSR. If off, specify usages below.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
                         />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+              {!watchHonorKeyUsage && (
+                <div className="ml-4 -mt-4">
+                  <FormField
+                    control={form.control}
+                    name="keyUsages"
+                    render={() => ( 
+                      <FormItem>
+                        <FormLabel>Key Usage</FormLabel>
+                        <FormDescription>Select the allowed key usages for certificates signed with this profile.</FormDescription>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 mt-2 border p-3 rounded-md shadow-sm">
+                          {keyUsageOptions.map((item) => (
+                            <FormField
+                              key={item}
+                              control={form.control}
+                              name="keyUsages"
+                              render={({ field }) => {
+                                return (
+                                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(item)}
+                                        onCheckedChange={(checked) => {
+                                          const currentValue = field.value || [];
+                                          return checked
+                                            ? field.onChange([...currentValue, item])
+                                            : field.onChange(
+                                                currentValue.filter(
+                                                  (value) => value !== item
+                                                )
+                                              );
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal cursor-pointer">
+                                      {toTitleCase(item)}
+                                    </FormLabel>
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
               <FormField
-                control={form.control}
-                name="extendedKeyUsages"
-                render={() => ( // Main render for the group
-                  <FormItem>
-                    <FormLabel>Extended Key Usage</FormLabel>
-                    <FormDescription>Select the allowed extended key usages (EKUs).</FormDescription>
-                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 mt-2 border p-3 rounded-md shadow-sm">
-                      {extendedKeyUsageOptions.map((item) => (
-                        <FormField
-                          key={item}
-                          control={form.control}
-                          name="extendedKeyUsages" // The array field
-                          render={({ field }) => {
-                            return (
-                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(item)}
-                                    onCheckedChange={(checked) => {
-                                      const currentValue = field.value || [];
-                                      return checked
-                                        ? field.onChange([...currentValue, item])
-                                        : field.onChange(
-                                            currentValue.filter(
-                                              (value) => value !== item
-                                            )
-                                          );
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal cursor-pointer">
-                                   {toTitleCase(item)}
-                                </FormLabel>
-                              </FormItem>
-                            );
-                          }}
+                  control={form.control}
+                  name="honorExtendedKeyUsage"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Honor Extended Key Usage From CSR</FormLabel>
+                        <FormDescription>
+                           Use the Extended Key Usage (EKU) extension from the CSR. If off, specify EKUs below.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
                         />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              
+              {!watchHonorExtendedKeyUsage && (
+                 <div className="ml-4 -mt-4">
+                  <FormField
+                    control={form.control}
+                    name="extendedKeyUsages"
+                    render={() => ( 
+                      <FormItem>
+                        <FormLabel>Extended Key Usage</FormLabel>
+                        <FormDescription>Select the allowed extended key usages (EKUs).</FormDescription>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 mt-2 border p-3 rounded-md shadow-sm">
+                          {extendedKeyUsageOptions.map((item) => (
+                            <FormField
+                              key={item}
+                              control={form.control}
+                              name="extendedKeyUsages"
+                              render={({ field }) => {
+                                return (
+                                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(item)}
+                                        onCheckedChange={(checked) => {
+                                          const currentValue = field.value || [];
+                                          return checked
+                                            ? field.onChange([...currentValue, item])
+                                            : field.onChange(
+                                                currentValue.filter(
+                                                  (value) => value !== item
+                                                )
+                                              );
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal cursor-pointer">
+                                      {toTitleCase(item)}
+                                    </FormLabel>
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                 </div>
+              )}
 
 
               <div className="flex justify-end space-x-2 pt-4">
