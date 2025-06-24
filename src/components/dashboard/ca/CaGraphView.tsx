@@ -30,6 +30,7 @@ interface GraphEdge {
   to: string;
   path: string; // SVG path data 'd' attribute
   hasArrow?: boolean;
+  bidirectional?: boolean; // Added for two-way arrows
 }
 
 const GRAPH_WIDTH = 1200;
@@ -50,14 +51,14 @@ const nodes: GraphNode[] = [
 
 const edges: GraphEdge[] = [
     // CA1 to SubCA1a
-    { from: 'ca1', to: 'subca1a', path: `M 600 110 V 170`},
+    { from: 'ca1', to: 'subca1a', path: `M 600 110 V 170`, hasArrow: true},
     // CA1 to CA2 and CA3
-    { from: 'ca1', to: 'ca2', path: `M 600 110 V 140 H 290 V 300`},
-    { from: 'ca1', to: 'ca3', path: `M 600 110 V 140 H 910 V 300`},
+    { from: 'ca1', to: 'ca2', path: `M 600 110 V 140 H 290 V 300`, hasArrow: true},
+    { from: 'ca1', to: 'ca3', path: `M 600 110 V 140 H 910 V 300`, hasArrow: true},
     // CA2 to CA3 (cross-cert)
-    { from: 'ca2', to: 'ca3', path: `M 430 330 H 770`, hasArrow: true },
+    { from: 'ca2', to: 'ca3', path: `M 430 330 H 770`, hasArrow: true, bidirectional: true },
     // CA4 to SubCA4a
-    { from: 'ca4', to: 'subca4a', path: `M 600 610 V 670`},
+    { from: 'ca4', to: 'subca4a', path: `M 600 610 V 670`, hasArrow: true},
 ];
 
 
@@ -80,10 +81,10 @@ const NodeComponent = ({ node }: { node: GraphNode }) => {
             break;
     }
 
-    const nodeBgColor = node.status === 'revoked' ? 'bg-red-50' : node.status === 'expired' ? 'bg-orange-50' : 'bg-blue-50';
-    const iconBgColor = node.status === 'revoked' ? 'bg-red-100' : node.status === 'expired' ? 'bg-orange-100' : 'bg-blue-100';
-    const titleColor = node.status === 'revoked' ? 'text-red-800' : node.status === 'expired' ? 'text-orange-800' : 'text-blue-800';
-    const subtextColor = node.status === 'revoked' ? 'text-red-600' : node.status === 'expired' ? 'text-orange-600' : 'text-gray-500';
+    const nodeBgColor = node.status === 'revoked' ? 'bg-red-50 dark:bg-red-900/40' : node.status === 'expired' ? 'bg-orange-50 dark:bg-orange-900/40' : 'bg-blue-50 dark:bg-blue-900/40';
+    const iconBgColor = node.status === 'revoked' ? 'bg-red-100 dark:bg-red-800/50' : node.status === 'expired' ? 'bg-orange-100 dark:bg-orange-800/50' : 'bg-blue-100 dark:bg-blue-800/50';
+    const titleColor = node.status === 'revoked' ? 'text-red-800 dark:text-red-200' : node.status === 'expired' ? 'text-orange-800 dark:text-orange-200' : 'text-blue-800 dark:text-blue-200';
+    const subtextColor = node.status === 'revoked' ? 'text-red-600 dark:text-red-300' : node.status === 'expired' ? 'text-orange-600 dark:text-orange-300' : 'text-gray-500 dark:text-gray-400';
 
     return (
         <div
@@ -133,6 +134,11 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
                         orient="auto-start-reverse">
                       <path d="M 0 0 L 10 5 L 0 10 z" className="fill-muted-foreground" />
                     </marker>
+                    <marker id="arrowhead_start" viewBox="0 0 10 10" refX="2" refY="5"
+                        markerWidth="6" markerHeight="6"
+                        orient="auto">
+                      <path d="M 10 0 L 0 5 L 10 10 z" className="fill-muted-foreground" />
+                    </marker>
                   </defs>
                   
                   {/* Edges */}
@@ -145,6 +151,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
                         strokeWidth="1.5"
                         fill="none"
                         markerEnd={edge.hasArrow ? "url(#arrowhead)" : undefined}
+                        markerStart={edge.bidirectional ? "url(#arrowhead_start)" : undefined}
                       />
                     ))}
                   </g>
