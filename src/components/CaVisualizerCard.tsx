@@ -30,7 +30,7 @@ const StatusIcon: React.FC<{ status: CA['status']; expires: string }> = ({ statu
 
 export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, className, onClick, allCryptoEngines }) => {
   
-  const cardBaseClasses = "rounded-lg border bg-primary/5 dark:bg-primary/10 border-primary/20 dark:border-primary/30 shadow-sm transition-shadow w-full";
+  const cardBaseClasses = "rounded-lg border bg-primary/5 dark:bg-primary/10 border-blue-800/40 dark:border-blue-300/40 shadow-sm transition-shadow w-full";
   const clickableClasses = onClick ? "hover:shadow-md hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer" : "";
 
   let IconComponent: React.ReactNode;
