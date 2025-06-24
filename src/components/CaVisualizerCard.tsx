@@ -62,7 +62,7 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
 
   const cardInnerContent = (
     <div className={cn("flex items-center space-x-3 p-3")}>
-        <div className="p-2 rounded-full bg-primary/10 flex-shrink-0">
+        <div className="p-2 flex-shrink-0">
           {IconComponent}
         </div>
         <div className="flex-1 min-w-0">
