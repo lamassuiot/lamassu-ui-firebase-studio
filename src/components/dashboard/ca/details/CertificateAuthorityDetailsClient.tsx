@@ -27,6 +27,7 @@ import { InformationTabContent } from '@/components/shared/details-tabs/Informat
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
 import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTabContent';
 import { format, parseISO, isPast } from 'date-fns';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -102,6 +103,10 @@ export default function CertificateAuthorityDetailsClient() {
   const [allCertificateAuthoritiesData, setAllCertificateAuthoritiesData] = useState<CA[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
+  
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+  const [isLoadingEngines, setIsLoadingEngines] = useState(true);
+  const [errorEngines, setErrorEngines] = useState<string | null>(null);
 
   const [caDetails, setCaDetails] = useState<CA | null>(null);
   const [caPathToRoot, setCaPathToRoot] = useState<CA[]>([]);
@@ -168,28 +173,47 @@ export default function CertificateAuthorityDetailsClient() {
     }
   }, [issuedCertsPageSize, issuedCertsDebouncedSearchTermCN, issuedCertsDebouncedSearchTermSN, issuedCertsStatusFilter, issuedCertsSortConfig, activeTab]);
 
-  useEffect(() => {
-    const loadCAs = async () => {
-      if (!isAuthenticated() || !user?.access_token) {
+  const loadInitialData = useCallback(async () => {
+    if (!isAuthenticated() || !user?.access_token) {
         if (!authLoading) {
-          setErrorCAs("User not authenticated. Cannot load CA data.");
+            setErrorCAs("User not authenticated.");
+            setErrorEngines("User not authenticated.");
         }
         setIsLoadingCAs(false);
+        setIsLoadingEngines(false);
         return;
-      }
-      setIsLoadingCAs(true);
-      setErrorCAs(null);
-      try {
+    }
+
+    setIsLoadingCAs(true);
+    setErrorCAs(null);
+    try {
         const fetchedCAs = await fetchAndProcessCAs(user.access_token);
         setAllCertificateAuthoritiesData(fetchedCAs);
-      } catch (err: any) {
+    } catch (err: any) {
         setErrorCAs(err.message || 'Failed to load CA data.');
-      } finally {
+    } finally {
         setIsLoadingCAs(false);
-      }
-    };
-    if (!authLoading) loadCAs();
+    }
+    
+    setIsLoadingEngines(true);
+    setErrorEngines(null);
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+            headers: { 'Authorization': `Bearer ${user.access_token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch crypto engines');
+        const enginesData: ApiCryptoEngine[] = await response.json();
+        setAllCryptoEngines(enginesData);
+    } catch (err: any) {
+        setErrorEngines(err.message || 'Failed to load Crypto Engines.');
+    } finally {
+        setIsLoadingEngines(false);
+    }
   }, [user?.access_token, isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    if (!authLoading) loadInitialData();
+  }, [authLoading, loadInitialData]);
 
   useEffect(() => {
     if (isLoadingCAs || !caIdFromUrl || allCertificateAuthoritiesData.length === 0) {
@@ -406,7 +430,7 @@ export default function CertificateAuthorityDetailsClient() {
   };
 
 
-  if (authLoading || isLoadingCAs) {
+  if (authLoading || isLoadingCAs || isLoadingEngines) {
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
         <Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -415,7 +439,7 @@ export default function CertificateAuthorityDetailsClient() {
     );
   }
 
-  if (errorCAs && !caDetails) {
+  if ((errorCAs || errorEngines) && !caDetails) {
     return (
       <div className="w-full space-y-4 p-4">
          <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
@@ -423,8 +447,9 @@ export default function CertificateAuthorityDetailsClient() {
           </Button>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading CA</AlertTitle>
-          <AlertDescription>{errorCAs}</AlertDescription>
+          <AlertTitle>Error Loading Data</AlertTitle>
+          {errorCAs && <AlertDescription>CA Error: {errorCAs}</AlertDescription>}
+          {errorEngines && <AlertDescription>Engine Error: {errorEngines}</AlertDescription>}
         </Alert>
       </div>
     );
@@ -507,6 +532,7 @@ export default function CertificateAuthorityDetailsClient() {
                 allCAsForLinking: allCertificateAuthoritiesData,
                 currentCaId: caDetails.id,
                 placeholderSerial: placeholderSerial,
+                allCryptoEngines: allCryptoEngines,
               }}
               routerHook={routerHook}
             />

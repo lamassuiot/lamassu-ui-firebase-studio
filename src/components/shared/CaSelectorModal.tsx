@@ -8,7 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { CA } from '@/lib/ca-data';
-import { SelectableCaTreeItem } from './SelectableCaTreeItem'; // Updated import path
+import { SelectableCaTreeItem } from './SelectableCaTreeItem';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 interface CaSelectorModalProps {
   isOpen: boolean;
@@ -18,11 +19,12 @@ interface CaSelectorModalProps {
   availableCAs: CA[];
   isLoadingCAs: boolean;
   errorCAs: string | null;
-  loadCAsAction: () => void; // Function to retry loading CAs
+  loadCAsAction: () => void;
   onCaSelected: (ca: CA) => void;
-  currentSelectedCaId?: string | null; // ID of the currently selected CA for highlighting
-  isAuthLoading: boolean; // Pass auth loading state
-  children?: React.ReactNode; // To allow overriding content for multi-select scenarios
+  currentSelectedCaId?: string | null;
+  isAuthLoading: boolean;
+  children?: React.ReactNode;
+  allCryptoEngines?: ApiCryptoEngine[];
 }
 
 export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
@@ -38,6 +40,7 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
   currentSelectedCaId,
   isAuthLoading,
   children,
+  allCryptoEngines,
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -47,9 +50,8 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {children ? (
-          children // Render custom children if provided (for multi-select)
+          children
         ) : (
-          // Default single-select content
           <>
             {(isLoadingCAs || isAuthLoading) && (
               <div className="flex items-center justify-center h-72">
@@ -76,6 +78,7 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
                       level={0}
                       onSelect={onCaSelected}
                       currentSingleSelectedCaId={currentSelectedCaId}
+                      allCryptoEngines={allCryptoEngines}
                     />
                   ))}
                 </ul>

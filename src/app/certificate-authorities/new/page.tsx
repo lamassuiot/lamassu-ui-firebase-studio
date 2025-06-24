@@ -23,6 +23,7 @@ import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 import { formatISO } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal'; // Import shared modal
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 const keyTypes = [
   { value: 'RSA', label: 'RSA' },
@@ -100,40 +101,63 @@ export default function CreateCertificateAuthorityPage() {
   const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
 
   const [availableParentCAs, setAvailableParentCAs] = useState<CA[]>([]);
-  const [isLoadingParentCAs, setIsLoadingParentCAs] = useState(false);
-  const [errorParentCAs, setErrorParentCAs] = useState<string | null>(null);
+  const [isLoadingCAs, setIsLoadingCAs] = useState(false);
+  const [errorCAs, setErrorCAs] = useState<string | null>(null);
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+  const [isLoadingEngines, setIsLoadingEngines] = useState(false);
+  const [errorEngines, setErrorEngines] = useState<string | null>(null);
 
 
   useEffect(() => {
     setCaId(crypto.randomUUID());
   }, []);
 
-  const loadParentCAs = useCallback(async () => {
+  const loadCaData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading) {
-        setErrorParentCAs("User not authenticated. Cannot load parent CAs.");
+        setErrorCAs("User not authenticated. Cannot load parent CAs.");
+        setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
       }
-      setIsLoadingParentCAs(false);
+      setIsLoadingCAs(false);
+      setIsLoadingEngines(false);
       return;
     }
-    setIsLoadingParentCAs(true);
-    setErrorParentCAs(null);
+    
+    setIsLoadingCAs(true);
+    setErrorCAs(null);
     try {
       const fetchedCAs = await fetchAndProcessCAs(user.access_token);
       setAvailableParentCAs(fetchedCAs); 
     } catch (err: any) {
-      setErrorParentCAs(err.message || 'Failed to load available parent CAs.');
+      setErrorCAs(err.message || 'Failed to load available parent CAs.');
       setAvailableParentCAs([]);
     } finally {
-      setIsLoadingParentCAs(false);
+      setIsLoadingCAs(false);
     }
+    
+    setIsLoadingEngines(true);
+    setErrorEngines(null);
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+            headers: { 'Authorization': `Bearer ${user.access_token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch crypto engines');
+        const enginesData: ApiCryptoEngine[] = await response.json();
+        setAllCryptoEngines(enginesData);
+    } catch (err: any) {
+        setErrorEngines(err.message || 'Failed to load Crypto Engines.');
+        setAllCryptoEngines([]);
+    } finally {
+        setIsLoadingEngines(false);
+    }
+
   }, [user?.access_token, isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (!authLoading) {
-        loadParentCAs();
+        loadCaData();
     }
-  }, [loadParentCAs, authLoading]);
+  }, [loadCaData, authLoading]);
 
 
   const handleCaTypeChange = (value: string) => {
@@ -462,13 +486,13 @@ export default function CreateCertificateAuthorityPage() {
                         onClick={() => setIsParentCaModalOpen(true)}
                         className="w-full justify-start text-left font-normal mt-1"
                         id="parentCa"
-                        disabled={isLoadingParentCAs || authLoading}
+                        disabled={isLoadingCAs || authLoading}
                       >
-                        {isLoadingParentCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
+                        {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
                       </Button>
                       {selectedParentCa && (
                         <div className="mt-2">
-                          <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" />
+                          <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/>
                         </div>
                       )}
                       {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected for intermediate CAs.</p>}
@@ -632,12 +656,13 @@ export default function CreateCertificateAuthorityPage() {
         title="Select Parent Certificate Authority"
         description="Choose an existing CA to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
         availableCAs={availableParentCAs}
-        isLoadingCAs={isLoadingParentCAs}
-        errorCAs={errorParentCAs}
-        loadCAsAction={loadParentCAs}
+        isLoadingCAs={isLoadingCAs}
+        errorCAs={errorCAs}
+        loadCAsAction={loadCaData}
         onCaSelected={handleParentCaSelectFromModal}
         currentSelectedCaId={selectedParentCa?.id}
         isAuthLoading={authLoading}
+        allCryptoEngines={allCryptoEngines}
       />
     </div>
   );

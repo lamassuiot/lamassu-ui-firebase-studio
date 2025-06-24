@@ -14,7 +14,8 @@ import { DetailItem } from '@/components/shared/DetailItem';
 import { CaHierarchyPathNode } from '@/components/dashboard/ca/details/CaHierarchyPathNode';
 import { getCaDisplayName } from '@/lib/ca-data';
 import { format, parseISO } from 'date-fns';
-import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'; // For routerHook type
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 interface InformationTabContentProps {
   item: CA | CertificateData;
@@ -24,6 +25,7 @@ interface InformationTabContentProps {
     allCAsForLinking: CA[];
     currentCaId: string;
     placeholderSerial?: string;
+    allCryptoEngines?: ApiCryptoEngine[];
   };
   certificateSpecific?: {
     certificateChainForVisualizer: CA[];
@@ -31,7 +33,7 @@ interface InformationTabContentProps {
     statusBadgeClass?: string;
     apiStatusText: string;
   };
-  routerHook: AppRouterInstance; // Using specific type
+  routerHook: AppRouterInstance;
 }
 
 const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
@@ -141,6 +143,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                     isCurrentCa={caNode.id === caDetails.id}
                     hasNext={index < caSpecific.pathToRoot.length - 1}
                     isFirst={index === 0}
+                    allCryptoEngines={caSpecific.allCryptoEngines}
                   />
                 ))}
               </div>
