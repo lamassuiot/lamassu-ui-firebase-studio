@@ -2,16 +2,18 @@
 'use client';
 
 import type React from 'react';
-import { Landmark, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, FolderTree, KeyRound, ShieldAlert } from 'lucide-react';
 import { isPast, parseISO } from 'date-fns';
 import type { CA } from '@/lib/ca-data';
 import { cn } from '@/lib/utils';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 
 interface CaVisualizerCardProps {
   ca: CA;
   className?: string;
   onClick?: (ca: CA) => void;
-  showKmsKeyId?: boolean; // This prop is maintained but not visually represented in the new design.
+  allCryptoEngines?: ApiCryptoEngine[];
 }
 
 const CaStatusIcon: React.FC<{ status: CA['status'], expires: string }> = ({ status, expires }) => {
@@ -27,15 +29,32 @@ const CaStatusIcon: React.FC<{ status: CA['status'], expires: string }> = ({ sta
 };
 
 
-export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, className, onClick, showKmsKeyId }) => {
+export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, className, onClick, allCryptoEngines }) => {
   
   const cardBaseClasses = "flex flex-col rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-700/50 dark:bg-blue-900/20 text-card-foreground shadow-sm transition-shadow w-full";
   const clickableClasses = onClick ? "hover:shadow-md cursor-pointer" : "";
 
+  const isCritical = ca.status === 'revoked' || isPast(parseISO(ca.expires));
+  let IconComponent: React.ReactNode;
+  const iconColorClass = "text-blue-600 dark:text-blue-300";
+
+  if (isCritical) {
+    IconComponent = <ShieldAlert className={cn("h-6 w-6", "text-destructive")} />;
+  } else if (ca.kmsKeyId) {
+    const engine = allCryptoEngines?.find(e => e.id === ca.kmsKeyId);
+    if (engine) {
+      IconComponent = <CryptoEngineViewer engine={engine} iconOnly className="h-6 w-6" />;
+    } else {
+      IconComponent = <KeyRound className={cn("h-6 w-6", iconColorClass)} />;
+    }
+  } else {
+    IconComponent = <FolderTree className={cn("h-6 w-6", iconColorClass)} />;
+  }
+
   const cardInnerContent = (
     <div className={cn("flex items-center space-x-3 p-3")}>
         <div className="flex-shrink-0 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-          <Landmark className="h-6 w-6 text-blue-600 dark:text-blue-300" />
+          {IconComponent}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-base font-semibold text-blue-800 dark:text-blue-200 truncate" title={ca.name}>{ca.name}</p>

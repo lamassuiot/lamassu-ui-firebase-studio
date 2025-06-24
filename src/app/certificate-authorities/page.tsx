@@ -208,7 +208,7 @@ export default function CertificateAuthoritiesPage() {
                 <CaFilesystemView cas={cas} router={router} allCAs={cas} allCryptoEngines={allCryptoEngines} />
               )}
               {viewMode === 'hierarchy' && (
-                <CaHierarchyView cas={cas} router={router} allCAs={cas} />
+                <CaHierarchyView cas={cas} router={router} allCAs={cas} allCryptoEngines={allCryptoEngines} />
               )}
               {viewMode === 'graph' && (
                 <CaGraphView router={router} />

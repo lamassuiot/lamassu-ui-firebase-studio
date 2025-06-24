@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch'; 
 import { Label } from '@/components/ui/label'; 
 import { ZoomIn, ZoomOut, RotateCcw, Key } from 'lucide-react';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 // cn import is not strictly needed here anymore unless more complex styling is added
 // import { cn } from '@/lib/utils'; 
 
@@ -17,9 +18,10 @@ interface CaHierarchyViewProps {
   cas: CA[];
   router: ReturnType<typeof import('next/navigation').useRouter>;
   allCAs: CA[];
+  allCryptoEngines: ApiCryptoEngine[];
 }
 
-export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, allCAs }) => {
+export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, allCAs, allCryptoEngines }) => {
   const [showKmsKeyIds, setShowKmsKeyIds] = useState(false); 
 
   if (cas.length === 0) {
@@ -28,7 +30,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
     );
   }
 
-  const renderTreeNodes = (ca: CA, currentRouter: ReturnType<typeof import('next/navigation').useRouter>, currentAllCAs: CA[]): React.ReactNode => {
+  const renderTreeNodes = (ca: CA, currentRouter: ReturnType<typeof import('next/navigation').useRouter>, currentAllCAs: CA[], currentAllCryptoEngines: ApiCryptoEngine[]): React.ReactNode => {
     const handleNodeClick = (selectedCa: CA) => {
       currentRouter.push(`/certificate-authorities/details?caId=${selectedCa.id}`); // Updated navigation
     };
@@ -41,11 +43,11 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
             ca={ca}
             onClick={handleNodeClick}
             className="mx-auto w-auto min-w-[330px] max-w-[380px]"
-            showKmsKeyId={showKmsKeyIds} 
+            allCryptoEngines={currentAllCryptoEngines} 
           />
         }
       >
-        {ca.children && ca.children.map(child => renderTreeNodes(child, currentRouter, currentAllCAs))}
+        {ca.children && ca.children.map(child => renderTreeNodes(child, currentRouter, currentAllCAs, currentAllCryptoEngines))}
       </TreeNode>
     );
   };
@@ -109,11 +111,11 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
                           ca={rootCa}
                           onClick={handleRootNodeClick}
                           className="mx-auto w-auto min-w-[330px] max-w-[380px]"
-                          showKmsKeyId={showKmsKeyIds} 
+                          allCryptoEngines={allCryptoEngines} 
                         />
                       }
                     >
-                      {rootCa.children && rootCa.children.map(child => renderTreeNodes(child, router, allCAs))}
+                      {rootCa.children && rootCa.children.map(child => renderTreeNodes(child, router, allCAs, allCryptoEngines))}
                     </Tree>
                   ))}
                 </div>
