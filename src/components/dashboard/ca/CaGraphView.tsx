@@ -30,35 +30,55 @@ interface GraphEdge {
   to: string;
   path: string; // SVG path data 'd' attribute
   hasArrow?: boolean;
-  bidirectional?: boolean; // Added for two-way arrows
+  bidirectional?: boolean;
 }
 
 const GRAPH_WIDTH = 1200;
-const GRAPH_HEIGHT = 800;
+const GRAPH_HEIGHT = 900; // Increased height for more nodes
 
 const CA_NODE_WIDTH = 280;
 const CA_NODE_HEIGHT = 60;
 
 // Manually positioned nodes
 const nodes: GraphNode[] = [
-  { id: 'ca1', name: 'Lamassu Root CA', subtext: 'ID: c82d689b-3c4f-454f-92e4-23d0d07c00a1', x: 460, y: 50, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'active' },
-  { id: 'ca2', name: 'IoT Device CA', subtext: 'ID: a1b2c3d4-e5f6-7890-1234-567890abcdef', x: 150, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'active' },
-  { id: 'ca3', name: 'Web Services CA', subtext: 'ID: b2c3d4e5-f6a7-8901-2345-67890abcdef', x: 770, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'expired' },
-  { id: 'subca1a', name: 'Firmware Signing Sub-CA', subtext: 'ID: c3d4e5f6-a7b8-9012-3456-7890abcdef', x: 460, y: 170, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'active' },
-  { id: 'ca4', name: 'External Partner Root', subtext: 'ID: d4e5f6a7-b8c9-0123-4567-890abcdef0', x: 460, y: 550, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'revoked' },
-  { id: 'subca4a', name: 'Partner Integration CA', subtext: 'ID: e5f6a7b8-c9d0-1234-5678-90abcdef01', x: 460, y: 670, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'revoked' },
+  // Row 1: Roots
+  { id: 'ca1', name: 'Lamassu Root CA', subtext: 'ID: c82d689b-3c4f-454f-92e4-23d0d07c00a1', x: 150, y: 50, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'active' },
+  { id: 'ca5', name: 'Regional Root CA - EU', subtext: 'ID: 55a6b7c8-11d2-22e3-33f4-44a5b6c7d8e9', x: 460, y: 50, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'active' },
+  { id: 'ca9', name: 'Legacy Root CA', subtext: 'ID: 99f8e7d6-55c4-44b3-33a2-22b1a0c9d8e7', x: 770, y: 50, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'expired' },
+
+  // Row 2: Intermediates from Lamassu Root
+  { id: 'subca1a', name: 'Firmware Signing Sub-CA', subtext: 'ID: c3d4e5f6-a7b8-9012-3456-7890abcdef', x: 0, y: 170, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'active' },
+  { id: 'ca6', name: 'Manufacturing CA', subtext: 'ID: 66b7c8d9-22e3-33f4-44a5-55b6c7d8e9f0', x: 300, y: 170, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'active' },
+
+  // Row 3: Various Intermediates
+  { id: 'ca2', name: 'IoT Device CA', subtext: 'ID: a1b2c3d4-e5f6-7890-1234-567890abcdef', x: 0, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'active' },
+  { id: 'ca8', name: 'Time-stamping CA', subtext: 'ID: 88d9e0f1-44b5-55c6-66d7-77e8f9a0b1c2', x: 300, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'active' },
+  { id: 'ca3', name: 'Web Services CA', subtext: 'ID: b2c3d4e5-f6a7-8901-2345-67890abcdef', x: 600, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'expired' },
+
+  // Row 4: Sub-Intermediates
+  { id: 'ca7', name: 'Test/Dev CA', subtext: 'ID: 77c8d9e0-33f4-44a5-55b6-66c7d8e9f0a1', x: 600, y: 420, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'revoked' },
+  
+  // Row 5: External/Partner CAs
+  { id: 'ca4', name: 'External Partner Root', subtext: 'ID: d4e5f6a7-b8c9-0123-4567-890abcdef0', x: 920, y: 550, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'revoked' },
+  { id: 'subca4a', name: 'Partner Integration CA', subtext: 'ID: e5f6a7b8-c9d0-1234-5678-90abcdef01', x: 920, y: 670, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'revoked' },
 ];
 
 const edges: GraphEdge[] = [
-    // CA1 to SubCA1a
-    { from: 'ca1', to: 'subca1a', path: `M 600 110 V 170`, hasArrow: true},
-    // CA1 to CA2 and CA3
-    { from: 'ca1', to: 'ca2', path: `M 600 110 V 140 H 290 V 300`, hasArrow: true},
-    { from: 'ca1', to: 'ca3', path: `M 600 110 V 140 H 910 V 300`, hasArrow: true},
-    // CA2 to CA3 (cross-cert)
-    { from: 'ca2', to: 'ca3', path: `M 430 330 H 770`, hasArrow: true, bidirectional: true },
-    // CA4 to SubCA4a
-    { from: 'ca4', to: 'subca4a', path: `M 600 610 V 670`, hasArrow: true},
+    // Lamassu Root CA connections
+    { from: 'ca1', to: 'subca1a', path: 'M 290 110 V 140 H 140 V 170', hasArrow: true },
+    { from: 'ca1', to: 'ca6', path: 'M 290 110 V 140 H 440 V 170', hasArrow: true },
+    { from: 'ca1', to: 'ca2', path: 'M 290 110 V 220 H 140 V 300', hasArrow: true },
+    { from: 'ca1', to: 'ca3', path: 'M 290 110 V 220 H 740 V 300', hasArrow: true },
+    
+    // Sub-CA connections
+    { from: 'subca1a', to: 'ca8', path: 'M 140 230 V 260 H 440 V 300', hasArrow: true },
+    { from: 'ca3', to: 'ca7', path: 'M 740 360 V 420', hasArrow: true },
+    
+    // External CA connections
+    { from: 'ca4', to: 'subca4a', path: 'M 1060 610 V 670', hasArrow: true },
+
+    // Cross-certification
+    { from: 'ca2', to: 'ca3', path: 'M 280 330 H 600', hasArrow: true, bidirectional: true },
 ];
 
 
