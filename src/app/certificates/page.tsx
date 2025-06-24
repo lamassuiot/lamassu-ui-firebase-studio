@@ -29,7 +29,7 @@ import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 
-export type SortableCertColumn = 'commonName' | 'serialNumber' | 'expires' | 'status';
+export type SortableCertColumn = 'commonName' | 'serialNumber' | 'expires' | 'status' | 'validFrom';
 export type SortDirection = 'asc' | 'desc';
 
 export interface CertSortConfig {
@@ -131,6 +131,7 @@ export default function CertificatesPage() {
           case 'serialNumber': sortByApiField = 'serial_number'; break;
           case 'expires': sortByApiField = 'valid_to'; break;
           case 'status': sortByApiField = 'status'; break;
+          case 'validFrom': sortByApiField = 'valid_from'; break;
           default: sortByApiField = 'valid_from';
         }
         apiParams.append('sort_by', sortByApiField);

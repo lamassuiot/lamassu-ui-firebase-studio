@@ -87,12 +87,12 @@ export function CertificateList({
     const isSorted = sortConfig?.column === column;
     let Icon = ChevronsUpDown;
     if (isSorted) {
-      if (column === 'expires') { // Numeric/Date sort icon preference
+      if (column === 'expires' || column === 'validFrom') { // Numeric/Date sort icon preference
         Icon = sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10;
       } else { // Text-based sort icon preference
         Icon = sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ;
       }
-    } else if (column === 'expires') {
+    } else if (column === 'expires' || column === 'validFrom') {
          Icon = ChevronsUpDown; // Default for non-sorted date
     }
     
@@ -145,6 +145,7 @@ export function CertificateList({
           */}<SortableHeader column="commonName" title="Common Name" />{/*
           */}<SortableHeader column="serialNumber" title="Serial Number" className="hidden md:table-cell" />{/*
           */}<TableHead className="hidden lg:table-cell">CA Issuer</TableHead>{/*
+          */}<SortableHeader column="validFrom" title="Valid From" />{/*
           */}<SortableHeader column="expires" title="Expires" />{/*
           */}<SortableHeader column="status" title="API Status" />{/*
           */}<TableHead className="text-right">Actions</TableHead>{/*
@@ -173,6 +174,7 @@ export function CertificateList({
                       issuerDisplayName
                     )}
                   </TableCell>{/*
+                  */}<TableCell>{format(parseISO(cert.validFrom), 'MMM dd, yyyy')}</TableCell>{/*
                   */}<TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>{/*
                   */}<TableCell>
                     <ApiStatusBadge status={cert.apiStatus} />
