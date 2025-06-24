@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
-import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, ListFilter, Search } from 'lucide-react';
+import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, ListFilter, Search, PlusCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data'; 
 import { fetchAndProcessCAs, type CA } from '@/lib/ca-data';
@@ -25,6 +25,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { useToast } from '@/hooks/use-toast';
 
 export type SortableCertColumn = 'commonName' | 'serialNumber' | 'expires' | 'status';
 export type SortDirection = 'asc' | 'desc';
@@ -47,10 +50,12 @@ type ApiStatusFilterValue = typeof API_STATUS_VALUES[keyof typeof API_STATUS_VAL
 export default function CertificatesPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const [certificates, setCertificates] = useState<CertificateData[]>([]);
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCaSelectorOpen, setIsCaSelectorOpen] = useState(false);
   
   const [isLoadingApi, setIsLoadingApi] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -72,6 +77,11 @@ export default function CertificatesPage() {
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
 
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+  const [isLoadingCryptoEngines, setIsLoadingCryptoEngines] = useState(true);
+  const [errorCryptoEngines, setErrorCryptoEngines] = useState<string | null>(null);
+
+
   // Debounce search term
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -92,20 +102,24 @@ export default function CertificatesPage() {
       if (!authLoading && !isAuthenticated()) {
         setApiError("User not authenticated. Please log in.");
         setErrorCAs("User not authenticated. Please log in.");
+        setErrorCryptoEngines("User not authenticated. Please log in.");
         setCertificates([]);
         setAllCAs([]);
+        setAllCryptoEngines([]);
         setNextTokenFromApi(null);
       }
-      setIsLoadingApi(false); // Set loading to false if not authenticated
+      setIsLoadingApi(false);
       setIsLoadingCAs(false);
+      setIsLoadingCryptoEngines(false);
       return;
     }
     
     setIsLoadingApi(true);
-    // Keep isLoadingCAs true only if CAs are not yet loaded or forced reload
     if(allCAs.length === 0) setIsLoadingCAs(true);
+    if(allCryptoEngines.length === 0) setIsLoadingCryptoEngines(true);
     setApiError(null);
     if(allCAs.length === 0) setErrorCAs(null);
+    if(allCryptoEngines.length === 0) setErrorCryptoEngines(null);
 
     try {
       // API parameters
@@ -115,7 +129,6 @@ export default function CertificatesPage() {
         switch (sortConfig.column) {
           case 'commonName': sortByApiField = 'subject.common_name'; break;
           case 'serialNumber': sortByApiField = 'serial_number'; break;
-          // case 'issuerCN': sortByApiField = 'issuer.common_name'; break; // Removed issuerCN from sorting
           case 'expires': sortByApiField = 'valid_to'; break;
           case 'status': sortByApiField = 'status'; break;
           default: sortByApiField = 'valid_from';
@@ -173,10 +186,28 @@ export default function CertificatesPage() {
         setIsLoadingCAs(false); // Already loaded
     }
 
+    // Fetch Crypto Engines (only if needed)
+    if (allCryptoEngines.length === 0 && isAuthenticated() && user?.access_token) {
+        try {
+            const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+                headers: { 'Authorization': `Bearer ${user.access_token}` },
+            });
+            if (!response.ok) throw new Error('Failed to fetch crypto engines');
+            const enginesData: ApiCryptoEngine[] = await response.json();
+            setAllCryptoEngines(enginesData);
+        } catch (err: any) {
+            setErrorCryptoEngines(err.message || 'Failed to load Crypto Engines.');
+        } finally {
+            setIsLoadingCryptoEngines(false);
+        }
+    } else if (allCryptoEngines.length > 0) {
+        setIsLoadingCryptoEngines(false);
+    }
+
   }, [
       user?.access_token, isAuthenticated, authLoading, 
       pageSize, debouncedSearchTerm, searchField, statusFilter, sortConfig, 
-      allCAs.length // Add allCAs.length to dependencies
+      allCAs.length, allCryptoEngines.length
   ]);
 
   useEffect(() => {
@@ -187,6 +218,7 @@ export default function CertificatesPage() {
     } else if (!authLoading && !isAuthenticated()){
         setIsLoadingApi(false);
         setIsLoadingCAs(false);
+        setIsLoadingCryptoEngines(false);
         setApiError("User not authenticated. Please log in.");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps 
@@ -195,6 +227,27 @@ export default function CertificatesPage() {
     currentPageIndex, // Pagination change
     pageSize, debouncedSearchTerm, searchField, statusFilter, sortConfig // Filter/sort changes that reset pagination
   ]); 
+
+  const handleCaSelectedForIssuance = (ca: CA) => {
+    if (ca.status !== 'active' || new Date(ca.expires) < new Date()) {
+      toast({
+        title: "Cannot Issue Certificate",
+        description: `CA "${ca.name}" is not active or is expired.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    if (ca.rawApiData?.certificate.type === 'EXTERNAL_PUBLIC') {
+      toast({
+        title: "Cannot Issue Certificate",
+        description: `CA "${ca.name}" is an external public CA and cannot be used for issuance.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    setIsCaSelectorOpen(false);
+    router.push(`/certificate-authorities/issue-certificate?caId=${ca.id}`);
+  };
 
 
   const handleInspectCertificate = (certificate: CertificateData) => {
@@ -211,14 +264,10 @@ export default function CertificatesPage() {
     setCertificates(prevCerts =>
       prevCerts.map(cert => cert.id === updatedCertificate.id ? updatedCertificate : cert)
     );
-     // Potentially refetch current page if status update implies data might change significantly
-     // For a simple mock, this local update is often enough.
   };
 
   const handleRefresh = () => {
     if (currentPageIndex < bookmarkStack.length) {
-        // Optionally force CA reload by clearing allCAs if needed, or just certs
-        // setAllCAs([]); 
         loadCertificatesAndCAs(bookmarkStack[currentPageIndex]);
     }
   };
@@ -250,13 +299,19 @@ export default function CertificatesPage() {
     }
     setSortConfig({ column, direction });
   };
+  
+  const loadingText = authLoading 
+      ? "Authenticating..." 
+      : isLoadingApi 
+          ? "Loading Certificates..." 
+          : isLoadingCAs
+              ? "Loading CA Data..."
+              : isLoadingCryptoEngines 
+                  ? "Loading Crypto Engines..."
+                  : "Loading...";
 
-  if (authLoading || (isLoadingApi && certificates.length === 0) || (isLoadingCAs && allCAs.length === 0 && certificates.length > 0) ) {
-    const loadingText = authLoading 
-        ? "Authenticating..." 
-        : isLoadingApi 
-            ? "Loading Certificates..." 
-            : "Loading CA Data for Linking...";
+
+  if (authLoading || (isLoadingApi && certificates.length === 0) || (isLoadingCAs && allCAs.length === 0) || (isLoadingCryptoEngines && allCryptoEngines.length === 0 && isCaSelectorOpen) ) {
     return (
         <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
             <Loader2Icon className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -270,7 +325,6 @@ export default function CertificatesPage() {
     { label: 'Active', value: API_STATUS_VALUES.ACTIVE },
     { label: 'Expired', value: API_STATUS_VALUES.EXPIRED },
     { label: 'Revoked', value: API_STATUS_VALUES.REVOKED },
-    // { label: 'Pending', value: API_STATUS_VALUES.PENDING }, // If API supports
   ];
 
   return (
@@ -280,9 +334,14 @@ export default function CertificatesPage() {
             <FileText className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-headline font-semibold">Issued Certificates</h1>
         </div>
-        <Button onClick={handleRefresh} variant="outline" disabled={isLoadingApi && certificates.length > 0} className="self-start sm:self-center">
-            <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> Refresh List
-        </Button>
+        <div className="flex items-center space-x-2 self-start sm:self-center">
+            <Button onClick={handleRefresh} variant="outline" disabled={isLoadingApi && certificates.length > 0}>
+                <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> Refresh List
+            </Button>
+            <Button onClick={() => setIsCaSelectorOpen(true)} variant="default">
+                <PlusCircle className="mr-2 h-4 w-4" /> Issue Certificate
+            </Button>
+        </div>
       </div>
 
        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
@@ -329,19 +388,20 @@ export default function CertificatesPage() {
         A list of end-entity certificates issued by the system. Filters and sorting are applied via API calls.
       </p>
 
-      {(apiError || errorCAs) && (
+      {(apiError || errorCAs || errorCryptoEngines) && (
         <Alert variant="destructive">
           <AlertCircleIcon className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
           <AlertDescription>
             {apiError && <p>Certificates: {apiError}</p>}
             {errorCAs && <p>CAs for Linking: {errorCAs}</p>}
+            {errorCryptoEngines && <p>Crypto Engines: {errorCryptoEngines}</p>}
             <Button variant="link" onClick={() => loadCertificatesAndCAs(bookmarkStack[currentPageIndex])} className="p-0 h-auto">Try again?</Button>
           </AlertDescription>
         </Alert>
       )}
 
-      {!(apiError || errorCAs) && (
+      {!(apiError || errorCAs || errorCryptoEngines) && (
         <>
           <CertificateList
             certificates={certificates}
@@ -363,7 +423,7 @@ export default function CertificatesPage() {
         </>
       )}
       
-      {!(apiError || errorCAs) && (certificates.length > 0 || isLoadingApi) && (
+      {!(apiError || errorCAs || errorCryptoEngines) && (certificates.length > 0 || isLoadingApi) && (
         <div className="flex justify-between items-center mt-4">
             <div className="flex items-center space-x-2">
               <Label htmlFor="pageSizeSelectCertList" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
@@ -408,7 +468,20 @@ export default function CertificatesPage() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
+
+      <CaSelectorModal
+        isOpen={isCaSelectorOpen}
+        onOpenChange={setIsCaSelectorOpen}
+        title="Select an Issuer CA"
+        description="Choose the Certificate Authority that will issue the new certificate."
+        availableCAs={allCAs}
+        isLoadingCAs={isLoadingCAs}
+        errorCAs={errorCAs}
+        loadCAsAction={() => loadCertificatesAndCAs(bookmarkStack[currentPageIndex])}
+        onCaSelected={handleCaSelectedForIssuance}
+        isAuthLoading={authLoading}
+        allCryptoEngines={allCryptoEngines}
+      />
     </div>
   );
 }
-
