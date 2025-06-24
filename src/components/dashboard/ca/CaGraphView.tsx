@@ -53,6 +53,11 @@ type DagreNode = KmsDagreNode | CaCertDagreNode;
 interface DagreEdge {
   v: string;
   w: string;
+  label?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
   points?: Array<{ x: number; y: number }>;
   type: 'signs' | 'uses'; 
   style?: string;
@@ -182,6 +187,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
       // Edge from the CA's own key TO the CA node ("this key is used by this CA")
       if (ca.kmsKeyId && g.hasNode(`kms-${ca.kmsKeyId}`) && g.hasNode(ca.id)) {
         g.setEdge(`kms-${ca.kmsKeyId}`, ca.id, { 
+          label: 'certified',
           type: 'uses',
           style: `stroke: ${KMS_NODE_THEME.border}; stroke-dasharray: 6,4;`, 
           arrowhead: 'uses_key' 
@@ -193,6 +199,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
         const issuerCa = findCaById(ca.issuer, mockCAs);
         if (issuerCa && issuerCa.kmsKeyId && g.hasNode(`kms-${issuerCa.kmsKeyId}`) && g.hasNode(ca.id)) {
           g.setEdge(`kms-${issuerCa.kmsKeyId}`, ca.id, { 
+            label: 'signed by',
             type: 'signs', 
             style: `stroke: hsl(210 70% 50%);`, 
             arrowhead: 'signs_cert' 
@@ -272,17 +279,36 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
                         return idx === 0 ? `M${point.x},${point.y}` : `${acc}L${point.x},${point.y}`;
                         }, '');
                       return (
-                        <path
-                          key={`edge-${i}-${edge.v}-${edge.w}`}
-                          d={pathData}
-                          strokeWidth="2" 
-                          fill="none"
-                          style={{ 
-                            stroke: edge.type === 'uses' ? KMS_NODE_THEME.border : 'hsl(210 70% 50%)', 
-                            strokeDasharray: edge.type === 'uses' ? '6,4' : 'none' 
-                          }}
-                          markerEnd={edge.type === 'uses' ? "url(#arrowhead-uses-key)" : "url(#arrowhead-signs-cert)"} 
-                        />
+                        <g key={`edge-group-${i}-${edge.v}-${edge.w}`}>
+                          <path
+                            d={pathData}
+                            strokeWidth="2" 
+                            fill="none"
+                            style={{ 
+                              stroke: edge.type === 'uses' ? KMS_NODE_THEME.border : 'hsl(210 70% 50%)', 
+                              strokeDasharray: edge.type === 'uses' ? '6,4' : 'none' 
+                            }}
+                            markerEnd={edge.type === 'uses' ? "url(#arrowhead-uses-key)" : "url(#arrowhead-signs-cert)"} 
+                          />
+                           {edge.label && edge.x && edge.y && (
+                            <g transform={`translate(${edge.x}, ${edge.y})`}>
+                              <rect
+                                x={-(edge.width ?? 0) / 2 - 2}
+                                y={-(edge.height ?? 0) / 2 - 2}
+                                width={(edge.width ?? 0) + 4}
+                                height={(edge.height ?? 0) + 4}
+                                fill="hsl(var(--muted) / 0.1)"
+                              />
+                              <text
+                                  textAnchor="middle"
+                                  dominantBaseline="central"
+                                  className="text-[10px] font-medium fill-muted-foreground"
+                              >
+                                  {edge.label}
+                              </text>
+                            </g>
+                           )}
+                        </g>
                       );
                     })}
                     {nodes.map((node) => {
