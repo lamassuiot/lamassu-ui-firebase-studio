@@ -302,22 +302,30 @@ export default function IssueCertificateFormClient() {
       // Add other subject parts similarly...
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
       
-      const preparedExtensions: PkijsExtension[] = [];
-      const generalNamesArray: GeneralName[] = [];
-      
-      emailSans.forEach(email => generalNamesArray.push(new GeneralName({ type: 1, value: email.trim() })));
-      dnsSans.forEach(dnsName => generalNamesArray.push(new GeneralName({ type: 2, value: dnsName.trim() })));
-      uriSans.forEach(uri => generalNamesArray.push(new GeneralName({ type: 6, value: uri.trim() })));
-      ipSans.forEach(ip => {
-          const ipBuffer = ipToBuffer(ip);
-          if (ipBuffer) generalNamesArray.push(new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) }));
-      });
+      const generalNamesArray: GeneralName[] = [
+        ...emailSans.map(email => new GeneralName({ type: 1, value: email.trim() })),
+        ...dnsSans.map(dnsName => new GeneralName({ type: 2, value: dnsName.trim() })),
+        ...uriSans.map(uri => new GeneralName({ type: 6, value: uri.trim() })),
+        ...ipSans.map(ip => {
+            const ipBuffer = ipToBuffer(ip);
+            return ipBuffer ? new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) }) : null;
+        }).filter((n): n is GeneralName => n !== null)
+      ];
       
       if (generalNamesArray.length > 0) {
-        preparedExtensions.push(new PkijsExtension({ extnID: "2.5.29.17", critical: false, extnValue: new PkijsGeneralNames({ names: generalNamesArray }).toSchema().toBER(false) }));
-      }
-      if (preparedExtensions.length > 0) {
-        pkcs10.attributes = [new Attribute({ type: "1.2.840.113549.1.9.14", values: [new Extensions({ extensions: preparedExtensions }).toSchema()] })];
+        const extensions = new Extensions({
+            extensions: [
+                new PkijsExtension({
+                    extnID: "2.5.29.17", // id-ce-subjectAltName
+                    critical: false,
+                    extnValue: new PkijsGeneralNames({ names: generalNamesArray }).toSchema().toBER(false)
+                })
+            ]
+        });
+        pkcs10.attributes = [new Attribute({
+            type: "1.2.840.113549.1.9.14", // id-pkcs9-at-extensionRequest
+            values: [extensions.toSchema()]
+        })];
       }
 
       await pkcs10.sign(keyPair.privateKey, "SHA-256");
