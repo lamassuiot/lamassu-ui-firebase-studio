@@ -346,7 +346,7 @@ export default function CertificateAuthoritiesPage() {
                 <CaHierarchyView cas={cas} router={router} allCAs={cas} />
               )}
               {viewMode === 'graph' && (
-                <CaGraphView cas={cas} router={router} allCAs={cas} />
+                <CaGraphView router={router} />
               )}
             </>
           ) : (

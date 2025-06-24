@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import type { CA } from '@/lib/ca-data';
-import { findCaById } from '@/lib/ca-data'; // Import the recursive finder
 import * as dagre from '@dagrejs/dagre';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Button } from '@/components/ui/button';
@@ -11,13 +10,25 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ZoomIn, ZoomOut, RotateCcw, Key, IterationCcw, Loader2, ServerIcon, Link as LinkIcon, Fingerprint } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isPast, parseISO, formatDistanceToNowStrict } from 'date-fns';
+import { isPast, parseISO, formatDistanceToNowStrict, addDays } from 'date-fns';
 
 interface CaGraphViewProps {
-  cas: CA[]; 
   router: ReturnType<typeof import('next/navigation').useRouter>;
-  allCAs: CA[]; // This is the hierarchical tree
 }
+
+// Local helper, as we are not using the one from ca-data which requires the full tree
+function findCaById(id: string, cas: CA[]): CA | null {
+  if (!id) return null;
+  for (const ca of cas) {
+    if (ca.id === id) return ca;
+    if (ca.children) {
+      const found = findCaById(id, ca.children);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 
 interface BaseDagreNode {
   id: string;
@@ -70,13 +81,58 @@ const getCaCertStatusColors = (ca: CA): { border: string, bg: string, text: stri
 };
 
 
-export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
+export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
   const [showKmsKeyIdTextInCaNode, setShowKmsKeyIdTextInCaNode] = useState(false);
   const [dagreGraph, setDagreGraph] = useState<dagre.graphlib.Graph | null>(null);
   const [layoutRan, setLayoutRan] = useState(false);
 
   const processedGraph = useMemo(() => {
-    if (!allCAs || allCAs.length === 0) return null;
+    // ---- MOCK DATA GENERATION ----
+    const mockRootCA: CA = {
+      id: 'mock-root-ca',
+      name: 'Mock Lamassu Root CA',
+      issuer: 'Self-signed',
+      expires: addDays(new Date(), 3650).toISOString(),
+      serialNumber: '01',
+      status: 'active',
+      keyAlgorithm: 'RSA 4096',
+      signatureAlgorithm: 'SHA512withRSA',
+      kmsKeyId: 'kms-root-key-1234',
+      children: [], // will be populated below
+    };
+
+    const mockIntermediateCA: CA = {
+      id: 'mock-intermediate-ca',
+      name: 'Mock IoT Services CA G1',
+      issuer: 'mock-root-ca',
+      expires: addDays(new Date(), 1825).toISOString(),
+      serialNumber: '02',
+      status: 'active',
+      keyAlgorithm: 'ECDSA P-384',
+      signatureAlgorithm: 'SHA384withECDSA',
+      kmsKeyId: 'kms-intermediate-key-5678',
+      children: [], // will be populated below
+    };
+    
+    const mockLeafCA: CA = {
+      id: 'mock-leaf-ca',
+      name: 'Mock Device Signing CA',
+      issuer: 'mock-intermediate-ca',
+      expires: addDays(new Date(), 365).toISOString(),
+      serialNumber: '03',
+      status: 'active',
+      keyAlgorithm: 'ECDSA P-256',
+      signatureAlgorithm: 'SHA256withECDSA',
+      kmsKeyId: 'kms-leaf-key-abcd',
+      children: [],
+    };
+    
+    // Build hierarchy
+    mockIntermediateCA.children?.push(mockLeafCA);
+    mockRootCA.children?.push(mockIntermediateCA);
+    const mockCAs = [mockRootCA];
+    // ---- END MOCK DATA ----
+
     setLayoutRan(false); 
 
     const g = new dagre.graphlib.Graph({ compound: false }); 
@@ -85,7 +141,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
 
     // Flatten the CA tree to easily iterate over all CAs
     const flatAllCAs: CA[] = [];
-    const stack: CA[] = [...allCAs];
+    const stack: CA[] = [...mockCAs];
     while (stack.length > 0) {
       const ca = stack.pop()!;
       flatAllCAs.push(ca);
@@ -134,7 +190,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
       
       // Edge from the ISSUER's key TO this CA node ("this CA was signed by this key")
       if (ca.issuer && ca.issuer !== 'Self-signed' && ca.issuer !== ca.id) {
-        const issuerCa = findCaById(ca.issuer, allCAs);
+        const issuerCa = findCaById(ca.issuer, mockCAs);
         if (issuerCa && issuerCa.kmsKeyId && g.hasNode(`kms-${issuerCa.kmsKeyId}`) && g.hasNode(ca.id)) {
           g.setEdge(`kms-${issuerCa.kmsKeyId}`, ca.id, { 
             type: 'signs', 
@@ -147,7 +203,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
 
     dagre.layout(g);
     return g;
-  }, [allCAs, showKmsKeyIdTextInCaNode]);
+  }, [showKmsKeyIdTextInCaNode]);
 
   useEffect(() => {
     if (processedGraph) {
