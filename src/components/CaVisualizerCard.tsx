@@ -2,82 +2,51 @@
 'use client';
 
 import type React from 'react';
-import { KeyRound, IterationCcw } from 'lucide-react'; // Changed Award to IterationCcw
-import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
+import { Landmark, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { isPast, parseISO } from 'date-fns';
 import type { CA } from '@/lib/ca-data';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface CaVisualizerCardProps {
   ca: CA;
   className?: string;
   onClick?: (ca: CA) => void;
-  showKmsKeyId?: boolean;
+  showKmsKeyId?: boolean; // This prop is maintained but not visually represented in the new design.
 }
 
-interface StatusDisplayInfo {
-  text: string;
-  badgeClass: string;
-}
-
-const getStatusDisplayInfo = (ca: CA): StatusDisplayInfo => {
-  const expiryDate = parseISO(ca.expires);
-  let statusText = '';
-  let badgeClass = '';
-
-  if (ca.status === 'revoked') {
-    statusText = `Revoked`;
-    badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
-  } else if (isPast(expiryDate)) {
-    statusText = `Expired ${formatDistanceToNowStrict(expiryDate)} ago`;
-    badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
-  } else {
-    statusText = `Expires in ${formatDistanceToNowStrict(expiryDate)}`;
-    badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
-  }
+const CaStatusIcon: React.FC<{ status: CA['status'], expires: string }> = ({ status, expires }) => {
+    const isExpired = isPast(parseISO(expires));
   
-  return { text: `${ca.status.toUpperCase()} \u00B7 ${statusText}`, badgeClass };
+    if (status === 'revoked') {
+      return <XCircle className="h-6 w-6 text-red-500" aria-label="Status: Revoked" />;
+    }
+    if (isExpired) {
+      return <AlertTriangle className="h-6 w-6 text-orange-500" aria-label="Status: Expired" />;
+    }
+    return <CheckCircle className="h-6 w-6 text-green-500" aria-label="Status: Active" />;
 };
 
-export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, className, onClick, showKmsKeyId }) => {
-  const { text: statusBadgeText, badgeClass: statusBadgeStyling } = getStatusDisplayInfo(ca);
-  const isSelfSigned = ca.issuer === 'Self-signed' || ca.issuer === ca.id;
 
-  const cardBaseClasses = "flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm transition-shadow w-full";
+export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, className, onClick, showKmsKeyId }) => {
+  
+  const cardBaseClasses = "flex flex-col rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-700/50 dark:bg-blue-900/20 text-card-foreground shadow-sm transition-shadow w-full";
   const clickableClasses = onClick ? "hover:shadow-md cursor-pointer" : "";
 
   const cardInnerContent = (
-    <>
-      <div className={cn("flex items-center space-x-3 p-3")}> {/* Removed self-signed specific border class */}
-        <div className="flex-shrink-0 p-3 bg-primary/10 rounded-lg">
-          <KeyRound className="h-6 w-6 text-primary" />
+    <div className={cn("flex items-center space-x-3 p-3")}>
+        <div className="flex-shrink-0 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+          <Landmark className="h-6 w-6 text-blue-600 dark:text-blue-300" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold text-foreground truncate" title={ca.name}>{ca.name}</p>
-          <p className="text-xs text-muted-foreground truncate" title={`ID: ${ca.id}`}>
+          <p className="text-base font-semibold text-blue-800 dark:text-blue-200 truncate" title={ca.name}>{ca.name}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={`ID: ${ca.id}`}>
             ID: <span className="font-mono">{ca.id}</span>
           </p>
-          <div className="flex items-center space-x-1.5 mt-1.5">
-            <Badge variant="outline" className={cn("text-xs py-1 px-2.5", statusBadgeStyling)}>
-              {statusBadgeText}
-            </Badge>
-            {isSelfSigned && (
-              <Badge variant="secondary" className="text-xs py-1 px-2 bg-amber-100 text-amber-700 dark:bg-amber-700/20 dark:text-amber-300 border-amber-300 dark:border-amber-700">
-                <IterationCcw className="h-3 w-3 mr-1" /> Self-Signed {/* Changed icon to IterationCcw */}
-              </Badge>
-            )}
-          </div>
         </div>
-      </div>
-      {showKmsKeyId && ca.kmsKeyId && (
-        <div className="p-2.5 border-t bg-blue-50 dark:bg-blue-900/30">
-          <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">KMS Key ID:</p>
-          <p className="text-xs text-blue-600 dark:text-blue-400 font-mono truncate" title={ca.kmsKeyId}>
-            {ca.kmsKeyId}
-          </p>
+        <div className="flex-shrink-0">
+          <CaStatusIcon status={ca.status} expires={ca.expires} />
         </div>
-      )}
-    </>
+    </div>
   );
 
   if (onClick) {
@@ -99,4 +68,3 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
     </div>
   );
 };
-
