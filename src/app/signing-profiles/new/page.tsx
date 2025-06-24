@@ -51,8 +51,8 @@ const signingProfileSchema = z.object({
 
   allowRsa: z.boolean().default(false),
   allowEcdsa: z.boolean().default(false),
-  rsaKeyStrength: z.enum(rsaKeyStrengths).optional(),
-  ecdsaCurve: z.enum(ecdsaCurves).optional(),
+  allowedRsaKeyStrengths: z.array(z.enum(rsaKeyStrengths)).optional().default([]),
+  allowedEcdsaCurves: z.array(z.enum(ecdsaCurves)).optional().default([]),
   defaultSignatureAlgorithm: z.enum(signatureAlgorithms).optional(),
   
   honorKeyUsage: z.boolean().default(false),
@@ -63,13 +63,14 @@ const signingProfileSchema = z.object({
 }).refine(data => data.allowRsa || data.allowEcdsa, {
   message: "At least one key type (RSA or ECDSA) must be allowed.",
   path: ["allowRsa"], 
-}).refine(data => data.allowRsa ? !!data.rsaKeyStrength : true, {
-    message: "RSA Key Strength is required if RSA is allowed.",
-    path: ["rsaKeyStrength"],
-}).refine(data => data.allowEcdsa ? !!data.ecdsaCurve : true, {
-    message: "ECDSA Curve is required if ECDSA is allowed.",
-    path: ["ecdsaCurve"],
+}).refine(data => data.allowRsa ? data.allowedRsaKeyStrengths && data.allowedRsaKeyStrengths.length > 0 : true, {
+    message: "At least one RSA Key Strength must be selected if RSA is allowed.",
+    path: ["allowedRsaKeyStrengths"],
+}).refine(data => data.allowEcdsa ? data.allowedEcdsaCurves && data.allowedEcdsaCurves.length > 0 : true, {
+    message: "At least one ECDSA Curve must be selected if ECDSA is allowed.",
+    path: ["allowedEcdsaCurves"],
 });
+
 
 type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
@@ -94,7 +95,8 @@ export default function CreateSigningProfilePage() {
       honorSubject: true,
       allowRsa: true,
       allowEcdsa: false,
-      rsaKeyStrength: "2048",
+      allowedRsaKeyStrengths: ["2048"],
+      allowedEcdsaCurves: [],
       honorKeyUsage: false,
       keyUsages: ['digitalSignature', 'keyEncipherment'],
       honorExtendedKeyUsage: false,
@@ -286,22 +288,36 @@ export default function CreateSigningProfilePage() {
               {watchAllowRsa && (
                 <FormField
                   control={form.control}
-                  name="rsaKeyStrength"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>RSA Key Strength</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select RSA key strength" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {rsaKeyStrengths.map(strength => (
-                            <SelectItem key={strength} value={strength}>{strength}-bit</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  name="allowedRsaKeyStrengths"
+                  render={() => (
+                    <FormItem className="p-3 border rounded-md">
+                      <FormLabel>Allowed RSA Key Strengths</FormLabel>
+                      <FormDescription>Select which RSA key strengths are permitted by this profile.</FormDescription>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
+                        {rsaKeyStrengths.map((item) => (
+                          <FormField
+                            key={item}
+                            control={form.control}
+                            name="allowedRsaKeyStrengths"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item)}
+                                    onCheckedChange={(checked) => {
+                                      const currentValue = field.value || [];
+                                      return checked
+                                        ? field.onChange([...currentValue, item])
+                                        : field.onChange(currentValue.filter((value) => value !== item));
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-sm font-normal cursor-pointer">{item}-bit</FormLabel>
+                              </FormItem>
+                            )}
+                          />
+                        ))}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -311,22 +327,36 @@ export default function CreateSigningProfilePage() {
               {watchAllowEcdsa && (
                 <FormField
                   control={form.control}
-                  name="ecdsaCurve"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ECDSA Curve</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select ECDSA curve" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {ecdsaCurves.map(curve => (
-                            <SelectItem key={curve} value={curve}>{curve}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  name="allowedEcdsaCurves"
+                  render={() => (
+                    <FormItem className="p-3 border rounded-md">
+                      <FormLabel>Allowed ECDSA Curves</FormLabel>
+                      <FormDescription>Select which ECDSA curves are permitted by this profile.</FormDescription>
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
+                        {ecdsaCurves.map((item) => (
+                          <FormField
+                            key={item}
+                            control={form.control}
+                            name="allowedEcdsaCurves"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item)}
+                                    onCheckedChange={(checked) => {
+                                      const currentValue = field.value || [];
+                                      return checked
+                                        ? field.onChange([...currentValue, item])
+                                        : field.onChange(currentValue.filter((value) => value !== item));
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-sm font-normal cursor-pointer">{item}</FormLabel>
+                              </FormItem>
+                            )}
+                          />
+                        ))}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
