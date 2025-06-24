@@ -79,6 +79,7 @@ const edges: GraphEdge[] = [
 
     // Cross-certification
     { from: 'ca2', to: 'ca3', path: 'M 280 330 H 600', hasArrow: true, bidirectional: true },
+    { from: 'subca1a', to: 'ca6', path: 'M 280 200 H 300', hasArrow: true, bidirectional: true },
 ];
 
 
