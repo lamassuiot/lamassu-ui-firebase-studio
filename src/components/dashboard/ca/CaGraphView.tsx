@@ -5,6 +5,7 @@ import React from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CaGraphViewProps {
   router: ReturnType<typeof import('next/navigation').useRouter>;
@@ -32,30 +33,30 @@ interface GraphEdge {
 const GRAPH_WIDTH = 1000;
 const GRAPH_HEIGHT = 600;
 
-const CA_NODE_WIDTH = 80;
+const CA_NODE_WIDTH = 140;
 const CA_NODE_HEIGHT = 40;
-const EE_NODE_WIDTH = 50;
+const EE_NODE_WIDTH = 120;
 const EE_NODE_HEIGHT = 30;
 
 // Manually positioned nodes to match the ASCII art structure
 const nodes: GraphNode[] = [
   // CAs
-  { id: 'ca1', name: 'CA1', x: 460, y: 50, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca' },
-  { id: 'ca2', name: 'CA2', x: 180, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca' },
-  { id: 'ca3', name: 'CA3', x: 740, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca' },
+  { id: 'ca1', name: 'Lamassu Root CA', x: 430, y: 50, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca' },
+  { id: 'ca2', name: 'IoT Device CA', x: 150, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca' },
+  { id: 'ca3', name: 'Web Services CA', x: 710, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca' },
 
-  // EEs for CA1
-  { id: 'ee1a', name: 'EE', x: 415, y: 170, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
-  { id: 'ee1b', name: 'EE', x: 535, y: 170, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
+  // Sub CAs for Root CA
+  { id: 'ee1a', name: 'Firmware Signing', x: 380, y: 170, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
+  { id: 'ee1b', name: 'Manufacturing', x: 500, y: 170, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
 
-  // EEs for CA2
-  { id: 'ee2a', name: 'EE', x: 135, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
-  { id: 'ee2b', name: 'EE', x: 255, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
+  // End-Entities for IoT CA
+  { id: 'ee2a', name: 'sensor-alpha', x: 100, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
+  { id: 'ee2b', name: 'gateway-beta', x: 220, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
   
-  // EEs for CA3
-  { id: 'ee3a', name: 'EE', x: 635, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
-  { id: 'ee3b', name: 'EE', x: 755, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
-  { id: 'ee3c', name: 'EE', x: 875, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
+  // End-Entities for Web Services CA
+  { id: 'ee3a', name: 'api.lamassu.io', x: 600, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
+  { id: 'ee3b', name: 'auth.lamassu.io', x: 720, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
+  { id: 'ee3c', name: 'billing.lamassu.io', x: 840, y: 420, width: EE_NODE_WIDTH, height: EE_NODE_HEIGHT, type: 'ee' },
 ];
 
 const edges: GraphEdge[] = [
@@ -64,8 +65,8 @@ const edges: GraphEdge[] = [
     { from: 'ca1', to: 'ee1b', path: `M 500 90 V 140 H 560 V 170`},
     
     // CA1 to CA2 and CA3
-    { from: 'ca1', to: 'ca2', path: `M 460 70 H 350 V 250 H 220 V 300`},
-    { from: 'ca1', to: 'ca3', path: `M 540 70 H 650 V 250 H 780 V 300`},
+    { from: 'ca1', to: 'ca2', path: `M 430 70 H 350 V 250 H 220 V 300`},
+    { from: 'ca1', to: 'ca3', path: `M 570 70 H 650 V 250 H 780 V 300`},
 
     // CA2 to its EEs
     { from: 'ca2', to: 'ee2a', path: `M 220 340 V 390 H 160 V 420`},
@@ -77,7 +78,7 @@ const edges: GraphEdge[] = [
     { from: 'ca3', to: 'ee3c', path: `M 780 340 V 390 H 900 V 420`},
 
     // CA2 to CA3 (cross-cert)
-    { from: 'ca2', to: 'ca3', path: `M 260 320 H 740`, hasArrow: true },
+    { from: 'ca2', to: 'ca3', path: `M 290 320 H 710`, hasArrow: true },
 ];
 
 export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
@@ -130,7 +131,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
                                 y="0"
                                 width={node.width}
                                 height={node.height}
-                                fill="hsl(var(--background))"
+                                fill={node.type === 'ca' ? "hsl(var(--card))" : "hsl(var(--muted))"}
                                 stroke="currentColor"
                                 strokeWidth="1"
                                 strokeDasharray="4 2"
@@ -141,7 +142,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
                                 textAnchor="middle"
                                 dy=".3em"
                                 fill="currentColor"
-                                className="text-sm font-mono"
+                                className="text-xs font-medium"
                             >
                                 {node.name}
                             </text>
