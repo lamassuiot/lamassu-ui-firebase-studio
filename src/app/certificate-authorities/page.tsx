@@ -211,7 +211,7 @@ export default function CertificateAuthoritiesPage() {
                 <CaHierarchyView cas={cas} router={router} allCAs={cas} allCryptoEngines={allCryptoEngines} />
               )}
               {viewMode === 'graph' && (
-                <CaGraphView router={router} />
+                <CaGraphView cas={cas} allCryptoEngines={allCryptoEngines} router={router} />
               )}
             </>
           ) : (
