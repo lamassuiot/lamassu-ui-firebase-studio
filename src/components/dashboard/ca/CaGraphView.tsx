@@ -285,10 +285,16 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
                   </defs>
                   <g>
                     {edges.map((edge, i) => {
-                       if (!edge.points || edge.points.length === 0) return null;
-                        const pathData = edge.points.reduce((acc, point, idx) => {
-                        return idx === 0 ? `M${point.x},${point.y}` : `${acc}L${point.x},${point.y}`;
-                        }, '');
+                       if (!edge.points || edge.points.length < 2) return null;
+                       
+                        let pathData = `M ${edge.points[0].x},${edge.points[0].y}`;
+                        for (let j = 0; j < edge.points.length - 1; j++) {
+                            const p1 = edge.points[j];
+                            const p2 = edge.points[j + 1];
+                            // Vertical-Horizontal routing for 90-degree angles
+                            pathData += ` L ${p1.x},${p2.y} L ${p2.x},${p2.y}`;
+                        }
+
                       return (
                         <g key={`edge-group-${i}-${edge.v}-${edge.w}`}>
                            <path
