@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ZoomIn, ZoomOut, RotateCcw, Key, IterationCcw, Loader2, ServerIcon, Link as LinkIcon, Fingerprint } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isPast, parseISO, formatDistanceToNowStrict, addDays } from 'date-fns';
+import { isPast, parseISO, formatDistanceToNowStrict, addDays, subDays } from 'date-fns';
 
 interface CaGraphViewProps {
   router: ReturnType<typeof import('next/navigation').useRouter>;
@@ -91,49 +91,63 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
 
   const processedGraph = useMemo(() => {
     // ---- MOCK DATA GENERATION ----
-    const mockRootCA: CA = {
-      id: 'mock-root-ca',
-      name: 'Mock Lamassu Root CA',
+    const mockRootCA1: CA = {
+      id: 'mock-root-ca-1',
+      name: 'LamassuIoT Global Root CA G1',
       issuer: 'Self-signed',
       expires: addDays(new Date(), 3650).toISOString(),
-      serialNumber: '01',
-      status: 'active',
-      keyAlgorithm: 'RSA 4096',
-      signatureAlgorithm: 'SHA512withRSA',
-      kmsKeyId: 'kms-root-key-1234',
-      children: [], // will be populated below
-    };
-
-    const mockIntermediateCA: CA = {
-      id: 'mock-intermediate-ca',
-      name: 'Mock IoT Services CA G1',
-      issuer: 'mock-root-ca',
-      expires: addDays(new Date(), 1825).toISOString(),
-      serialNumber: '02',
-      status: 'active',
-      keyAlgorithm: 'ECDSA P-384',
-      signatureAlgorithm: 'SHA384withECDSA',
-      kmsKeyId: 'kms-intermediate-key-5678',
-      children: [], // will be populated below
+      serialNumber: '01', status: 'active', keyAlgorithm: 'RSA 4096', signatureAlgorithm: 'SHA512withRSA',
+      kmsKeyId: 'kms-root-key-1',
+      children: [],
     };
     
-    const mockLeafCA: CA = {
-      id: 'mock-leaf-ca',
-      name: 'Mock Device Signing CA',
-      issuer: 'mock-intermediate-ca',
+    const mockIntermediateCA1: CA = {
+      id: 'mock-intermediate-ca-1',
+      name: 'Services Intermediate CA',
+      issuer: mockRootCA1.id,
+      expires: addDays(new Date(), 1825).toISOString(),
+      serialNumber: '02', status: 'active', keyAlgorithm: 'ECDSA P-384', signatureAlgorithm: 'SHA384withECDSA',
+      kmsKeyId: 'kms-intermediate-key-A',
+      children: [],
+    };
+
+    const mockLeafCA1: CA = {
+      id: 'mock-leaf-ca-1',
+      name: 'Device Signing CA (Region EU)',
+      issuer: mockIntermediateCA1.id,
       expires: addDays(new Date(), 365).toISOString(),
-      serialNumber: '03',
-      status: 'active',
-      keyAlgorithm: 'ECDSA P-256',
-      signatureAlgorithm: 'SHA256withECDSA',
-      kmsKeyId: 'kms-leaf-key-abcd',
+      serialNumber: '03', status: 'active', keyAlgorithm: 'ECDSA P-256', signatureAlgorithm: 'SHA256withECDSA',
+      kmsKeyId: 'kms-leaf-key-eu',
+      children: [],
+    };
+    
+    // A second hierarchy
+    const mockRootCA2: CA = {
+      id: 'mock-root-ca-2',
+      name: 'Partner Trust Root CA',
+      issuer: 'Self-signed',
+      expires: subDays(new Date(), 10).toISOString(), // Expired
+      serialNumber: '04', status: 'active', keyAlgorithm: 'RSA 2048', signatureAlgorithm: 'SHA256withRSA',
+      kmsKeyId: 'kms-root-key-2',
+      children: [],
+    };
+    
+    const mockIntermediateCA2: CA = {
+      id: 'mock-intermediate-ca-2',
+      name: 'Partner API Issuing CA',
+      issuer: mockRootCA2.id,
+      expires: addDays(new Date(), 500).toISOString(),
+      serialNumber: '05', status: 'revoked', keyAlgorithm: 'ECDSA P-256', signatureAlgorithm: 'SHA256withECDSA',
+      kmsKeyId: 'kms-intermediate-key-A', // RE-USED KEY
       children: [],
     };
     
     // Build hierarchy
-    mockIntermediateCA.children?.push(mockLeafCA);
-    mockRootCA.children?.push(mockIntermediateCA);
-    const mockCAs = [mockRootCA];
+    mockIntermediateCA1.children?.push(mockLeafCA1);
+    mockRootCA1.children?.push(mockIntermediateCA1);
+    mockRootCA2.children?.push(mockIntermediateCA2);
+    
+    const mockCAs = [mockRootCA1, mockRootCA2];
     // ---- END MOCK DATA ----
 
     setLayoutRan(false); 
