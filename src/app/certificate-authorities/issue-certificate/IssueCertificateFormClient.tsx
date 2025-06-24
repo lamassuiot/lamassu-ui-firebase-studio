@@ -38,7 +38,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return window.btoa(binary);
 }
 
-function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'PUBLIC KEY' | 'CERTIFICATE REQUEST'): string {
+function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'PUBLIC KEY' | 'CERTIFICATE REQUEST' | 'CERTIFICATE'): string {
   const header = `-----BEGIN ${type}-----`;
   const footer = `-----END ${type}-----`;
   const body = base64String.match(/.{1,64}/g)?.join('\n') || '';
@@ -126,7 +126,7 @@ const EKU_OPTIONS = [{ id: "ServerAuth", label: "Server Authentication" }, { id:
 
 // --- Stepper Component ---
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Details", "Review", "Configure"];
+  const steps = ["Details", "Review CSR", "Configure", "Issued"];
   return (
     <div className="flex items-center space-x-4 mb-8">
       {steps.map((label, index) => {
@@ -206,6 +206,11 @@ export default function IssueCertificateFormClient() {
   const [honorExtensions, setHonorExtensions] = useState(true);
   const [honorSubject, setHonorSubject] = useState(true);
   
+  // Step 4 (Final step)
+  const [issuedCertificate, setIssuedCertificate] = useState<{ pem: string; serial: string } | null>(null);
+  const [issuedCertCopied, setIssuedCertCopied] = useState(false);
+
+
   // --- Effects ---
   useEffect(() => {
     if (typeof window !== 'undefined' && window.crypto) setEngine("webcrypto", getCrypto());
@@ -377,8 +382,11 @@ export default function IssueCertificateFormClient() {
         if (!response.ok) {
             throw new Error(result.err || `Failed to issue certificate. Status: ${response.status}`);
         }
-        toast({ title: "Success!", description: "Certificate issued successfully. Check CA details for the new certificate." });
-        router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`);
+
+        const issuedPem = result.certificate ? window.atob(result.certificate) : 'Error: Certificate not found in response.';
+        setIssuedCertificate({ pem: issuedPem, serial: result.serial_number });
+        setStep(4);
+        toast({ title: "Success!", description: "Certificate issued successfully." });
     } catch (e: any) {
         setGenerationError(e.message);
         toast({ title: "Issuance Failed", description: e.message, variant: "destructive" });
@@ -486,21 +494,53 @@ export default function IssueCertificateFormClient() {
              </div>
           )}
 
+          {step === 4 && (
+            <div className="space-y-6 mt-6 text-center">
+              <Check className="h-16 w-16 text-green-500 mx-auto" />
+              <h3 className="text-2xl font-semibold">Certificate Issued Successfully!</h3>
+              <p className="text-muted-foreground">The certificate has been provisioned. You can view the details or download the PEM file below.</p>
+              <div className="space-y-2 text-left">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-medium">Issued Certificate PEM</h3>
+                  <div className="flex space-x-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => handleCopy(issuedCertificate?.pem || '', "Certificate", setIssuedCertCopied)}>
+                      {issuedCertCopied ? <Check className="mr-1 h-4 w-4 text-green-500"/> : <Copy className="mr-1 h-4 w-4"/>}
+                      {issuedCertCopied ? 'Copied' : 'Copy'}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => handleDownload(issuedCertificate?.pem || '', "certificate.pem", "application/x-pem-file")}>
+                      <DownloadIcon className="mr-1 h-4 w-4"/>Download
+                    </Button>
+                  </div>
+                </div>
+                <Textarea readOnly value={issuedCertificate?.pem || ''} rows={10} className="font-mono bg-muted/50"/>
+              </div>
+            </div>
+          )}
+
+
           {generationError && <Alert variant="destructive" className="mt-4"><AlertTriangle className="h-4 w-4" /><AlertDescription>{generationError}</AlertDescription></Alert>}
 
         </CardContent>
         <CardFooter className="flex justify-between">
-            <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1}>Back</Button>
+            {step < 4 ? <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1}>Back</Button> : <div/> /* Spacer */}
             <div className="flex space-x-2">
-                {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndReview} disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Next: Review CSR</Button>}
-                {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleReviewUploadedCsr}>Next: Review CSR</Button>}
+                {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndReview} disabled={isGenerating || !commonName.trim()}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Next: Review CSR</Button>}
+                {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleReviewUploadedCsr} disabled={!csrPem.trim()}>Next: Review CSR</Button>}
                 {step === 2 && <Button type="button" onClick={() => setStep(3)}>Next: Configure</Button>}
                 {step === 3 && <Button type="button" onClick={handleIssueCertificate} disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Issue Certificate</Button>}
+                {step === 4 && (
+                    <>
+                        <Button type="button" variant="outline" onClick={() => router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`)}>
+                            Finish
+                        </Button>
+                        <Button type="button" onClick={() => router.push(`/certificates/details?certificateId=${issuedCertificate?.serial}`)} disabled={!issuedCertificate?.serial}>
+                            View Certificate Details
+                        </Button>
+                    </>
+                )}
             </div>
         </CardFooter>
       </Card>
     </div>
   );
 }
-
-    

@@ -86,8 +86,7 @@ export const TagInput: React.FC<TagInputProps> = ({
           autoComplete="off"
         />
       </div>
-       {value.length > 0 && <p className="text-xs text-muted-foreground">Press Enter to add a tag. Click 'x' on a tag to remove it.</p>}
+       <p className="text-xs text-muted-foreground">Press Enter to add a tag. Click 'x' on a tag to remove it.</p>
     </div>
   );
 };
-
