@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 // Dynamically import the client component
 const IssueCertificateFormClient = dynamic(
-  () => import('@/components/dashboard/ca/issue-certificate/IssueCertificateFormClient'),
+  () => import('./IssueCertificateFormClient'),
   {
     // ssr: false, // Removed: Not allowed in Server Components
     loading: () => (
