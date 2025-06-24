@@ -34,7 +34,7 @@ interface GraphEdge {
 }
 
 const GRAPH_WIDTH = 1200;
-const GRAPH_HEIGHT = 900; // Increased height for more nodes
+const GRAPH_HEIGHT = 900;
 
 const CA_NODE_WIDTH = 280;
 const CA_NODE_HEIGHT = 60;
@@ -48,7 +48,7 @@ const nodes: GraphNode[] = [
 
   // Row 2: Intermediates from Lamassu Root
   { id: 'subca1a', name: 'Firmware Signing Sub-CA', subtext: 'ID: c3d4e5f6-a7b8-9012-3456-7890abcdef', x: 0, y: 170, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'active' },
-  { id: 'ca6', name: 'Manufacturing CA', subtext: 'ID: 66b7c8d9-22e3-33f4-44a5-55b6c7d8e9f0', x: 300, y: 170, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'active' },
+  { id: 'ca6', name: 'Manufacturing CA', subtext: 'ID: 66b7c8d9-22e3-33f4-44a5-55b6c7d8e9f0', x: 400, y: 170, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'sub-ca', status: 'active' },
 
   // Row 3: Various Intermediates
   { id: 'ca2', name: 'IoT Device CA', subtext: 'ID: a1b2c3d4-e5f6-7890-1234-567890abcdef', x: 0, y: 300, width: CA_NODE_WIDTH, height: CA_NODE_HEIGHT, type: 'ca', status: 'active' },
@@ -66,7 +66,7 @@ const nodes: GraphNode[] = [
 const edges: GraphEdge[] = [
     // Lamassu Root CA connections
     { from: 'ca1', to: 'subca1a', path: 'M 290 110 V 140 H 140 V 170', hasArrow: true },
-    { from: 'ca1', to: 'ca6', path: 'M 290 110 V 140 H 440 V 170', hasArrow: true },
+    { from: 'ca1', to: 'ca6', path: 'M 290 110 V 140 H 540 V 170', hasArrow: true },
     { from: 'ca1', to: 'ca2', path: 'M 290 110 V 220 H 140 V 300', hasArrow: true },
     { from: 'ca1', to: 'ca3', path: 'M 290 110 V 220 H 740 V 300', hasArrow: true },
     
@@ -79,7 +79,7 @@ const edges: GraphEdge[] = [
 
     // Cross-certification
     { from: 'ca2', to: 'ca3', path: 'M 280 330 H 600', hasArrow: true, bidirectional: true },
-    { from: 'subca1a', to: 'ca6', path: 'M 280 200 H 300', hasArrow: true, bidirectional: true },
+    { from: 'subca1a', to: 'ca6', path: 'M 280 200 H 400', hasArrow: true, bidirectional: true },
 ];
 
 
