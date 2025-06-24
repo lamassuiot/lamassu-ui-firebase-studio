@@ -3,19 +3,20 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import type { CA } from '@/lib/ca-data';
+import { findCaById } from '@/lib/ca-data'; // Import the recursive finder
 import * as dagre from '@dagrejs/dagre';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { ZoomIn, ZoomOut, RotateCcw, Key, IterationCcw, Loader2, ServerIcon } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Key, IterationCcw, Loader2, ServerIcon, Link as LinkIcon, Fingerprint } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isPast, parseISO, formatDistanceToNowStrict } from 'date-fns';
 
 interface CaGraphViewProps {
   cas: CA[]; 
   router: ReturnType<typeof import('next/navigation').useRouter>;
-  allCAs: CA[];
+  allCAs: CA[]; // This is the hierarchical tree
 }
 
 interface BaseDagreNode {
@@ -42,7 +43,7 @@ interface DagreEdge {
   v: string;
   w: string;
   points?: Array<{ x: number; y: number }>;
-  type: 'signs' | 'issues'; 
+  type: 'signs' | 'uses'; 
   style?: string;
   arrowhead?: string;
   [key: string]: any;
@@ -55,10 +56,10 @@ const CA_CERT_NODE_HEIGHT = 110;
 const CA_CERT_KMS_ID_TEXT_HEIGHT = 20;
 
 const KMS_NODE_THEME = {
-  border: 'hsl(130 50% 45%)', 
-  bg: 'hsl(130 60% 90%)',     
-  text: 'hsl(130 50% 20%)',   
-  iconColor: 'hsl(130 50% 40%)'
+  border: 'hsl(260 50% 55%)', // Purple
+  bg: 'hsl(260 60% 92%)',     
+  text: 'hsl(260 50% 25%)',   
+  iconColor: 'hsl(260 50% 50%)'
 };
 
 const getCaCertStatusColors = (ca: CA): { border: string, bg: string, text: string, iconColor: string } => {
@@ -82,8 +83,19 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
     g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 50, edgesep: 25 }); 
     g.setDefaultEdgeLabel(() => ({}));
 
+    // Flatten the CA tree to easily iterate over all CAs
+    const flatAllCAs: CA[] = [];
+    const stack: CA[] = [...allCAs];
+    while (stack.length > 0) {
+      const ca = stack.pop()!;
+      flatAllCAs.push(ca);
+      if (ca.children) {
+        stack.push(...ca.children);
+      }
+    }
+
     const uniqueKmsKeyIds = new Set<string>();
-    allCAs.forEach(ca => {
+    flatAllCAs.forEach(ca => {
       if (ca.kmsKeyId) {
         uniqueKmsKeyIds.add(ca.kmsKeyId);
       }
@@ -99,7 +111,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
       } as KmsDagreNode);
     });
 
-    allCAs.forEach(ca => {
+    flatAllCAs.forEach(ca => {
       const nodeHeight = CA_CERT_NODE_HEIGHT + (showKmsKeyIdTextInCaNode && ca.kmsKeyId ? CA_CERT_KMS_ID_TEXT_HEIGHT : 0);
       g.setNode(ca.id, {
         label: ca.name,
@@ -110,23 +122,25 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
       } as CaCertDagreNode);
     });
 
-    allCAs.forEach(ca => {
+    flatAllCAs.forEach(ca => {
+      // Edge from the CA's own key TO the CA node ("this key is used by this CA")
       if (ca.kmsKeyId && g.hasNode(`kms-${ca.kmsKeyId}`) && g.hasNode(ca.id)) {
-         if (!g.outEdges(`kms-${ca.kmsKeyId}`)?.some(edge => edge.w === ca.id)) {
-            g.setEdge(`kms-${ca.kmsKeyId}`, ca.id, { 
-              type: 'signs', 
-              style: `stroke: ${KMS_NODE_THEME.border}; stroke-dasharray: 6,4;`, 
-              arrowhead: 'kms_signs' 
-            } as DagreEdge);
-         }
+        g.setEdge(`kms-${ca.kmsKeyId}`, ca.id, { 
+          type: 'uses',
+          style: `stroke: ${KMS_NODE_THEME.border}; stroke-dasharray: 6,4;`, 
+          arrowhead: 'uses_key' 
+        });
       }
-      if (ca.issuer && ca.issuer !== 'Self-signed' && ca.issuer !== ca.id && g.hasNode(ca.issuer) && g.hasNode(ca.id)) {
-        if (!g.outEdges(ca.issuer)?.some(edge => edge.w === ca.id)) {
-           g.setEdge(ca.issuer, ca.id, { 
-             type: 'issues', 
-             style: `stroke: hsl(var(--border));`, 
-             arrowhead: 'ca_issues' 
-            } as DagreEdge);
+      
+      // Edge from the ISSUER's key TO this CA node ("this CA was signed by this key")
+      if (ca.issuer && ca.issuer !== 'Self-signed' && ca.issuer !== ca.id) {
+        const issuerCa = findCaById(ca.issuer, allCAs);
+        if (issuerCa && issuerCa.kmsKeyId && g.hasNode(`kms-${issuerCa.kmsKeyId}`) && g.hasNode(ca.id)) {
+          g.setEdge(`kms-${issuerCa.kmsKeyId}`, ca.id, { 
+            type: 'signs', 
+            style: `stroke: hsl(210 70% 50%);`, 
+            arrowhead: 'signs_cert' 
+          });
         }
       }
     });
@@ -164,7 +178,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
       <div className="p-2 border-b bg-background flex items-center justify-between sticky top-0 z-20">
         <div></div> 
         <div className="flex items-center space-x-2">
-          <ServerIcon className="h-4 w-4 text-muted-foreground" />
+          <Key className="h-4 w-4 text-muted-foreground" />
           <Label htmlFor="showKmsIdTextToggleGraph" className="text-sm font-medium text-muted-foreground">
             Show Key ID in Cert Node
           </Label>
@@ -188,11 +202,11 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
               <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '200%', height: '200%' }}>
                 <svg width="200%" height="200%" className="min-w-full min-h-full">
                   <defs>
-                    <marker id="arrowhead-kms-signs" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <marker id="arrowhead-uses-key" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                       <polygon points="0 0, 10 3.5, 0 7" fill={KMS_NODE_THEME.border} />
                     </marker>
-                     <marker id="arrowhead-ca-issues" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                      <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--border))" />
+                     <marker id="arrowhead-signs-cert" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                      <polygon points="0 0, 10 3.5, 0 7" fill="hsl(210 70% 50%)" />
                     </marker>
                   </defs>
                   <g>
@@ -208,10 +222,10 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                           strokeWidth="2" 
                           fill="none"
                           style={{ 
-                            stroke: edge.type === 'signs' ? KMS_NODE_THEME.border : 'hsl(var(--border))', 
-                            strokeDasharray: edge.type === 'signs' ? '6,4' : 'none' 
+                            stroke: edge.type === 'uses' ? KMS_NODE_THEME.border : 'hsl(210 70% 50%)', 
+                            strokeDasharray: edge.type === 'uses' ? '6,4' : 'none' 
                           }}
-                          markerEnd={edge.type === 'issues' ? "url(#arrowhead-ca-issues)" : "url(#arrowhead-kms-signs)"} 
+                          markerEnd={edge.type === 'uses' ? "url(#arrowhead-uses-key)" : "url(#arrowhead-signs-cert)"} 
                         />
                       );
                     })}
@@ -226,7 +240,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                             key={kmsNode.id}
                             transform={`translate(${kmsNode.x - kmsNode.width / 2}, ${kmsNode.y - kmsNode.height / 2})`}
                             className="cursor-pointer group" 
-                             onClick={() => router.push(`/kms/keys/details?keyId=${kmsNode.kmsId}`)} // Updated navigation
+                             onClick={() => router.push(`/kms/keys/details?keyId=${kmsNode.kmsId}`)}
                           >
                             <rect
                               width={kmsNode.width}
@@ -241,7 +255,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                             <foreignObject width={kmsNode.width} height={kmsNode.height} x="0" y="0">
                                 <div className={cn("p-2 flex flex-col justify-center items-center h-full text-xs", 'namespace-kms-node')}>
                                     <div className="flex items-center mb-0.5">
-                                      <ServerIcon size={18} className="mr-1.5 flex-shrink-0" style={{color: KMS_NODE_THEME.iconColor}} />
+                                      <Key size={18} className="mr-1.5 flex-shrink-0" style={{color: KMS_NODE_THEME.iconColor}} />
                                       <p className="font-semibold truncate text-sm" style={{color: KMS_NODE_THEME.text}} title={kmsNode.kmsId}>
                                         KMS Key
                                       </p>
@@ -262,7 +276,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                           <g
                             key={caNode.id}
                             transform={`translate(${caNode.x - caNode.width / 2}, ${caNode.y - nodeActualHeight / 2})`}
-                            onClick={() => router.push(`/certificate-authorities/details?caId=${caNode.id}`)} // Updated navigation
+                            onClick={() => router.push(`/certificate-authorities/details?caId=${caNode.id}`)}
                             className="cursor-pointer group"
                           >
                             <rect
@@ -279,7 +293,7 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router, allCAs }) => {
                               <div className={cn("p-2.5 flex flex-col justify-between h-full text-xs", 'namespace-ca-cert-node')}>
                                  <div>
                                   <div className="flex items-center mb-1">
-                                    <Key size={16} className="mr-1.5 flex-shrink-0" style={{color: statusColors.iconColor}} />
+                                    <Fingerprint size={16} className="mr-1.5 flex-shrink-0" style={{color: statusColors.iconColor}} />
                                     <p className="font-semibold text-sm truncate" style={{color: statusColors.text}} title={caNode.label}>{caNode.label}</p>
                                   </div>
                                   <p className="truncate text-[10px]" style={{color: cn(statusColors.text, 'opacity-70')}} title={`ID: ${caNode.id}`}>
