@@ -27,6 +27,19 @@ const StatusIcon: React.FC<{ status: CA['status']; expires: string }> = ({ statu
   return <CheckCircle className="h-5 w-5 text-green-500" title="Status: Active" />;
 };
 
+const getStatusAndExpiryText = (ca: CA): { text: string; isCritical: boolean } => {
+  const expiryDate = parseISO(ca.expires);
+  const isExpired = isPast(expiryDate);
+  
+  if (ca.status === 'revoked') {
+    return { text: 'Revoked', isCritical: true };
+  }
+  if (isExpired) {
+    return { text: `Expired ${formatDistanceToNowStrict(expiryDate)} ago`, isCritical: true };
+  }
+  return { text: `Expires in ${formatDistanceToNowStrict(expiryDate)}`, isCritical: false };
+};
+
 
 export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, className, onClick, allCryptoEngines }) => {
   
@@ -44,6 +57,8 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
   } else {
     IconComponent = <Landmark className={cn("h-6 w-6 flex-shrink-0", "text-primary")} />;
   }
+  
+  const { text: statusText, isCritical } = getStatusAndExpiryText(ca);
 
   const cardInnerContent = (
     <div className={cn("flex items-center space-x-3 p-3")}>
@@ -54,8 +69,8 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
           <p className="text-sm font-semibold text-blue-800 dark:text-blue-300 truncate" title={ca.name}>
             {ca.name}
           </p>
-          <p className="text-xs text-muted-foreground truncate" title={`ID: ${ca.id}`}>
-            ID: {ca.id}
+          <p className={cn("text-xs truncate", isCritical ? "text-destructive" : "text-muted-foreground")} title={statusText}>
+            {statusText}
           </p>
         </div>
         <div className="flex-shrink-0">
