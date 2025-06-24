@@ -263,6 +263,9 @@ export default function IssueCertificateFormClient() {
       const pemContent = pem.replace(/-----(BEGIN|END) (NEW )?CERTIFICATE REQUEST-----/g, "").replace(/\s+/g, "");
       const derBuffer = Uint8Array.from(atob(pemContent), c => c.charCodeAt(0)).buffer;
       const asn1 = asn1js.fromBER(derBuffer);
+      if (asn1.offset === -1) {
+        throw new Error("Cannot parse CSR. Invalid ASN.1 structure.");
+      }
       const pkcs10 = new CertificationRequest({ schema: asn1.result });
       const subject = formatPkijsSubject(pkcs10.subject);
       const publicKeyInfo = formatPkijsPublicKeyInfo(pkcs10.subjectPublicKeyInfo);
@@ -302,6 +305,9 @@ export default function IssueCertificateFormClient() {
       // Add other subject parts similarly...
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
       
+      // Explicitly initialize attributes to handle case with no SANs
+      pkcs10.attributes = [];
+
       const generalNamesArray: GeneralName[] = [
         ...emailSans.map(email => new GeneralName({ type: 1, value: email.trim() })),
         ...dnsSans.map(dnsName => new GeneralName({ type: 2, value: dnsName.trim() })),
@@ -564,3 +570,4 @@ export default function IssueCertificateFormClient() {
     </div>
   );
 }
+
