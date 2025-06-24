@@ -19,12 +19,11 @@ interface CaGraphViewProps {
 // Local helper, as we are not using the one from ca-data which requires the full tree
 function findCaById(id: string, cas: CA[]): CA | null {
   if (!id) return null;
-  for (const ca of cas) {
-    if (ca.id === id) return ca;
-    if (ca.children) {
-      const found = findCaById(id, ca.children);
-      if (found) return found;
-    }
+  const stack = [...cas];
+  while (stack.length) {
+    const ca = stack.pop();
+    if (ca?.id === id) return ca;
+    if (ca?.children) stack.push(...ca.children);
   }
   return null;
 }
@@ -153,7 +152,8 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
     setLayoutRan(false); 
 
     const g = new dagre.graphlib.Graph({ compound: false }); 
-    g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 50, edgesep: 25 }); 
+    // Increase spacing to prevent collisions
+    g.setGraph({ rankdir: 'TB', ranksep: 120, nodesep: 80, edgesep: 30 }); 
     g.setDefaultEdgeLabel(() => ({}));
 
     const flatAllCAs: CA[] = [];
@@ -287,12 +287,23 @@ export const CaGraphView: React.FC<CaGraphViewProps> = ({ router }) => {
                     {edges.map((edge, i) => {
                        if (!edge.points || edge.points.length < 2) return null;
                        
+                        const u_node = dagreGraph.node(edge.v) as DagreNode;
+                        
+                        // Force edge to start from middle of the correct side of the source node
+                        const p1 = edge.points[0];
+                        const p2 = edge.points[1];
+                        
+                        if (Math.abs(p1.y - p2.y) > Math.abs(p1.x - p2.x)) { // Primarily vertical movement
+                            p1.x = u_node.x!;
+                        } else { // Primarily horizontal movement
+                            p1.y = u_node.y!;
+                        }
+
                         let pathData = `M ${edge.points[0].x},${edge.points[0].y}`;
                         for (let j = 0; j < edge.points.length - 1; j++) {
-                            const p1 = edge.points[j];
-                            const p2 = edge.points[j + 1];
-                            // Vertical-Horizontal routing for 90-degree angles
-                            pathData += ` L ${p1.x},${p2.y} L ${p2.x},${p2.y}`;
+                            const currentPoint = edge.points[j];
+                            const nextPoint = edge.points[j + 1];
+                            pathData += ` L ${currentPoint.x},${nextPoint.y} L ${nextPoint.x},${nextPoint.y}`;
                         }
 
                       return (
