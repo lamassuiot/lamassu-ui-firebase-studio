@@ -357,12 +357,13 @@ export default function IssueCertificateFormClient() {
         return;
     }
     const payload = {
-        csr: window.btoa(csrPem.replace(/(-{5}(BEGIN|END) (NEW )?CERTIFICATE REQUEST-{5})/g, "").replace(/\s/g, "")),
+        csr: window.btoa(csrPem),
         profile: {
             extended_key_usage: extendedKeyUsages,
             key_usage: keyUsages,
             honor_extensions: honorExtensions,
             honor_subject: honorSubject,
+            sign_as_ca: false,
             validity: {
                 type: "Duration",
                 duration: duration
