@@ -637,5 +637,4 @@ export default function CreateRegistrationAuthorityPage() {
 
     </div>
   );
-
-    
+}  
