@@ -18,66 +18,56 @@ interface CryptoEngineViewerProps {
 }
 
 export const CryptoEngineViewer: React.FC<CryptoEngineViewerProps> = ({ engine, className, iconOnly = false }) => {
-  let Icon = ShieldQuestion; // Default icon
-  let iconColorClass = "text-muted-foreground"; // Default color
-  let iconBGClass = "bg-transparent"; // Default color
+  let IconComponent: React.ElementType | null = null;
+  let iconColorClass = "text-muted-foreground";
+  let iconBGClass = "bg-transparent";
+  let imageSrc: any = null;
 
-  // Determine icon based on engine type or name
   const engineTypeUpper = engine.type?.toUpperCase();
-  var icon = <></>
 
   switch (engineTypeUpper) {
     case "GOLANG":
-      Icon = FolderKey;
+      IconComponent = FolderKey;
       iconBGClass = "bg-gray-800";
       iconColorClass = "text-white";
-      icon = <Icon className={cn("h-7 w-7 flex-shrink-0 p-1", iconColorClass, iconBGClass)} />
       break;
     case "PKCS11":
-      icon = <Image
-        src={PKCS11Logo}
-        alt="PKCS11 Icon"
-        width={30}
-        height={30}
-      />
+      imageSrc = PKCS11Logo;
       break;
     case "AWS_SECRETS_MANAGER":
-      icon = <Image
-        src={AWSSMLogo}
-        alt="PKCS11 Icon"
-        width={30}
-        height={30}
-      />
+      imageSrc = AWSSMLogo;
       break;
     case "AWS_KMS":
-      icon = <Image
-        src={AWSKMSLogo}
-        alt="PKCS11 Icon"
-        width={30}
-        height={30}
-      />
+      imageSrc = AWSKMSLogo;
       break;
     case "HASHICORP_VAULT":
-      icon = <Image
-        src={VaultLogo}
-        alt="PKCS11 Icon"
-        width={30}
-        height={30}
-      />
+      imageSrc = VaultLogo;
       break;
     default:
+      IconComponent = ShieldQuestion;
       break;
+  }
+  
+  let iconNode: React.ReactNode;
+  if(imageSrc) {
+    iconNode = <Image src={imageSrc} alt={`${engine.name} Icon`} className="h-full w-full object-contain" layout="fill" />;
+  } else if (IconComponent) {
+    iconNode = <IconComponent className={cn("h-full w-full p-0.5", iconColorClass, iconBGClass)} />
+  } else {
+    iconNode = <ShieldQuestion className="h-full w-full p-0.5 text-muted-foreground" />
   }
 
   if (iconOnly) {
-    return <>
-      {icon}
-    </>
+    return <div className={cn("relative h-5 w-5", className)}>
+      {iconNode}
+    </div>
   }
 
   return (
     <div className={cn("flex items-center space-x-2", className)}>
-      {icon}
+      <div className="relative h-7 w-7 flex-shrink-0">
+        {iconNode}
+      </div>
       <div className="flex flex-col min-w-0">
         <span className="text-sm font-medium truncate" title={engine.name}>{engine.name}</span>
         <span className="text-xs text-muted-foreground truncate" title={`${engine.provider} - ID: ${engine.id}`}>
@@ -87,4 +77,3 @@ export const CryptoEngineViewer: React.FC<CryptoEngineViewerProps> = ({ engine, 
     </div>
   );
 };
-

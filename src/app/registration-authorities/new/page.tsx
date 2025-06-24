@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from '@/components/ui/separator';
 import { TagInput } from '@/components/shared/TagInput';
 import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 
 const mockSigningProfiles = [
@@ -77,13 +78,21 @@ export default function CreateRegistrationAuthorityPage() {
   const [availableCAsForSelection, setAvailableCAsForSelection] = useState<CA[]>([]);
   const [isLoadingCAsForSelection, setIsLoadingCAsForSelection] = useState(false);
   const [errorCAsForSelection, setErrorCAsForSelection] = useState<string | null>(null);
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+  const [isLoadingEngines, setIsLoadingEngines] = useState(false);
+  const [errorEngines, setErrorEngines] = useState<string | null>(null);
 
-  const loadCAsForSelection = useCallback(async () => {
+  const loadCaData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
-      if (!authLoading) setErrorCAsForSelection("User not authenticated. Cannot load CAs.");
+      if (!authLoading) {
+        setErrorCAsForSelection("User not authenticated. Cannot load CAs.");
+        setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
+      }
       setIsLoadingCAsForSelection(false);
+      setIsLoadingEngines(false);
       return;
     }
+
     setIsLoadingCAsForSelection(true);
     setErrorCAsForSelection(null);
     try {
@@ -95,13 +104,30 @@ export default function CreateRegistrationAuthorityPage() {
     } finally {
       setIsLoadingCAsForSelection(false);
     }
+
+    setIsLoadingEngines(true);
+    setErrorEngines(null);
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+            headers: { 'Authorization': `Bearer ${user.access_token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch crypto engines');
+        const enginesData: ApiCryptoEngine[] = await response.json();
+        setAllCryptoEngines(enginesData);
+    } catch (err: any) {
+        setErrorEngines(err.message || 'Failed to load Crypto Engines.');
+        setAllCryptoEngines([]);
+    } finally {
+        setIsLoadingEngines(false);
+    }
+
   }, [user?.access_token, isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (!authLoading) {
-        loadCAsForSelection();
+        loadCaData();
     }
-  }, [loadCAsForSelection, authLoading]);
+  }, [loadCaData, authLoading]);
 
 
   const handleEnrollmentCaSelectFromModal = (ca: CA) => {
@@ -175,7 +201,7 @@ export default function CreateRegistrationAuthorityPage() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Error Loading CAs</AlertTitle>
             <AlertDescription>
-              {errorCAsForSelection} <Button variant="link" onClick={loadCAsForSelection} className="p-0 h-auto">Try again?</Button>
+              {errorCAsForSelection} <Button variant="link" onClick={loadCaData} className="p-0 h-auto">Try again?</Button>
             </AlertDescription>
           </Alert>
         )}
@@ -192,6 +218,7 @@ export default function CreateRegistrationAuthorityPage() {
                   isMultiSelected={!!currentMultiSelectedCAs.find(sel => sel.id === ca.id)}
                   onMultiSelectToggle={(toggledCa) => toggleCaSelectionInList(toggledCa, currentMultiSelectedCAs, setterForMultiSelectedCAs)}
                   _currentMultiSelectedCAsPassedToDialog={currentMultiSelectedCAs}
+                  allCryptoEngines={allCryptoEngines}
                 />
               ))}
             </ul>
@@ -375,7 +402,7 @@ export default function CreateRegistrationAuthorityPage() {
                     </Button>
                     {enrollmentCa && (
                       <div className="mt-2">
-                        <CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" />
+                        <CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines} />
                       </div>
                     )}
                   </div>
@@ -402,7 +429,7 @@ export default function CreateRegistrationAuthorityPage() {
                     {validationCAs.length > 0 && 
                       <div className="mt-2 flex flex-wrap gap-2">
                         {validationCAs.map(ca => (
-                          <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" />
+                          <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" allCryptoEngines={allCryptoEngines} />
                         ))}
                       </div>
                     }
@@ -469,7 +496,7 @@ export default function CreateRegistrationAuthorityPage() {
                     {additionalValidationCAs.length > 0 && 
                       <div className="mt-2 flex flex-wrap gap-2">
                         {additionalValidationCAs.map(ca => (
-                          <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" />
+                          <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" allCryptoEngines={allCryptoEngines} />
                         ))}
                       </div>
                     }
@@ -519,7 +546,7 @@ export default function CreateRegistrationAuthorityPage() {
                     {managedCAs.length > 0 && 
                       <div className="mt-2 flex flex-wrap gap-2">
                         {managedCAs.map(ca => (
-                          <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" />
+                          <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" allCryptoEngines={allCryptoEngines}/>
                         ))}
                       </div>
                     }
@@ -546,10 +573,11 @@ export default function CreateRegistrationAuthorityPage() {
         availableCAs={availableCAsForSelection}
         isLoadingCAs={isLoadingCAsForSelection}
         errorCAs={errorCAsForSelection}
-        loadCAsAction={loadCAsForSelection}
+        loadCAsAction={loadCaData}
         onCaSelected={handleEnrollmentCaSelectFromModal}
         currentSelectedCaId={enrollmentCa?.id}
         isAuthLoading={authLoading}
+        allCryptoEngines={allCryptoEngines}
       />
       
       <CaSelectorModal
@@ -560,9 +588,10 @@ export default function CreateRegistrationAuthorityPage() {
         availableCAs={availableCAsForSelection}
         isLoadingCAs={isLoadingCAsForSelection}
         errorCAs={errorCAsForSelection}
-        loadCAsAction={loadCAsForSelection}
+        loadCAsAction={loadCaData}
         onCaSelected={() => {}} 
         isAuthLoading={authLoading}
+        allCryptoEngines={allCryptoEngines}
       >
         {renderMultiSelectCaDialogContent(validationCAs, setValidationCAs, setIsValidationCaModalOpen)}
       </CaSelectorModal>
@@ -575,9 +604,10 @@ export default function CreateRegistrationAuthorityPage() {
         availableCAs={availableCAsForSelection}
         isLoadingCAs={isLoadingCAsForSelection}
         errorCAs={errorCAsForSelection}
-        loadCAsAction={loadCAsForSelection}
+        loadCAsAction={loadCaData}
         onCaSelected={() => {}}
         isAuthLoading={authLoading}
+        allCryptoEngines={allCryptoEngines}
       >
         {renderMultiSelectCaDialogContent(additionalValidationCAs, setAdditionalValidationCAs, setIsAdditionalValidationCaModalOpen)}
       </CaSelectorModal>
@@ -590,9 +620,10 @@ export default function CreateRegistrationAuthorityPage() {
         availableCAs={availableCAsForSelection}
         isLoadingCAs={isLoadingCAsForSelection}
         errorCAs={errorCAsForSelection}
-        loadCAsAction={loadCAsForSelection}
+        loadCAsAction={loadCaData}
         onCaSelected={() => {}}
         isAuthLoading={authLoading}
+        allCryptoEngines={allCryptoEngines}
       >
         {renderMultiSelectCaDialogContent(managedCAs, setManagedCAs, setIsManagedCaModalOpen)}
       </CaSelectorModal>

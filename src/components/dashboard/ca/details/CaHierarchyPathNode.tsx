@@ -4,18 +4,21 @@
 import React from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle, ChevronDown, Landmark } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, ChevronDown, Landmark, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isPast, parseISO, formatDistanceToNowStrict } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 
 interface CaHierarchyPathNodeProps {
   ca: CA;
   isCurrentCa: boolean;
   hasNext: boolean;
-  isFirst: boolean; // Though not directly used for arrow logic within this component anymore, kept for context
+  isFirst: boolean;
   isDimmed?: boolean; 
+  allCryptoEngines?: ApiCryptoEngine[];
 }
 
 const getStatusVisuals = (ca: CA, isCurrentCa: boolean): { icon: React.ElementType, colorClass: string, text: string } => {
@@ -40,7 +43,7 @@ const getStatusVisuals = (ca: CA, isCurrentCa: boolean): { icon: React.ElementTy
   return { icon, colorClass, text: statusText };
 };
 
-export const CaHierarchyPathNode: React.FC<CaHierarchyPathNodeProps> = ({ ca, isCurrentCa, hasNext, isFirst, isDimmed }) => {
+export const CaHierarchyPathNode: React.FC<CaHierarchyPathNodeProps> = ({ ca, isCurrentCa, hasNext, isFirst, isDimmed, allCryptoEngines }) => {
   const router = useRouter();
   const { icon: StatusIcon, colorClass: statusColorClass, text: statusText } = getStatusVisuals(ca, isCurrentCa);
 
@@ -52,9 +55,13 @@ export const CaHierarchyPathNode: React.FC<CaHierarchyPathNodeProps> = ({ ca, is
 
   const effectiveDim = isDimmed && !isCurrentCa;
 
+  const engine = allCryptoEngines?.find(e => e.id === ca.kmsKeyId);
+  const PrimaryIcon = engine 
+    ? <CryptoEngineViewer engine={engine} iconOnly className="h-5 w-5" /> 
+    : <Landmark className={cn("h-5 w-5", isCurrentCa ? "text-primary" : "text-muted-foreground", effectiveDim && !isCurrentCa && "text-muted-foreground/70" )} />;
+
   return (
     <div className="relative flex flex-col items-center group w-full">
-      {/* Arrow before node has been removed */}
       <div
         className={cn(
           "w-full max-w-sm border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow",
@@ -69,7 +76,7 @@ export const CaHierarchyPathNode: React.FC<CaHierarchyPathNodeProps> = ({ ca, is
       >
         <div className={cn("flex items-center space-x-3")}>
           <div className={cn("p-2 rounded-full", isCurrentCa ? "bg-primary/20" : "bg-muted")}>
-            <Landmark className={cn("h-5 w-5", isCurrentCa ? "text-primary" : "text-muted-foreground", effectiveDim && !isCurrentCa && "text-muted-foreground/70" )} />
+            {PrimaryIcon}
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn("text-sm font-semibold truncate", isCurrentCa ? "text-primary" : "text-foreground", effectiveDim && !isCurrentCa && "text-muted-foreground" )}>
@@ -83,7 +90,7 @@ export const CaHierarchyPathNode: React.FC<CaHierarchyPathNodeProps> = ({ ca, is
       {hasNext && (
         <ChevronDown className={cn("h-5 w-5 text-border my-1", effectiveDim && "opacity-60")} />
       )}
-      {!hasNext && <div className="h-2"></div>} {/* Add a small spacer if it's the last item */}
+      {!hasNext && <div className="h-2"></div>}
     </div>
   );
 };
