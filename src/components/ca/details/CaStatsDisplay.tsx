@@ -83,7 +83,7 @@ export const CaStatsDisplay: React.FC<CaStatsDisplayProps> = ({ stats, isLoading
   const revokedPercent = total > 0 ? (stats.REVOKED / total) * 100 : 0;
   
   return (
-    <div className="flex flex-row justify-around items-center p-4 gap-2 sm:gap-4 w-full">
+    <div className="flex flex-row justify-center items-center p-0 gap-4 w-full">
         <StatCircle percentage={activePercent} label="ACTIVE" color="hsl(var(--chart-2))" value={stats.ACTIVE} />
         <StatCircle percentage={expiredPercent} label="EXPIRED" color="hsl(var(--chart-3))" value={stats.EXPIRED} />
         <StatCircle percentage={revokedPercent} label="REVOKED" color="hsl(var(--chart-4))" value={stats.REVOKED} />
