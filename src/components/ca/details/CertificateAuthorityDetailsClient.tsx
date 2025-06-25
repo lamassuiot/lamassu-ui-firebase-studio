@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye, Info, KeyRound, Lock, ListChecks, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, RefreshCw, FilePlus2 } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, ListChecks, Search, RefreshCw, FilePlus2, Info, KeyRound, Lock, Network } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -27,12 +27,20 @@ import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
 import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTabContent';
 import { format, parseISO, isPast } from 'date-fns';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Eye, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+
 
 type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
 type SortDirection = 'asc' | 'desc';
 interface IssuedCertSortConfig {
   column: SortableIssuedCertColumn;
   direction: SortDirection;
+}
+
+interface CaStats {
+  ACTIVE: number;
+  EXPIRED: number;
+  REVOKED: number;
 }
 
 const API_STATUS_VALUES_FOR_FILTER = {
@@ -115,10 +123,16 @@ export default function CertificateAuthorityDetailsClient() {
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [caToRevoke, setCaToRevoke] = useState<CA | null>(null);
 
-  const [isCrlModalOpen, setIsCrlModalOpen] = useState(false); // New state for CRL modal
-  const [caForCrlCheck, setCaForCrlCheck] = useState<CA | null>(null); // New state for CRL modal
+  const [isCrlModalOpen, setIsCrlModalOpen] = useState(false);
+  const [caForCrlCheck, setCaForCrlCheck] = useState<CA | null>(null);
 
   const [activeTab, setActiveTab] = useState<string>("information");
+
+  // State for CA stats
+  const [caStats, setCaStats] = useState<CaStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [errorStats, setErrorStats] = useState<string | null>(null);
+
 
   const [issuedCertificatesList, setIssuedCertificatesList] = useState<CertificateData[]>([]);
   const [isLoadingIssuedCerts, setIsLoadingIssuedCerts] = useState(false);
@@ -210,6 +224,31 @@ export default function CertificateAuthorityDetailsClient() {
     }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
+  const loadCaStats = useCallback(async (caId: string, accessToken: string) => {
+    setIsLoadingStats(true);
+    setErrorStats(null);
+    try {
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/stats/${caId}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      if (!response.ok) {
+        let errorBody = 'Request failed.';
+        try {
+            const errJson = await response.json();
+            errorBody = errJson.err || errJson.message || errorBody;
+        } catch(e) { /* Ignore parsing error */ }
+        throw new Error(`Failed to fetch CA statistics: ${errorBody} (Status: ${response.status})`);
+      }
+      const data: CaStats = await response.json();
+      setCaStats(data);
+    } catch (err: any) {
+      setErrorStats(err.message);
+      setCaStats(null);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!authLoading) loadInitialData();
   }, [authLoading, loadInitialData]);
@@ -229,10 +268,15 @@ export default function CertificateAuthorityDetailsClient() {
       const chainPem = path.map(p => p.pemData).filter(Boolean).join('\\n\\n');
       setFullChainPemString(chainPem);
       setPlaceholderSerial(`${Math.random().toString(16).slice(2,10)}:${Math.random().toString(16).slice(2,10)}`);
+      
+      if (isAuthenticated() && user?.access_token) {
+        loadCaStats(foundCa.id, user.access_token);
+      }
+
     } else {
       setErrorCAs(`CA with ID "${caIdFromUrl}" not found.`);
     }
-  }, [caIdFromUrl, allCertificateAuthoritiesData, isLoadingCAs]);
+  }, [caIdFromUrl, allCertificateAuthoritiesData, isLoadingCAs, isAuthenticated, user?.access_token, loadCaStats]);
 
   const actualLoadIssuedCertificatesByCa = useCallback(async (
     currentCaId: string,
@@ -314,8 +358,6 @@ export default function CertificateAuthorityDetailsClient() {
     isAuthenticated,
     user?.access_token,
     issuedCertsCurrentPageIndex,
-    // Omitting issuedCertsBookmarkStack from deps intentionally, as it's updated by the fetch itself
-    // and its primary role is to provide the *current* bookmark, not trigger re-fetch on its own change
     issuedCertsPageSize,
     issuedCertsSortConfig,
     issuedCertsDebouncedSearchTermCN,
@@ -325,15 +367,14 @@ export default function CertificateAuthorityDetailsClient() {
   ]);
 
   useEffect(() => {
-    // Clear stale issued certificate data if tab is not 'issued' or CA changes
-    if (activeTab !== 'issued' ) { // Removed: issuedCertificatesList.length > 0 from condition
+    if (activeTab !== 'issued' ) {
       setIssuedCertificatesList([]);
       setIssuedCertsBookmarkStack([null]);
       setIssuedCertsCurrentPageIndex(0);
       setIssuedCertsNextTokenFromApi(null);
       setErrorIssuedCerts(null);
     }
-  }, [activeTab, caDetails?.id]); // Removed issuedCertificatesList from deps
+  }, [activeTab, caDetails?.id]);
 
 
   const handleCARevocation = () => {
@@ -356,7 +397,7 @@ export default function CertificateAuthorityDetailsClient() {
     setCaToRevoke(null);
   };
 
-  const handleOpenCrlModal = () => { // New handler
+  const handleOpenCrlModal = () => {
     if (caDetails) {
       setCaForCrlCheck(caDetails);
       setIsCrlModalOpen(true);
@@ -532,6 +573,9 @@ export default function CertificateAuthorityDetailsClient() {
                 currentCaId: caDetails.id,
                 placeholderSerial: placeholderSerial,
                 allCryptoEngines: allCryptoEngines,
+                stats: caStats,
+                isLoadingStats: isLoadingStats,
+                errorStats: errorStats,
               }}
               routerHook={routerHook}
             />

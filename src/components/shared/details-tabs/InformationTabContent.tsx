@@ -5,10 +5,11 @@ import React from 'react';
 import type { CA } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText } from "lucide-react";
+import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, PieChart, Loader2, AlertCircle } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { CaHierarchyPathNode } from '@/components/ca/details/CaHierarchyPathNode';
@@ -16,6 +17,14 @@ import { getCaDisplayName } from '@/lib/ca-data';
 import { format, parseISO } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { ResponsiveContainer, RadialBarChart, PolarAngleAxis, RadialBar } from 'recharts';
+
+
+interface CaStats {
+  ACTIVE: number;
+  EXPIRED: number;
+  REVOKED: number;
+}
 
 interface InformationTabContentProps {
   item: CA | CertificateData;
@@ -26,6 +35,9 @@ interface InformationTabContentProps {
     currentCaId: string;
     placeholderSerial?: string;
     allCryptoEngines?: ApiCryptoEngine[];
+    stats: CaStats | null;
+    isLoadingStats: boolean;
+    errorStats: string | null;
   };
   certificateSpecific?: {
     certificateChainForVisualizer: CA[];
@@ -50,6 +62,43 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
   );
 }
 
+const StatCircle = ({ percentage, label, color, value }: { percentage: number; label: string; color: string; value: number }) => {
+  const data = [{ name: label, value: percentage, fill: color }];
+
+  return (
+    <div className="flex flex-col items-center gap-1 w-32 text-center">
+      <div className="w-24 h-24 relative">
+        <ResponsiveContainer width="100%" height="100%">
+          <RadialBarChart
+            cx="50%"
+            cy="50%"
+            innerRadius="75%"
+            outerRadius="100%"
+            barSize={8}
+            data={data}
+            startAngle={90}
+            endAngle={-270}
+          >
+            <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+            <RadialBar
+              background={{ fill: 'hsl(var(--muted))' }}
+              dataKey="value"
+              angleAxisId={0}
+              cornerRadius={4}
+            />
+          </RadialBarChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-xl font-bold text-foreground">{`${Math.round(percentage)}%`}</span>
+        </div>
+      </div>
+      <p className="text-sm font-semibold text-muted-foreground tracking-wide">{label}</p>
+      <p className="text-xs text-muted-foreground">({value})</p>
+    </div>
+  );
+};
+
+
 export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   item,
   itemType,
@@ -61,8 +110,19 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
 
   if (itemType === 'ca' && caSpecific) {
     const caDetails = item as CA;
+    const { stats, isLoadingStats, errorStats } = caSpecific;
+
+    let activePercent = 0, expiredPercent = 0, revokedPercent = 0;
+    if (stats) {
+      const total = stats.ACTIVE + stats.EXPIRED + stats.REVOKED;
+      activePercent = total > 0 ? (stats.ACTIVE / total) * 100 : 0;
+      expiredPercent = total > 0 ? (stats.EXPIRED / total) * 100 : 0;
+      revokedPercent = total > 0 ? (stats.REVOKED / total) * 100 : 0;
+    }
+
+
     return (
-      <Accordion type="multiple" defaultValue={['general', 'hierarchy']} className="w-full space-y-3">
+      <Accordion type="multiple" defaultValue={['general', 'hierarchy', 'stats']} className="w-full space-y-3">
         <AccordionItem value="general" className="border-b-0">
           <AccordionTrigger className={cn(accordionTriggerStyle)}>
             <Info className="mr-2 h-5 w-5" /> General Information
@@ -73,6 +133,27 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, caSpecific.allCAsForLinking)} />
             <DetailItem label="Expires On" value={new Date(caDetails.expires).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
             <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
+          </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="stats" className="border-b-0">
+          <AccordionTrigger className={cn(accordionTriggerStyle)}>
+            <PieChart className="mr-2 h-5 w-5" /> Usage Statistics
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pt-3">
+            {isLoadingStats && (
+                <div className="flex justify-center items-center h-24"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            )}
+            {errorStats && (
+                 <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error Loading Stats</AlertTitle><AlertDescription>{errorStats}</AlertDescription></Alert>
+            )}
+            {stats && !isLoadingStats && !errorStats && (
+                 <div className="flex flex-col sm:flex-row justify-around items-center p-4 gap-4">
+                    <StatCircle percentage={activePercent} label="ACTIVE" color="hsl(var(--chart-2))" value={stats.ACTIVE} />
+                    <StatCircle percentage={expiredPercent} label="EXPIRED" color="hsl(var(--chart-3))" value={stats.EXPIRED} />
+                    <StatCircle percentage={revokedPercent} label="REVOKED" color="hsl(var(--chart-4))" value={stats.REVOKED} />
+                </div>
+            )}
           </AccordionContent>
         </AccordionItem>
 
