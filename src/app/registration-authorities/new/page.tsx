@@ -149,7 +149,7 @@ export default function CreateRegistrationAuthorityPage() {
     const iconColorHex = hslToHex(randomHue, saturation, iconLightness);
     setSelectedDeviceIconColor(iconColorHex);
 
-    const bgLightness = 97;
+    const bgLightness = 92;
     const bgColorHex = hslToHex(randomHue, saturation, bgLightness);
     setSelectedDeviceIconBgColor(bgColorHex);
   }, []); // Empty dependency array ensures this runs once on mount.
