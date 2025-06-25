@@ -21,9 +21,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
-import { formatISO } from 'date-fns';
+import { formatISO, format as formatDate } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal'; // Import shared modal
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { Certificate as PkijsCertificate, BasicConstraints as PkijsBasicConstraints } from "pkijs";
+import * as asn1js from "asn1js";
+import { DetailItem } from '@/components/shared/DetailItem';
+
 
 const keyTypes = [
   { value: 'RSA', label: 'RSA' },
@@ -71,6 +75,17 @@ const creationModes = [
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 
+// --- Helper Functions for Cert Parsing ---
+const OID_MAP: Record<string, string> = {
+  "2.5.4.3": "CN", "2.5.4.6": "C", "2.5.4.7": "L", "2.5.4.8": "ST", "2.5.4.10": "O", "2.5.4.11": "OU",
+};
+function formatPkijsSubject(subject: any): string {
+  return subject.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
+}
+function ab2hex(ab: ArrayBuffer) {
+  return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 
 export default function CreateCertificateAuthorityPage() {
   const router = useRouter();
@@ -106,6 +121,19 @@ export default function CreateCertificateAuthorityPage() {
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingEngines, setIsLoadingEngines] = useState(false);
   const [errorEngines, setErrorEngines] = useState<string | null>(null);
+
+  // State for 'importFull' mode
+  interface DecodedImportedCertInfo {
+    subject?: string;
+    issuer?: string;
+    serialNumber?: string;
+    validFrom?: string;
+    validTo?: string;
+    isCa?: boolean;
+    error?: string;
+  }
+  const [importedCaCertPem, setImportedCaCertPem] = useState('');
+  const [decodedImportedCertInfo, setDecodedImportedCertInfo] = useState<DecodedImportedCertInfo | null>(null);
 
 
   useEffect(() => {
@@ -216,6 +244,51 @@ export default function CreateCertificateAuthorityPage() {
       return { type: "Date", time: INDEFINITE_DATE_API_VALUE };
     }
     return { type: "Duration", duration: "1y" }; 
+  };
+  
+  const parseCertificatePem = async (pem: string) => {
+    try {
+      const pemContent = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s+/g, "");
+      const derBuffer = Uint8Array.from(atob(pemContent), c => c.charCodeAt(0)).buffer;
+      const asn1 = asn1js.fromBER(derBuffer);
+      if (asn1.offset === -1) {
+        throw new Error("Cannot parse certificate. Invalid ASN.1 structure.");
+      }
+      const certificate = new PkijsCertificate({ schema: asn1.result });
+      
+      const basicConstraintsExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
+      let isCa = false;
+      if (basicConstraintsExtension && basicConstraintsExtension.parsedValue) {
+        isCa = (basicConstraintsExtension.parsedValue as PkijsBasicConstraints).cA;
+      }
+
+      setDecodedImportedCertInfo({
+        subject: formatPkijsSubject(certificate.subject),
+        issuer: formatPkijsSubject(certificate.issuer),
+        serialNumber: ab2hex(certificate.serialNumber.valueBlock.valueHex),
+        validFrom: formatDate(certificate.notBefore.value, "PPpp"),
+        validTo: formatDate(certificate.notAfter.value, "PPpp"),
+        isCa: isCa,
+      });
+      // Automatically set the CA name for the import-only mode for display purposes
+      if(selectedMode === 'importCertOnly') {
+        const cnMatch = certificate.subject.typesAndValues.find(tv => tv.type === "2.5.4.3");
+        if(cnMatch) setCaName((cnMatch.value as any).valueBlock.value);
+      }
+
+
+    } catch (e: any) {
+      setDecodedImportedCertInfo({ error: `Failed to parse certificate: ${e.message}` });
+    }
+  };
+  
+  const handleImportedCertPemChange = (pem: string) => {
+    setImportedCaCertPem(pem);
+    if (!pem.trim()) {
+        setDecodedImportedCertInfo(null);
+        return;
+    }
+    parseCertificatePem(pem);
   };
 
 
@@ -343,6 +416,7 @@ export default function CreateCertificateAuthorityPage() {
         keySize: selectedMode === 'importCertOnly' ? 'N/A' : keySize,
         caExpiration: selectedMode === 'importCertOnly' ? 'N/A (external)' : caExpiration,
         issuanceExpiration: selectedMode === 'importCertOnly' ? 'N/A (external)' : issuanceExpiration,
+        importedCaCertPem: selectedMode === 'importFull' ? importedCaCertPem : undefined,
       };
       console.log(`Mock Creating CA (Mode: ${selectedMode}) with data:`, formData);
       toast({ title: "Mock CA Creation (Non-API)", description: `Mock CA Submission for mode: ${selectedModeDetails?.title}. Details in console.`, variant: "default" });
@@ -510,9 +584,38 @@ export default function CreateCertificateAuthorityPage() {
                      <div className="space-y-4">
                         <div>
                            <Label htmlFor="importedCaCertPem">CA Certificate (PEM)</Label>
-                           <Textarea id="importedCaCertPem" placeholder="Paste the CA certificate PEM here..." rows={6} required className="mt-1 font-mono"/>
+                            <Textarea 
+                                id="importedCaCertPem" 
+                                placeholder="Paste the CA certificate PEM here..." 
+                                rows={6} 
+                                required 
+                                className="mt-1 font-mono"
+                                value={importedCaCertPem}
+                                onChange={(e) => handleImportedCertPemChange(e.target.value)}
+                            />
                            <p className="text-xs text-muted-foreground mt-1">The public certificate of the CA you are importing.</p>
                         </div>
+                         {decodedImportedCertInfo && (
+                            <Card className="bg-muted/30">
+                                <CardHeader>
+                                <CardTitle className="text-md">Decoded Certificate Information</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                {decodedImportedCertInfo.error ? (
+                                    <Alert variant="destructive">{decodedImportedCertInfo.error}</Alert>
+                                ) : (
+                                    <>
+                                    <DetailItem label="Subject" value={decodedImportedCertInfo.subject} isMono />
+                                    <DetailItem label="Issuer" value={decodedImportedCertInfo.issuer} isMono />
+                                    <DetailItem label="Serial Number" value={decodedImportedCertInfo.serialNumber} isMono />
+                                    <DetailItem label="Valid From" value={decodedImportedCertInfo.validFrom} />
+                                    <DetailItem label="Valid To" value={decodedImportedCertInfo.validTo} />
+                                    <DetailItem label="Is CA" value={<Badge variant={decodedImportedCertInfo.isCa ? "default" : "secondary"}>{decodedImportedCertInfo.isCa ? 'Yes' : 'No'}</Badge>} />
+                                    </>
+                                )}
+                                </CardContent>
+                            </Card>
+                        )}
                         <div>
                            <Label htmlFor="importedCaKeyPem">CA Private Key (PEM)</Label>
                            <Textarea id="importedCaKeyPem" placeholder="Paste the corresponding private key PEM here..." rows={6} required className="mt-1 font-mono"/>
@@ -526,20 +629,20 @@ export default function CreateCertificateAuthorityPage() {
                     <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
                   </div>
 
-                  <div>
-                    <Label htmlFor="caName">CA Name (Subject Common Name)</Label>
-                    <Input
-                      id="caName"
-                      value={caName}
-                      onChange={(e) => setCaName(e.target.value)}
-                      placeholder="e.g., LamassuIoT Secure Services CA"
-                      required={selectedMode !== 'importFull'}
-                      disabled={selectedMode === 'importFull'}
-                      className="mt-1"
-                    />
-                    {selectedMode === 'importFull' && <p className="text-xs text-muted-foreground mt-1">Common Name will be extracted from the imported certificate.</p>}
-                    {!caName.trim() && selectedMode !== 'importFull' && <p className="text-xs text-destructive mt-1">CA Name (Common Name) cannot be empty.</p>}
-                  </div>
+                  {selectedMode !== 'importFull' && (
+                    <div>
+                        <Label htmlFor="caName">CA Name (Subject Common Name)</Label>
+                        <Input
+                        id="caName"
+                        value={caName}
+                        onChange={(e) => setCaName(e.target.value)}
+                        placeholder="e.g., LamassuIoT Secure Services CA"
+                        required
+                        className="mt-1"
+                        />
+                        {!caName.trim() && <p className="text-xs text-destructive mt-1">CA Name (Common Name) cannot be empty.</p>}
+                    </div>
+                  )}
                 </div>
               </section>
             )}
@@ -567,10 +670,39 @@ export default function CreateCertificateAuthorityPage() {
                     <h3 className="text-lg font-semibold mb-3 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Import CA Certificate</h3>
                     <div className="space-y-4">
                         <div>
-                            <Label htmlFor="caCertPem">CA Certificate (PEM format)</Label>
-                            <Textarea id="caCertPem" placeholder="Paste the CA certificate PEM here..." rows={6} required className="mt-1 font-mono"/>
-                            <p className="text-xs text-muted-foreground mt-1">Only the public certificate is needed for this import type.</p>
+                            <Label htmlFor="importedCaCertPem">CA Certificate (PEM)</Label>
+                            <Textarea 
+                                id="importedCaCertPem" 
+                                placeholder="Paste the CA certificate PEM here..." 
+                                rows={6} 
+                                required 
+                                className="mt-1 font-mono"
+                                value={importedCaCertPem}
+                                onChange={(e) => handleImportedCertPemChange(e.target.value)}
+                            />
+                           <p className="text-xs text-muted-foreground mt-1">Only the public certificate is needed for this import type.</p>
                         </div>
+                         {decodedImportedCertInfo && (
+                            <Card className="bg-muted/30">
+                                <CardHeader>
+                                <CardTitle className="text-md">Decoded Certificate Information</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                {decodedImportedCertInfo.error ? (
+                                    <Alert variant="destructive">{decodedImportedCertInfo.error}</Alert>
+                                ) : (
+                                    <>
+                                    <DetailItem label="Subject" value={decodedImportedCertInfo.subject} isMono />
+                                    <DetailItem label="Issuer" value={decodedImportedCertInfo.issuer} isMono />
+                                    <DetailItem label="Serial Number" value={decodedImportedCertInfo.serialNumber} isMono />
+                                    <DetailItem label="Valid From" value={decodedImportedCertInfo.validFrom} />
+                                    <DetailItem label="Valid To" value={decodedImportedCertInfo.validTo} />
+                                    <DetailItem label="Is CA" value={<Badge variant={decodedImportedCertInfo.isCa ? "default" : "secondary"}>{decodedImportedCertInfo.isCa ? 'Yes' : 'No'}</Badge>} />
+                                    </>
+                                )}
+                                </CardContent>
+                            </Card>
+                        )}
                          <div>
                             <Label htmlFor="caNameImportOnly">CA Name (for display)</Label>
                             <Input
