@@ -44,7 +44,6 @@ export default function CreateCaImportPublicPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [importedCaCertPem, setImportedCaCertPem] = useState('');
-  const [caName, setCaName] = useState('');
   const [decodedImportedCertInfo, setDecodedImportedCertInfo] = useState<DecodedImportedCertInfo | null>(null);
 
   const parseCertificatePem = async (pem: string) => {
@@ -57,11 +56,6 @@ export default function CreateCaImportPublicPage() {
       
       const basicConstraintsExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
       const isCa = basicConstraintsExtension ? (basicConstraintsExtension.parsedValue as PkijsBasicConstraints).cA : false;
-
-      const cnMatch = certificate.subject.typesAndValues.find((tv: any) => tv.type === "2.5.4.3");
-      if (cnMatch) {
-        setCaName((cnMatch.value as any).valueBlock.value);
-      }
 
       setDecodedImportedCertInfo({
         subject: formatPkijsSubject(certificate.subject),
@@ -89,8 +83,8 @@ export default function CreateCaImportPublicPage() {
     event.preventDefault();
     setIsSubmitting(true);
 
-    if (!caName.trim() || !importedCaCertPem.trim()) {
-      toast({ title: "Validation Error", description: "Display Name and Certificate PEM are required.", variant: "destructive" });
+    if (!importedCaCertPem.trim()) {
+      toast({ title: "Validation Error", description: "Certificate PEM is required.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
@@ -100,13 +94,14 @@ export default function CreateCaImportPublicPage() {
       return;
     }
 
+    const displayName = decodedImportedCertInfo?.subject || 'imported certificate';
+
     const formData = {
-      caName,
       importedCaCertPem,
     };
     
     console.log(`Mock Importing Public CA with data:`, formData);
-    toast({ title: "Mock Public CA Import", description: `Public CA import submitted for "${caName}". Details in console.`, variant: "default" });
+    toast({ title: "Mock Public CA Import", description: `Public CA import submitted for "${displayName}". Details in console.`, variant: "default" });
     router.push('/certificate-authorities');
 
     setIsSubmitting(false);
@@ -169,23 +164,11 @@ export default function CreateCaImportPublicPage() {
                         </CardContent>
                     </Card>
                 )}
-                <div>
-                  <Label htmlFor="caNameImportOnly">CA Name (for display)</Label>
-                  <Input
-                    id="caNameImportOnly"
-                    value={caName}
-                    onChange={(e) => setCaName(e.target.value)}
-                    placeholder="e.g., External Partner Root CA"
-                    required
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Provide a descriptive name. This will be pre-filled from the cert if possible.</p>
-                </div>
               </div>
             </section>
             
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg" disabled={isSubmitting}>
+              <Button type="submit" size="lg" disabled={isSubmitting || !importedCaCertPem.trim()}>
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
                 Import Public Certificate
               </Button>
