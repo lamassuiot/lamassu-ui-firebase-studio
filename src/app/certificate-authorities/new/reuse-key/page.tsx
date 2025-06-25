@@ -12,7 +12,7 @@ import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CaVisualizerCard } from '@/components/CaVisualizerCard';
+import { CaVisualizerCard } from '@/components/shared/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';

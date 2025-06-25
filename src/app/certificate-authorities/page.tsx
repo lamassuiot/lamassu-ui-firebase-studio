@@ -14,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 const CaFilesystemView = dynamic(() => 
-  import('@/components/dashboard/ca/CaFilesystemView').then(mod => mod.CaFilesystemView), 
+  import('@/components/ca/CaFilesystemView').then(mod => mod.CaFilesystemView), 
   { 
     ssr: false,
     loading: () => (
@@ -27,7 +27,7 @@ const CaFilesystemView = dynamic(() =>
 );
 
 const CaHierarchyView = dynamic(() => 
-  import('@/components/dashboard/ca/CaHierarchyView').then(mod => mod.CaHierarchyView), 
+  import('@/components/ca/CaHierarchyView').then(mod => mod.CaHierarchyView), 
   { 
     ssr: false,
     loading: () => (
@@ -40,7 +40,7 @@ const CaHierarchyView = dynamic(() =>
 );
 
 const CaGraphView = dynamic(() =>
-  import('@/components/dashboard/ca/CaGraphView').then(mod => mod.CaGraphView),
+  import('@/components/ca/CaGraphView').then(mod => mod.CaGraphView),
   {
     ssr: false,
     loading: () => (

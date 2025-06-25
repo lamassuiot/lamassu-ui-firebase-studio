@@ -15,7 +15,7 @@ import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPa
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
-import { TimelineEventItem, type TimelineEventDisplayData } from '@/components/dashboard/devices/TimelineEventItem';
+import { TimelineEventItem, type TimelineEventDisplayData } from '@/components/devices/TimelineEventItem';
 
 
 interface ApiDeviceIdentity {
@@ -463,4 +463,3 @@ export default function DeviceDetailsClient() { // Renamed component
     </div>
   );
 }
-

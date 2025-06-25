@@ -23,7 +23,7 @@ import {
   useSidebar,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
@@ -356,4 +356,3 @@ function CustomSidebarToggle() {
     </SidebarMenuButton>
   );
 }
-

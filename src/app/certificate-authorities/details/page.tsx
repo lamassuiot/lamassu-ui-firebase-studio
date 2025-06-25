@@ -1,5 +1,5 @@
 
-import CertificateAuthorityDetailsClient from '@/components/dashboard/ca/details/CertificateAuthorityDetailsClient';
+import CertificateAuthorityDetailsClient from '@/components/ca/details/CertificateAuthorityDetailsClient';
 
 // Page component (Server Component shell)
 export default function CertificateAuthorityDetailsPage() {

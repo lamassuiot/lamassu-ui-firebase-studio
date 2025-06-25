@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { CertificateStatusChartCard } from '@/components/dashboard/home/CertificateStatusChartCard';
-import { CaExpiryTimeline } from '@/components/dashboard/home/CaExpiryTimeline';
+import { CertificateStatusChartCard } from '@/components/home/CertificateStatusChartCard';
+import { CaExpiryTimeline } from '@/components/home/CaExpiryTimeline';
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -103,4 +103,3 @@ export default function HomePage() {
     </div>
   );
 }
-

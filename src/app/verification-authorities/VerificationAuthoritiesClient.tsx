@@ -11,7 +11,7 @@ import { ShieldCheck, Settings, PlusCircle, Loader2, FileText } from "lucide-rea
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
-import { CaVisualizerCard } from '@/components/CaVisualizerCard';
+import { CaVisualizerCard } from '@/components/shared/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal'; 
 import { CertificateSelectorModal } from '@/components/shared/CertificateSelectorModal';

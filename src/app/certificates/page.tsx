@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { CertificateList } from '@/components/CertificateList';
-import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
+import { CertificateList } from '@/components/certificates/CertificateList';
+import { CertificateDetailsModal } from '@/components/certificates/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
 import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, ListFilter, Search, PlusCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
