@@ -17,13 +17,14 @@ interface TagInputProps {
 }
 
 export const TagInput: React.FC<TagInputProps> = ({
-  value = [],
+  value,
   onChange,
   placeholder = "Add tags...",
   className,
   id
 }) => {
   const [inputValue, setInputValue] = useState('');
+  const tags = Array.isArray(value) ? value : [];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
@@ -33,18 +34,18 @@ export const TagInput: React.FC<TagInputProps> = ({
     if (e.key === 'Enter' && inputValue.trim() !== '') {
       e.preventDefault();
       const newTag = inputValue.trim();
-      if (newTag && !value.includes(newTag)) {
-        onChange([...value, newTag]);
+      if (newTag && !tags.includes(newTag)) {
+        onChange([...tags, newTag]);
       }
       setInputValue('');
-    } else if (e.key === 'Backspace' && inputValue === '' && value.length > 0) {
+    } else if (e.key === 'Backspace' && inputValue === '' && tags.length > 0) {
       // Optional: Remove last tag on backspace if input is empty
-      // onChange(value.slice(0, -1));
+      // onChange(tags.slice(0, -1));
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    onChange(value.filter(tag => tag !== tagToRemove));
+    onChange(tags.filter(tag => tag !== tagToRemove));
   };
 
   return (
@@ -53,7 +54,7 @@ export const TagInput: React.FC<TagInputProps> = ({
         className="flex flex-wrap gap-2 items-center w-full rounded-md border border-input bg-card p-2 min-h-[2.5rem] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
         onClick={() => document.getElementById(id || 'tag-input-field')?.focus()} // Focus input when clicking container
       >
-        {value.map((tag, index) => (
+        {tags.map((tag, index) => (
           <Badge
             key={index}
             variant="secondary"
@@ -81,7 +82,7 @@ export const TagInput: React.FC<TagInputProps> = ({
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder={value.length === 0 ? placeholder : ""}
+          placeholder={tags.length === 0 ? placeholder : ""}
           className="flex-grow h-auto p-0 m-0 border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-sm"
           autoComplete="off"
         />
