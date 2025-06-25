@@ -239,20 +239,19 @@ export default function RegistrationAuthoritiesPage() {
                         />
                     </CardContent>
                     <CardFooter className="border-t pt-4">
-                      <div className="flex w-full justify-end">
+                      <div className="flex w-full justify-end items-center space-x-2">
+                          <Button variant="outline" size="sm" onClick={() => alert(`Edit RA ${ra.name} (placeholder)`)}>
+                              <Edit className="mr-1.5 h-3.5 w-3.5" />
+                              Edit
+                          </Button>
                           <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8">
                                       <MoreVertical className="h-4 w-4" />
-                                      <span className="sr-only">RA Actions for {ra.name}</span>
+                                      <span className="sr-only">More actions for {ra.name}</span>
                                   </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => alert(`Edit RA ${ra.name} (placeholder)`)}>
-                                      <Edit className="mr-2 h-4 w-4" />
-                                      <span>Edit</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => alert(`Show EST Enroll Commands for ${ra.name} (placeholder)`)}>
                                       <TerminalSquare className="mr-2 h-4 w-4" />
                                       <span>EST - Enroll: cURL Commands</span>
