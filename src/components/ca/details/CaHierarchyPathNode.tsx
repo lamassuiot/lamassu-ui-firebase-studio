@@ -3,11 +3,9 @@
 
 import React from 'react';
 import type { CA } from '@/lib/ca-data';
-import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle, ChevronDown, Landmark, KeyRound } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, ChevronDown, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isPast, parseISO, formatDistanceToNowStrict } from 'date-fns';
-import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';

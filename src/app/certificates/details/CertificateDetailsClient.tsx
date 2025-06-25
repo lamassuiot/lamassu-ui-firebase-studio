@@ -4,14 +4,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation'; // Changed from useParams
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, ShieldAlert, Loader2, AlertTriangle, Layers, Code2, Info, Network } from "lucide-react";
+import { ArrowLeft, FileText, ShieldAlert, Loader2, AlertTriangle, Layers, Code2, Info } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
-import { fetchIssuedCertificates, findCertificateBySerialNumber } from '@/lib/issued-certificate-data';
+import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { fetchAndProcessCAs, findCaById } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';

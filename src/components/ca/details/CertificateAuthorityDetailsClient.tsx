@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye, Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, RefreshCw, PlusCircle, FilePlus2 } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight, Eye, Info, KeyRound, Lock, ListChecks, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, RefreshCw, FilePlus2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, fetchAndProcessCAs, getCaDisplayName } from '@/lib/ca-data';
+import { findCaById, fetchAndProcessCAs } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { useAuth } from '@/contexts/AuthContext';

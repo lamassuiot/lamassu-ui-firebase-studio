@@ -17,7 +17,6 @@ import { ArrowLeft, PlusCircle, Settings2, KeyRound, ListChecks, Info } from "lu
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
 const ecdsaCurves = ["P-256", "P-384", "P-521"] as const;

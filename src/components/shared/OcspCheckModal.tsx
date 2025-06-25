@@ -17,12 +17,7 @@ import {
     setEngine,
     BasicOCSPResponse,
     Extension,
-    getRandomValues,
-    ResponseBytes,
-    CertID,
-    TBSRequest,
-    Request as PkijsRequest,
-    GeneralName
+    getRandomValues
 } from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';

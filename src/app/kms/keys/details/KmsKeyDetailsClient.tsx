@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'; // Changed from us
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, KeyRound, Info, FileText, Edit, ShieldCheck, FileSignature, Loader2, AlertTriangle, Settings, PenTool } from "lucide-react";
+import { ArrowLeft, KeyRound, Info, FileText, ShieldCheck, FileSignature, Loader2, AlertTriangle, PenTool } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';

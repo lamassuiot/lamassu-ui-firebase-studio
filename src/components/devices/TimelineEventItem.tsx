@@ -3,9 +3,9 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, AlertTriangle, History, Edit, Activity, Info, Eye, HelpCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, Eye, HelpCircle } from 'lucide-react';
 
 export interface TimelineEventDisplayData {
   id: string;

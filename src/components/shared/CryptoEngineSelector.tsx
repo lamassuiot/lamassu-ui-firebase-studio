@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { CryptoEngineViewer } from './CryptoEngineViewer';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';

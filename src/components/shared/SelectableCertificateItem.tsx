@@ -6,7 +6,6 @@ import { FileText, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 import type { CertificateData } from '@/types/certificate';
 import { format, parseISO, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Badge } from '../ui/badge';
 
 interface SelectableCertificateItemProps {
   certificate: CertificateData;

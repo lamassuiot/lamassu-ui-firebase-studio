@@ -2,7 +2,7 @@
 'use client';
 
 import type React from 'react';
-import { Landmark, KeyRound, ShieldAlert, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Landmark, KeyRound, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { isPast, parseISO, formatDistanceToNowStrict } from 'date-fns';
 import type { CA } from '@/lib/ca-data';
 import { cn } from '@/lib/utils';

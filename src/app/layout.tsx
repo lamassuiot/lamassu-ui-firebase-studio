@@ -25,7 +25,6 @@ import {
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

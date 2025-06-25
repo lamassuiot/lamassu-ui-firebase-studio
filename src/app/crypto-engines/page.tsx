@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Cpu, ShieldAlert, ShieldCheck, Shield, Settings, Tag, CheckSquare, RefreshCw, Cloud, HardDrive, ShieldQuestion as ShieldQuestionIcon, Database as DatabaseIcon, FolderKey } from 'lucide-react'; // Added DatabaseIcon, FolderKey
+import { Loader2, Cpu, ShieldAlert, ShieldCheck, Shield, Settings, Tag, CheckSquare, RefreshCw, ShieldQuestion as ShieldQuestionIcon, FolderKey } from 'lucide-react'; // Added DatabaseIcon, FolderKey
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ApiCryptoEngine, ApiKeyTypeDetail } from '@/types/crypto-engine'; 

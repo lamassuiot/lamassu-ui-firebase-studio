@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { UploadCloud, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import type { CertificateData } from '@/types/certificate';
-import crypto from 'crypto'; // For client-side UUID and hash generation
+// For client-side UUID and hash generation
 
 interface CertificateImportFormProps {
   onCertificateImported: (certificate: CertificateData) => void;

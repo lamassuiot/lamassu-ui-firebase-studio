@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import { Cpu, Cloud, HardDrive, ShieldQuestion, Database, FolderKey } from 'lucide-react';
+import { ShieldQuestion, FolderKey } from 'lucide-react';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';

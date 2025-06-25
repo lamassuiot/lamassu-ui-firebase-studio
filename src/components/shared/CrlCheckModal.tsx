@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, AlertTriangle, FileText, Download, Copy, Check } from "lucide-react";
+import { Loader2, AlertTriangle, FileText, Download } from "lucide-react";
 import * as asn1js from "asn1js";
 import { CertificateRevocationList, getCrypto, setEngine } from "pkijs";
 import type { CA } from '@/lib/ca-data';

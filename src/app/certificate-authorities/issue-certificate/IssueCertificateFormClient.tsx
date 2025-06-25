@@ -1,16 +1,15 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, FilePlus2, KeyRound, Loader2, AlertTriangle, FileSignature, UploadCloud, ChevronRight, Copy, Check, Download as DownloadIcon, ListChecks, Settings2 } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle, Copy, Check, Download as DownloadIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
 import { DetailItem } from '@/components/shared/DetailItem';

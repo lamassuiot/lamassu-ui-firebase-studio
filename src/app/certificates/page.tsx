@@ -1,12 +1,12 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
-import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, ListFilter, Search, PlusCircle } from 'lucide-react';
+import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, Search, PlusCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data'; 
 import { fetchAndProcessCAs, type CA } from '@/lib/ca-data';
@@ -17,14 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';

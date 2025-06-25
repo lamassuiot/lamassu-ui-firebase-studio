@@ -6,7 +6,6 @@ import type { CA } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format, parseISO, isPast, addMonths, subMonths } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { CalendarClock, AlertCircle, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import {
   LineChart,
@@ -16,7 +15,6 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ReferenceLine,
-  ResponsiveContainer,
   Brush,
   type DotProps,
 } from 'recharts';
