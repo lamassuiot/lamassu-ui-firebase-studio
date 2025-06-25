@@ -507,10 +507,17 @@ export default function CreateCertificateAuthorityPage() {
                   )}
 
                   {selectedMode === 'importFull' && (
-                     <div>
-                        <Label htmlFor="importedCaPem">CA Certificate & Private Key (PEM)</Label>
-                        <Textarea id="importedCaPem" placeholder="Paste the CA certificate PEM, optionally followed by its private key PEM..." rows={8} required className="mt-1 font-mono"/>
-                        <p className="text-xs text-muted-foreground mt-1">Include both the certificate and the encrypted or unencrypted private key.</p>
+                     <div className="space-y-4">
+                        <div>
+                           <Label htmlFor="importedCaCertPem">CA Certificate (PEM)</Label>
+                           <Textarea id="importedCaCertPem" placeholder="Paste the CA certificate PEM here..." rows={6} required className="mt-1 font-mono"/>
+                           <p className="text-xs text-muted-foreground mt-1">The public certificate of the CA you are importing.</p>
+                        </div>
+                        <div>
+                           <Label htmlFor="importedCaKeyPem">CA Private Key (PEM)</Label>
+                           <Textarea id="importedCaKeyPem" placeholder="Paste the corresponding private key PEM here..." rows={6} required className="mt-1 font-mono"/>
+                           <p className="text-xs text-muted-foreground mt-1">The key can be encrypted; you would typically provide a passphrase in a real scenario.</p>
+                        </div>
                      </div>
                   )}
 
