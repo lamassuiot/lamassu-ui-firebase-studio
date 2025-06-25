@@ -15,6 +15,7 @@ import { format as formatDate } from 'date-fns';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DecodedImportedCertInfo {
   subject?: string;
@@ -39,6 +40,7 @@ function ab2hex(ab: ArrayBuffer) {
 export default function CreateCaImportPublicPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -82,6 +84,11 @@ export default function CreateCaImportPublicPage() {
     event.preventDefault();
     setIsSubmitting(true);
 
+    if (!user?.access_token) {
+        toast({ title: "Authentication Error", description: "You must be logged in to import a CA.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
     if (!importedCaCertPem.trim()) {
       toast({ title: "Validation Error", description: "Certificate PEM is required.", variant: "destructive" });
       setIsSubmitting(false);
@@ -93,17 +100,48 @@ export default function CreateCaImportPublicPage() {
       return;
     }
 
-    const displayName = decodedImportedCertInfo?.subject || 'imported certificate';
-
-    const formData = {
-      importedCaCertPem,
+    const payload = {
+        id: crypto.randomUUID(),
+        ca: window.btoa(importedCaCertPem),
+        ca_chain: [],
+        ca_type: "EXTERNAL_PUBLIC"
     };
     
-    console.log(`Mock Importing Public CA with data:`, formData);
-    toast({ title: "Mock Public CA Import", description: `Public CA import submitted for "${displayName}". Details in console.`, variant: "default" });
-    router.push('/certificate-authorities');
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas/import', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token}`,
+            },
+            body: JSON.stringify(payload),
+        });
 
-    setIsSubmitting(false);
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to import public CA. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Failed to import public CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            } catch (e) {
+                console.error("Failed to parse error response as JSON for public CA import:", e);
+            }
+            throw new Error(errorMessage);
+        }
+
+        toast({
+            title: "Public CA Import Successful",
+            description: `Public CA "${decodedImportedCertInfo?.subject || 'imported certificate'}" has been imported.`,
+            variant: "default",
+        });
+        router.push('/certificate-authorities');
+
+    } catch (error: any) {
+        console.error("Public CA Import API Error:", error);
+        toast({ title: "Import Failed", description: error.message, variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
