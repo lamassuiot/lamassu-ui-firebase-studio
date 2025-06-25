@@ -6,13 +6,31 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, PlusCircle, Loader2, AlertTriangle, Settings2, Tag, Calendar, ShieldCheck, Edit, RefreshCw } from "lucide-react";
+import {
+  Users,
+  PlusCircle,
+  Loader2,
+  AlertTriangle,
+  Settings2,
+  Tag,
+  Calendar,
+  ShieldCheck,
+  Edit,
+  RefreshCw,
+  MoreVertical,
+  TerminalSquare,
+  Landmark,
+  Router as RouterIcon,
+  BookText,
+  Trash2
+} from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 // Define types based on the provided API response
 interface ApiRaDeviceProfile {
@@ -221,11 +239,47 @@ export default function RegistrationAuthoritiesPage() {
                         />
                     </CardContent>
                     <CardFooter className="border-t pt-4">
-                        <div className="flex w-full justify-end space-x-2">
-                           <Button variant="default" size="sm" onClick={() => alert(`Edit RA ${ra.name} (placeholder)`)}>
-                                <Edit className="mr-1.5 h-3.5 w-3.5"/> Edit
-                           </Button>
-                        </div>
+                      <div className="flex w-full justify-end">
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreVertical className="h-4 w-4" />
+                                      <span className="sr-only">RA Actions for {ra.name}</span>
+                                  </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => alert(`Edit RA ${ra.name} (placeholder)`)}>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      <span>Edit</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => alert(`Show EST Enroll Commands for ${ra.name} (placeholder)`)}>
+                                      <TerminalSquare className="mr-2 h-4 w-4" />
+                                      <span>EST - Enroll: cURL Commands</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => alert(`Show EST CACerts for ${ra.name} (placeholder)`)}>
+                                      <Landmark className="mr-2 h-4 w-4" />
+                                      <span>EST - CACerts</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => alert(`Go to DMS owned devices for RA ${ra.name} (placeholder)`)}>
+                                      <RouterIcon className="mr-2 h-4 w-4" />
+                                      <span>Go to DMS owned devices</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => alert(`Show Metadata for ${ra.name} (placeholder)`)}>
+                                      <BookText className="mr-2 h-4 w-4" />
+                                      <span>Show Metadata</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                      onClick={() => alert(`Delete RA ${ra.name} (placeholder)`)}
+                                      className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                  >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      <span>Delete</span>
+                                  </DropdownMenuItem>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+                      </div>
                     </CardFooter>
                 </Card>
             ))}
