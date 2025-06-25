@@ -26,6 +26,18 @@ import { TagInput } from '@/components/shared/TagInput';
 import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
+const hslToHex = (h: number, s: number, l: number): string => {
+  l /= 100;
+  const a = (s * Math.min(l, 1 - l)) / 100;
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color)
+      .toString(16)
+      .padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+};
 
 const mockSigningProfiles = [
   { id: 'profile-iot-standard', name: 'IoT Device Standard Profile' },
@@ -65,8 +77,8 @@ export default function CreateRegistrationAuthorityPage() {
   const [managedCAs, setManagedCAs] = useState<CA[]>([]);
 
   const [selectedDeviceIconName, setSelectedDeviceIconName] = useState<string | null>('Router');
-  const [selectedDeviceIconColor, setSelectedDeviceIconColor] = useState<string>('#0f67ff'); // Default primary blue
-  const [selectedDeviceIconBgColor, setSelectedDeviceIconBgColor] = useState<string>('#F0F8FF'); // Default AliceBlue
+  const [selectedDeviceIconColor, setSelectedDeviceIconColor] = useState<string>('#0f67ff');
+  const [selectedDeviceIconBgColor, setSelectedDeviceIconBgColor] = useState<string>('#F0F8FF');
   const [isDeviceIconModalOpen, setIsDeviceIconModalOpen] = useState(false);
 
 
@@ -128,6 +140,19 @@ export default function CreateRegistrationAuthorityPage() {
         loadCaData();
     }
   }, [loadCaData, authLoading]);
+
+  useEffect(() => {
+    const randomHue = Math.floor(Math.random() * 360);
+    const saturation = 80;
+
+    const iconLightness = 50;
+    const iconColorHex = hslToHex(randomHue, saturation, iconLightness);
+    setSelectedDeviceIconColor(iconColorHex);
+
+    const bgLightness = 97;
+    const bgColorHex = hslToHex(randomHue, saturation, bgLightness);
+    setSelectedDeviceIconBgColor(bgColorHex);
+  }, []); // Empty dependency array ensures this runs once on mount.
 
 
   const handleEnrollmentCaSelectFromModal = (ca: CA) => {
@@ -637,4 +662,4 @@ export default function CreateRegistrationAuthorityPage() {
 
     </div>
   );
-}  
+}
