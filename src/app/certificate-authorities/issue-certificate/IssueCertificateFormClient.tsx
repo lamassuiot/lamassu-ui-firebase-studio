@@ -240,7 +240,10 @@ export default function IssueCertificateFormClient() {
   }, [csrPem, issuanceMode]);
 
   // --- Handlers ---
-  const handleBack = () => setStep(prev => prev - 1);
+  const handleBack = () => {
+    setGenerationError(null);
+    setStep(prev => prev - 1);
+  };
   const handleCopy = async (text: string, type: string, setCopied: (v: boolean) => void) => {
     if (!text) return;
     try {
@@ -267,7 +270,7 @@ export default function IssueCertificateFormClient() {
   const handleCsrFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setUploadedCsrFileName(file.name);
+      // setUploadedCsrFileName(file.name);
       const content = await file.text();
       setCsrPem(content);
     }
@@ -470,7 +473,7 @@ export default function IssueCertificateFormClient() {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1"><Label htmlFor="dnsSans">DNS Names</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="Add DNS names..."/></div>
                         <div className="space-y-1"><Label htmlFor="ipSans">IP Addresses</Label><TagInput id="ipSans" value={ipSans} onChange={setIpSans} placeholder="Add IP addresses..."/></div>
-                        <div className="space-y-1"><Label htmlFor="emailSans">Email Addresses</Label><TagInput id="emailSans" value={emailSans} onChange={setEmailSans} placeholder="Add email addresses..."/></div>
+                        <div className="space-y-1"><Label htmlFor="emailSans">Email Addresses</Label><TagInput id="emailSans" value={setEmailSans} placeholder="Add email addresses..."/></div>
                         <div className="space-y-1"><Label htmlFor="uriSans">URIs</Label><TagInput id="uriSans" value={uriSans} onChange={setUriSans} placeholder="Add URIs..."/></div>
                     </div>
                   </div>
@@ -535,12 +538,24 @@ export default function IssueCertificateFormClient() {
           )}
 
           {step === 4 && (
-            <div className="flex items-center justify-center p-8 flex-col">
-              <Loader2 className="h-16 w-16 text-primary animate-spin" />
-              <h3 className="text-2xl font-semibold mt-4">Issuing Certificate...</h3>
-              <p className="text-muted-foreground text-center mt-2">
-                Your request is being processed by the Certificate Authority. Please wait.
-              </p>
+            <div className="flex items-center justify-center p-8 flex-col text-center">
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-16 w-16 text-primary animate-spin" />
+                  <h3 className="text-2xl font-semibold mt-4">Issuing Certificate...</h3>
+                  <p className="text-muted-foreground mt-2">
+                    Your request is being processed by the Certificate Authority. Please wait.
+                  </p>
+                </>
+              ) : generationError ? (
+                <>
+                  <AlertTriangle className="h-16 w-16 text-destructive" />
+                  <h3 className="text-2xl font-semibold mt-4">Issuance Failed</h3>
+                  <p className="text-muted-foreground mt-2">
+                    An error occurred. Please review the message below, go back to correct any issues, and try again.
+                  </p>
+                </>
+              ) : null}
             </div>
           )}
 
@@ -592,12 +607,23 @@ export default function IssueCertificateFormClient() {
 
         </CardContent>
         <CardFooter className="flex justify-between">
-            {step < 4 ? <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1}>Back</Button> : <div/> /* Spacer */}
+          {step < 4 || (step === 4 && !!generationError) ? (
+            <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1}>
+              Back
+            </Button>
+          ) : <div/> /* Spacer */}
+            
             <div className="flex space-x-2">
                 {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndReview} disabled={isGenerating || !commonName.trim()}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Next: Review</Button>}
                 {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleReviewUploadedCsr} disabled={!csrPem.trim()}>Next: Review</Button>}
                 {step === 2 && <Button type="button" onClick={() => setStep(3)}>Next: Configure</Button>}
                 {step === 3 && <Button type="button" onClick={() => { setStep(4); handleIssueCertificate(); }} disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Issue Certificate</Button>}
+                {step === 4 && !!generationError && (
+                  <Button type="button" onClick={handleIssueCertificate} disabled={isGenerating}>
+                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Retry
+                  </Button>
+                )}
                 {step === 5 && (
                     <>
                         <Button type="button" variant="outline" onClick={() => router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`)}>
