@@ -27,7 +27,7 @@ const signatureAlgorithms = [
 
 const keyUsageOptions = [
   "DigitalSignature", "NonRepudiation", "KeyEncipherment", "DataEncipherment",
-  "KeyAgreement", "KeyCertSign", "CRLSign", "EncipherOnly", "DecipherOnly"
+  "KeyAgreement", "CertSign", "CRLSign", "EncipherOnly", "DecipherOnly"
 ] as const;
 type KeyUsageOption = typeof keyUsageOptions[number];
 

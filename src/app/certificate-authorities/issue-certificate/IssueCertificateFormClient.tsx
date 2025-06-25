@@ -125,7 +125,7 @@ const KEY_USAGE_OPTIONS = [
     { id: "KeyEncipherment", label: "Key Encipherment" },
     { id: "DataEncipherment", label: "Data Encipherment" },
     { id: "KeyAgreement", label: "Key Agreement" },
-    { id: "KeyCertSign", label: "Certificate Signing" },
+    { id: "CertSign", label: "Certificate Signing" },
     { id: "CRLSign", label: "CRL Signing" },
     { id: "EncipherOnly", label: "Encipher Only" },
     { id: "DecipherOnly", label: "Decipher Only" },
