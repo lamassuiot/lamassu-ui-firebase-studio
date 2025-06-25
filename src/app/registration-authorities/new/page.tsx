@@ -12,7 +12,7 @@ import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageC
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { CaVisualizerCard } from '@/components/shared/CaVisualizerCard';
+import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal'; 

@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Tree, TreeNode } from 'react-organizational-chart';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { CaVisualizerCard } from '@/components/shared/CaVisualizerCard';
+import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch'; 
 import { Label } from '@/components/ui/label'; 
