@@ -236,7 +236,7 @@ export default function CreateRegistrationAuthorityPage() {
     );
   };
 
-  const sectionHeadingStyle = "text-lg font-semibold flex items-center mb-3 mt-6";
+  const sectionHeadingStyle = "text-lg font-semibold flex items-center mb-3 mt-15";
   const SelectedIconComponent = selectedDeviceIconName ? getLucideIconByName(selectedDeviceIconName) : null;
 
   return (
@@ -255,7 +255,7 @@ export default function CreateRegistrationAuthorityPage() {
           </p>
         </div>
         <div className="p-6 pt-0"> 
-          <form onSubmit={handleSubmit} className="space-y-0">
+          <form onSubmit={handleSubmit} className="">
             
             <h3 className={cn(sectionHeadingStyle)}>
               <Settings className="mr-2 h-5 w-5 text-muted-foreground"/>Device Manufacturing Definition

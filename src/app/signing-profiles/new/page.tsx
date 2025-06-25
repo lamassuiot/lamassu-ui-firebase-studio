@@ -26,14 +26,14 @@ const signatureAlgorithms = [
 ] as const;
 
 const keyUsageOptions = [
-  "digitalSignature", "nonRepudiation", "keyEncipherment", "dataEncipherment",
-  "keyAgreement", "keyCertSign", "cRLSign", "encipherOnly", "decipherOnly"
+  "DigitalSignature", "NonRepudiation", "KeyEncipherment", "DataEncipherment",
+  "KeyAgreement", "KeyCertSign", "CRLSign", "EncipherOnly", "DecipherOnly"
 ] as const;
 type KeyUsageOption = typeof keyUsageOptions[number];
 
 const extendedKeyUsageOptions = [
-  "serverAuth", "clientAuth", "codeSigning", "emailProtection",
-  "timeStamping", "ocspSigning", "anyExtendedKeyUsage"
+  "ServerAuth", "ClientAuth", "CodeSigning", "EmailProtection",
+  "TimeStamping", "OCSPSigning", "AnyExtendedKeyUsage"
 ] as const;
 type ExtendedKeyUsageOption = typeof extendedKeyUsageOptions[number];
 
@@ -97,9 +97,9 @@ export default function CreateSigningProfilePage() {
       allowedRsaKeyStrengths: ["2048"],
       allowedEcdsaCurves: [],
       honorKeyUsage: false,
-      keyUsages: ['digitalSignature', 'keyEncipherment'],
+      keyUsages: ['DigitalSignature', 'KeyEncipherment'],
       honorExtendedKeyUsage: false,
-      extendedKeyUsages: ['clientAuth'],
+      extendedKeyUsages: ['ClientAuth'],
     },
   });
 
