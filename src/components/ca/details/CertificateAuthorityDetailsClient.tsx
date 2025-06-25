@@ -28,6 +28,7 @@ import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTab
 import { format, parseISO, isPast } from 'date-fns';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Eye, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CaStatsDisplay } from './CaStatsDisplay';
 
 
 type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
@@ -535,17 +536,26 @@ export default function CertificateAuthorityDetailsClient() {
 
       <div className="w-full">
         <div className="p-6 border-b">
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-2">
-            <div>
+          <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
+            <div className="flex-shrink-0 self-start xl:self-center">
               <div className="flex items-center space-x-3">
                 <FileText className="h-8 w-8 text-primary" />
-                <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
+                <div>
+                    <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                        CA ID: {caDetails.id}
+                    </p>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground mt-1.5">
-                CA ID: {caDetails.id}
-              </p>
             </div>
-             <Badge variant={statusVariant} className={cn("text-sm self-start sm:self-auto mt-2 sm:mt-0", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
+            
+            <div className="flex-grow w-full xl:w-auto">
+              <CaStatsDisplay stats={caStats} isLoading={isLoadingStats} error={errorStats} />
+            </div>
+
+            <div className="flex-shrink-0 self-start xl:self-center">
+              <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
+            </div>
           </div>
         </div>
 
