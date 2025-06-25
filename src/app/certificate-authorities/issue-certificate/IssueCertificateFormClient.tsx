@@ -120,13 +120,35 @@ const availableAlgorithms = [{ value: 'RSA', label: 'RSA' }, { value: 'ECDSA', l
 const rsaKeySizes = [{ value: '2048', label: '2048-bit' }, { value: '3072', label: '3072-bit' }, { value: '4096', label: '4096-bit' }];
 const ecdsaCurves = [{ value: 'P-256', label: 'P-256 (secp256r1)' }, { value: 'P-384', label: 'P-384 (secp384r1)' }, { value: 'P-521', label: 'P-521 (secp521r1)' }];
 
-const KEY_USAGE_OPTIONS = [{ id: "digitalSignature", label: "Digital Signature" }, { id: "nonRepudiation", label: "Non-Repudiation" }, { id: "keyEncipherment", label: "Key Encipherment" }, { id: "dataEncipherment", label: "Data Encipherment" }, { id: "keyAgreement", label: "Key Agreement" }, { id: "keyCertSign", label: "Certificate Signing" }, { id: "cRLSign", label: "CRL Signing" }, { id: "encipherOnly", label: "Encipher Only" }, { id: "decipherOnly", label: "Decipher Only" }] as const;
-const EKU_OPTIONS = [{ id: "ServerAuth", label: "Server Authentication" }, { id: "ClientAuth", label: "Client Authentication" }, { id: "CodeSigning", label: "Code Signing" }, { id: "EmailProtection", label: "Email Protection" }, { id: "TimeStamping", label: "Time Stamping" }, { id: "OCSPSigning", label: "OCSP Signing" }, { id: "AnyExtendedKeyUsage", label: "Any Extended Key Usage" }] as const;
+const KEY_USAGE_OPTIONS = [
+    { id: "DigitalSignature", label: "Digital Signature" },
+    { id: "ContentCommitment", label: "Content Commitment (Non-Repudiation)" },
+    { id: "KeyEncipherment", label: "Key Encipherment" },
+    { id: "DataEncipherment", label: "Data Encipherment" },
+    { id: "KeyAgreement", label: "Key Agreement" },
+    { id: "CertSign", label: "Certificate Signing" },
+    { id: "CRLSign", label: "CRL Signing" },
+    { id: "EncipherOnly", label: "Encipher Only" },
+    { id: "DecipherOnly", label: "Decipher Only" },
+] as const;
+
+const EKU_OPTIONS = [
+    { id: "ServerAuth", label: "Server Authentication" },
+    { id: "ClientAuth", label: "Client Authentication" },
+    { id: "CodeSigning", label: "Code Signing" },
+    { id: "EmailProtection", label: "Email Protection" },
+    { id: "TimeStamping", label: "Time Stamping" },
+    { id: "OCSPSigning", label: "OCSP Signing" },
+    { id: "IPSECUser", label: "IPSEC User" },
+    { id: "IPSECTunnel", label: "IPSEC Tunnel" },
+    { id: "IPSECEndSystem", label: "IPSEC End System" },
+    { id: "AnyExtendedKeyUsage", label: "Any Extended Key Usage" },
+] as const;
 
 
 // --- Stepper Component ---
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Details", "Review", "Configure", "Issue"];
+  const steps = ["Details", "Review", "Configure", "Issue", "Done"];
   return (
     <div className="flex items-center space-x-4 mb-8">
       {steps.map((label, index) => {
@@ -206,7 +228,7 @@ export default function IssueCertificateFormClient() {
   const [honorExtensions, setHonorExtensions] = useState(true);
   const [honorSubject, setHonorSubject] = useState(true);
   
-  // Step 4 (Final step)
+  // Step 4/5
   const [issuedCertificate, setIssuedCertificate] = useState<{ pem: string; serial: string } | null>(null);
   const [issuedCertCopied, setIssuedCertCopied] = useState(false);
 
@@ -377,7 +399,6 @@ export default function IssueCertificateFormClient() {
             key_usage: keyUsages,
             honor_extensions: honorExtensions,
             honor_subject: honorSubject,
-            sign_as_ca: false,
             validity: {
                 type: "Duration",
                 duration: duration
@@ -400,7 +421,7 @@ export default function IssueCertificateFormClient() {
 
         const issuedPem = result.certificate ? window.atob(result.certificate) : 'Error: Certificate not found in response.';
         setIssuedCertificate({ pem: issuedPem, serial: result.serial_number });
-        setStep(4);
+        setStep(5);
         toast({ title: "Success!", description: "Certificate issued successfully." });
     } catch (e: any) {
         setGenerationError(e.message);
@@ -521,6 +542,16 @@ export default function IssueCertificateFormClient() {
           )}
 
           {step === 4 && (
+            <div className="flex items-center justify-center p-8 flex-col">
+              <Loader2 className="h-16 w-16 text-primary animate-spin" />
+              <h3 className="text-2xl font-semibold mt-4">Issuing Certificate...</h3>
+              <p className="text-muted-foreground text-center mt-2">
+                Your request is being processed by the Certificate Authority. Please wait.
+              </p>
+            </div>
+          )}
+
+          {step === 5 && (
             <div className="space-y-6 mt-6 text-center">
               <Check className="h-16 w-16 text-green-500 mx-auto" />
               <h3 className="text-2xl font-semibold">Certificate Issued Successfully!</h3>
@@ -553,8 +584,8 @@ export default function IssueCertificateFormClient() {
                 {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndReview} disabled={isGenerating || !commonName.trim()}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Next: Review</Button>}
                 {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleReviewUploadedCsr} disabled={!csrPem.trim()}>Next: Review</Button>}
                 {step === 2 && <Button type="button" onClick={() => setStep(3)}>Next: Configure</Button>}
-                {step === 3 && <Button type="button" onClick={handleIssueCertificate} disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Issue Certificate</Button>}
-                {step === 4 && (
+                {step === 3 && <Button type="button" onClick={() => { setStep(4); handleIssueCertificate(); }} disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Issue Certificate</Button>}
+                {step === 5 && (
                     <>
                         <Button type="button" variant="outline" onClick={() => router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`)}>
                             Finish
@@ -570,4 +601,3 @@ export default function IssueCertificateFormClient() {
     </div>
   );
 }
-
