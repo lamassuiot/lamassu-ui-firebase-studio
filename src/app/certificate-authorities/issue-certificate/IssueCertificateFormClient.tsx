@@ -121,28 +121,24 @@ const rsaKeySizes = [{ value: '2048', label: '2048-bit' }, { value: '3072', labe
 const ecdsaCurves = [{ value: 'P-256', label: 'P-256 (secp256r1)' }, { value: 'P-384', label: 'P-384 (secp384r1)' }, { value: 'P-521', label: 'P-521 (secp521r1)' }];
 
 const KEY_USAGE_OPTIONS = [
-    { id: "DigitalSignature", label: "Digital Signature" },
-    { id: "ContentCommitment", label: "Content Commitment (Non-Repudiation)" },
-    { id: "KeyEncipherment", label: "Key Encipherment" },
-    { id: "DataEncipherment", label: "Data Encipherment" },
-    { id: "KeyAgreement", label: "Key Agreement" },
-    { id: "CertSign", label: "Certificate Signing" },
-    { id: "CRLSign", label: "CRL Signing" },
-    { id: "EncipherOnly", label: "Encipher Only" },
-    { id: "DecipherOnly", label: "Decipher Only" },
+    { id: "digitalSignature", label: "Digital Signature" },
+    { id: "contentCommitment", label: "Content Commitment (Non-Repudiation)" },
+    { id: "keyEncipherment", label: "Key Encipherment" },
+    { id: "dataEncipherment", label: "Data Encipherment" },
+    { id: "keyAgreement", label: "Key Agreement" },
+    { id: "keyCertSign", label: "Certificate Signing" },
+    { id: "cRLSign", label: "CRL Signing" },
+    { id: "encipherOnly", label: "Encipher Only" },
+    { id: "decipherOnly", label: "Decipher Only" },
 ] as const;
 
 const EKU_OPTIONS = [
-    { id: "ServerAuth", label: "Server Authentication" },
-    { id: "ClientAuth", label: "Client Authentication" },
-    { id: "CodeSigning", label: "Code Signing" },
-    { id: "EmailProtection", label: "Email Protection" },
-    { id: "TimeStamping", label: "Time Stamping" },
-    { id: "OCSPSigning", label: "OCSP Signing" },
-    { id: "IPSECUser", label: "IPSEC User" },
-    { id: "IPSECTunnel", label: "IPSEC Tunnel" },
-    { id: "IPSECEndSystem", label: "IPSEC End System" },
-    { id: "AnyExtendedKeyUsage", label: "Any Extended Key Usage" },
+    { id: "serverAuth", label: "Server Authentication" },
+    { id: "clientAuth", label: "Client Authentication" },
+    { id: "codeSigning", label: "Code Signing" },
+    { id: "emailProtection", label: "Email Protection" },
+    { id: "timeStamping", label: "Time Stamping" },
+    { id: "ocspSigning", label: "OCSP Signing" },
 ] as const;
 
 
@@ -222,8 +218,8 @@ export default function IssueCertificateFormClient() {
   const [decodedCsrInfo, setDecodedCsrInfo] = useState<DecodedCsrInfo | null>(null);
 
   // Step 3
-  const [keyUsages, setKeyUsages] = useState<string[]>([]);
-  const [extendedKeyUsages, setExtendedKeyUsages] = useState<string[]>(['ClientAuth', 'ServerAuth']);
+  const [keyUsages, setKeyUsages] = useState<string[]>(['digitalSignature', 'keyEncipherment']);
+  const [extendedKeyUsages, setExtendedKeyUsages] = useState<string[]>(['clientAuth', 'serverAuth']);
   const [duration, setDuration] = useState('1y');
   const [honorExtensions, setHonorExtensions] = useState(true);
   const [honorSubject, setHonorSubject] = useState(true);
@@ -555,7 +551,8 @@ export default function IssueCertificateFormClient() {
             <div className="space-y-6 mt-6 text-center">
               <Check className="h-16 w-16 text-green-500 mx-auto" />
               <h3 className="text-2xl font-semibold">Certificate Issued Successfully!</h3>
-              <p className="text-muted-foreground">The certificate has been provisioned. You can view the details or download the PEM file below.</p>
+              <p className="text-muted-foreground">The certificate has been provisioned. Remember to save your private key if you generated one in the browser.</p>
+              
               <div className="space-y-2 text-left">
                 <div className="flex justify-between items-center">
                   <h3 className="font-medium">Issued Certificate PEM</h3>
@@ -571,6 +568,25 @@ export default function IssueCertificateFormClient() {
                 </div>
                 <Textarea readOnly value={issuedCertificate?.pem || ''} rows={10} className="font-mono bg-muted/50"/>
               </div>
+
+              {generatedPrivateKeyPem && (
+                  <div className="space-y-2 text-left pt-4">
+                      <div className="flex justify-between items-center">
+                          <h3 className="font-medium">Generated Private Key</h3>
+                          <div className="flex space-x-2">
+                              <Button type="button" variant="outline" size="sm" onClick={()=>handleCopy(generatedPrivateKeyPem, "Private Key", setPrivateKeyCopied)}>
+                                  {privateKeyCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}
+                                  {privateKeyCopied?'Copied':'Copy'}
+                              </Button>
+                              <Button type="button" variant="outline" size="sm" onClick={()=>handleDownload(generatedPrivateKeyPem, "private_key.pem", "application/x-pem-file")}>
+                                  <DownloadIcon className="mr-1 h-4 w-4"/>Download
+                              </Button>
+                          </div>
+                      </div>
+                      <p className="text-xs text-destructive">This is your only chance to save the private key. Store it securely.</p>
+                      <Textarea readOnly value={generatedPrivateKeyPem} rows={8} className="font-mono bg-muted/50"/>
+                  </div>
+              )}
             </div>
           )}
 
