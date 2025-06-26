@@ -97,10 +97,10 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         ))}
       </div>
 
-      <Card className="shadow-lg w-full" style={{ background: "#e2e7fe"}}>
+      <Card className="shadow-lg w-full bg-primary text-primary-foreground">
           <CardHeader>
               <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-              <CardDescription>Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>
+              <CardDescription className="text-primary-foreground/80">Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>
           </CardHeader>
           <CardContent>
             {cas.length > 0 ? (
