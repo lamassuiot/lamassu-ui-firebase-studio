@@ -115,3 +115,79 @@
     @apply font-headline;
   }
 }
+
+@layer components {
+  /* Vis-timeline custom styles */
+  .vis-timeline {
+    @apply border-border border rounded-lg bg-card;
+  }
+
+  .vis-item {
+    @apply border shadow-md;
+    color: hsl(var(--foreground));
+  }
+
+  .vis-item.vis-point {
+    @apply border-2;
+  }
+
+  .vis-item.vis-selected {
+    @apply border-primary ring-2 ring-primary;
+    background-color: hsl(var(--accent));
+    border-color: hsl(var(--primary));
+  }
+  
+  .vis-item .vis-item-content {
+    @apply p-2;
+  }
+  
+  /* Custom classes for item status */
+  .vis-item.item-active {
+    background-color: hsl(var(--chart-2) / 0.15);
+    border-color: hsl(var(--chart-2));
+    color: hsl(var(--foreground));
+  }
+  
+  .vis-item.item-expired {
+    background-color: hsl(var(--chart-3) / 0.15);
+    border-color: hsl(var(--chart-3));
+    color: hsl(var(--foreground));
+  }
+  
+  .vis-item.item-revoked {
+    background-color: hsl(var(--chart-4) / 0.15);
+    border-color: hsl(var(--chart-4));
+    color: hsl(var(--foreground));
+  }
+  
+  .vis-panel.vis-background, .vis-center {
+    background-color: hsl(var(--card));
+  }
+  
+  .vis-time-axis .vis-grid.vis-major {
+    border-color: hsl(var(--border));
+  }
+  
+  .vis-time-axis .vis-grid.vis-minor {
+    border-color: hsl(var(--border) / 0.5);
+  }
+  
+  .vis-time-axis .vis-text {
+    color: hsl(var(--muted-foreground));
+  }
+  
+  /* Current time marker */
+  .vis-custom-time.now-marker {
+    width: 2px;
+    background-color: hsl(var(--primary));
+    z-index: 10;
+  }
+  
+  /* Group labels */
+  .vis-labelset .vis-label {
+    @apply font-semibold;
+    color: hsl(var(--foreground));
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
