@@ -378,11 +378,6 @@ export default function CertificatesPage() {
         </div>
       </div>
 
-
-      <p className="text-sm text-muted-foreground">
-        A list of end-entity certificates issued by the system. Filters and sorting are applied via API calls.
-      </p>
-
       {(apiError || errorCAs || errorCryptoEngines) && (
         <Alert variant="destructive">
           <AlertCircleIcon className="h-4 w-4" />
