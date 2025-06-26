@@ -5,7 +5,6 @@ import React, { useState } from 'react';
 import type { CertificateData } from '@/types/certificate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, ChevronsUpDown, ShieldAlert, FileText, ShieldCheck } from 'lucide-react';
 import {
   DropdownMenu,
@@ -23,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { RevocationModal } from '@/components/shared/RevocationModal';
 import type { CertSortConfig, SortableCertColumn } from '@/app/certificates/page'; // Import shared types
 import { OcspCheckModal } from '@/components/shared/OcspCheckModal';
+import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 
 interface CertificateListProps {
   certificates: CertificateData[];
@@ -33,30 +33,6 @@ interface CertificateListProps {
   requestSort: (column: SortableCertColumn) => void;
   isLoading?: boolean; // Optional prop to indicate data loading
 }
-
-const ApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => {
-  if (!status) return <Badge variant="outline">Unknown</Badge>;
-  const upperStatus = status.toUpperCase();
-  let badgeClass = "bg-muted text-muted-foreground border-border";
-  let Icon = AlertTriangle; 
-
-  if (upperStatus.includes('ACTIVE')) {
-    badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
-    Icon = CheckCircle;
-  } else if (upperStatus.includes('REVOKED')) {
-    badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
-    Icon = XCircle;
-  } else if (upperStatus.includes('EXPIRED')) {
-    badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
-    Icon = AlertTriangle;
-  } else if (upperStatus.includes('PENDING')) {
-    badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
-    Icon = Clock;
-  }
-
-  return <Badge variant="outline" className={cn("text-xs capitalize whitespace-nowrap", badgeClass)}><Icon className="mr-1 h-3 w-3" />{upperStatus.replace('_', ' ')}</Badge>;
-};
-
 
 const getCommonName = (subjectOrIssuer: string): string => {
   const cnMatch = subjectOrIssuer.match(/CN=([^,]+)/);
