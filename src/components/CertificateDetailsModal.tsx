@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface CertificateDetailsModalProps {
   certificate: CertificateData | null;
@@ -84,21 +85,23 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
 
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-1">PEM Data</h3>
-              <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/30">
-                <pre className="text-xs whitespace-pre-wrap break-all font-mono">{certificate.pemData}</pre>
-              </ScrollArea>
+              <pre className="text-xs whitespace-pre-wrap break-all font-mono h-48 w-full rounded-md border p-3 bg-muted/30 overflow-y-auto">
+                {certificate.pemData}
+              </pre>
             </div>
 
             <Separator className="my-3"/>
-
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Raw API Data</h3>
-              <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/30">
-                <pre className="text-xs whitespace-pre-wrap break-all font-mono">
-                  {certificate.rawApiData ? JSON.stringify(certificate.rawApiData, null, 2) : 'No raw API data available.'}
-                </pre>
-              </ScrollArea>
-            </div>
+            
+            <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="raw-api-data" className="border-b-0">
+                    <AccordionTrigger className="text-sm font-medium text-muted-foreground hover:no-underline py-1 justify-start">Raw API Data</AccordionTrigger>
+                    <AccordionContent>
+                        <pre className="text-xs whitespace-pre-wrap break-all font-mono h-48 w-full rounded-md border p-3 bg-muted/30 mt-2 overflow-y-auto">
+                        {certificate.rawApiData ? JSON.stringify(certificate.rawApiData, null, 2) : 'No raw API data available.'}
+                        </pre>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
           </div>
         </ScrollArea>
         
