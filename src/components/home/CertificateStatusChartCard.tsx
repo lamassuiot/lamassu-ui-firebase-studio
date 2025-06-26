@@ -143,28 +143,20 @@ export function CertificateStatusChartCard() {
                   verticalAlign="bottom"
                   wrapperStyle={{ paddingTop: '20px', color: 'hsl(var(--primary-foreground))' }}
                   formatter={(value, entry, index) => {
-                    let IconComponent: React.ElementType = Circle;
                     let iconColorStyle = entry.color; 
 
                     if (value === 'Active') {
-                        IconComponent = CheckCircle;
                         iconColorStyle = 'rgb(34, 197, 94)';
                     } else if (value === 'About to expire') {
-                        IconComponent = Clock;
                         iconColorStyle = 'hsl(30 80% 55%)';
                     } else if (value === 'Expired') {
-                        IconComponent = AlertTriangleIcon;
                         iconColorStyle = 'hsl(340 75% 55%)';
                     } else if (value === 'Revoked') {
-                        IconComponent = XCircle;
                         iconColorStyle = 'hsl(0 72% 51%)';
                     }
                 
                     return (
-                      <span style={{ color: 'hsl(var(--primary-foreground))' }} className="flex items-center text-xs">
-                        <div className="p-0.5 bg-white rounded-full mr-1.5 inline-flex items-center justify-center">
-                          <IconComponent className="w-3 h-3" style={{ color: iconColorStyle }} />
-                        </div>
+                      <span style={{ color: 'hsl(var(--primary-foreground))' }} className="text-xs">
                         {value}
                       </span>
                     );
