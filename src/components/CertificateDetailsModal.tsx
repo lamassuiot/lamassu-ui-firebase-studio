@@ -57,10 +57,8 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
             <DetailItem label="Serial Number" value={certificate.serialNumber} />
             <DetailItem label="Valid From" value={format(new Date(certificate.validFrom), 'PPpp')} />
             <DetailItem label="Valid To" value={format(new Date(certificate.validTo), 'PPpp')} />
-            <DetailItem label="Status" value={<Badge variant={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'default' : 'destructive'} className={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'bg-green-500' : ''}>{certificate.apiStatus || 'N/A'}</Badge>} />
             
             {certificate.publicKeyAlgorithm && <DetailItem label="Public Key Algorithm" value={certificate.publicKeyAlgorithm} />}
-            {certificate.signatureAlgorithm && <DetailItem label="Signature Algorithm" value={certificate.signatureAlgorithm} />}
             {certificate.fingerprintSha256 && <DetailItem label="SHA-256 Fingerprint" value={certificate.fingerprintSha256} />}
             
             {certificate.sans && certificate.sans.length > 0 && (
@@ -74,13 +72,6 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
               </div>
             )}
 
-            <Separator className="my-3"/>
-            
-            <div className="py-2">
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Client Verification Status</h3>
-              <p className="text-sm text-foreground">({certificate.verificationStatus}) {certificate.verificationDetails}</p>
-            </div>
-            
             <Separator className="my-3"/>
 
             <div>
