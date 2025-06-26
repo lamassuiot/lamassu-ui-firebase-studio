@@ -14,34 +14,20 @@ interface CaExpiryTimelineProps {
   cas: CA[];
 }
 
-interface TimelineGroup {
-    id: CA['status'] | 'expired';
-    content: string;
-}
-
 export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const { items, groups } = useMemo(() => {
-    const timelineGroups = new DataSet<TimelineGroup>([
-        { id: 'active', content: 'Active CAs' },
-        { id: 'expired', content: 'Expired CAs' },
-        { id: 'revoked', content: 'Revoked CAs' },
-    ]);
-
-    const timelineItems = new DataSet(
+  const items = useMemo(() => {
+    return new DataSet(
       cas.map(ca => {
         const expiryDate = parseISO(ca.expires);
         const isEventExpired = isPast(expiryDate);
-        let statusGroup: TimelineGroup['id'] = 'active';
         let className = 'item-active';
 
         if (ca.status === 'revoked') {
-          statusGroup = 'revoked';
           className = 'item-revoked';
         } else if (isEventExpired) {
-          statusGroup = 'expired';
           className = 'item-expired';
         }
 
@@ -49,21 +35,18 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
           id: ca.id,
           content: ca.name,
           start: expiryDate,
-          group: statusGroup,
           type: 'point',
           className: className,
         };
       })
     );
-
-    return { items: timelineItems, groups: timelineGroups };
   }, [cas]);
 
   useEffect(() => {
     if (timelineRef.current && items.length > 0) {
       const now = new Date();
       const options = {
-        stack: false,
+        stack: true, // Changed to true to keep items in a single group
         width: '100%',
         height: '300px',
         margin: {
@@ -78,7 +61,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
         zoomMax: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
       };
 
-      const timeline = new Timeline(timelineRef.current, items, groups, options);
+      const timeline = new Timeline(timelineRef.current, items, options);
       
       timeline.on('select', properties => {
         if (properties.items.length > 0) {
@@ -93,7 +76,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
         timeline.destroy();
       };
     }
-  }, [items, groups, router]);
+  }, [items, router]);
 
   return (
     <Card className="shadow-lg w-full">
