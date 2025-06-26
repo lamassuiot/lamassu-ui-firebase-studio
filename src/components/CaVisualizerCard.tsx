@@ -82,6 +82,7 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
   if (onClick) {
     return (
       <button
+        data-ca-visualizer-card="true"
         type="button"
         onClick={() => onClick(ca)}
         className={cn(cardBaseClasses, clickableClasses, className, "text-left")}
@@ -93,7 +94,7 @@ export const CaVisualizerCard: React.FC<CaVisualizerCardProps> = ({ ca, classNam
   }
 
   return (
-    <div className={cn(cardBaseClasses, className)}>
+    <div data-ca-visualizer-card="true" className={cn(cardBaseClasses, className)}>
       {cardInnerContent}
     </div>
   );

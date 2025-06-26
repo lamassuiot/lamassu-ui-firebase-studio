@@ -123,8 +123,9 @@
   }
 
   .vis-item {
-    @apply border shadow-md;
-    color: hsl(var(--foreground));
+    border-color: transparent !important;
+    background-color: transparent !important;
+    padding: 0 !important;
   }
 
   .vis-item.vis-point {
@@ -132,32 +133,25 @@
   }
 
   .vis-item.vis-selected {
-    @apply border-primary ring-2 ring-primary;
-    background-color: hsl(var(--accent));
-    border-color: hsl(var(--primary));
+    /* Selection is handled by the card's hover/focus states */
   }
   
   .vis-item .vis-item-content {
-    @apply p-2;
+    @apply p-0;
   }
   
-  /* Custom classes for item status */
-  .vis-item.item-active {
-    background-color: hsl(var(--chart-2) / 0.15);
-    border-color: hsl(var(--chart-2));
-    color: hsl(var(--foreground));
+  /* Custom classes for timeline item status, applied to the card inside */
+  .vis-item.item-active [data-ca-visualizer-card="true"] {
+    background-color: hsl(var(--chart-2) / 0.3);
+    border-color: hsl(var(--chart-2) / 0.8);
   }
-  
-  .vis-item.item-expired {
-    background-color: hsl(var(--chart-3) / 0.15);
-    border-color: hsl(var(--chart-3));
-    color: hsl(var(--foreground));
+  .vis-item.item-expired [data-ca-visualizer-card="true"] {
+    background-color: hsl(var(--chart-3) / 0.3);
+    border-color: hsl(var(--chart-3) / 0.8);
   }
-  
-  .vis-item.item-revoked {
-    background-color: hsl(var(--chart-4) / 0.15);
-    border-color: hsl(var(--chart-4));
-    color: hsl(var(--foreground));
+  .vis-item.item-revoked [data-ca-visualizer-card="true"] {
+    background-color: hsl(var(--chart-4) / 0.3);
+    border-color: hsl(var(--chart-4) / 0.8);
   }
   
   .vis-panel.vis-background, .vis-center {
