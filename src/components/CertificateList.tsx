@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import type { CertificateData } from '@/types/certificate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, ChevronsUpDown, ShieldAlert, FileText, ShieldCheck } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, ChevronsUpDown, ShieldAlert, FileText, ShieldCheck, Download } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -194,6 +194,7 @@ export function CertificateList({
                           <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => alert(`Download PEM for: ${cert.fileName} (placeholder)`)}>
+                          <Download className="mr-2 h-4 w-4" />
                           Download PEM
                         </DropdownMenuItem>
                       </DropdownMenuContent>
