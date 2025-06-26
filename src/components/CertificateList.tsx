@@ -139,6 +139,46 @@ export function CertificateList({
     }
   };
 
+  const handleReactivateCertificate = async (certificate: CertificateData) => {
+    if (!certificate || !accessToken) {
+      toast({ title: "Error", description: "Cannot reactivate certificate. Missing details or authentication.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificate.serialNumber}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ status: 'ACTIVE' }),
+      });
+
+      if (!response.ok) {
+        let errorBody = 'Request failed.';
+        try {
+            const errJson = await response.json();
+            errorBody = errJson.err || errJson.message || errorBody;
+        } catch(e) { /* Ignore parsing error */ }
+        throw new Error(`Failed to reactivate certificate: ${errorBody} (Status: ${response.status})`);
+      }
+      
+      onCertificateUpdated({ ...certificate, apiStatus: 'ACTIVE', revocationReason: undefined });
+      toast({
+        title: "Certificate Re-activated",
+        description: `Certificate "${getCommonName(certificate.subject)}" has been re-activated.`,
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Re-activation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleOpenOcspModal = (certificate: CertificateData, issuer: CA | null) => {
     if (!issuer) {
         toast({ title: "Error", description: "Issuer CA details are not available for this certificate. Cannot perform OCSP check.", variant: "destructive" });
@@ -172,6 +212,7 @@ export function CertificateList({
             {certificates.map((cert) => {
               const issuerCa = cert.issuerCaId && allCAs ? findCaById(cert.issuerCaId, allCAs) : null;
               const issuerDisplayName = issuerCa ? issuerCa.name : getCommonName(cert.issuer);
+              const isOnHold = cert.apiStatus?.toUpperCase() === 'REVOKED' && cert.revocationReason === 'CertificateHold';
 
               return (
                 <TableRow key={cert.id}>{/*
@@ -231,9 +272,18 @@ export function CertificateList({
                         <DropdownMenuItem onClick={() => handleOpenOcspModal(cert, issuerCa)} disabled={!cert.ocspUrls || cert.ocspUrls.length === 0}>
                            <ShieldCheck className="mr-2 h-4 w-4" /> OCSP Check
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
-                          <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
-                        </DropdownMenuItem>
+                        
+                        {isOnHold ? (
+                          <DropdownMenuItem onClick={() => handleReactivateCertificate(cert)}>
+                            <ShieldCheck className="mr-2 h-4 w-4" /> Re-activate Certificate
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
+                            <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
+                          </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => alert(`Download PEM for: ${cert.fileName} (placeholder)`)}>
                           <Download className="mr-2 h-4 w-4" />
                           Download PEM

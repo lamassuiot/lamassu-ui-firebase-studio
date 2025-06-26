@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation'; // Changed from useParams
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, ShieldAlert, Loader2, AlertTriangle, Layers, Code2, Info } from "lucide-react";
+import { ArrowLeft, FileText, ShieldAlert, Loader2, AlertTriangle, Layers, Code2, Info, ShieldCheck } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
@@ -219,6 +219,47 @@ export default function CertificateDetailsClient() { // Renamed component
     }
   };
 
+  const handleReactivate = async () => {
+    if (!certificateDetails || !user?.access_token) {
+      toast({ title: "Error", description: "Cannot reactivate certificate. Missing details or authentication.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateDetails.serialNumber}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}`,
+        },
+        body: JSON.stringify({ status: 'ACTIVE' }),
+      });
+
+      if (!response.ok) {
+        let errorBody = 'Request failed.';
+        try {
+          const errJson = await response.json();
+          errorBody = errJson.err || errJson.message || errorBody;
+        } catch(e) { /* Ignore parsing error */ }
+        throw new Error(`Failed to reactivate certificate: ${errorBody} (Status: ${response.status})`);
+      }
+
+      setCertificateDetails(prev => prev ? {...prev, apiStatus: 'ACTIVE', revocationReason: undefined} : null);
+      toast({
+        title: "Certificate Re-activated",
+        description: `Certificate with SN: ${certificateDetails.serialNumber} has been re-activated.`,
+        variant: "default",
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Re-activation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
 
   if (authLoading || isLoadingCert || isLoadingAllCAs) {
     return (
@@ -278,6 +319,8 @@ export default function CertificateDetailsClient() { // Renamed component
     statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; 
   }
 
+  const isOnHold = certificateDetails.apiStatus?.toUpperCase() === 'REVOKED' && certificateDetails.revocationReason === 'CertificateHold';
+
   return (
     <div className="w-full space-y-6">
       <Button variant="outline" onClick={() => routerHook.push('/certificates')}>
@@ -305,13 +348,19 @@ export default function CertificateDetailsClient() { // Renamed component
         </div>
 
         <div className="p-6 space-x-2 border-b">
-          <Button 
-            variant="destructive" 
-            onClick={handleOpenRevokeModal} 
-            disabled={statusText === 'REVOKED'}
-          >
-            <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
-          </Button>
+          {isOnHold ? (
+            <Button variant="outline" onClick={handleReactivate}>
+              <ShieldCheck className="mr-2 h-4 w-4" /> Re-activate Certificate
+            </Button>
+          ) : (
+            <Button 
+              variant="destructive" 
+              onClick={handleOpenRevokeModal} 
+              disabled={statusText === 'REVOKED'}
+            >
+              <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
+            </Button>
+          )}
         </div>
 
         <Tabs defaultValue="information" className="w-full p-6">

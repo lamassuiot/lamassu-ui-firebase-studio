@@ -189,6 +189,7 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
     sans: apiCert.metadata?.sans || [], // Assuming SANs might be in metadata.sans
     pemData: pemData,
     apiStatus: apiCert.status,
+    revocationReason: apiCert.revocation_reason,
     publicKeyAlgorithm,
     signatureAlgorithm: apiCert.metadata?.signature_algorithm || 'N/A (from API)', // Assuming sig algo in metadata
     fingerprintSha256: apiCert.metadata?.fingerprint_sha256 || '', 
