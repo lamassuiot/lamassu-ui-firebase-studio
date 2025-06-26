@@ -43,7 +43,7 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-headline text-2xl">Certificate Details: {certificate.fileName}</DialogTitle>
+          <DialogTitle className="font-headline text-2xl">Certificate Details</DialogTitle>
           <DialogDescription>
             Detailed information for the selected X.509 certificate. API Status: {certificate.apiStatus || 'N/A'}
           </DialogDescription>
@@ -56,7 +56,7 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
             <DetailItem label="Serial Number" value={certificate.serialNumber} />
             <DetailItem label="Valid From" value={format(new Date(certificate.validFrom), 'PPpp')} />
             <DetailItem label="Valid To" value={format(new Date(certificate.validTo), 'PPpp')} />
-            <DetailItem label="API Reported Status" value={<Badge variant={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'default' : 'destructive'} className={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'bg-green-500' : ''}>{certificate.apiStatus || 'N/A'}</Badge>} />
+            <DetailItem label="Status" value={<Badge variant={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'default' : 'destructive'} className={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'bg-green-500' : ''}>{certificate.apiStatus || 'N/A'}</Badge>} />
             
             {certificate.publicKeyAlgorithm && <DetailItem label="Public Key Algorithm" value={certificate.publicKeyAlgorithm} />}
             {certificate.signatureAlgorithm && <DetailItem label="Signature Algorithm" value={certificate.signatureAlgorithm} />}
