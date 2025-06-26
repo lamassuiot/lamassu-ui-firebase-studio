@@ -9,6 +9,8 @@ import { DataSet } from "vis-data/esnext";
 import { Timeline } from "vis-timeline/esnext";
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { addMonths, isPast, parseISO, subMonths } from 'date-fns';
+import { renderToString } from 'react-dom/server';
+import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 
 interface CaExpiryTimelineProps {
   cas: CA[];
@@ -30,10 +32,15 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
         } else if (isEventExpired) {
           className = 'item-expired';
         }
+        
+        // Render the CaVisualizerCard component to an HTML string
+        const itemContent = renderToString(
+            <CaVisualizerCard ca={ca} />
+        );
 
         return {
           id: ca.id,
-          content: ca.name,
+          content: itemContent,
           start: expiryDate,
           className: className,
         };
@@ -45,7 +52,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
     if (timelineRef.current && items.length > 0) {
       const now = new Date();
       const options = {
-        stack: true, // Changed to true to keep items in a single group
+        stack: true, 
         width: '100%',
         height: '300px',
         margin: {
