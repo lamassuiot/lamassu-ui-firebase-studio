@@ -65,8 +65,8 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       },
       start: subMonths(now, 1),
       end: addMonths(now, 6),
-      zoomMin: 1000 * 60 * 60 * 24 * 7, // 1 week
-      zoomMax: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
+      zoomMin: 1000 * 60 * 60 * 24 , // 1 ay
+      zoomMax: 1000 * 60 * 60 * 24 * 365 * 15, // 10 years
     };
 
     const timeline = new Timeline(timelineRef.current, items, options);
@@ -85,6 +85,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     };
   }, [cas, router, allCryptoEngines]);
 
+
   return (
     <>
       {/* Hidden container for React to pre-render timeline item content */}
@@ -96,7 +97,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         ))}
       </div>
 
-      <Card className="shadow-lg w-full">
+      <Card className="shadow-lg w-full" style={{ background: "#e2e7fe"}}>
           <CardHeader>
               <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
               <CardDescription>Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>

@@ -5,86 +5,138 @@
 @layer base {
   :root {
     /* Base Theme Colors from PRD */
-    --background: 208 100% 97%; /* #F0F8FF AliceBlue */
-    --foreground: 222 84% 5%; /* Dark Blue for contrast on light background */
-    
-    --primary: 217 100% 53%; /* #0f67ff Light Sky Blue */
-    --primary-foreground: 0 0% 98%; /* Near White */
-    
-    --accent: 150 65% 85%; /* #a2ecc8 Periwinkle (greenish) */
-    --accent-foreground: 150 65% 25%; /* Darker accent for contrast */
+    --background: 208 100% 97%;
+    /* #F0F8FF AliceBlue */
+    --foreground: 222 84% 5%;
+    /* Dark Blue for contrast on light background */
+
+    --primary: 217 100% 53%;
+    /* #0f67ff Light Sky Blue */
+    --primary-foreground: 0 0% 98%;
+    /* Near White */
+
+    --accent: 150 65% 85%;
+    /* #a2ecc8 Periwinkle (greenish) */
+    --accent-foreground: 150 65% 25%;
+    /* Darker accent for contrast */
 
     /* Standard ShadCN UI Colors (derived) */
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 222 84% 5%; /* Dark Blue */
-    
-    --popover: 0 0% 100%; /* White */
-    --popover-foreground: 222 84% 5%; /* Dark Blue */
-    
-    --secondary: 210 40% 90%; /* Light Grayish Blue */
-    --secondary-foreground: 222 84% 10%; /* Dark Blue */
-    
-    --muted: 210 40% 92%; /* Lighter Grayish Blue */
-    --muted-foreground: 210 35% 45%; /* Muted Grayish Blue */
-    
-    --destructive: 0 84% 60%; /* Red */
-    --destructive-foreground: 0 0% 98%; /* Near White */
-    
-    --border: 210 40% 88%; /* Light Gray Border */
-    --input: 210 40% 85%; /* Slightly darker for input border */
-    --ring: 217 90% 65%; /* Based on primary for focus rings */
+    --card: 0 0% 100%;
+    /* White */
+    --card-foreground: 222 84% 5%;
+    /* Dark Blue */
 
-    --radius: 0.5rem; /* Default border radius */
+    --popover: 0 0% 100%;
+    /* White */
+    --popover-foreground: 222 84% 5%;
+    /* Dark Blue */
+
+    --secondary: 210 40% 90%;
+    /* Light Grayish Blue */
+    --secondary-foreground: 222 84% 10%;
+    /* Dark Blue */
+
+    --muted: 210 40% 92%;
+    /* Lighter Grayish Blue */
+    --muted-foreground: 210 35% 45%;
+    /* Muted Grayish Blue */
+
+    --destructive: 0 84% 60%;
+    /* Red */
+    --destructive-foreground: 0 0% 98%;
+    /* Near White */
+
+    --border: 210 40% 88%;
+    /* Light Gray Border */
+    --input: 210 40% 85%;
+    /* Slightly darker for input border */
+    --ring: 217 90% 65%;
+    /* Based on primary for focus rings */
+
+    --radius: 0.5rem;
+    /* Default border radius */
 
     /* Chart Colors */
-    --chart-1: 217 90% 60%; /* Primary variant */
-    --chart-2: 150 70% 70%; /* Accent variant */
-    --chart-3: 30 80% 55%;  /* Orange/Yellow for warning */
-    --chart-4: 0 70% 60%;   /* Red for critical/error */
-    --chart-5: 260 70% 70%; /* Purple for other */
+    --chart-1: 217 90% 60%;
+    /* Primary variant */
+    --chart-2: 150 70% 70%;
+    /* Accent variant */
+    --chart-3: 30 80% 55%;
+    /* Orange/Yellow for warning */
+    --chart-4: 0 70% 60%;
+    /* Red for critical/error */
+    --chart-5: 260 70% 70%;
+    /* Purple for other */
 
     /* Sidebar Specific Colors (Light Theme) */
-    --sidebar-background: 210 60% 96%; /* Slightly different from main background */
-    --sidebar-foreground: 222 84% 10%; /* Dark blue for text */
-    --sidebar-primary: 217 100% 53%; /* Same as main primary */
-    --sidebar-primary-foreground: 0 0% 98%; /* Same as main primary-foreground */
-    --sidebar-accent: 150 65% 80%; /* Slightly adjusted accent */
-    --sidebar-accent-foreground: 150 65% 20%; /* Darker accent */
-    --sidebar-border: 210 40% 85%; /* Sidebar border */
-    --sidebar-ring: 217 90% 65%; /* Ring color */
+    --sidebar-background: 210 60% 96%;
+    /* Slightly different from main background */
+    --sidebar-foreground: 222 84% 10%;
+    /* Dark blue for text */
+    --sidebar-primary: 217 100% 53%;
+    /* Same as main primary */
+    --sidebar-primary-foreground: 0 0% 98%;
+    /* Same as main primary-foreground */
+    --sidebar-accent: 150 65% 80%;
+    /* Slightly adjusted accent */
+    --sidebar-accent-foreground: 150 65% 20%;
+    /* Darker accent */
+    --sidebar-border: 210 40% 85%;
+    /* Sidebar border */
+    --sidebar-ring: 217 90% 65%;
+    /* Ring color */
   }
 
   .dark {
     /* Base Dark Theme Colors */
-    --background: 222 40% 15%; /* Dark Blue-Gray */
-    --foreground: 210 40% 95%; /* Light Gray */
-    
-    --primary: 217 90% 60%; /* Slightly lighter/desaturated primary */
-    --primary-foreground: 0 0% 98%; /* Near White */
-    
-    --accent: 150 50% 70%; /* Muted accent */
-    --accent-foreground: 150 50% 20%; /* Darker accent */
+    --background: 222 40% 15%;
+    /* Dark Blue-Gray */
+    --foreground: 210 40% 95%;
+    /* Light Gray */
+
+    --primary: 217 90% 60%;
+    /* Slightly lighter/desaturated primary */
+    --primary-foreground: 0 0% 98%;
+    /* Near White */
+
+    --accent: 150 50% 70%;
+    /* Muted accent */
+    --accent-foreground: 150 50% 20%;
+    /* Darker accent */
 
     /* Standard ShadCN UI Colors (Dark Mode) */
-    --card: 222 40% 18%; /* Darker card */
-    --card-foreground: 210 40% 95%; /* Light Gray */
-    
-    --popover: 222 40% 18%; /* Darker popover */
-    --popover-foreground: 210 40% 95%; /* Light Gray */
-    
-    --secondary: 217 30% 25%; /* Darker secondary */
-    --secondary-foreground: 210 40% 90%; /* Lighter secondary text */
-    
-    --muted: 217 30% 22%; /* Darker muted */
-    --muted-foreground: 210 30% 65%; /* Muted gray text */
-    
-    --destructive: 0 63% 50%; /* Darker Red */
-    --destructive-foreground: 0 0% 98%; /* Near White */
-    
-    --border: 217 20% 30%; /* Darker Border */
-    --input: 217 20% 35%; /* Darker input border */
-    --ring: 217 80% 65%; /* Primary variant for dark rings */
-    
+    --card: 222 40% 18%;
+    /* Darker card */
+    --card-foreground: 210 40% 95%;
+    /* Light Gray */
+
+    --popover: 222 40% 18%;
+    /* Darker popover */
+    --popover-foreground: 210 40% 95%;
+    /* Light Gray */
+
+    --secondary: 217 30% 25%;
+    /* Darker secondary */
+    --secondary-foreground: 210 40% 90%;
+    /* Lighter secondary text */
+
+    --muted: 217 30% 22%;
+    /* Darker muted */
+    --muted-foreground: 210 30% 65%;
+    /* Muted gray text */
+
+    --destructive: 0 63% 50%;
+    /* Darker Red */
+    --destructive-foreground: 0 0% 98%;
+    /* Near White */
+
+    --border: 217 20% 30%;
+    /* Darker Border */
+    --input: 217 20% 35%;
+    /* Darker input border */
+    --ring: 217 80% 65%;
+    /* Primary variant for dark rings */
+
     /* Chart Colors (Dark Theme) - adjust as needed */
     --chart-1: 217 80% 65%;
     --chart-2: 150 60% 60%;
@@ -93,14 +145,22 @@
     --chart-5: 260 60% 65%;
 
     /* Sidebar Specific Colors (Dark Theme) */
-    --sidebar-background: 222 40% 12%; /* Even darker for sidebar */
-    --sidebar-foreground: 210 40% 90%; /* Light gray text */
-    --sidebar-primary: 217 90% 60%; /* Same as dark primary */
-    --sidebar-primary-foreground: 0 0% 98%; /* Same as dark primary-foreground */
-    --sidebar-accent: 150 50% 65%; /* Adjusted dark accent */
-    --sidebar-accent-foreground: 150 50% 15%; /* Darker accent text */
-    --sidebar-border: 222 40% 25%; /* Dark sidebar border */
-    --sidebar-ring: 217 80% 65%; /* Ring color */
+    --sidebar-background: 222 40% 12%;
+    /* Even darker for sidebar */
+    --sidebar-foreground: 210 40% 90%;
+    /* Light gray text */
+    --sidebar-primary: 217 90% 60%;
+    /* Same as dark primary */
+    --sidebar-primary-foreground: 0 0% 98%;
+    /* Same as dark primary-foreground */
+    --sidebar-accent: 150 50% 65%;
+    /* Adjusted dark accent */
+    --sidebar-accent-foreground: 150 50% 15%;
+    /* Darker accent text */
+    --sidebar-border: 222 40% 25%;
+    /* Dark sidebar border */
+    --sidebar-ring: 217 80% 65%;
+    /* Ring color */
   }
 }
 
@@ -108,19 +168,47 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground font-body;
   }
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-headline;
   }
 }
 
+.vis-item {
+  background-color: white !important;
+  padding: 0 !important;
+}
+
+.vis-item-content {
+  padding: 0 !important;
+}
+
+.vis-item.vis-box {
+  border-radius: 10px !important;
+}
+
+.vis-timeline {
+  @apply rounded-lg bg-card;
+  border: none!important;
+}
+
+.vis-panel.vis-bottom  {
+  border-top: 1px solid blue !important;
+}
+
+
 @layer components {
+
   /* Vis-timeline custom styles */
-  .vis-timeline {
-    @apply rounded-lg bg-card;
-  }
 
   .vis-item {
     border-color: transparent !important;
@@ -135,12 +223,13 @@
   .vis-item.vis-selected {
     /* Selection is handled by the card's hover/focus states */
   }
-  
+
   .vis-item .vis-item-content {
     @apply p-0;
   }
-  
+
   /* Custom classes for timeline item status, applied to the card inside */
+  /*
   .vis-item.item-active [data-ca-visualizer-card="true"] {
     background-color: hsl(var(--chart-2) / 0.3);
     border-color: hsl(var(--chart-2) / 0.8);
@@ -153,30 +242,38 @@
     background-color: hsl(var(--chart-4) / 0.3);
     border-color: hsl(var(--chart-4) / 0.8);
   }
-  
-  .vis-panel.vis-background, .vis-center {
+  */
+
+  .vis-panel.vis-background,
+  .vis-center {
     background-color: hsl(var(--card));
   }
-  
+
   .vis-time-axis .vis-grid.vis-major {
     border-color: hsl(var(--border));
   }
-  
+
   .vis-time-axis .vis-grid.vis-minor {
     border-color: hsl(var(--border) / 0.5);
   }
-  
+
   .vis-time-axis .vis-text {
     color: hsl(var(--muted-foreground));
   }
-  
+
   /* Current time marker */
+  .vis-item {
+    border-color: transparent !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+  }
+
   .vis-custom-time.now-marker {
     width: 2px;
     background-color: hsl(var(--primary));
     z-index: 10;
   }
-  
+
   /* Group labels */
   .vis-labelset .vis-label {
     @apply font-semibold;
