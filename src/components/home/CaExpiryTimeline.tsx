@@ -9,7 +9,6 @@ import { DataSet } from "vis-data/esnext";
 import { Timeline } from "vis-timeline/esnext";
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { addMonths, isPast, parseISO, subMonths } from 'date-fns';
-import { createRoot } from 'react-dom/client';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
@@ -38,19 +37,23 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         className = 'item-expired';
       }
       
-      const tempContainer = document.createElement('div');
-      const root = createRoot(tempContainer);
-      root.render(<CaVisualizerCard ca={ca} allCryptoEngines={allCryptoEngines} />);
+      const contentElement = document.getElementById(`vis-item-content-${ca.id}`);
+      if (!contentElement) {
+        console.warn(`Could not find pre-rendered element for CA ${ca.id}`);
+        return null;
+      }
 
       return {
         id: ca.id,
-        content: tempContainer.innerHTML,
+        content: contentElement,
         start: expiryDate,
         className: className,
       };
-    });
+    }).filter(Boolean); // Filter out any null items if element wasn't found
 
-    const items = new DataSet(itemsData);
+    if (itemsData.length === 0) return;
+
+    const items = new DataSet(itemsData as any);
 
     const now = new Date();
     const options = {
@@ -83,20 +86,31 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
   }, [cas, router, allCryptoEngines]);
 
   return (
-    <Card className="shadow-lg w-full">
-        <CardHeader>
-            <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-            <CardDescription>Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {cas.length > 0 ? (
-            <div ref={timelineRef} />
-          ) : (
-             <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                No CA data available to display in timeline.
-            </div>
-          )}
-        </CardContent>
-    </Card>
+    <>
+      {/* Hidden container for React to pre-render timeline item content */}
+      <div style={{ display: 'none' }}>
+        {cas.map(ca => (
+          <div id={`vis-item-content-${ca.id}`} key={`vis-item-for-${ca.id}`}>
+            <CaVisualizerCard ca={ca} allCryptoEngines={allCryptoEngines} />
+          </div>
+        ))}
+      </div>
+
+      <Card className="shadow-lg w-full">
+          <CardHeader>
+              <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+              <CardDescription>Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {cas.length > 0 ? (
+              <div ref={timelineRef} />
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  No CA data available to display in timeline.
+              </div>
+            )}
+          </CardContent>
+      </Card>
+    </>
   );
 };
