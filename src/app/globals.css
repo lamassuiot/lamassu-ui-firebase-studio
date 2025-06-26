@@ -119,7 +119,7 @@
 @layer components {
   /* Vis-timeline custom styles */
   .vis-timeline {
-    @apply border-border border rounded-lg bg-card;
+    @apply rounded-lg bg-card;
   }
 
   .vis-item {

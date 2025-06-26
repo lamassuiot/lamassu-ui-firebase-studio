@@ -35,7 +35,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
           id: ca.id,
           content: ca.name,
           start: expiryDate,
-          type: 'point',
           className: className,
         };
       })
@@ -51,9 +50,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
         height: '300px',
         margin: {
           item: 20
-        },
-        orientation: {
-          axis: 'top'
         },
         start: subMonths(now, 1),
         end: addMonths(now, 6),
