@@ -9,7 +9,7 @@ import { DataSet } from "vis-data/esnext";
 import { Timeline } from "vis-timeline/esnext";
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { addMonths, isPast, parseISO, subMonths } from 'date-fns';
-import { renderToString } from 'react-dom/server';
+import { createRoot } from 'react-dom/client';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 
 interface CaExpiryTimelineProps {
@@ -33,14 +33,15 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
           className = 'item-expired';
         }
         
-        // Render the CaVisualizerCard component to an HTML string
-        const itemContent = renderToString(
-            <CaVisualizerCard ca={ca} />
-        );
+        // Per user request, render component to a string using client-side rendering
+        const tempContainer = document.createElement('div');
+        // `createRoot` is the modern way for concurrent React
+        const root = createRoot(tempContainer); 
+        root.render(<CaVisualizerCard ca={ca} />);
 
         return {
           id: ca.id,
-          content: itemContent,
+          content: tempContainer.innerHTML,
           start: expiryDate,
           className: className,
         };
