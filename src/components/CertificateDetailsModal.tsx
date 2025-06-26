@@ -45,7 +45,7 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">Certificate Details</DialogTitle>
           <DialogDescription>
-            Detailed information for the selected X.509 certificate. API Status: {certificate.apiStatus || 'N/A'}
+            Detailed information for the selected X.509 certificate.
           </DialogDescription>
         </DialogHeader>
         
