@@ -199,12 +199,19 @@
 .vis-timeline {
   @apply rounded-lg bg-card;
   border: none!important;
+  background: #e2e7fe !important;
 }
 
 .vis-panel.vis-bottom  {
   border-top: 1px solid blue !important;
 }
 
+.vis-time-axis .vis-grid.vis-minor {
+  border-color: #ccc!important;
+}
+.vis-time-axis .vis-grid.vis-major {
+  border-color: #999!important;
+}
 
 @layer components {
 
