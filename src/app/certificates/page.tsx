@@ -400,7 +400,8 @@ export default function CertificatesPage() {
             allCAs={allCAs}
             sortConfig={sortConfig}
             requestSort={requestSort}
-            isLoading={isLoadingApi && certificates.length > 0} // For visual feedback on table during load
+            isLoading={isLoadingApi && certificates.length > 0}
+            accessToken={user?.access_token}
           />
           {certificates.length === 0 && !isLoadingApi && (
             <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">

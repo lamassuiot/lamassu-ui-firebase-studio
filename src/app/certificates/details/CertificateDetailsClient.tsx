@@ -167,17 +167,56 @@ export default function CertificateDetailsClient() { // Renamed component
     }
   };
 
-  const handleConfirmRevocation = (reason: string) => {
-    if (certificateToRevoke) {
+  const handleConfirmRevocation = async (reason: string) => {
+    if (!certificateToRevoke || !user?.access_token) {
+      toast({
+        title: "Error",
+        description: "Cannot revoke certificate. Missing details or authentication.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsRevocationModalOpen(false);
+
+    try {
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateToRevoke.serialNumber}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}`,
+        },
+        body: JSON.stringify({
+          status: 'REVOKED',
+          revocation_reason: reason,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorBody = 'Request failed.';
+        try {
+          const errJson = await response.json();
+          errorBody = errJson.err || errJson.message || errorBody;
+        } catch(e) { /* Ignore parsing error */ }
+        throw new Error(`Failed to revoke certificate: ${errorBody} (Status: ${response.status})`);
+      }
+
       setCertificateDetails(prev => prev ? {...prev, apiStatus: 'REVOKED'} : null);
       toast({
-        title: "Certificate Revocation (Mock)",
-        description: `Certificate "${certificateToRevoke.subject}" (SN: ${certificateToRevoke.serialNumber}) marked as revoked with reason: ${reason}.`,
-        variant: "default"
+        title: "Certificate Revoked",
+        description: `Certificate with SN: ${certificateToRevoke.serialNumber} has been revoked.`,
+        variant: "default",
       });
+
+    } catch (error: any) {
+      toast({
+        title: "Revocation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCertificateToRevoke(null);
     }
-    setIsRevocationModalOpen(false);
-    setCertificateToRevoke(null);
   };
 
 
