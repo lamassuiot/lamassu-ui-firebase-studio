@@ -170,7 +170,7 @@ export function CertificateList({
                       variant="ghost" 
                       size="icon" 
                       onClick={() => onInspectCertificate(cert)} 
-                      title="Quick Inspect (Modal)" 
+                      title="Quick Inspect"
                       className="h-8 w-8 sm:hidden" // Hide on sm and up, use Details button instead
                     >
                       <Eye className="h-4 w-4" />
@@ -185,7 +185,7 @@ export function CertificateList({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
-                          <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
+                          <Eye className="mr-2 h-4 w-4" /> Quick Inspect
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenOcspModal(cert, issuerCa)} disabled={!cert.ocspUrls || cert.ocspUrls.length === 0}>
                            <ShieldCheck className="mr-2 h-4 w-4" /> OCSP Check
