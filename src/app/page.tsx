@@ -11,6 +11,7 @@ import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 function flattenCAs(cas: CA[]): CA[] {
   const flatList: CA[] = [];
@@ -32,25 +33,52 @@ export default function HomePage() {
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
 
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+  const [isLoadingEngines, setIsLoadingEngines] = useState(true);
+  const [errorEngines, setErrorEngines] = useState<string | null>(null);
+
   const loadInitialData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading) {
-        setErrorCAs("User not authenticated. Cannot load CA data for timeline.");
-        setIsLoadingCAs(false);
+        setErrorCAs("User not authenticated. Cannot load CA data.");
+        setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
       }
+      setIsLoadingCAs(false);
+      setIsLoadingEngines(false);
       return;
     }
+
     setIsLoadingCAs(true);
+    setIsLoadingEngines(true);
     setErrorCAs(null);
+    setErrorEngines(null);
+
     try {
-      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-      const flattenedCAs = flattenCAs(fetchedCAs); // Keep flattening if CaExpiryTimeline expects flat list
+      const [fetchedCAs, enginesResponse] = await Promise.all([
+        fetchAndProcessCAs(user.access_token),
+        fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+          headers: { 'Authorization': `Bearer ${user.access_token}` },
+        })
+      ]);
+
+      const flattenedCAs = flattenCAs(fetchedCAs);
       setAllCAs(flattenedCAs);
+
+      if (!enginesResponse.ok) {
+        throw new Error('Failed to fetch crypto engines');
+      }
+      const enginesData: ApiCryptoEngine[] = await enginesResponse.json();
+      setAllCryptoEngines(enginesData);
+
     } catch (err: any) {
-      setErrorCAs(err.message || 'Failed to load CA data for timeline.');
+      const errorMessage = err.message || 'Failed to load data.';
+      setErrorCAs(errorMessage);
+      setErrorEngines(errorMessage);
       setAllCAs([]);
+      setAllCryptoEngines([]);
     } finally {
       setIsLoadingCAs(false);
+      setIsLoadingEngines(false);
     }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
@@ -59,6 +87,9 @@ export default function HomePage() {
       loadInitialData();
     }
   }, [loadInitialData, authLoading]);
+  
+  const anyError = errorCAs || errorEngines;
+  const anyLoading = isLoadingCAs || isLoadingEngines || authLoading;
 
   return (
     <div className="w-full space-y-8">
@@ -67,7 +98,7 @@ export default function HomePage() {
           <CertificateStatusChartCard />
         </div>
         <div className="lg:col-span-2">
-          {(isLoadingCAs || authLoading) && !errorCAs ? (
+          {anyLoading && !anyError ? (
             <Card className="shadow-lg w-full bg-primary text-primary-foreground">
                 <CardHeader>
                     <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
@@ -79,7 +110,7 @@ export default function HomePage() {
                     </div>
                 </CardContent>
             </Card>
-          ) : errorCAs ? (
+          ) : anyError ? (
              <Card className="shadow-lg w-full bg-primary text-primary-foreground">
                 <CardHeader>
                     <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
@@ -89,14 +120,14 @@ export default function HomePage() {
                         <AlertTriangle className="h-4 w-4" />
                         <AlertTitle>Error Loading Timeline Data</AlertTitle>
                         <AlertDescription className="text-destructive-foreground/90">
-                            {errorCAs}
+                            {anyError}
                             <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive-foreground hover:text-destructive-foreground/80 focus:text-destructive-foreground">Try again?</Button>
                         </AlertDescription>
                     </Alert>
                 </CardContent>
             </Card>
           ) : (
-            <CaExpiryTimeline cas={allCAs} />
+            <CaExpiryTimeline cas={allCAs} allCryptoEngines={allCryptoEngines} />
           )}
         </div>
       </div>

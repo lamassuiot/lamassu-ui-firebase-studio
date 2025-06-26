@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
@@ -11,76 +11,76 @@ import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { addMonths, isPast, parseISO, subMonths } from 'date-fns';
 import { createRoot } from 'react-dom/client';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 interface CaExpiryTimelineProps {
   cas: CA[];
+  allCryptoEngines: ApiCryptoEngine[];
 }
 
-export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas }) => {
+export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryptoEngines }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const items = useMemo(() => {
-    return new DataSet(
-      cas.map(ca => {
-        const expiryDate = parseISO(ca.expires);
-        const isEventExpired = isPast(expiryDate);
-        let className = 'item-active';
-
-        if (ca.status === 'revoked') {
-          className = 'item-revoked';
-        } else if (isEventExpired) {
-          className = 'item-expired';
-        }
-        
-        // Per user request, render component to a string using client-side rendering
-        const tempContainer = document.createElement('div');
-        // `createRoot` is the modern way for concurrent React
-        const root = createRoot(tempContainer); 
-        root.render(<CaVisualizerCard ca={ca} />);
-
-        return {
-          id: ca.id,
-          content: tempContainer.innerHTML,
-          start: expiryDate,
-          className: className,
-        };
-      })
-    );
-  }, [cas]);
-
   useEffect(() => {
-    if (timelineRef.current && items.length > 0) {
-      const now = new Date();
-      const options = {
-        stack: true, 
-        width: '100%',
-        height: '300px',
-        margin: {
-          item: 20
-        },
-        start: subMonths(now, 1),
-        end: addMonths(now, 6),
-        zoomMin: 1000 * 60 * 60 * 24 * 7, // 1 week
-        zoomMax: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
-      };
-
-      const timeline = new Timeline(timelineRef.current, items, options);
-      
-      timeline.on('select', properties => {
-        if (properties.items.length > 0) {
-          const caId = properties.items[0];
-          router.push(`/certificate-authorities/details?caId=${caId}`);
-        }
-      });
-      
-      timeline.addCustomTime(now, 'now-marker');
-
-      return () => {
-        timeline.destroy();
-      };
+    if (!timelineRef.current || cas.length === 0) {
+      return;
     }
-  }, [items, router]);
+
+    const itemsData = cas.map(ca => {
+      const expiryDate = parseISO(ca.expires);
+      const isEventExpired = isPast(expiryDate);
+      let className = 'item-active';
+
+      if (ca.status === 'revoked') {
+        className = 'item-revoked';
+      } else if (isEventExpired) {
+        className = 'item-expired';
+      }
+      
+      const tempContainer = document.createElement('div');
+      const root = createRoot(tempContainer);
+      root.render(<CaVisualizerCard ca={ca} allCryptoEngines={allCryptoEngines} />);
+
+      return {
+        id: ca.id,
+        content: tempContainer.innerHTML,
+        start: expiryDate,
+        className: className,
+      };
+    });
+
+    const items = new DataSet(itemsData);
+
+    const now = new Date();
+    const options = {
+      stack: true, 
+      width: '100%',
+      height: '300px',
+      margin: {
+        item: 20
+      },
+      start: subMonths(now, 1),
+      end: addMonths(now, 6),
+      zoomMin: 1000 * 60 * 60 * 24 * 7, // 1 week
+      zoomMax: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
+    };
+
+    const timeline = new Timeline(timelineRef.current, items, options);
+    
+    timeline.on('select', properties => {
+      if (properties.items.length > 0) {
+        const caId = properties.items[0];
+        router.push(`/certificate-authorities/details?caId=${caId}`);
+      }
+    });
+    
+    timeline.addCustomTime(now, 'now-marker');
+
+    return () => {
+      timeline.destroy();
+    };
+  }, [cas, router, allCryptoEngines]);
 
   return (
     <Card className="shadow-lg w-full">
