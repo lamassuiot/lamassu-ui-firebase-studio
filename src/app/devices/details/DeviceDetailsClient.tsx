@@ -67,10 +67,10 @@ const getCertSubjectCommonName = (subject: string): string => {
   return cnMatch ? cnMatch[1] : subject;
 };
 
-export default function DeviceDetailsClient() { // Renamed component
-  const searchParams = useSearchParams(); // Changed from useParams
+export default function DeviceDetailsClient() { 
+  const searchParams = useSearchParams(); 
   const router = useRouter();
-  const deviceId = searchParams.get('deviceId'); // Get deviceId from query params
+  const deviceId = searchParams.get('deviceId'); 
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
@@ -79,14 +79,20 @@ export default function DeviceDetailsClient() { // Renamed component
   const [errorDevice, setErrorDevice] = useState<string | null>(null);
   
   const [fullCertificateIdentityList, setFullCertificateIdentityList] = useState<{ version: string; serialNumber: string }[]>([]);
+  
+  // History Tab State
   const [certificateHistory, setCertificateHistory] = useState<CertificateHistoryEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [errorHistory, setErrorHistory] = useState<string | null>(null);
-  const [timelineEvents, setTimelineEvents] = useState<TimelineEventDisplayData[]>([]);
-
-  // Pagination for History tab
   const [historyPageSize, setHistoryPageSize] = useState(5);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+
+  // Timeline Tab State
+  const [allRawEvents, setAllRawEvents] = useState<any[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEventDisplayData[]>([]);
+  const [timelineDisplayCount, setTimelineDisplayCount] = useState(10);
+  const [timelineFetchedCerts, setTimelineFetchedCerts] = useState<Map<string, CertificateHistoryEntry>>(new Map());
+  const [isTimelineLoading, setIsTimelineLoading] = useState(false);
 
   // State for revocation modal
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
@@ -94,7 +100,7 @@ export default function DeviceDetailsClient() { // Renamed component
   const [isRevoking, setIsRevoking] = useState(false);
 
 
-  const fetchCertificateHistory = useCallback(async (identity: ApiDeviceIdentity) => {
+  const fetchCertificateHistoryData = useCallback(async (identity: ApiDeviceIdentity) => {
     setIsLoadingHistory(true);
     setErrorHistory(null);
     try {
@@ -151,7 +157,7 @@ export default function DeviceDetailsClient() { // Renamed component
         setDevice(data);
         
         if (data.identity?.versions) {
-            fetchCertificateHistory(data.identity);
+            fetchCertificateHistoryData(data.identity);
         } else {
             setCertificateHistory([]);
             setFullCertificateIdentityList([]);
@@ -164,17 +170,36 @@ export default function DeviceDetailsClient() { // Renamed component
       } finally {
         setIsLoadingDevice(false);
       }
-    }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistory]);
+    }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistoryData]);
 
 
   useEffect(() => {
     fetchDeviceDetails();
   }, [fetchDeviceDetails]);
 
+  // Effect to process raw events once when device data is available
+  useEffect(() => {
+    if (!device) return;
+
+    const combinedRawEvents: { timestampStr: string; type: string; description: string; source: 'device' | 'identity' }[] = [];
+    Object.entries(device.events || {}).forEach(([ts, event]) => {
+      combinedRawEvents.push({ timestampStr: ts, ...(event as any), source: 'device' });
+    });
+    if (device.identity?.events) {
+      Object.entries(device.identity.events).forEach(([ts, event]) => {
+        combinedRawEvents.push({ timestampStr: ts, ...(event as any), source: 'identity' });
+      });
+    }
+    combinedRawEvents.sort((a, b) => parseISO(b.timestampStr).getTime() - parseISO(a.timestampStr).getTime());
+    setAllRawEvents(combinedRawEvents);
+  }, [device]);
+
+
+  // Effect for History Tab Pagination (remains independent)
    useEffect(() => {
     if (fullCertificateIdentityList.length === 0 || !user?.access_token) {
         if(fullCertificateIdentityList.length === 0) {
-            setCertificateHistory([]); // Clear history if list is empty
+            setCertificateHistory([]); 
         }
         return;
     }
@@ -236,77 +261,114 @@ export default function DeviceDetailsClient() { // Renamed component
   }, [fullCertificateIdentityList, historyCurrentPage, historyPageSize, user?.access_token, device?.identity]);
 
 
+  // New, combined useEffect for Timeline processing and on-demand fetching
   useEffect(() => {
-    if (!device || certificateHistory.length === 0) {
-       setTimelineEvents([]); // Clear timeline if no cert history
-      return;
+    if (!device || allRawEvents.length === 0 || !user?.access_token) {
+        setTimelineEvents([]);
+        return;
     }
 
-    const combinedRawEvents: { timestampStr: string; type: string; description: string; source: 'device' | 'identity' }[] = [];
-    Object.entries(device.events || {}).forEach(([ts, event]) => {
-      combinedRawEvents.push({ timestampStr: ts, ...event, source: 'device' });
-    });
-    if (device.identity?.events) {
-      Object.entries(device.identity.events).forEach(([ts, event]) => {
-        combinedRawEvents.push({ timestampStr: ts, ...event, source: 'identity' });
-      });
-    }
+    const processAndFetchForTimeline = async () => {
+        setIsTimelineLoading(true);
 
-    combinedRawEvents.sort((a, b) => parseISO(b.timestampStr).getTime() - parseISO(a.timestampStr).getTime());
+        const visibleRawEvents = allRawEvents.slice(0, timelineDisplayCount);
+        const neededSerials = new Set<string>();
 
-    const processedTimelineEvents: TimelineEventDisplayData[] = combinedRawEvents.map((rawEvent, index, arr) => {
-      const timestamp = parseISO(rawEvent.timestampStr);
-      let title = rawEvent.description || rawEvent.type;
-      let detailsNode: React.ReactNode = null;
-      let certificateInfo: CertificateHistoryEntry | undefined = undefined;
+        visibleRawEvents.forEach(rawEvent => {
+            let versionToFind: string | null = null;
+            if (rawEvent.type === 'PROVISIONED') {
+                versionToFind = '0';
+            } else if (rawEvent.type === 'RE-PROVISIONED') {
+                const versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
+                if (versionSetMatch) versionToFind = versionSetMatch[1];
+            }
+            if (versionToFind && device.identity?.versions[versionToFind]) {
+                neededSerials.add(device.identity.versions[versionToFind]);
+            }
+        });
 
-      let versionToFind: string | null = null;
+        const serialsToFetch = [...neededSerials].filter(sn => !timelineFetchedCerts.has(sn));
+        const updatedFetchedCerts = new Map(timelineFetchedCerts);
 
-      if (rawEvent.type === 'PROVISIONED') {
-        versionToFind = '0';
-        if (!rawEvent.description) {
-          title = 'Device Provisioned with Initial Certificate';
+        if (serialsToFetch.length > 0) {
+            try {
+                const certPromises = serialsToFetch.map(serialNumber => 
+                    fetchIssuedCertificates({
+                        accessToken: user.access_token!,
+                        apiQueryString: `filter=serial_number[equal]${serialNumber}&page_size=1`
+                    }).then(result => result.certificates[0])
+                );
+                
+                const fetchedApiCerts = (await Promise.all(certPromises)).filter((c): c is CertificateData => !!c);
+                
+                fetchedApiCerts.forEach(certData => {
+                    const associatedVersion = Object.entries(device.identity!.versions).find(([_, sn]) => sn === certData.serialNumber)?.[0];
+                    const isSuperseded = device.identity ? parseInt(associatedVersion || '-1', 10) < device.identity.active_version : false;
+
+                    const historyEntry: CertificateHistoryEntry = {
+                        version: associatedVersion || 'N/A',
+                        serialNumber: certData.serialNumber,
+                        apiStatus: certData.apiStatus,
+                        revocationReason: certData.revocationReason,
+                        revocationTimestamp: certData.revocationTimestamp,
+                        isSuperseded: isSuperseded,
+                        commonName: getCertSubjectCommonName(certData.subject),
+                        ca: getCertSubjectCommonName(certData.issuer),
+                        issuerCaId: certData.issuerCaId,
+                        validFrom: certData.validFrom,
+                        validTo: certData.validTo,
+                        lifespan: formatDistanceStrict(parseISO(certData.validTo), parseISO(certData.validFrom)),
+                    };
+                    updatedFetchedCerts.set(historyEntry.serialNumber, historyEntry);
+                });
+
+                setTimelineFetchedCerts(updatedFetchedCerts);
+
+            } catch (err) {
+                console.error("Failed to fetch certificates for timeline", err);
+                toast({ title: "Timeline Error", description: "Could not load some certificate details for the timeline.", variant: "destructive" });
+            }
         }
-      } else if (rawEvent.type === 'RE-PROVISIONED') {
-        const versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
-        if (versionSetMatch) {
-          versionToFind = versionSetMatch[1];
-        }
-      }
-      
-      if (versionToFind && device.identity?.versions[versionToFind]) {
-        const serial = device.identity.versions[versionToFind];
-        // Find in the currently loaded page of certificates
-        const certHistoryEntry = certificateHistory.find(c => c.serialNumber === serial);
-        if (certHistoryEntry) {
-          certificateInfo = certHistoryEntry;
-        } else {
-          // Fallback if not on the current page. We can improve this later if needed.
-          detailsNode = <p className="text-xs text-muted-foreground font-mono">Cert Info loading... SN: {serial}</p>;
-        }
-      }
+        
+        const processedTimelineEvents: TimelineEventDisplayData[] = visibleRawEvents.map((rawEvent, index) => {
+            const timestamp = parseISO(rawEvent.timestampStr);
+            let title = rawEvent.description || rawEvent.type;
+            let detailsNode: React.ReactNode = null;
+            let certificateInfo: CertificateHistoryEntry | undefined = undefined;
+            let versionToFind: string | null = null;
 
+            if (rawEvent.type === 'PROVISIONED') {
+                versionToFind = '0';
+                if (!rawEvent.description) title = 'Device Provisioned with Initial Certificate';
+            } else if (rawEvent.type === 'RE-PROVISIONED') {
+                const versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
+                if (versionSetMatch) versionToFind = versionSetMatch[1];
+            }
+            
+            if (versionToFind && device.identity?.versions[versionToFind]) {
+                const serial = device.identity.versions[versionToFind];
+                certificateInfo = updatedFetchedCerts.get(serial);
+                 if (!certificateInfo) {
+                    detailsNode = <div className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin"/><p className="text-xs text-muted-foreground font-mono">Loading Cert... SN: {serial.substring(0, 12)}...</p></div>;
+                }
+            }
 
-      if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
-        title = rawEvent.description;
-      }
+            if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
+                title = rawEvent.description;
+            }
 
-      const prevTimestamp = index < arr.length - 1 ? parseISO(arr[index + 1].timestampStr) : null;
-      
-      return {
-        id: rawEvent.timestampStr,
-        timestamp,
-        eventType: rawEvent.type,
-        title,
-        details: detailsNode,
-        certificate: certificateInfo,
-        relativeTime: formatDistanceToNowStrict(timestamp) + ' ago',
-        secondaryRelativeTime: prevTimestamp ? formatDistanceStrict(timestamp, prevTimestamp) + ' later' : undefined,
-      };
-    });
+            const prevTimestamp = index < allRawEvents.length - 1 ? parseISO(allRawEvents[index + 1].timestampStr) : null;
+            
+            return { id: rawEvent.timestampStr, timestamp, eventType: rawEvent.type, title, details: detailsNode, certificate: certificateInfo, relativeTime: formatDistanceToNowStrict(timestamp) + ' ago', secondaryRelativeTime: prevTimestamp ? formatDistanceStrict(timestamp, prevTimestamp) + ' later' : undefined };
+        });
 
-    setTimelineEvents(processedTimelineEvents);
-  }, [device, certificateHistory]); // Rerun when cert history changes
+        setTimelineEvents(processedTimelineEvents);
+        setIsTimelineLoading(false);
+    };
+
+    processAndFetchForTimeline();
+}, [device, allRawEvents, timelineDisplayCount, user?.access_token, toast, timelineFetchedCerts]);
+  
   
   const handleOpenRevokeModal = (certInfo: CertificateHistoryEntry) => {
     setCertToRevoke(certInfo);
@@ -330,13 +392,14 @@ export default function DeviceDetailsClient() { // Renamed component
         accessToken: user.access_token,
       });
       
+      const updatedEntry = { ...certToRevoke, apiStatus: 'REVOKED', revocationReason: reason, revocationTimestamp: new Date().toISOString() };
+
       setCertificateHistory(prevHistory => 
           prevHistory.map(c => 
-              c.serialNumber === certToRevoke.serialNumber
-              ? { ...c, apiStatus: 'REVOKED', revocationReason: reason, revocationTimestamp: new Date().toISOString() }
-              : c
+              c.serialNumber === certToRevoke.serialNumber ? updatedEntry : c
           )
       );
+      setTimelineFetchedCerts(prevMap => new Map(prevMap).set(certToRevoke.serialNumber, updatedEntry));
       
       toast({
         title: "Certificate Revoked",
@@ -364,13 +427,15 @@ export default function DeviceDetailsClient() { // Renamed component
         accessToken: user.access_token,
       });
 
+      const updatedEntry = { ...certToReactivate, apiStatus: 'ACTIVE', revocationReason: undefined, revocationTimestamp: undefined };
+
       setCertificateHistory(prevHistory =>
         prevHistory.map(c =>
-          c.serialNumber === certToReactivate.serialNumber
-            ? { ...c, apiStatus: 'ACTIVE', revocationReason: undefined, revocationTimestamp: undefined }
-            : c
+          c.serialNumber === certToReactivate.serialNumber ? updatedEntry : c
         )
       );
+      setTimelineFetchedCerts(prevMap => new Map(prevMap).set(certToReactivate.serialNumber, updatedEntry));
+
 
       toast({
         title: "Certificate Re-activated",
@@ -384,6 +449,10 @@ export default function DeviceDetailsClient() { // Renamed component
         variant: "destructive",
       });
     }
+  };
+
+  const handleLoadMoreTimeline = () => {
+    setTimelineDisplayCount(prev => prev + 10);
   };
 
   const totalHistoryPages = Math.ceil(fullCertificateIdentityList.length / historyPageSize);
@@ -465,14 +534,54 @@ export default function DeviceDetailsClient() { // Renamed component
         )}
       </div>
 
-      <Tabs defaultValue="certificatesHistory" className="w-full">
+      <Tabs defaultValue="timeline" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-          <TabsTrigger value="certificatesHistory"><History className="mr-2 h-4 w-4" />Certificates History</TabsTrigger>
           <TabsTrigger value="timeline"><Clock className="mr-2 h-4 w-4" />Timeline</TabsTrigger>
+          <TabsTrigger value="certificatesHistory"><History className="mr-2 h-4 w-4" />Certificates History</TabsTrigger>
           <TabsTrigger value="metadata"><SlidersHorizontal className="mr-2 h-4 w-4" />Metadata</TabsTrigger>
           <TabsTrigger value="rawApiData"><Layers className="mr-2 h-4 w-4" />Raw API Data</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="timeline">
+          <Card>
+            <CardHeader>
+                <CardTitle>Device Event Timeline</CardTitle>
+                <CardDescription>Chronological record of significant events for this device and its identity.</CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 sm:px-2 md:px-4 lg:px-6">
+              {timelineEvents.length > 0 ? (
+                <>
+                <div className="relative pl-4"> 
+                  <div className="absolute left-[calc(0.75rem-1px)] top-2 bottom-2 w-0.5 bg-border -translate-x-1/2 z-0"></div>
+                  
+                  <ul className="space-y-0">
+                    {timelineEvents.map((event, index) => (
+                      <TimelineEventItem 
+                        key={event.id} 
+                        event={event} 
+                        isLastItem={index === timelineEvents.length -1} 
+                        onRevoke={handleOpenRevokeModal}
+                        onReactivate={handleReactivateCertificate}
+                      />
+                    ))}
+                  </ul>
+                </div>
+                {allRawEvents.length > timelineDisplayCount && (
+                  <div className="flex justify-center mt-4">
+                      <Button onClick={handleLoadMoreTimeline} variant="outline" disabled={isTimelineLoading}>
+                          {isTimelineLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                          Load More Events
+                      </Button>
+                  </div>
+                )}
+                </>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No events recorded for this device.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
         <TabsContent value="certificatesHistory">
           <Card>
             <CardHeader>
@@ -610,36 +719,6 @@ export default function DeviceDetailsClient() { // Renamed component
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">This device does not have an identity with a certificate history.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="timeline">
-          <Card>
-            <CardHeader>
-                <CardTitle>Device Event Timeline</CardTitle>
-                <CardDescription>Chronological record of significant events for this device and its identity.</CardDescription>
-            </CardHeader>
-            <CardContent className="px-0 sm:px-2 md:px-4 lg:px-6">
-              {timelineEvents.length > 0 ? (
-                <div className="relative pl-4"> 
-                  <div className="absolute left-[calc(0.75rem-1px)] top-2 bottom-2 w-0.5 bg-border -translate-x-1/2 z-0"></div>
-                  
-                  <ul className="space-y-0">
-                    {timelineEvents.map((event, index) => (
-                      <TimelineEventItem 
-                        key={event.id} 
-                        event={event} 
-                        isLastItem={index === timelineEvents.length -1} 
-                        onRevoke={handleOpenRevokeModal}
-                        onReactivate={handleReactivateCertificate}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-8">No events recorded for this device.</p>
               )}
             </CardContent>
           </Card>
