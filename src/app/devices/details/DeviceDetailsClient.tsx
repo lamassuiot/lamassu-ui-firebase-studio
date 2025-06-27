@@ -354,7 +354,7 @@ export default function DeviceDetailsClient() { // Renamed component
         )}
       </div>
 
-      <Tabs defaultValue="timeline" className="w-full">
+      <Tabs defaultValue="certificatesHistory" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-3">
           <TabsTrigger value="certificatesHistory"><History className="mr-2 h-4 w-4" />Certificates History</TabsTrigger>
           <TabsTrigger value="timeline"><Clock className="mr-2 h-4 w-4" />Timeline</TabsTrigger>
