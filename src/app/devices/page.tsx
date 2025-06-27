@@ -6,11 +6,11 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
+import { HelpCircle, Eye, PlusCircle, MoreVertical, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -345,17 +345,6 @@ export default function DevicesPage() {
     router.push(`/devices/details?deviceId=${deviceIdValue}`);
   };
 
-  const handleEditDevice = (deviceIdValue: string) => {
-    alert(`Edit device ID: ${deviceIdValue} (placeholder)`);
-  };
-
-  const handleDeleteDevice = (deviceIdValue: string) => {
-    if(confirm(`Are you sure you want to delete device ${deviceIdValue}? This action cannot be undone.`)){
-        setDevices(prev => prev.filter(d => d.id !== deviceIdValue));
-        alert(`Device ${deviceIdValue} deleted (mock - API call not implemented).`);
-    }
-  };
-
   const handleRefresh = () => {
     if (currentPageIndex < bookmarkStack.length) {
         fetchDevices(
@@ -538,16 +527,6 @@ export default function DevicesPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleViewDetails(device.id)}>
                               <Eye className="mr-2 h-4 w-4" /> View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditDevice(device.id)}>
-                              <Edit className="mr-2 h-4 w-4" /> Edit Device
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                onClick={() => handleDeleteDevice(device.id)}
-                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Device
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
