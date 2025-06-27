@@ -357,7 +357,16 @@ export default function DeviceDetailsClient() { // Renamed component
                       {certificateHistory.map((cert) => (
                         <TableRow key={cert.version} className={cn(cert.isSuperseded && "opacity-60")}>
                           <TableCell>{cert.version}</TableCell>
-                          <TableCell className="font-mono text-xs">{cert.serialNumber}</TableCell>
+                          <TableCell className="font-mono text-xs">
+                            <Button
+                                variant="link"
+                                className="p-0 h-auto font-mono text-xs"
+                                onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
+                                title={`View details for certificate ${cert.serialNumber}`}
+                            >
+                                {cert.serialNumber}
+                            </Button>
+                          </TableCell>
                           <TableCell>
                             <div>
                               <ApiStatusBadge status={cert.apiStatus} />
