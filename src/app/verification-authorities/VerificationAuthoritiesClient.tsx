@@ -15,6 +15,7 @@ import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal'; 
 import { CertificateSelectorModal } from '@/components/shared/CertificateSelectorModal';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 interface VAConfig {
   caId: string; 
@@ -44,14 +45,24 @@ export function VerificationAuthoritiesClient() { // Renamed component
   const [isLoadingCAs, setIsLoadingCAs] = useState(false);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
 
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+  const [isLoadingEngines, setIsLoadingEngines] = useState(false);
+  const [errorEngines, setErrorEngines] = useState<string | null>(null);
+
+
   const [selectedCertificateSignerDisplay, setSelectedCertificateSignerDisplay] = useState<CertificateData | null>(null);
 
-  const loadCAs = useCallback(async () => {
+  const loadData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
-      if (!authLoading) setErrorCAs("User not authenticated. Cannot load CAs.");
+      if (!authLoading) {
+        setErrorCAs("User not authenticated. Cannot load CAs.");
+        setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
+      }
       setIsLoadingCAs(false);
+      setIsLoadingEngines(false);
       return;
     }
+
     setIsLoadingCAs(true);
     setErrorCAs(null);
     try {
@@ -67,13 +78,29 @@ export function VerificationAuthoritiesClient() { // Renamed component
     } finally {
       setIsLoadingCAs(false);
     }
+    
+    setIsLoadingEngines(true);
+    setErrorEngines(null);
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+            headers: { 'Authorization': `Bearer ${user.access_token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch crypto engines');
+        const enginesData: ApiCryptoEngine[] = await response.json();
+        setAllCryptoEngines(enginesData);
+    } catch (err: any) {
+        setErrorEngines(err.message || 'Failed to load Crypto Engines.');
+        setAllCryptoEngines([]);
+    } finally {
+        setIsLoadingEngines(false);
+    }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (!authLoading) {
-        loadCAs();
+        loadData();
     }
-  }, [loadCAs, authLoading]);
+  }, [loadData, authLoading]);
 
   useEffect(() => {
     if (selectedCaForConfig) {
@@ -152,15 +179,16 @@ export function VerificationAuthoritiesClient() { // Renamed component
             availableCAs={availableCAs}
             isLoadingCAs={isLoadingCAs}
             errorCAs={errorCAs}
-            loadCAsAction={loadCAs}
+            loadCAsAction={loadData}
             onCaSelected={handleCaSelectedForConfiguration}
             currentSelectedCaId={selectedCaForConfig?.id}
             isAuthLoading={authLoading}
+            allCryptoEngines={allCryptoEngines}
           />
           
           {selectedCaForConfig && (
             <div className="my-4">
-              <CaVisualizerCard ca={selectedCaForConfig} className="shadow-md border-primary max-w-md" />
+              <CaVisualizerCard ca={selectedCaForConfig} className="shadow-md border-primary max-w-md" allCryptoEngines={allCryptoEngines} />
             </div>
           )}
 
