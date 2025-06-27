@@ -1,14 +1,14 @@
 
 'use client';
 
-import './globals.css'; 
-import { Toaster } from "@/components/ui/toaster"; 
-import { AuthProvider, useAuth } from '@/contexts/AuthContext'; 
+import './globals.css';
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams }
-from 'next/navigation';
+  from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -30,7 +30,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { jwtDecode } from 'jwt-decode';
 import Image from 'next/image'
-import Logo from './lamassu_full_white.svg'
+import LogoFullWhite from './lamassu_full_white.svg'
+import LogoFullBlue from './lamassu_full_blue.svg'
+import LogoBlue from './lamassu_logo_blue.svg'
 
 interface DecodedAccessToken {
   realm_access?: {
@@ -67,23 +69,23 @@ function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): Br
   for (let i = 0; i < pathSegments.length; i++) {
     const segment = pathSegments[i];
     let label = PATH_SEGMENT_TO_LABEL_MAP[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
-    
+
     currentHref += `/${segment}`;
     const isLastSegment = i === pathSegments.length - 1;
     let hrefWithQuery = currentHref;
 
     if (segment === 'details') {
-        if (queryParams.get('caId')) hrefWithQuery += `?caId=${queryParams.get('caId')}`;
-        else if (queryParams.get('certificateId')) hrefWithQuery += `?certificateId=${queryParams.get('certificateId')}`;
-        else if (queryParams.get('keyId')) hrefWithQuery += `?keyId=${queryParams.get('keyId')}`;
-        else if (queryParams.get('deviceId')) hrefWithQuery += `?deviceId=${queryParams.get('deviceId')}`;
+      if (queryParams.get('caId')) hrefWithQuery += `?caId=${queryParams.get('caId')}`;
+      else if (queryParams.get('certificateId')) hrefWithQuery += `?certificateId=${queryParams.get('certificateId')}`;
+      else if (queryParams.get('keyId')) hrefWithQuery += `?keyId=${queryParams.get('keyId')}`;
+      else if (queryParams.get('deviceId')) hrefWithQuery += `?deviceId=${queryParams.get('deviceId')}`;
     } else if (segment === 'issue-certificate' && queryParams.get('caId')) {
-        hrefWithQuery += `?caId=${queryParams.get('caId')}`;
+      hrefWithQuery += `?caId=${queryParams.get('caId')}`;
     }
 
 
     if (isLastSegment) {
-      breadcrumbItems.push({ label }); 
+      breadcrumbItems.push({ label });
     } else {
       breadcrumbItems.push({ label, href: hrefWithQuery });
     }
@@ -93,18 +95,18 @@ function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): Br
 
 
 const LoadingState = () => (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
-      <Loader2 className="h-16 w-16 animate-spin text-primary" />
-      <p className="mt-6 text-lg text-muted-foreground">
-        Loading authentication status...
-      </p>
-    </div>
+  <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
+    <Loader2 className="h-16 w-16 animate-spin text-primary" />
+    <p className="mt-6 text-lg text-muted-foreground">
+      Loading authentication status...
+    </p>
+  </div>
 );
 
 const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, login, logout } = useAuth();
   const pathname = usePathname();
-  const searchParams = useSearchParams(); 
+  const searchParams = useSearchParams();
 
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
@@ -142,8 +144,8 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
         <header className="flex h-12 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" />
-             <Image
-              src={Logo}
+            <Image
+              src={LogoFullWhite}
               height={30}
               alt="LamassuIoT Logo"
             />
@@ -184,10 +186,11 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
             <Sidebar collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
               <SidebarHeader className="p-4">
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-                  <Shield className="h-8 w-8 text-primary flex-shrink-0" />
-                  <h2 className="font-headline text-xl font-semibold text-primary group-data-[collapsible=icon]:hidden whitespace-nowrap">
-                    LamassuIoT
-                  </h2>
+                  <Image
+                    src={LogoFullBlue}
+                    height={30}
+                    alt="LamassuIoT Logo"
+                  />
                 </div>
               </SidebarHeader>
               <SidebarContent className="p-2">
@@ -196,7 +199,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     <SidebarMenuButton
                       asChild
                       isActive={pathname === homeItem.href}
-                      tooltip={{children: homeItem.label, side: 'right', align: 'center' }}
+                      tooltip={{ children: homeItem.label, side: 'right', align: 'center' }}
                     >
                       <Link href={homeItem.href} className="flex items-center w-full justify-start">
                         <homeItem.icon className="mr-2 h-5 w-5 flex-shrink-0" />
@@ -211,7 +214,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                       <SidebarMenuButton
                         asChild
                         isActive={pathname.startsWith(item.href)}
-                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
                           <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
@@ -227,7 +230,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                       <SidebarMenuButton
                         asChild
                         isActive={pathname.startsWith(item.href)}
-                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
                           <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
@@ -243,7 +246,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                       <SidebarMenuButton
                         asChild
                         isActive={pathname.startsWith(item.href)}
-                        tooltip={{children: item.label, side: 'right', align: 'center' }}
+                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
                           <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
@@ -252,16 +255,16 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
-                  
+
                 </SidebarMenu>
               </SidebarContent>
               <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
                 <CustomSidebarToggle />
                 <div className="group-data-[collapsible=icon]:hidden w-full">
-                    <ThemeToggle />
+                  <ThemeToggle />
                 </div>
                 <div className="hidden group-data-[collapsible=icon]:flex justify-center w-full">
-                    <ThemeToggle />
+                  <ThemeToggle />
                 </div>
               </SidebarFooter>
             </Sidebar>
@@ -273,8 +276,12 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
           </div>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
-            <ShieldCheck className="h-16 w-16 text-primary mb-6" />
-            <h1 className="text-3xl font-bold mb-3">Welcome to LamassuIoT</h1>
+            <Image
+              src={LogoBlue}
+              height={75}
+              alt="LamassuIoT Logo"
+            />
+            <h1 className="text-3xl font-bold mt-3 mb-3">Welcome to LamassuIoT</h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-md">
               Securely manage your X.509 certificates and IoT device identities. Please log in to access the dashboard.
             </p>
@@ -293,7 +300,6 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
   const { isLoading: authIsLoading } = useAuth();
   const [clientMounted, setClientMounted] = React.useState(false);
   const pathname = usePathname();
-  const searchParams = useSearchParams(); 
 
   React.useEffect(() => {
     setClientMounted(true);
@@ -305,7 +311,7 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     pathname === '/signout-callback';
 
   if (isCallbackPage) {
-    return <>{children}</>; 
+    return <>{children}</>;
   }
 
   if (!clientMounted || authIsLoading) {
