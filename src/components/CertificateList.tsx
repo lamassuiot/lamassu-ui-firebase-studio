@@ -163,6 +163,32 @@ export function CertificateList({
     setIssuerForOcsp(issuer);
     setIsOcspModalOpen(true);
   };
+
+  const handleDownloadPem = (certificate: CertificateData) => {
+    if (!certificate.pemData) {
+      toast({
+        title: 'Download Failed',
+        description: 'No PEM data available for this certificate.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const blob = new Blob([certificate.pemData], { type: 'application/x-pem-file' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = certificate.fileName || `${certificate.serialNumber}.pem`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'PEM Downloaded',
+      description: `The certificate for "${getCommonName(certificate.subject)}" has been downloaded.`,
+    });
+  };
   
   if (certificates.length === 0 && !isLoading) {
     return null; // The parent CertificatesPage will show "No certificates" message
@@ -259,7 +285,7 @@ export function CertificateList({
                         )}
 
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => alert(`Download PEM for: ${cert.fileName} (placeholder)`)}>
+                        <DropdownMenuItem onClick={() => handleDownloadPem(cert)}>
                           <Download className="mr-2 h-4 w-4" />
                           Download PEM
                         </DropdownMenuItem>
