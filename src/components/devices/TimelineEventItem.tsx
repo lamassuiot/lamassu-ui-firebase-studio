@@ -3,11 +3,19 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { Card, CardContent } from '@/components/ui/card';
+import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, Eye, HelpCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, HelpCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Button } from '../ui/button';
+
+export interface TimelineCertificateInfo {
+  serialNumber: string;
+  apiStatus?: string;
+  revocationReason?: string;
+  revocationTimestamp?: string;
+}
 
 export interface TimelineEventDisplayData {
   id: string;
@@ -17,7 +25,7 @@ export interface TimelineEventDisplayData {
   details?: React.ReactNode; // For serial, device ID, cert status etc.
   relativeTime: string; // e.g., "2 days ago"
   secondaryRelativeTime?: string; // e.g., "2 minutes later"
-  linkableSerial?: string;
+  certificate?: TimelineCertificateInfo;
 }
 
 const eventTypeVisuals: Record<string, { display: string; colorClass: string; Icon: React.ElementType }> = {
@@ -65,18 +73,37 @@ export const TimelineEventItem: React.FC<{ event: TimelineEventDisplayData; isLa
                     <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" title="Device identity was updated with a new certificate version."/>
                 )}
             </div>
-             {event.linkableSerial && (
-                <Button variant="ghost" size="icon" className="h-6 w-6" title="View Associated Certificate" onClick={() => router.push(`/certificates/details?certificateId=${event.linkableSerial}`)}>
-                    <Eye className="h-4 w-4" />
-                </Button>
-            )}
         </div>
         <p className="text-sm font-medium text-foreground mt-1 break-words">{event.title}</p>
-        {event.details && (
-          <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-            {event.details}
-          </div>
-        )}
+        
+        {event.certificate ? (
+            <Card 
+              onClick={() => router.push(`/certificates/details?certificateId=${event.certificate?.serialNumber}`)}
+              className="mt-2 p-3 bg-muted/40 border-border cursor-pointer hover:bg-muted/60 hover:border-primary/50 transition-colors"
+            >
+              <CardContent className="p-0 space-y-1 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-foreground">Certificate Provisioned</span>
+                  <ApiStatusBadge status={event.certificate.apiStatus} />
+                </div>
+                <p className="font-mono text-muted-foreground">SN: {event.certificate.serialNumber}</p>
+                {event.certificate.apiStatus === 'REVOKED' && (
+                  <div className="text-destructive/90">
+                    <p>Reason: {event.certificate.revocationReason || 'Unspecified'}</p>
+                    {event.certificate.revocationTimestamp && (
+                      <p>On: {format(parseISO(event.certificate.revocationTimestamp), 'dd MMM yyyy, HH:mm')}</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            event.details && (
+              <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                {event.details}
+              </div>
+            )
+          )}
       </div>
     </li>
   );

@@ -8,14 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Eye, Layers } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
-import { TimelineEventItem, type TimelineEventDisplayData } from '@/components/devices/TimelineEventItem';
+import { TimelineEventItem, type TimelineEventDisplayData, type TimelineCertificateInfo } from '@/components/devices/TimelineEventItem';
 import type { CertificateData } from '@/types/certificate';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
@@ -126,8 +126,7 @@ export default function DeviceDetailsClient() { // Renamed component
     }
   }, []);
 
-  useEffect(() => {
-    const fetchDeviceDetails = async () => {
+  const fetchDeviceDetails = useCallback(async () => {
       if (!deviceId) {
         setErrorDevice("Device ID is missing from URL.");
         setIsLoadingDevice(false);
@@ -171,72 +170,89 @@ export default function DeviceDetailsClient() { // Renamed component
             setIsLoadingHistory(false);
         }
 
-        const combinedRawEvents: { timestampStr: string; type: string; description: string; source: 'device' | 'identity' }[] = [];
-        Object.entries(data.events || {}).forEach(([ts, event]) => {
-          combinedRawEvents.push({ timestampStr: ts, ...event, source: 'device' });
-        });
-        if (data.identity?.events) {
-          Object.entries(data.identity.events).forEach(([ts, event]) => {
-            combinedRawEvents.push({ timestampStr: ts, ...event, source: 'identity' });
-          });
-        }
-
-        combinedRawEvents.sort((a, b) => parseISO(b.timestampStr).getTime() - parseISO(a.timestampStr).getTime()); 
-
-        const processedTimelineEvents: TimelineEventDisplayData[] = combinedRawEvents.map((rawEvent, index, arr) => {
-          const timestamp = parseISO(rawEvent.timestampStr);
-          let title = rawEvent.description || rawEvent.type;
-          let detailsNode: React.ReactNode = null;
-          let linkableSerial: string | undefined = undefined;
-          
-          if (rawEvent.type === 'PROVISIONED' || rawEvent.type === 'RE-PROVISIONED') {
-            title = rawEvent.description || `Device ${rawEvent.type.toLowerCase()}`;
-            const versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
-            const currentVersion = versionSetMatch ? versionSetMatch[1] : (rawEvent.type === 'PROVISIONED' ? data.identity?.active_version.toString() : null);
-
-            if (rawEvent.type === 'RE-PROVISIONED' && !rawEvent.description && currentVersion) {
-                 title = `New Active Version set to ${currentVersion}`;
-            }
-            
-            if (currentVersion && data.identity?.versions[currentVersion]) {
-              const serial = data.identity.versions[currentVersion];
-              linkableSerial = serial;
-              detailsNode = (
-                <p className="text-xs text-muted-foreground font-mono">
-                  Cert Serial: {serial}
-                </p>
-              );
-            }
-
-          } else if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
-             title = rawEvent.description; 
-          }
-
-          const prevTimestamp = index < arr.length - 1 ? parseISO(arr[index + 1].timestampStr) : null;
-          
-          return {
-            id: rawEvent.timestampStr,
-            timestamp,
-            eventType: rawEvent.type,
-            title,
-            details: detailsNode,
-            relativeTime: formatDistanceToNowStrict(timestamp) + ' ago',
-            secondaryRelativeTime: prevTimestamp ? formatDistanceStrict(timestamp, prevTimestamp) + ' later' : undefined,
-            linkableSerial: linkableSerial,
-          };
-        });
-        setTimelineEvents(processedTimelineEvents);
-
       } catch (err: any) {
         setErrorDevice(err.message || 'Failed to load device details.');
         setDevice(null);
       } finally {
         setIsLoadingDevice(false);
       }
-    };
+    }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistory]);
 
+
+  useEffect(() => {
     fetchDeviceDetails();
-  }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistory]);
+  }, [fetchDeviceDetails]);
+
+
+  useEffect(() => {
+    if (!device || isLoadingHistory) {
+        return;
+    }
+    
+    const combinedRawEvents: { timestampStr: string; type: string; description: string; source: 'device' | 'identity' }[] = [];
+    Object.entries(device.events || {}).forEach(([ts, event]) => {
+      combinedRawEvents.push({ timestampStr: ts, ...event, source: 'device' });
+    });
+    if (device.identity?.events) {
+      Object.entries(device.identity.events).forEach(([ts, event]) => {
+        combinedRawEvents.push({ timestampStr: ts, ...event, source: 'identity' });
+      });
+    }
+
+    combinedRawEvents.sort((a, b) => parseISO(b.timestampStr).getTime() - parseISO(a.timestampStr).getTime());
+
+    const processedTimelineEvents: TimelineEventDisplayData[] = combinedRawEvents.map((rawEvent, index, arr) => {
+        const timestamp = parseISO(rawEvent.timestampStr);
+        let title = rawEvent.description || rawEvent.type;
+        let detailsNode: React.ReactNode = null;
+        let certificateInfo: TimelineCertificateInfo | undefined = undefined;
+
+        if (rawEvent.type === 'PROVISIONED' || rawEvent.type === 'RE-PROVISIONED') {
+            title = rawEvent.description || `Device ${rawEvent.type.toLowerCase()}`;
+            const versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
+            
+            const currentVersion = versionSetMatch 
+                ? versionSetMatch[1] 
+                : (rawEvent.type === 'PROVISIONED' ? device.identity?.active_version.toString() : null);
+
+            if (rawEvent.type === 'RE-PROVISIONED' && !rawEvent.description && currentVersion) {
+                title = `New Active Version set to ${currentVersion}`;
+            }
+
+            if (currentVersion && device.identity?.versions[currentVersion]) {
+                const serial = device.identity.versions[currentVersion];
+                const certHistoryEntry = certificateHistory.find(c => c.serialNumber === serial);
+                if (certHistoryEntry) {
+                    certificateInfo = {
+                        serialNumber: certHistoryEntry.serialNumber,
+                        apiStatus: certHistoryEntry.apiStatus,
+                        revocationReason: certHistoryEntry.revocationReason,
+                        revocationTimestamp: certHistoryEntry.revocationTimestamp,
+                    };
+                } else {
+                    detailsNode = <p className="text-xs text-muted-foreground font-mono">Cert Serial: {serial}</p>;
+                }
+            }
+        } else if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
+            title = rawEvent.description;
+        }
+
+        const prevTimestamp = index < arr.length - 1 ? parseISO(arr[index + 1].timestampStr) : null;
+          
+        return {
+            id: rawEvent.timestampStr,
+            timestamp,
+            eventType: rawEvent.type,
+            title,
+            details: detailsNode,
+            certificate: certificateInfo,
+            relativeTime: formatDistanceToNowStrict(timestamp) + ' ago',
+            secondaryRelativeTime: prevTimestamp ? formatDistanceStrict(timestamp, prevTimestamp) + ' later' : undefined,
+        };
+    });
+
+    setTimelineEvents(processedTimelineEvents);
+  }, [device, certificateHistory, isLoadingHistory]);
 
 
   if (isLoadingDevice || authLoading) {
@@ -304,7 +320,7 @@ export default function DeviceDetailsClient() { // Renamed component
             </div>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline"><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
+            <Button variant="outline" onClick={fetchDeviceDetails}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
             <Button><PlusCircle className="mr-2 h-4 w-4" /> Assign Identity</Button>
           </div>
         </div>
