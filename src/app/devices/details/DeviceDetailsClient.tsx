@@ -186,9 +186,9 @@ export default function DeviceDetailsClient() { // Renamed component
 
   useEffect(() => {
     if (!device || isLoadingHistory) {
-        return;
+      return;
     }
-    
+
     const combinedRawEvents: { timestampStr: string; type: string; description: string; source: 'device' | 'identity' }[] = [];
     Object.entries(device.events || {}).forEach(([ts, event]) => {
       combinedRawEvents.push({ timestampStr: ts, ...event, source: 'device' });
@@ -202,53 +202,56 @@ export default function DeviceDetailsClient() { // Renamed component
     combinedRawEvents.sort((a, b) => parseISO(b.timestampStr).getTime() - parseISO(a.timestampStr).getTime());
 
     const processedTimelineEvents: TimelineEventDisplayData[] = combinedRawEvents.map((rawEvent, index, arr) => {
-        const timestamp = parseISO(rawEvent.timestampStr);
-        let title = rawEvent.description || rawEvent.type;
-        let detailsNode: React.ReactNode = null;
-        let certificateInfo: TimelineCertificateInfo | undefined = undefined;
+      const timestamp = parseISO(rawEvent.timestampStr);
+      let title = rawEvent.description || rawEvent.type;
+      let detailsNode: React.ReactNode = null;
+      let certificateInfo: TimelineCertificateInfo | undefined = undefined;
 
-        if (rawEvent.type === 'PROVISIONED' || rawEvent.type === 'RE-PROVISIONED') {
-            title = rawEvent.description || `Device ${rawEvent.type.toLowerCase()}`;
-            const versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
-            
-            const currentVersion = versionSetMatch 
-                ? versionSetMatch[1] 
-                : (rawEvent.type === 'PROVISIONED' ? device.identity?.active_version.toString() : null);
+      let versionToFind: string | null = null;
 
-            if (rawEvent.type === 'RE-PROVISIONED' && !rawEvent.description && currentVersion) {
-                title = `New Active Version set to ${currentVersion}`;
-            }
-
-            if (currentVersion && device.identity?.versions[currentVersion]) {
-                const serial = device.identity.versions[currentVersion];
-                const certHistoryEntry = certificateHistory.find(c => c.serialNumber === serial);
-                if (certHistoryEntry) {
-                    certificateInfo = {
-                        serialNumber: certHistoryEntry.serialNumber,
-                        apiStatus: certHistoryEntry.apiStatus,
-                        revocationReason: certHistoryEntry.revocationReason,
-                        revocationTimestamp: certHistoryEntry.revocationTimestamp,
-                    };
-                } else {
-                    detailsNode = <p className="text-xs text-muted-foreground font-mono">Cert Serial: {serial}</p>;
-                }
-            }
-        } else if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
-            title = rawEvent.description;
+      if (rawEvent.type === 'PROVISIONED') {
+        versionToFind = '0';
+        if (!rawEvent.description) {
+          title = 'Device Provisioned with Initial Certificate';
         }
+      } else if (rawEvent.type === 'RE-PROVISIONED') {
+        const versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
+        if (versionSetMatch) {
+          versionToFind = versionSetMatch[1];
+        }
+      }
 
-        const prevTimestamp = index < arr.length - 1 ? parseISO(arr[index + 1].timestampStr) : null;
-          
-        return {
-            id: rawEvent.timestampStr,
-            timestamp,
-            eventType: rawEvent.type,
-            title,
-            details: detailsNode,
-            certificate: certificateInfo,
-            relativeTime: formatDistanceToNowStrict(timestamp) + ' ago',
-            secondaryRelativeTime: prevTimestamp ? formatDistanceStrict(timestamp, prevTimestamp) + ' later' : undefined,
-        };
+      if (versionToFind && device.identity?.versions[versionToFind]) {
+        const serial = device.identity.versions[versionToFind];
+        const certHistoryEntry = certificateHistory.find(c => c.serialNumber === serial);
+        if (certHistoryEntry) {
+          certificateInfo = {
+            serialNumber: certHistoryEntry.serialNumber,
+            apiStatus: certHistoryEntry.apiStatus,
+            revocationReason: certHistoryEntry.revocationReason,
+            revocationTimestamp: certHistoryEntry.revocationTimestamp,
+          };
+        } else {
+          detailsNode = <p className="text-xs text-muted-foreground font-mono">Cert Serial: {serial}</p>;
+        }
+      }
+
+      if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
+        title = rawEvent.description;
+      }
+
+      const prevTimestamp = index < arr.length - 1 ? parseISO(arr[index + 1].timestampStr) : null;
+      
+      return {
+        id: rawEvent.timestampStr,
+        timestamp,
+        eventType: rawEvent.type,
+        title,
+        details: detailsNode,
+        certificate: certificateInfo,
+        relativeTime: formatDistanceToNowStrict(timestamp) + ' ago',
+        secondaryRelativeTime: prevTimestamp ? formatDistanceStrict(timestamp, prevTimestamp) + ' later' : undefined,
+      };
     });
 
     setTimelineEvents(processedTimelineEvents);
