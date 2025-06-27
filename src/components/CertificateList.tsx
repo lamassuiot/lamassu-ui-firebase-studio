@@ -5,8 +5,7 @@ import React, { useState } from 'react';
 import type { CertificateData } from '@/types/certificate';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, ChevronsUpDown, ShieldAlert, FileText, ShieldCheck } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, AlertTriangle, Clock, MoreVertical, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, ChevronsUpDown, ShieldAlert, FileText, ShieldCheck, Download } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +22,8 @@ import { cn } from '@/lib/utils';
 import { RevocationModal } from '@/components/shared/RevocationModal';
 import type { CertSortConfig, SortableCertColumn } from '@/app/certificates/page'; // Import shared types
 import { OcspCheckModal } from '@/components/shared/OcspCheckModal';
-import { useAuth } from '@/contexts/AuthContext';
+import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
+import { updateCertificateStatus } from '@/lib/issued-certificate-data';
 
 interface CertificateListProps {
   certificates: CertificateData[];
@@ -32,32 +32,9 @@ interface CertificateListProps {
   onCertificateUpdated: (updatedCertificate: CertificateData) => void;
   sortConfig: CertSortConfig | null;
   requestSort: (column: SortableCertColumn) => void;
-  isLoading?: boolean; // Optional prop to indicate data loading
+  isLoading?: boolean;
+  accessToken?: string | null;
 }
-
-const ApiStatusBadge: React.FC<{ status?: string }> = ({ status }) => {
-  if (!status) return <Badge variant="outline">Unknown</Badge>;
-  const upperStatus = status.toUpperCase();
-  let badgeClass = "bg-muted text-muted-foreground border-border";
-  let Icon = AlertTriangle; 
-
-  if (upperStatus.includes('ACTIVE')) {
-    badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
-    Icon = CheckCircle;
-  } else if (upperStatus.includes('REVOKED')) {
-    badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
-    Icon = XCircle;
-  } else if (upperStatus.includes('EXPIRED')) {
-    badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
-    Icon = AlertTriangle;
-  } else if (upperStatus.includes('PENDING')) {
-    badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
-    Icon = Clock;
-  }
-
-  return <Badge variant="outline" className={cn("text-xs capitalize whitespace-nowrap", badgeClass)}><Icon className="mr-1 h-3 w-3" />{upperStatus.replace('_', ' ')}</Badge>;
-};
-
 
 const getCommonName = (subjectOrIssuer: string): string => {
   const cnMatch = subjectOrIssuer.match(/CN=([^,]+)/);
@@ -71,7 +48,8 @@ export function CertificateList({
   onCertificateUpdated,
   sortConfig,
   requestSort,
-  isLoading 
+  isLoading,
+  accessToken
 }: CertificateListProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -114,51 +92,67 @@ export function CertificateList({
   };
 
   const handleConfirmCertificateRevocation = async (reason: string) => {
-    if (!certificateToRevoke || !user?.access_token) {
-      toast({ title: "Error", description: "Missing certificate data or authentication token.", variant: "destructive" });
+    if (!certificateToRevoke) {
+      toast({ title: "Error", description: "No certificate selected for revocation.", variant: "destructive" });
       return;
     }
+    if (!accessToken) {
+      toast({ title: "Error", description: "Authentication token not found.", variant: "destructive" });
+      return;
+    }
+    
+    setIsRevocationModalOpen(false);
 
-    setIsRevoking(true);
     try {
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateToRevoke.serialNumber}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-        body: JSON.stringify({
-          status: 'REVOKED',
-          revocation_reason: reason,
-        }),
+      await updateCertificateStatus({
+        serialNumber: certificateToRevoke.serialNumber,
+        status: 'REVOKED',
+        reason: reason,
+        accessToken: accessToken,
       });
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to revoke certificate. Status: ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-        } catch (e) { /* ignore json parsing error */ }
-        throw new Error(errorMessage);
-      }
       
-      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED' });
+      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED', revocationReason: reason });
       toast({
         title: "Certificate Revoked",
-        description: `Successfully revoked certificate "${getCommonName(certificateToRevoke.subject)}".`,
+        description: `Certificate "${getCommonName(certificateToRevoke.subject)}" has been successfully revoked.`,
       });
 
     } catch (error: any) {
       toast({
         title: "Revocation Failed",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
-      setIsRevoking(false);
-      setIsRevocationModalOpen(false);
       setCertificateToRevoke(null);
+    }
+  };
+
+  const handleReactivateCertificate = async (certificate: CertificateData) => {
+    if (!certificate || !accessToken) {
+      toast({ title: "Error", description: "Cannot reactivate certificate. Missing details or authentication.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await updateCertificateStatus({
+        serialNumber: certificate.serialNumber,
+        status: 'ACTIVE',
+        accessToken: accessToken,
+      });
+      
+      onCertificateUpdated({ ...certificate, apiStatus: 'ACTIVE', revocationReason: undefined });
+      toast({
+        title: "Certificate Re-activated",
+        description: `Certificate "${getCommonName(certificate.subject)}" has been re-activated.`,
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Re-activation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -170,6 +164,32 @@ export function CertificateList({
     setCertForOcsp(certificate);
     setIssuerForOcsp(issuer);
     setIsOcspModalOpen(true);
+  };
+
+  const handleDownloadPem = (certificate: CertificateData) => {
+    if (!certificate.pemData) {
+      toast({
+        title: 'Download Failed',
+        description: 'No PEM data available for this certificate.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const blob = new Blob([certificate.pemData], { type: 'application/x-pem-file' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = certificate.fileName || `${certificate.serialNumber}.pem`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'PEM Downloaded',
+      description: `The certificate for "${getCommonName(certificate.subject)}" has been downloaded.`,
+    });
   };
   
   if (certificates.length === 0 && !isLoading) {
@@ -195,6 +215,7 @@ export function CertificateList({
             {certificates.map((cert) => {
               const issuerCa = cert.issuerCaId && allCAs ? findCaById(cert.issuerCaId, allCAs) : null;
               const issuerDisplayName = issuerCa ? issuerCa.name : getCommonName(cert.issuer);
+              const isOnHold = cert.apiStatus?.toUpperCase() === 'REVOKED' && cert.revocationReason === 'CertificateHold';
 
               return (
                 <TableRow key={cert.id}>{/*
@@ -205,7 +226,7 @@ export function CertificateList({
                       <Button
                         variant="link"
                         className="p-0 h-auto text-left whitespace-normal leading-tight"
-                        onClick={() => router.push(`/certificate-authorities/details?caId=${issuerCa.id}`)} // Updated navigation
+                        onClick={() => router.push(`/certificate-authorities/details?caId=${issuerCa.id}`)}
                         title={`View details for CA: ${issuerCa.name}`}
                       >
                         {issuerCa.name}
@@ -223,7 +244,7 @@ export function CertificateList({
                     <Button 
                       variant="outline" 
                       size="icon" 
-                      onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)} // Updated navigation
+                      onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
                       title="View Certificate Details" 
                       className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1"
                     >
@@ -234,7 +255,7 @@ export function CertificateList({
                       variant="ghost" 
                       size="icon" 
                       onClick={() => onInspectCertificate(cert)} 
-                      title="Quick Inspect (Modal)" 
+                      title="Quick Inspect"
                       className="h-8 w-8 sm:hidden" // Hide on sm and up, use Details button instead
                     >
                       <Eye className="h-4 w-4" />
@@ -249,20 +270,26 @@ export function CertificateList({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
-                          <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
+                          <Eye className="mr-2 h-4 w-4" /> Quick Inspect
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenOcspModal(cert, issuerCa)} disabled={!cert.ocspUrls || cert.ocspUrls.length === 0}>
                            <ShieldCheck className="mr-2 h-4 w-4" /> OCSP Check
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
-                          <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => alert(`Download PEM for: ${cert.fileName} (placeholder)`)}>
-                          Download PEM
-                        </DropdownMenuItem>
+                        
+                        {isOnHold ? (
+                          <DropdownMenuItem onClick={() => handleReactivateCertificate(cert)}>
+                            <ShieldCheck className="mr-2 h-4 w-4" /> Re-activate Certificate
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
+                            <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
+                          </DropdownMenuItem>
+                        )}
+
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => alert(`View audit log for: ${cert.fileName} (placeholder)`)}>
-                          View Audit Log
+                        <DropdownMenuItem onClick={() => handleDownloadPem(cert)}>
+                          <Download className="mr-2 h-4 w-4" />
+                          Download PEM
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

@@ -9,6 +9,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { cn } from '@/lib/utils';
+import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 
 interface CertificateDetailsModalProps {
   certificate: CertificateData | null;
@@ -43,9 +46,9 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-headline text-2xl">Certificate Details: {certificate.fileName}</DialogTitle>
+          <DialogTitle className="font-headline text-2xl">Certificate Details</DialogTitle>
           <DialogDescription>
-            Detailed information for the selected X.509 certificate. API Status: {certificate.apiStatus || 'N/A'}
+            Detailed information for the selected X.509 certificate.
           </DialogDescription>
         </DialogHeader>
         
@@ -56,10 +59,9 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
             <DetailItem label="Serial Number" value={certificate.serialNumber} />
             <DetailItem label="Valid From" value={format(new Date(certificate.validFrom), 'PPpp')} />
             <DetailItem label="Valid To" value={format(new Date(certificate.validTo), 'PPpp')} />
-            <DetailItem label="API Reported Status" value={<Badge variant={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'default' : 'destructive'} className={certificate.apiStatus?.toUpperCase() === 'ACTIVE' ? 'bg-green-500' : ''}>{certificate.apiStatus || 'N/A'}</Badge>} />
+            <DetailItem label="Status" value={<ApiStatusBadge status={certificate.apiStatus} />} />
             
             {certificate.publicKeyAlgorithm && <DetailItem label="Public Key Algorithm" value={certificate.publicKeyAlgorithm} />}
-            {certificate.signatureAlgorithm && <DetailItem label="Signature Algorithm" value={certificate.signatureAlgorithm} />}
             {certificate.fingerprintSha256 && <DetailItem label="SHA-256 Fingerprint" value={certificate.fingerprintSha256} />}
             
             {certificate.sans && certificate.sans.length > 0 && (
@@ -74,31 +76,26 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
             )}
 
             <Separator className="my-3"/>
-            
-            <div className="py-2">
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Client Verification Status</h3>
-              <p className="text-sm text-foreground">({certificate.verificationStatus}) {certificate.verificationDetails}</p>
-            </div>
-            
-            <Separator className="my-3"/>
 
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-1">PEM Data</h3>
-              <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/30">
-                <pre className="text-xs whitespace-pre-wrap break-all font-mono">{certificate.pemData}</pre>
-              </ScrollArea>
+              <pre className="text-xs whitespace-pre-wrap break-all font-mono h-48 w-full rounded-md border p-3 bg-muted/30 overflow-y-auto">
+                {certificate.pemData}
+              </pre>
             </div>
 
             <Separator className="my-3"/>
-
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Raw API Data</h3>
-              <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/30">
-                <pre className="text-xs whitespace-pre-wrap break-all font-mono">
-                  {certificate.rawApiData ? JSON.stringify(certificate.rawApiData, null, 2) : 'No raw API data available.'}
-                </pre>
-              </ScrollArea>
-            </div>
+            
+            <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="raw-api-data" className="border-b-0">
+                    <AccordionTrigger className="text-sm font-medium text-muted-foreground hover:no-underline py-1 justify-start">Raw API Data</AccordionTrigger>
+                    <AccordionContent>
+                        <pre className="text-xs whitespace-pre-wrap break-all font-mono h-48 w-full rounded-md border p-3 bg-muted/30 mt-2 overflow-y-auto">
+                        {certificate.rawApiData ? JSON.stringify(certificate.rawApiData, null, 2) : 'No raw API data available.'}
+                        </pre>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
           </div>
         </ScrollArea>
         

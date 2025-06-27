@@ -4,14 +4,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation'; // Changed from useParams
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, ShieldAlert, Loader2, AlertTriangle, Layers, Code2, Info } from "lucide-react";
+import { ArrowLeft, FileText, ShieldAlert, Loader2, AlertTriangle, Layers, Code2, Info, ShieldCheck } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
-import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
+import { fetchIssuedCertificates, updateCertificateStatus } from '@/lib/issued-certificate-data';
 import { fetchAndProcessCAs, findCaById } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -170,50 +170,68 @@ export default function CertificateDetailsClient() { // Renamed component
 
   const handleConfirmRevocation = async (reason: string) => {
     if (!certificateToRevoke || !user?.access_token) {
-      toast({ title: "Error", description: "Missing certificate data or authentication token.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Cannot revoke certificate. Missing details or authentication.",
+        variant: "destructive",
+      });
       return;
     }
+    
+    setIsRevocationModalOpen(false);
 
-    setIsRevoking(true);
     try {
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateToRevoke.serialNumber}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-        body: JSON.stringify({
-          status: 'REVOKED',
-          revocation_reason: reason,
-        }),
+      await updateCertificateStatus({
+        serialNumber: certificateToRevoke.serialNumber,
+        status: 'REVOKED',
+        reason: reason,
+        accessToken: user.access_token,
       });
 
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to revoke certificate. Status: ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-        } catch (e) { /* ignore json parsing error */ }
-        throw new Error(errorMessage);
-      }
-      
-      setCertificateDetails(prev => prev ? { ...prev, apiStatus: 'REVOKED' } : null);
+      setCertificateDetails(prev => prev ? {...prev, apiStatus: 'REVOKED', revocationReason: reason} : null);
       toast({
         title: "Certificate Revoked",
-        description: `Successfully revoked certificate "${certificateToRevoke.subject}".`,
+        description: `Certificate with SN: ${certificateToRevoke.serialNumber} has been revoked.`,
+        variant: "default",
       });
 
     } catch (error: any) {
       toast({
         title: "Revocation Failed",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
-      setIsRevoking(false);
-      setIsRevocationModalOpen(false);
       setCertificateToRevoke(null);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!certificateDetails || !user?.access_token) {
+      toast({ title: "Error", description: "Cannot reactivate certificate. Missing details or authentication.", variant: "destructive" });
+      return;
+    }
+
+    try {
+       await updateCertificateStatus({
+        serialNumber: certificateDetails.serialNumber,
+        status: 'ACTIVE',
+        accessToken: user.access_token,
+      });
+
+      setCertificateDetails(prev => prev ? {...prev, apiStatus: 'ACTIVE', revocationReason: undefined} : null);
+      toast({
+        title: "Certificate Re-activated",
+        description: `Certificate with SN: ${certificateDetails.serialNumber} has been re-activated.`,
+        variant: "default",
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Re-activation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -276,6 +294,8 @@ export default function CertificateDetailsClient() { // Renamed component
     statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; 
   }
 
+  const isOnHold = certificateDetails.apiStatus?.toUpperCase() === 'REVOKED' && certificateDetails.revocationReason === 'CertificateHold';
+
   return (
     <div className="w-full space-y-6">
       <Button variant="outline" onClick={() => routerHook.push('/certificates')}>
@@ -303,13 +323,19 @@ export default function CertificateDetailsClient() { // Renamed component
         </div>
 
         <div className="p-6 space-x-2 border-b">
-          <Button 
-            variant="destructive" 
-            onClick={handleOpenRevokeModal} 
-            disabled={statusText === 'REVOKED' || isRevoking}
-          >
-            <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
-          </Button>
+          {isOnHold ? (
+            <Button variant="outline" onClick={handleReactivate}>
+              <ShieldCheck className="mr-2 h-4 w-4" /> Re-activate Certificate
+            </Button>
+          ) : (
+            <Button 
+              variant="destructive" 
+              onClick={handleOpenRevokeModal} 
+              disabled={statusText === 'REVOKED'}
+            >
+              <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
+            </Button>
+          )}
         </div>
 
         <Tabs defaultValue="information" className="w-full p-6">

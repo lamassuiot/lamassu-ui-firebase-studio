@@ -378,11 +378,6 @@ export default function CertificatesPage() {
         </div>
       </div>
 
-
-      <p className="text-sm text-muted-foreground">
-        A list of end-entity certificates issued by the system. Filters and sorting are applied via API calls.
-      </p>
-
       {(apiError || errorCAs || errorCryptoEngines) && (
         <Alert variant="destructive">
           <AlertCircleIcon className="h-4 w-4" />
@@ -405,7 +400,8 @@ export default function CertificatesPage() {
             allCAs={allCAs}
             sortConfig={sortConfig}
             requestSort={requestSort}
-            isLoading={isLoadingApi && certificates.length > 0} // For visual feedback on table during load
+            isLoading={isLoadingApi && certificates.length > 0}
+            accessToken={user?.access_token}
           />
           {certificates.length === 0 && !isLoadingApi && (
             <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
