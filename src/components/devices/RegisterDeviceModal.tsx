@@ -124,7 +124,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
       const profile = selectedRa.settings.enrollment_settings.device_provisioning_profile;
       setTags(profile.tags || []);
       setIconName(profile.icon || 'CgSmartphoneChip');
-      const [parsedIconColor, parsedBgColor] = (profile.icon_color || '').split('-');
+      const [parsedIconColor, parsedBgColor] = (profile.icon_color || '#888888-#e0e0e0').split('-');
       setIconColor(parsedIconColor || '#888888');
       setIconBgColor(parsedBgColor || '#e0e0e0');
     } else {
@@ -275,7 +275,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
               <>
                 <Separator />
                 <div className="space-y-4">
-                  <Label>Device Profile Defaults (Editable)</Label>
+                  <Label>Device Registration Profile</Label>
                   <div className="flex items-center space-x-4">
                     <div className="space-y-2">
                       <Label htmlFor="device-icon-preview">Icon</Label>
