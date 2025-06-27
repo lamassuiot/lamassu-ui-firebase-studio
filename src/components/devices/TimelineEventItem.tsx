@@ -6,32 +6,43 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, HelpCircle, FileText, ShieldAlert } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, HelpCircle, FileText, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../ui/button';
 
-export interface TimelineCertificateInfo {
+// This interface must match the one defined in DeviceDetailsClient.tsx
+// It's copied here to avoid circular dependency issues with shared types.
+interface CertificateHistoryEntry {
+  version: string;
   serialNumber: string;
   apiStatus?: string;
   revocationReason?: string;
   revocationTimestamp?: string;
+  isSuperseded: boolean;
+  commonName: string;
+  ca: string;
+  issuerCaId?: string;
+  validFrom: string;
+  validTo: string;
+  lifespan: string;
 }
 
 export interface TimelineEventDisplayData {
   id: string;
   timestamp: Date;
-  eventType: string; // Raw API event type
-  title: string; // Formatted description or type
-  details?: React.ReactNode; // For serial, device ID, cert status etc.
-  relativeTime: string; // e.g., "2 days ago"
-  secondaryRelativeTime?: string; // e.g., "2 minutes later"
-  certificate?: TimelineCertificateInfo;
+  eventType: string;
+  title: string;
+  details?: React.ReactNode;
+  relativeTime: string;
+  secondaryRelativeTime?: string;
+  certificate?: CertificateHistoryEntry;
 }
 
 interface TimelineEventItemProps {
     event: TimelineEventDisplayData;
     isLastItem: boolean;
-    onRevoke: (certInfo: TimelineCertificateInfo) => void;
+    onRevoke: (certInfo: CertificateHistoryEntry) => void;
+    onReactivate: (certInfo: CertificateHistoryEntry) => void;
 }
 
 
@@ -46,9 +57,12 @@ const eventTypeVisuals: Record<string, { display: string; colorClass: string; Ic
 };
 
 
-export const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event, isLastItem, onRevoke }) => {
+export const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event, isLastItem, onRevoke, onReactivate }) => {
   const router = useRouter();
   const visuals = eventTypeVisuals[event.eventType] || eventTypeVisuals['DEFAULT'];
+
+  const isRevoked = event.certificate?.apiStatus === 'REVOKED';
+  const isOnHold = isRevoked && event.certificate?.revocationReason === 'CertificateHold';
 
   return (
     <li className="flex gap-4 py-3 relative">
@@ -102,7 +116,17 @@ export const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event, isL
                                 </div>
                             </div>
                         </div>
-                        {event.certificate.apiStatus?.toUpperCase() !== 'REVOKED' && (
+                        {isOnHold ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-1 text-xs text-green-600 hover:bg-green-600/10"
+                                onClick={() => onReactivate(event.certificate!)}
+                            >
+                                <ShieldCheck className="h-3 w-3 mr-1" />
+                                Re-activate
+                            </Button>
+                        ) : !isRevoked ? (
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -112,9 +136,9 @@ export const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event, isL
                                 <ShieldAlert className="h-3 w-3 mr-1" />
                                 Revoke
                             </Button>
-                        )}
+                        ) : null }
                     </div>
-                    {event.certificate.apiStatus === 'REVOKED' && (
+                    {isRevoked && (
                         <div className="text-destructive/90 text-xs border-t pt-2 mt-2">
                             <p><strong>Reason:</strong> {event.certificate.revocationReason || 'Unspecified'}</p>
                             {event.certificate.revocationTimestamp && (

@@ -14,7 +14,7 @@ import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPa
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
-import { TimelineEventItem, type TimelineEventDisplayData, type TimelineCertificateInfo } from '@/components/devices/TimelineEventItem';
+import { TimelineEventItem, type TimelineEventDisplayData } from '@/components/devices/TimelineEventItem';
 import type { CertificateData } from '@/types/certificate';
 import { fetchIssuedCertificates, updateCertificateStatus } from '@/lib/issued-certificate-data';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
@@ -213,7 +213,7 @@ export default function DeviceDetailsClient() { // Renamed component
       const timestamp = parseISO(rawEvent.timestampStr);
       let title = rawEvent.description || rawEvent.type;
       let detailsNode: React.ReactNode = null;
-      let certificateInfo: TimelineCertificateInfo | undefined = undefined;
+      let certificateInfo: CertificateHistoryEntry | undefined = undefined;
 
       let versionToFind: string | null = null;
 
@@ -233,12 +233,7 @@ export default function DeviceDetailsClient() { // Renamed component
         const serial = device.identity.versions[versionToFind];
         const certHistoryEntry = certificateHistory.find(c => c.serialNumber === serial);
         if (certHistoryEntry) {
-          certificateInfo = {
-            serialNumber: certHistoryEntry.serialNumber,
-            apiStatus: certHistoryEntry.apiStatus,
-            revocationReason: certHistoryEntry.revocationReason,
-            revocationTimestamp: certHistoryEntry.revocationTimestamp,
-          };
+          certificateInfo = certHistoryEntry;
         } else {
           detailsNode = <p className="text-xs text-muted-foreground font-mono">Cert Serial: {serial}</p>;
         }
@@ -265,14 +260,9 @@ export default function DeviceDetailsClient() { // Renamed component
     setTimelineEvents(processedTimelineEvents);
   }, [device, certificateHistory, isLoadingHistory]);
   
-  const handleOpenRevokeModal = (certInfo: TimelineCertificateInfo) => {
-    const fullCertEntry = certificateHistory.find(c => c.serialNumber === certInfo.serialNumber);
-    if (fullCertEntry) {
-        setCertToRevoke(fullCertEntry);
-        setIsRevocationModalOpen(true);
-    } else {
-        toast({ title: "Error", description: "Could not find full certificate details to revoke.", variant: "destructive" });
-    }
+  const handleOpenRevokeModal = (certInfo: CertificateHistoryEntry) => {
+    setCertToRevoke(certInfo);
+    setIsRevocationModalOpen(true);
   };
 
   const handleConfirmRevocation = async (reason: string) => {
@@ -310,6 +300,41 @@ export default function DeviceDetailsClient() { // Renamed component
     } finally {
         setIsRevoking(false);
         setCertToRevoke(null);
+    }
+  };
+
+  const handleReactivateCertificate = async (certToReactivate: CertificateHistoryEntry) => {
+    if (!user?.access_token) {
+      toast({ title: "Error", description: "Authentication token not found.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await updateCertificateStatus({
+        serialNumber: certToReactivate.serialNumber,
+        status: 'ACTIVE',
+        accessToken: user.access_token,
+      });
+
+      setCertificateHistory(prevHistory =>
+        prevHistory.map(c =>
+          c.serialNumber === certToReactivate.serialNumber
+            ? { ...c, apiStatus: 'ACTIVE', revocationReason: undefined, revocationTimestamp: undefined }
+            : c
+        )
+      );
+
+      toast({
+        title: "Certificate Re-activated",
+        description: `Certificate with SN: ${certToReactivate.serialNumber} has been re-activated.`,
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Re-activation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -518,6 +543,7 @@ export default function DeviceDetailsClient() { // Renamed component
                         event={event} 
                         isLastItem={index === timelineEvents.length -1} 
                         onRevoke={handleOpenRevokeModal}
+                        onReactivate={handleReactivateCertificate}
                       />
                     ))}
                   </ul>
