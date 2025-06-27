@@ -184,7 +184,7 @@
 }
 
 .vis-item {
-  border-color: white !important;
+  border-color: hsl(var(--primary)) !important;
   background-color: white !important;
   padding: 0 !important;
 }
@@ -200,7 +200,7 @@
 .vis-timeline {
   @apply rounded-lg bg-card;
   border: none !important;
-  background: hsl(var(--primary)) !important;
+  background: white!important;
 }
 
 .vis-panel.vis-bottom {
@@ -208,21 +208,21 @@
 }
 
 .vis-time-axis .vis-grid.vis-minor {
-  border-color: #ccc !important;
+  border-color: #888 !important;
 }
 
 .vis-time-axis .vis-grid.vis-major {
-  border-color: #999 !important;
+  border-color: #333 !important;
 }
 
 .vis-text {
-  color: #ddd !important;
+  color: #888 !important;
 }
 
 
 .vis-custom-time.now-marker {
   width: 2px;
-  background-color: white !important;
+  background-color: hsl(var(--primary)) !important;
   z-index: 10;
 }
 
