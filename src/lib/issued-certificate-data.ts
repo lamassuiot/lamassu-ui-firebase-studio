@@ -52,6 +52,17 @@ export interface ApiIssuedCertificateListResponse {
   list: ApiIssuedCertificateItem[];
 }
 
+// OID Map for signature algorithms
+const SIG_OID_MAP: Record<string, string> = {
+    "1.2.840.113549.1.1.11": "sha256WithRSAEncryption",
+    "1.2.840.113549.1.1.12": "sha384WithRSAEncryption",
+    "1.2.840.113549.1.1.13": "sha512WithRSAEncryption",
+    "1.2.840.113549.1.1.14": "sha224WithRSAEncryption",
+    "1.2.840.10045.4.3.2": "ecdsa-with-SHA256",
+    "1.2.840.10045.4.3.3": "ecdsa-with-SHA384",
+    "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
+};
+
 function parseAiaUrls(pem: string): { ocsp: string[], caIssuers: string[] } {
     const result = { ocsp: [], caIssuers: [] };
     if (typeof window === 'undefined' || !pem) return result;
@@ -138,7 +149,7 @@ function parseCrlUrlsFromPem(pem: string): string[] {
 }
 
 
-function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): CertificateData {
+async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): Promise<CertificateData> {
   let publicKeyAlgorithm = apiCert.key_metadata.type;
   if (apiCert.key_metadata.bits) {
     publicKeyAlgorithm += ` (${apiCert.key_metadata.bits} bit)`;
@@ -176,6 +187,29 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
 
   const aiaUrls = parseAiaUrls(pemData);
   const crlUrls = parseCrlUrlsFromPem(pemData);
+  
+  let signatureAlgorithm = 'N/A';
+  let fingerprintSha256 = '';
+
+  if (pemData && !pemData.startsWith("Error") && typeof window !== 'undefined' && window.crypto?.subtle) {
+    try {
+        const pemString = pemData.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s+/g, "");
+        const derBuffer = Uint8Array.from(atob(pemString), c => c.charCodeAt(0)).buffer;
+
+        const hashBuffer = await crypto.subtle.digest('SHA-256', derBuffer);
+        fingerprintSha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(':');
+
+        const asn1 = asn1js.fromBER(derBuffer);
+        if (asn1.offset !== -1) {
+            const certificate = new Certificate({ schema: asn1.result });
+            signatureAlgorithm = SIG_OID_MAP[certificate.signatureAlgorithm.algorithmId] || certificate.signatureAlgorithm.algorithmId;
+        }
+    } catch (e) {
+        console.error("Error parsing certificate PEM for details:", e);
+        signatureAlgorithm = "Parsing Error";
+        fingerprintSha256 = "Parsing Error";
+    }
+  }
 
 
   return {
@@ -186,13 +220,13 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
     serialNumber: apiCert.serial_number,
     validFrom: apiCert.valid_from,
     validTo: apiCert.valid_to,
-    sans: apiCert.metadata?.sans || [], // Assuming SANs might be in metadata.sans
+    sans: apiCert.metadata?.sans || [],
     pemData: pemData,
     apiStatus: apiCert.status,
     revocationReason: apiCert.revocation_reason,
     publicKeyAlgorithm,
-    signatureAlgorithm: apiCert.metadata?.signature_algorithm || 'N/A (from API)', // Assuming sig algo in metadata
-    fingerprintSha256: apiCert.metadata?.fingerprint_sha256 || '', 
+    signatureAlgorithm,
+    fingerprintSha256,
     issuerCaId: apiCert.issuer_metadata.id,
     ocspUrls: aiaUrls.ocsp,
     crlDistributionPoints: crlUrls,
@@ -203,7 +237,7 @@ function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem)
 
 interface FetchIssuedCertificatesParams {
   accessToken: string;
-  apiQueryString?: string; // Now includes filters, sort, pagination
+  apiQueryString?: string;
   forCaId?: string; 
 }
 
@@ -249,7 +283,9 @@ export async function fetchIssuedCertificates(
     return { certificates: [], nextToken: null };
   }
 
-  const certificates = apiResponse.list.map(transformApiIssuedCertificateToLocal);
+  const certificates = await Promise.all(
+    apiResponse.list.map(transformApiIssuedCertificateToLocal)
+  );
   return { certificates, nextToken: apiResponse.next };
 }
 
