@@ -18,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
 import { getReactIconByName } from '@/components/shared/DeviceIconSelectorModal';
 
-type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION';
+type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION' | 'DECOMMISSIONED';
 
 interface DeviceData {
   id: string;
@@ -74,6 +74,7 @@ const statusSortOrder: Record<DeviceStatus, number> = {
   'PENDING_ACTIVATION': 1,
   'INACTIVE': 2,
   'NO_IDENTITY': 3,
+  'DECOMMISSIONED': 4,
 };
 
 
@@ -91,6 +92,9 @@ export const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
       break;
     case 'PENDING_ACTIVATION':
       badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
+      break;
+    case 'DECOMMISSIONED':
+      badgeClass = "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400 border-gray-400 dark:border-gray-600";
       break;
     default:
       badgeClass = "bg-muted text-muted-foreground border-border";
@@ -286,7 +290,7 @@ export default function DevicesPage() {
             break;
           case 'createdAt':
             aValue = parseISO(a.createdAt).getTime();
-            bValue = parseISO(b.createdAt).getTime();
+            bValue = b.createdAt.getTime();
             break;
           default:
             return 0;
@@ -457,6 +461,7 @@ export default function DevicesPage() {
               <SelectItem value="NO_IDENTITY">No Identity</SelectItem>
               <SelectItem value="INACTIVE">Inactive</SelectItem>
               <SelectItem value="PENDING_ACTIVATION">Pending Activation</SelectItem>
+              <SelectItem value="DECOMMISSIONED">Decommissioned</SelectItem>
             </SelectContent>
           </Select>
         </div>

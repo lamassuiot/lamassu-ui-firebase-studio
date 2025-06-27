@@ -635,7 +635,7 @@ export default function DeviceDetailsClient() {
             <Button onClick={() => setIsAssignIdentityModalOpen(true)} disabled={!!device.identity}>
               <PlusCircle className="mr-2 h-4 w-4" /> Assign Identity
             </Button>
-            <Button variant="destructive" onClick={() => setIsDecommissionModalOpen(true)}>
+            <Button variant="destructive" onClick={() => setIsDecommissionModalOpen(true)} disabled={device.status === 'DECOMMISSIONED'}>
               <Trash2 className="mr-2 h-4 w-4" /> Decommission
             </Button>
           </div>
