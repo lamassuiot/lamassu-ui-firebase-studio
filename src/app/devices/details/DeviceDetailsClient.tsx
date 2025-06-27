@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers, ShieldAlert, ChevronLeft } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
@@ -20,6 +21,8 @@ import { fetchIssuedCertificates, updateCertificateStatus } from '@/lib/issued-c
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { RevocationModal } from '@/components/shared/RevocationModal';
+import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 
 interface ApiDeviceIdentity {
@@ -75,10 +78,15 @@ export default function DeviceDetailsClient() { // Renamed component
   const [isLoadingDevice, setIsLoadingDevice] = useState(true);
   const [errorDevice, setErrorDevice] = useState<string | null>(null);
   
+  const [fullCertificateIdentityList, setFullCertificateIdentityList] = useState<{ version: string; serialNumber: string }[]>([]);
   const [certificateHistory, setCertificateHistory] = useState<CertificateHistoryEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [errorHistory, setErrorHistory] = useState<string | null>(null);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventDisplayData[]>([]);
+
+  // Pagination for History tab
+  const [historyPageSize, setHistoryPageSize] = useState(10);
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
 
   // State for revocation modal
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
@@ -86,49 +94,20 @@ export default function DeviceDetailsClient() { // Renamed component
   const [isRevoking, setIsRevoking] = useState(false);
 
 
-  const fetchCertificateHistory = useCallback(async (identity: ApiDeviceIdentity, accessToken: string) => {
+  const fetchCertificateHistory = useCallback(async (identity: ApiDeviceIdentity) => {
     setIsLoadingHistory(true);
     setErrorHistory(null);
     try {
-        const serialsByVersion = Object.entries(identity.versions);
-        if (serialsByVersion.length === 0) {
-            setCertificateHistory([]);
-            return;
-        }
+        const identities = Object.entries(identity.versions)
+            .map(([version, serialNumber]) => ({ version, serialNumber }))
+            .sort((a, b) => parseInt(b.version, 10) - parseInt(a.version, 10));
 
-        const certPromises = serialsByVersion.map(async ([version, serialNumber]) => {
-            const { certificates } = await fetchIssuedCertificates({
-                accessToken: accessToken,
-                apiQueryString: `filter=serial_number[equal]${serialNumber}&page_size=1`
-            });
-            const certData = certificates[0];
-            if (!certData) return null;
-
-            const isSuperseded = parseInt(version, 10) < identity.active_version;
-            
-            return {
-                version: version,
-                serialNumber: certData.serialNumber,
-                apiStatus: certData.apiStatus,
-                revocationReason: certData.revocationReason,
-                revocationTimestamp: certData.revocationTimestamp,
-                isSuperseded: isSuperseded,
-                commonName: getCertSubjectCommonName(certData.subject),
-                ca: getCertSubjectCommonName(certData.issuer),
-                issuerCaId: certData.issuerCaId,
-                validFrom: certData.validFrom,
-                validTo: certData.validTo,
-                lifespan: formatDistanceStrict(parseISO(certData.validTo), parseISO(certData.validFrom)),
-            };
-        });
-
-        const historyEntries = (await Promise.all(certPromises)).filter((e): e is CertificateHistoryEntry => e !== null);
-        historyEntries.sort((a, b) => parseInt(b.version, 10) - parseInt(a.version, 10));
-
-        setCertificateHistory(historyEntries);
+        setFullCertificateIdentityList(identities);
+        setHistoryCurrentPage(1);
 
     } catch (err: any) {
-        setErrorHistory(err.message || 'Failed to load certificate history.');
+        setErrorHistory(err.message || 'Failed to process certificate identity list.');
+        setFullCertificateIdentityList([]);
     } finally {
         setIsLoadingHistory(false);
     }
@@ -172,9 +151,10 @@ export default function DeviceDetailsClient() { // Renamed component
         setDevice(data);
         
         if (data.identity?.versions) {
-            fetchCertificateHistory(data.identity, user.access_token);
+            fetchCertificateHistory(data.identity);
         } else {
             setCertificateHistory([]);
+            setFullCertificateIdentityList([]);
             setIsLoadingHistory(false);
         }
 
@@ -191,9 +171,74 @@ export default function DeviceDetailsClient() { // Renamed component
     fetchDeviceDetails();
   }, [fetchDeviceDetails]);
 
+   useEffect(() => {
+    if (fullCertificateIdentityList.length === 0 || !user?.access_token) {
+        if(fullCertificateIdentityList.length === 0) {
+            setCertificateHistory([]); // Clear history if list is empty
+        }
+        return;
+    }
+
+    const fetchPageData = async () => {
+        setIsLoadingHistory(true);
+        setErrorHistory(null);
+
+        const startIndex = (historyCurrentPage - 1) * historyPageSize;
+        const endIndex = startIndex + historyPageSize;
+        const pageIdentities = fullCertificateIdentityList.slice(startIndex, endIndex);
+
+        if (pageIdentities.length === 0) {
+            setCertificateHistory([]);
+            setIsLoadingHistory(false);
+            return;
+        }
+
+        try {
+            const certPromises = pageIdentities.map(async ({ version, serialNumber }) => {
+                const { certificates } = await fetchIssuedCertificates({
+                    accessToken: user.access_token!,
+                    apiQueryString: `filter=serial_number[equal]${serialNumber}&page_size=1`
+                });
+                const certData = certificates[0];
+                if (!certData) return null;
+
+                const isSuperseded = device?.identity ? parseInt(version, 10) < device.identity.active_version : false;
+
+                return {
+                    version: version,
+                    serialNumber: certData.serialNumber,
+                    apiStatus: certData.apiStatus,
+                    revocationReason: certData.revocationReason,
+                    revocationTimestamp: certData.revocationTimestamp,
+                    isSuperseded: isSuperseded,
+                    commonName: getCertSubjectCommonName(certData.subject),
+                    ca: getCertSubjectCommonName(certData.issuer),
+                    issuerCaId: certData.issuerCaId,
+                    validFrom: certData.validFrom,
+                    validTo: certData.validTo,
+                    lifespan: formatDistanceStrict(parseISO(certData.validTo), parseISO(certData.validFrom)),
+                };
+            });
+
+            const historyEntries = (await Promise.all(certPromises)).filter((e): e is CertificateHistoryEntry => e !== null);
+            setCertificateHistory(historyEntries);
+
+        } catch (err: any) {
+            setErrorHistory(err.message || 'Failed to load certificate history page.');
+            setCertificateHistory([]);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
+    fetchPageData();
+
+  }, [fullCertificateIdentityList, historyCurrentPage, historyPageSize, user?.access_token, device?.identity]);
+
 
   useEffect(() => {
-    if (!device || isLoadingHistory) {
+    if (!device || certificateHistory.length === 0) {
+       setTimelineEvents([]); // Clear timeline if no cert history
       return;
     }
 
@@ -228,16 +273,19 @@ export default function DeviceDetailsClient() { // Renamed component
           versionToFind = versionSetMatch[1];
         }
       }
-
+      
       if (versionToFind && device.identity?.versions[versionToFind]) {
         const serial = device.identity.versions[versionToFind];
+        // Find in the currently loaded page of certificates
         const certHistoryEntry = certificateHistory.find(c => c.serialNumber === serial);
         if (certHistoryEntry) {
           certificateInfo = certHistoryEntry;
         } else {
-          detailsNode = <p className="text-xs text-muted-foreground font-mono">Cert Serial: {serial}</p>;
+          // Fallback if not on the current page. We can improve this later if needed.
+          detailsNode = <p className="text-xs text-muted-foreground font-mono">Cert Info loading... SN: {serial}</p>;
         }
       }
+
 
       if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
         title = rawEvent.description;
@@ -258,7 +306,7 @@ export default function DeviceDetailsClient() { // Renamed component
     });
 
     setTimelineEvents(processedTimelineEvents);
-  }, [device, certificateHistory, isLoadingHistory]);
+  }, [device, certificateHistory]); // Rerun when cert history changes
   
   const handleOpenRevokeModal = (certInfo: CertificateHistoryEntry) => {
     setCertToRevoke(certInfo);
@@ -337,6 +385,8 @@ export default function DeviceDetailsClient() { // Renamed component
       });
     }
   };
+
+  const totalHistoryPages = Math.ceil(fullCertificateIdentityList.length / historyPageSize);
 
 
   if (isLoadingDevice || authLoading) {
@@ -442,6 +492,7 @@ export default function DeviceDetailsClient() { // Renamed component
                       <AlertDescription>{errorHistory}</AlertDescription>
                   </Alert>
               ) : certificateHistory.length > 0 ? (
+                <>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -518,6 +569,45 @@ export default function DeviceDetailsClient() { // Renamed component
                     </TableBody>
                   </Table>
                 </div>
+                 <div className="flex justify-between items-center mt-4">
+                    <div className="flex items-center space-x-2">
+                        <Label htmlFor="historyPageSizeSelect" className="text-sm text-muted-foreground">Page Size:</Label>
+                        <Select
+                            value={String(historyPageSize)}
+                            onValueChange={(value) => setHistoryPageSize(Number(value))}
+                            disabled={isLoadingHistory}
+                        >
+                            <SelectTrigger id="historyPageSizeSelect" className="w-[70px] h-9">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="5">5</SelectItem>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="20">20</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <span className="text-sm text-muted-foreground">
+                            Page {historyCurrentPage} of {totalHistoryPages}
+                        </span>
+                        <Button
+                            onClick={() => setHistoryCurrentPage(p => p - 1)}
+                            disabled={isLoadingHistory || historyCurrentPage === 1}
+                            variant="outline" size="sm"
+                        >
+                            <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                        </Button>
+                        <Button
+                            onClick={() => setHistoryCurrentPage(p => p + 1)}
+                            disabled={isLoadingHistory || historyCurrentPage >= totalHistoryPages}
+                            variant="outline" size="sm"
+                        >
+                            Next <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">This device does not have an identity with a certificate history.</p>
               )}
@@ -597,3 +687,4 @@ export default function DeviceDetailsClient() { // Renamed component
     </div>
   );
 }
+
