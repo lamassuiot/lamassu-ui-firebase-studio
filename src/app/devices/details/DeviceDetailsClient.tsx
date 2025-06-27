@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Eye } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Eye, Layers } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
@@ -355,10 +355,11 @@ export default function DeviceDetailsClient() { // Renamed component
       </div>
 
       <Tabs defaultValue="certificatesHistory" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
           <TabsTrigger value="certificatesHistory"><History className="mr-2 h-4 w-4" />Certificates History</TabsTrigger>
           <TabsTrigger value="timeline"><Clock className="mr-2 h-4 w-4" />Timeline</TabsTrigger>
           <TabsTrigger value="metadata"><SlidersHorizontal className="mr-2 h-4 w-4" />Metadata</TabsTrigger>
+          <TabsTrigger value="rawApiData"><Layers className="mr-2 h-4 w-4" />Raw API Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="certificatesHistory">
@@ -462,12 +463,19 @@ export default function DeviceDetailsClient() { // Renamed component
               ) : (
                 <p className="text-muted-foreground">No custom metadata available for this device.</p>
               )}
-               <h4 className="font-semibold mt-4 mb-2 text-sm">Raw Device Data (Debug)</h4>
-                <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">
-                  {JSON.stringify(device, null, 2)}
-                </pre>
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="rawApiData">
+            <Card>
+                <CardHeader><CardTitle>Raw API Data (Debug)</CardTitle></CardHeader>
+                <CardContent>
+                    <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto">
+                        {JSON.stringify(device, null, 2)}
+                    </pre>
+                </CardContent>
+            </Card>
         </TabsContent>
       </Tabs>
     </div>
