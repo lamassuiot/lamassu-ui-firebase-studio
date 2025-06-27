@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -116,6 +115,7 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
     const [responseDer, setResponseDer] = useState<ArrayBuffer | null>(null);
     const [requestPemCopied, setRequestPemCopied] = useState(false);
     const [responsePemCopied, setResponsePemCopied] = useState(false);
+    const [showHttpWarning, setShowHttpWarning] = useState(false);
 
 
     useEffect(() => {
@@ -130,6 +130,10 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
         setRequestPemCopied(false);
         setResponsePemCopied(false);
     }, [isOpen, certificate]);
+
+    useEffect(() => {
+        setShowHttpWarning(ocspUrl.startsWith('http://'));
+    }, [ocspUrl]);
     
     const handleCopyPem = async (derBuffer: ArrayBuffer | null, type: 'OCSP REQUEST' | 'OCSP RESPONSE', setCopied: (isCopied: boolean) => void) => {
         if (!derBuffer) return;
@@ -337,6 +341,16 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                             />
                         </div>
                     </div>
+                    {showHttpWarning && (
+                        <Alert variant="warning">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Insecure URL Warning</AlertTitle>
+                            <AlertDescription>
+                                The provided URL uses 'http'. Modern browsers may upgrade this request to 'https' due to Content-Security-Policy.
+                                This may cause the request to fail if the server does not support HTTPS on this endpoint.
+                            </AlertDescription>
+                        </Alert>
+                    )}
 
                     <Button onClick={handleSendRequest} disabled={!ocspUrl || isLoading} className="w-full">
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}

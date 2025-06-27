@@ -66,6 +66,7 @@ export default function CertificateDetailsClient() { // Renamed component
   
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   const fullChainPemString = useMemo(() => {
     if (certificateDetails && allCAs.length > 0) {
@@ -388,6 +389,7 @@ export default function CertificateDetailsClient() { // Renamed component
           onConfirm={handleConfirmRevocation}
           itemName={certificateToRevoke.subject}
           itemType="Certificate"
+          isConfirming={isRevoking}
         />
       )}
     </div>

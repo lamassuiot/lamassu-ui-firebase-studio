@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { revocationReasons, type RevocationReason } from '@/lib/revocation-reasons';
 import { ScrollArea } from '../ui/scroll-area';
 
@@ -16,6 +16,7 @@ interface RevocationModalProps {
   onConfirm: (reasonValue: string) => void;
   itemName: string;
   itemType: 'CA' | 'Certificate';
+  isConfirming?: boolean;
 }
 
 export const RevocationModal: React.FC<RevocationModalProps> = ({
@@ -24,6 +25,7 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
   onConfirm,
   itemName,
   itemType,
+  isConfirming = false,
 }) => {
   const [selectedReasonValue, setSelectedReasonValue] = useState<string>(revocationReasons[0].value);
   const [selectedReasonDetails, setSelectedReasonDetails] = useState<RevocationReason | undefined>(revocationReasons[0]);
@@ -63,7 +65,7 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
         <div className="py-4 space-y-3">
           <div>
             <Label htmlFor="revocationReasonSelect" className="text-base">Revocation Reason</Label>
-            <Select value={selectedReasonValue} onValueChange={setSelectedReasonValue}>
+            <Select value={selectedReasonValue} onValueChange={setSelectedReasonValue} disabled={isConfirming}>
               <SelectTrigger id="revocationReasonSelect" className="w-full mt-1">
                 <SelectValue placeholder="Select a reason..." />
               </SelectTrigger>
@@ -89,12 +91,13 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
 
         <DialogFooter className="gap-2 sm:gap-0">
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" disabled={isConfirming}>
               Cancel
             </Button>
           </DialogClose>
-          <Button type="button" variant="destructive" onClick={handleConfirm} disabled={!selectedReasonValue}>
-            Confirm Revocation
+          <Button type="button" variant="destructive" onClick={handleConfirm} disabled={!selectedReasonValue || isConfirming}>
+            {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isConfirming ? 'Revoking...' : 'Confirm Revocation'}
           </Button>
         </DialogFooter>
       </DialogContent>

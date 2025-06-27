@@ -53,9 +53,11 @@ export function CertificateList({
 }: CertificateListProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useAuth();
 
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
   
   const [isOcspModalOpen, setIsOcspModalOpen] = useState(false);
   const [certForOcsp, setCertForOcsp] = useState<CertificateData | null>(null);
@@ -308,6 +310,7 @@ export function CertificateList({
           onConfirm={handleConfirmCertificateRevocation}
           itemName={getCommonName(certificateToRevoke.subject)}
           itemType="Certificate"
+          isConfirming={isRevoking}
         />
       )}
       {certForOcsp && issuerForOcsp && (
