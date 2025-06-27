@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { RevocationModal } from '@/components/shared/RevocationModal';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
 
 
 interface ApiDeviceIdentity {
@@ -98,6 +99,10 @@ export default function DeviceDetailsClient() {
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certToRevoke, setCertToRevoke] = useState<CertificateHistoryEntry | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  
+  // State for assigning identity
+  const [isAssignIdentityModalOpen, setIsAssignIdentityModalOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
 
 
   const fetchCertificateHistoryData = useCallback(async (identity: ApiDeviceIdentity) => {
@@ -451,6 +456,57 @@ export default function DeviceDetailsClient() {
     }
   };
 
+  const handleAssignIdentityConfirm = async (certificateSerialNumber: string) => {
+    if (!deviceId || !user?.access_token) {
+        toast({
+            title: "Error",
+            description: "Cannot assign identity. Device ID or authentication is missing.",
+            variant: "destructive"
+        });
+        return;
+    }
+    setIsAssigning(true);
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/dmsmanager/v1/dms/bind-identity', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token}`
+            },
+            body: JSON.stringify({
+                device_id: deviceId,
+                certificate_serial_number: certificateSerialNumber
+            })
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to assign identity. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Failed to assign identity: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        toast({
+            title: "Success!",
+            description: "Identity has been successfully assigned to the device.",
+        });
+        setIsAssignIdentityModalOpen(false);
+        fetchDeviceDetails(); // Refresh device data
+
+    } catch (e: any) {
+        toast({
+            title: "Assignment Failed",
+            description: e.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsAssigning(false);
+    }
+  };
+
   const handleLoadMoreTimeline = () => {
     setTimelineDisplayCount(prev => prev + 5);
   };
@@ -524,7 +580,9 @@ export default function DeviceDetailsClient() {
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" onClick={fetchDeviceDetails}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
-            <Button><PlusCircle className="mr-2 h-4 w-4" /> Assign Identity</Button>
+            <Button onClick={() => setIsAssignIdentityModalOpen(true)} disabled={!!device.identity}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Assign Identity
+            </Button>
           </div>
         </div>
         {device.tags && device.tags.length > 0 && (
@@ -763,6 +821,13 @@ export default function DeviceDetailsClient() {
           isConfirming={isRevoking}
         />
       )}
+      <AssignIdentityModal
+        isOpen={isAssignIdentityModalOpen}
+        onOpenChange={setIsAssignIdentityModalOpen}
+        onAssignConfirm={handleAssignIdentityConfirm}
+        deviceId={deviceId || ''}
+        isAssigning={isAssigning}
+      />
     </div>
   );
 }
