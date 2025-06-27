@@ -291,7 +291,7 @@ export default function KmsKeyDetailsClient() { // Renamed component
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full p-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mb-6">
+          <TabsList className="mb-6">
             <TabsTrigger value="overview"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Overview</TabsTrigger>
             <TabsTrigger value="public-key"><FileText className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Public Key</TabsTrigger>
             <TabsTrigger value="sign" disabled={!keyDetails.hasPrivateKey}><PenTool className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Sign</TabsTrigger>

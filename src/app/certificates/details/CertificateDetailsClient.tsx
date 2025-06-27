@@ -366,7 +366,7 @@ export default function CertificateDetailsClient() { // Renamed component
         </div>
 
         <Tabs defaultValue="information" className="w-full p-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 mb-6">
+          <TabsList className="mb-6">
             <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Details</TabsTrigger>
             <TabsTrigger value="pem"><Code2 className="mr-2 h-4 w-4 sm:hidden md:inline-block" />PEM Data</TabsTrigger>
             <TabsTrigger value="raw_api"><Layers className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Raw API Data</TabsTrigger>
