@@ -24,6 +24,7 @@ interface DeviceData {
   id: string;
   displayId: string;
   iconType: string;
+  icon_color: string;
   status: DeviceStatus;
   deviceGroup: string;
   createdAt: string;
@@ -101,17 +102,15 @@ export const mapApiIconToIconType = (apiIcon: string): string => {
   return apiIcon || 'HelpCircle'; // Pass through name, or default.
 };
 
-export const DeviceIcon: React.FC<{ type: string }> = ({ type }) => {
+export const DeviceIcon: React.FC<{ type: string; iconColor?: string; bgColor?: string; }> = ({ type, iconColor, bgColor }) => {
   const IconComponent = getReactIconByName(type);
-  const iconColorClass = "text-primary";
-  const bgColorClass = "bg-primary/10";
 
   return (
-    <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center", bgColorClass)}>
+    <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center")} style={{ backgroundColor: bgColor || '#F0F8FF' }}>
       {IconComponent ? (
-        <IconComponent className={cn("h-5 w-5", iconColorClass)} />
+        <IconComponent className={cn("h-5 w-5")} style={{ color: iconColor || '#0f67ff' }} />
       ) : (
-        <HelpCircle className={cn("h-5 w-5", iconColorClass)} />
+        <HelpCircle className={cn("h-5 w-5")} style={{ color: iconColor || '#0f67ff' }} />
       )}
     </div>
   );
@@ -224,6 +223,7 @@ export default function DevicesPage() {
         id: apiDevice.id,
         displayId: apiDevice.id,
         iconType: mapApiIconToIconType(apiDevice.icon),
+        icon_color: apiDevice.icon_color,
         status: apiDevice.status as DeviceStatus,
         deviceGroup: apiDevice.dms_owner,
         createdAt: apiDevice.creation_timestamp,
@@ -286,7 +286,7 @@ export default function DevicesPage() {
             break;
           case 'createdAt':
             aValue = parseISO(a.createdAt).getTime();
-            bValue = b.createdAt.getTime();
+            bValue = parseISO(b.createdAt).getTime();
             break;
           default:
             return 0;
@@ -492,61 +492,64 @@ export default function DevicesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedAndFilteredDevices.map((device) => (
-                  <TableRow key={device.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <DeviceIcon type={device.iconType} />
-                        <Button
-                          variant="link"
-                          className="font-medium truncate p-0 h-auto text-left"
-                          onClick={() => handleViewDetails(device.id)}
-                          title={`View details for ${device.displayId}`}
-                        >
-                          {device.displayId}
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell><StatusBadge status={device.status} /></TableCell>
-                    <TableCell><Badge variant="secondary" className="truncate" title={device.deviceGroup}>{device.deviceGroup}</Badge></TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                          <span className="text-xs">{format(parseISO(device.createdAt), 'dd/MM/yyyy HH:mm')}</span>
-                          <span className="text-xs text-muted-foreground">{formatDistanceToNowStrict(parseISO(device.createdAt))} ago</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {device.tags.map(tag => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">Device Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(device.id)}>
-                            <Eye className="mr-2 h-4 w-4" /> View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditDevice(device.id)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit Device
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                              onClick={() => handleDeleteDevice(device.id)}
-                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                {sortedAndFilteredDevices.map((device) => {
+                  const [iconColor, bgColor] = device.icon_color ? device.icon_color.split('-') : ['#0f67ff', '#F0F8FF'];
+                  return (
+                    <TableRow key={device.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <DeviceIcon type={device.iconType} iconColor={iconColor} bgColor={bgColor} />
+                          <Button
+                            variant="link"
+                            className="font-medium truncate p-0 h-auto text-left"
+                            onClick={() => handleViewDetails(device.id)}
+                            title={`View details for ${device.displayId}`}
                           >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete Device
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                            {device.displayId}
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell><StatusBadge status={device.status} /></TableCell>
+                      <TableCell><Badge variant="secondary" className="truncate" title={device.deviceGroup}>{device.deviceGroup}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                            <span className="text-xs">{format(parseISO(device.createdAt), 'dd/MM/yyyy HH:mm')}</span>
+                            <span className="text-xs text-muted-foreground">{formatDistanceToNowStrict(parseISO(device.createdAt))} ago</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {device.tags.map(tag => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Device Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewDetails(device.id)}>
+                              <Eye className="mr-2 h-4 w-4" /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditDevice(device.id)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit Device
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => handleDeleteDevice(device.id)}
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete Device
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

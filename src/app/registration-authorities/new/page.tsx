@@ -23,7 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from '@/components/ui/separator';
 import { TagInput } from '@/components/shared/TagInput';
-import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
+import { DeviceIconSelectorModal, getReactIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 const hslToHex = (h: number, s: number, l: number): string => {
@@ -200,8 +200,7 @@ export default function CreateRegistrationAuthorityPage() {
       includeEnrollmentCA,
       managedCaIds: managedCAs.map(ca => ca.id),
       deviceIconName: selectedDeviceIconName,
-      deviceIconColor: selectedDeviceIconColor,
-      deviceIconBgColor: selectedDeviceIconBgColor,
+      deviceIconColor: `${selectedDeviceIconColor}-${selectedDeviceIconBgColor}`,
     };
     console.log('Creating new RA with data:', formData);
     alert(`Mock RA Creation Submitted!\nCheck console for details.`);
@@ -262,7 +261,7 @@ export default function CreateRegistrationAuthorityPage() {
   };
 
   const sectionHeadingStyle = "text-lg font-semibold flex items-center mb-3 mt-15";
-  const SelectedIconComponent = selectedDeviceIconName ? getLucideIconByName(selectedDeviceIconName) : null;
+  const SelectedIconComponent = selectedDeviceIconName ? getReactIconByName(selectedDeviceIconName) : null;
 
   return (
     <div className="w-full space-y-6 mb-8">
@@ -658,6 +657,12 @@ export default function CreateRegistrationAuthorityPage() {
         onOpenChange={setIsDeviceIconModalOpen}
         onIconSelected={handleDeviceIconSelected}
         currentSelectedIconName={selectedDeviceIconName}
+        initialIconColor={selectedDeviceIconColor}
+        initialBgColor={selectedDeviceIconBgColor}
+        onColorsChange={({ iconColor, bgColor }) => {
+          setSelectedDeviceIconColor(iconColor);
+          setSelectedDeviceIconBgColor(bgColor);
+        }}
       />
 
     </div>

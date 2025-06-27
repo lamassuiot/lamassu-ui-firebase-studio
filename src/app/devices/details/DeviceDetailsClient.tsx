@@ -555,6 +555,7 @@ export default function DeviceDetailsClient() {
   
   const deviceIconType = mapApiIconToIconType(device.icon);
   const creationDate = parseISO(device.creation_timestamp);
+  const [iconColor, bgColor] = device.icon_color ? device.icon_color.split('-') : ['#0f67ff', '#F0F8FF'];
 
   return (
     <div className="space-y-6 w-full">
@@ -567,7 +568,7 @@ export default function DeviceDetailsClient() {
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div className="flex items-center space-x-3">
-            <DeviceIcon type={deviceIconType} />
+            <DeviceIcon type={deviceIconType} iconColor={iconColor} bgColor={bgColor} />
             <div>
               <h1 className="text-2xl font-bold">{device.id}</h1>
               <div className="flex items-center space-x-2 mt-1">

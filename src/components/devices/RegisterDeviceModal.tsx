@@ -124,8 +124,9 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
       const profile = selectedRa.settings.enrollment_settings.device_provisioning_profile;
       setTags(profile.tags || []);
       setIconName(profile.icon || 'CgSmartphoneChip');
-      setIconColor(profile.icon_color || '#888888');
-      setIconBgColor('#e0e0e0'); // Set a neutral default BG color that user can override
+      const [parsedIconColor, parsedBgColor] = (profile.icon_color || '').split('-');
+      setIconColor(parsedIconColor || '#888888');
+      setIconBgColor(parsedBgColor || '#e0e0e0');
     } else {
       // Reset if RA is deselected
       setTags([]);
@@ -152,7 +153,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
         dms_id: selectedRa.id,
         tags: tags,
         icon: iconName,
-        icon_color: iconColor,
+        icon_color: `${iconColor}-${iconBgColor}`,
         metadata: {},
       };
 
@@ -203,6 +204,11 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
   const handleIconSelected = (name: string) => {
     setIconName(name);
     setIsIconModalOpen(false);
+  };
+
+  const handleColorsChange = ({ iconColor: newIconColor, bgColor: newBgColor }: { iconColor: string; bgColor: string }) => {
+    setIconColor(newIconColor);
+    setIconBgColor(newBgColor);
   };
   
   const SelectedIconComponent = getReactIconByName(iconName);
@@ -286,28 +292,6 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
                          </Button>
                       )}
                     </div>
-                     <div className="grid grid-cols-2 gap-4 flex-grow">
-                        <div className="space-y-2">
-                          <Label htmlFor="icon-color-input" className="text-sm">Icon Color</Label>
-                          <Input
-                            id="icon-color-input"
-                            type="color"
-                            value={iconColor}
-                            onChange={(e) => setIconColor(e.target.value)}
-                            className="h-10 w-full p-1"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="icon-bg-color-input" className="text-sm">BG Color</Label>
-                          <Input
-                            id="icon-bg-color-input"
-                            type="color"
-                            value={iconBgColor}
-                            onChange={(e) => setIconBgColor(e.target.value)}
-                            className="h-10 w-full p-1"
-                          />
-                        </div>
-                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="device-tags">Tags</Label>
@@ -344,6 +328,9 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
         onOpenChange={setIsIconModalOpen}
         onIconSelected={handleIconSelected}
         currentSelectedIconName={iconName}
+        initialIconColor={iconColor}
+        initialBgColor={iconBgColor}
+        onColorsChange={handleColorsChange}
       />
     </>
   );
