@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Eye } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
@@ -23,7 +23,7 @@ interface ApiDeviceIdentity {
   active_version: number;
   type: string;
   versions: Record<string, string>; 
-  events: Record<string, { type: string; description: string }>;
+  events?: Record<string, { type: string; description: string }>;
 }
 
 interface ApiDevice {
@@ -37,7 +37,7 @@ interface ApiDevice {
   dms_owner: string;
   identity: ApiDeviceIdentity | null;
   slots: Record<string, any>;
-  events: Record<string, { type: string; description: string }>;
+  events?: Record<string, { type: string; description: string }>;
 }
 
 interface CertificateHistoryEntry {
@@ -139,59 +139,12 @@ export default function DeviceDetailsClient() { // Renamed component
         }
         const data: ApiDevice = await response.json();
         setDevice(data);
+        
+        // This tab is intentionally left empty as certificate history details are not available
+        // from this endpoint and would require N+1 requests.
+        setCertificateHistory([]);
 
-        const history: CertificateHistoryEntry[] = [];
-        if (data.identity && data.identity.versions) {
-          const sortedVersions = Object.keys(data.identity.versions).sort((a, b) => parseInt(b) - parseInt(a));
-          
-          sortedVersions.forEach((versionKey, index) => {
-            const serial = data.identity!.versions[versionKey];
-            const isActiveVersion = parseInt(versionKey) === data.identity?.active_version;
-            const certValidTo = new Date(Date.now() + (Math.random() * 300 + (isActiveVersion ? 60 : -180)) * 24 * 60 * 60 * 1000); // Active certs last longer
-            const certValidFrom = new Date(certValidTo.getTime() - (365 + Math.random() * 100) * 24 * 60 * 60 * 1000);
-            
-            let certStatus: CertificateHistoryEntry['status'] = isActiveVersion ? 'ACTIVE' : 'INACTIVE';
-            let revocationStatus = '-';
-            let supersededTimestamp;
-
-            if (!isActiveVersion && index > 0) { 
-                if (Math.random() < 0.3) {
-                    certStatus = 'REVOKED';
-                    revocationStatus = 'REVOKED (Superseded)';
-                } else if (isPast(certValidTo)) {
-                    certStatus = 'EXPIRED_SUPERCEDED';
-                    revocationStatus = 'EXPIRED (Superseded)';
-                } else {
-                    revocationStatus = 'Superseded';
-                }
-                const nextVersionKey = sortedVersions[index -1];
-                const provisioningEvents = Object.entries(data.identity?.events || {})
-                    .filter(([ts, event]) => event.description.includes(`New Active Version set to ${nextVersionKey}`));
-                if(provisioningEvents.length > 0) {
-                     supersededTimestamp = provisioningEvents[0][0]; 
-                }
-            } else if (isActiveVersion && isPast(certValidTo)) {
-                certStatus = 'EXPIRED_SUPERCEDED'; 
-                revocationStatus = 'EXPIRED';
-            }
-
-
-            history.push({
-              version: versionKey,
-              serialNumber: serial,
-              status: certStatus,
-              commonName: data.id, 
-              ca: 'Lamassu IoT Device CA G1 (mock)', 
-              validFrom: certValidFrom.toISOString(),
-              validTo: certValidTo.toISOString(),
-              lifespan: formatDistanceStrict(certValidTo, certValidFrom),
-              revocationStatus: revocationStatus,
-              supersededTimestamp: supersededTimestamp,
-            });
-          });
-        }
-        setCertificateHistory(history);
-
+        // Combine device and identity events for the timeline
         const combinedRawEvents: { timestampStr: string; type: string; description: string; source: 'device' | 'identity' }[] = [];
         Object.entries(data.events || {}).forEach(([ts, event]) => {
           combinedRawEvents.push({ timestampStr: ts, ...event, source: 'device' });
@@ -204,53 +157,35 @@ export default function DeviceDetailsClient() { // Renamed component
 
         combinedRawEvents.sort((a, b) => parseISO(b.timestampStr).getTime() - parseISO(a.timestampStr).getTime()); 
 
+        // Process combined events into displayable timeline items
         const processedTimelineEvents: TimelineEventDisplayData[] = combinedRawEvents.map((rawEvent, index, arr) => {
           const timestamp = parseISO(rawEvent.timestampStr);
           let title = rawEvent.description || rawEvent.type;
           let detailsNode: React.ReactNode = null;
+          let linkableSerial: string | undefined = undefined;
           
           if (rawEvent.type === 'PROVISIONED' || rawEvent.type === 'RE-PROVISIONED') {
             title = rawEvent.description || `Device ${rawEvent.type.toLowerCase()}`;
-            let versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
-            let currentVersion = versionSetMatch ? versionSetMatch[1] : (rawEvent.type === 'PROVISIONED' ? data.identity?.active_version.toString() : null);
+            const versionSetMatch = rawEvent.description.match(/New Active Version set to (\d+)/);
+            const currentVersion = versionSetMatch ? versionSetMatch[1] : (rawEvent.type === 'PROVISIONED' ? data.identity?.active_version.toString() : null);
 
             if (rawEvent.type === 'RE-PROVISIONED' && !rawEvent.description && currentVersion) {
                  title = `New Active Version set to ${currentVersion}`;
             }
-
-
+            
             if (currentVersion && data.identity?.versions[currentVersion]) {
               const serial = data.identity.versions[currentVersion];
-              const certEntry = history.find(h => h.version === currentVersion && h.serialNumber === serial);
+              linkableSerial = serial;
               detailsNode = (
-                <>
-                  <p className="text-xs font-semibold">{data.id}</p>
-                  <p className="text-xs text-muted-foreground font-mono">Serial: {serial}</p>
-                  {certEntry && (
-                    <>
-                      {certEntry.status !== 'ACTIVE' && certEntry.revocationStatus.startsWith('REVOKED') && (
-                         <Badge variant="destructive" className="text-xs mt-1">
-                            REVOKED - Superseded {certEntry.supersededTimestamp ? format(parseISO(certEntry.supersededTimestamp), 'dd/MM/yyyy HH:mm') : ''}
-                            ({certEntry.supersededTimestamp ? formatDistanceToNowStrict(parseISO(certEntry.supersededTimestamp)) : ''} ago)
-                        </Badge>
-                      )}
-                       {certEntry.status === 'ACTIVE' && !isPast(parseISO(certEntry.validTo)) && (
-                         <p className="text-xs text-green-600 dark:text-green-400">Expires in {formatDistanceToNowStrict(parseISO(certEntry.validTo))}</p>
-                       )}
-                       {isPast(parseISO(certEntry.validTo)) && certEntry.status !== 'REVOKED' && (
-                         <Badge variant="destructive" className="text-xs mt-1 bg-orange-500 hover:bg-orange-600">
-                            EXPIRED - {formatDistanceToNowStrict(parseISO(certEntry.validTo))} ago
-                        </Badge>
-                       )}
-                    </>
-                  )}
-                </>
+                <p className="text-xs text-muted-foreground font-mono">
+                  Cert Serial: {serial}
+                </p>
               );
             }
+
           } else if (rawEvent.type === 'STATUS-UPDATED' && rawEvent.description) {
              title = rawEvent.description; 
           }
-
 
           const prevTimestamp = index < arr.length - 1 ? parseISO(arr[index + 1].timestampStr) : null;
           
@@ -262,10 +197,10 @@ export default function DeviceDetailsClient() { // Renamed component
             details: detailsNode,
             relativeTime: formatDistanceToNowStrict(timestamp) + ' ago',
             secondaryRelativeTime: prevTimestamp ? formatDistanceStrict(timestamp, prevTimestamp) + ' later' : undefined,
+            linkableSerial: linkableSerial,
           };
         });
         setTimelineEvents(processedTimelineEvents);
-
 
       } catch (err: any) {
         setErrorDevice(err.message || 'Failed to load device details.');
@@ -355,7 +290,7 @@ export default function DeviceDetailsClient() { // Renamed component
         )}
       </div>
 
-      <Tabs defaultValue="certificatesHistory" className="w-full">
+      <Tabs defaultValue="timeline" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-3">
           <TabsTrigger value="certificatesHistory"><History className="mr-2 h-4 w-4" />Certificates History</TabsTrigger>
           <TabsTrigger value="timeline"><Clock className="mr-2 h-4 w-4" />Timeline</TabsTrigger>
@@ -407,7 +342,7 @@ export default function DeviceDetailsClient() { // Renamed component
                   </Table>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No certificate history available for this device identity.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Certificate history details are not available from this endpoint.</p>
               )}
             </CardContent>
           </Card>
