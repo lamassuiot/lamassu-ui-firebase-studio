@@ -108,8 +108,8 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
           <AccordionContent className="space-y-1 px-4 pt-3">
             <DetailItem label="Basic Constraints" value={
               <div className="space-y-0.5">
-                <p>CA: <Badge variant={caDetails.isCa ? "default" : "secondary"} className={(caDetails.isCa ? 'bg-green-100 text-green-700' : '')}>{caDetails.isCa ? "TRUE" : "FALSE"}</Badge></p>
-                {caDetails.isCa && <p>Path Length Constraint: {caDetails.issuer === 'Self-signed' ? 'None' : (caDetails.children && caDetails.children.length > 0 ? '1 (placeholder)' : '0 (placeholder)')}</p>}
+                <div className="flex items-center gap-2">CA: <Badge variant={caDetails.isCa ? "default" : "secondary"} className={(caDetails.isCa ? 'bg-green-100 text-green-700' : '')}>{caDetails.isCa ? "TRUE" : "FALSE"}</Badge></div>
+                {caDetails.isCa && <div>Path Length Constraint: {caDetails.issuer === 'Self-signed' ? 'None' : (caDetails.children && caDetails.children.length > 0 ? '1 (placeholder)' : '0 (placeholder)')}</div>}
               </div>
             } />
             <Separator className="my-2" />
