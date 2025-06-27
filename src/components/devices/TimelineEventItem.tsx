@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, HelpCircle, FileText, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, HelpCircle, FileText, ShieldAlert, ShieldCheck, Landmark } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../ui/button';
 
@@ -138,12 +138,32 @@ export const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event, isL
                             </Button>
                         ) : null }
                     </div>
-                    {isRevoked && (
+                    {isRevoked ? (
                         <div className="text-destructive/90 text-xs border-t pt-2 mt-2">
                             <p><strong>Reason:</strong> {event.certificate.revocationReason || 'Unspecified'}</p>
                             {event.certificate.revocationTimestamp && (
                                 <p><strong>On:</strong> {format(parseISO(event.certificate.revocationTimestamp), 'dd MMM yyyy, HH:mm')}</p>
                             )}
+                        </div>
+                    ) : (
+                        <div className="text-xs text-muted-foreground border-t pt-2 mt-2 space-y-1">
+                            <div className="flex items-center">
+                                <Landmark className="h-3.5 w-3.5 mr-1.5 flex-shrink-0"/>
+                                {event.certificate.issuerCaId ? (
+                                    <Button
+                                        variant="link"
+                                        className="p-0 h-auto font-normal text-left whitespace-normal leading-tight text-xs text-muted-foreground"
+                                        onClick={() => router.push(`/certificate-authorities/details?caId=${event.certificate!.issuerCaId}`)}
+                                        title={`View details for CA ${event.certificate.ca}`}
+                                    >
+                                        Issued by: {event.certificate.ca}
+                                    </Button>
+                                ) : (
+                                    <span>Issued by: {event.certificate.ca}</span>
+                                )}
+                            </div>
+                             <p><strong>Valid From:</strong> {format(parseISO(event.certificate.validFrom), 'dd MMM yyyy, HH:mm')}</p>
+                             <p><strong>Valid To:</strong> {format(parseISO(event.certificate.validTo), 'dd MMM yyyy, HH:mm')}</p>
                         </div>
                     )}
                 </CardContent>
