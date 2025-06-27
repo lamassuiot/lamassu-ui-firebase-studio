@@ -132,32 +132,42 @@ export default function DevicesPage() {
   const [isLoadingApi, setIsLoadingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const [deviceIdFilter, setDeviceIdFilter] = useState<string>('');
-  const [debouncedDeviceIdFilter, setDebouncedDeviceIdFilter] = useState<string>('');
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
+  const [searchField, setSearchField] = useState<'id' | 'tags'>('id');
+  const [statusFilter, setStatusFilter] = useState<DeviceStatus | 'ALL'>('ALL');
+
+  // Sorting and pagination states
   const [pageSize, setPageSize] = useState<string>('10');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
-
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedDeviceIdFilter(deviceIdFilter);
+      setDebouncedSearchTerm(searchTerm);
     }, 500);
 
     return () => {
       clearTimeout(handler);
     };
-  }, [deviceIdFilter]);
+  }, [searchTerm]);
 
   useEffect(() => {
     setBookmarkStack([null]);
     setCurrentPageIndex(0);
-  }, [debouncedDeviceIdFilter, pageSize]);
+  }, [debouncedSearchTerm, searchField, statusFilter, pageSize]);
 
 
-  const fetchDevices = useCallback(async (bookmarkToFetch: string | null, currentFilter: string, currentPageSize: string) => {
+  const fetchDevices = useCallback(async (
+    bookmarkToFetch: string | null,
+    filterTerm: string,
+    filterField: 'id' | 'tags',
+    filterStatus: DeviceStatus | 'ALL',
+    currentPageSize: string
+  ) => {
     if (authLoading || !isAuthenticated() || !user?.access_token) {
       if (!authLoading && !isAuthenticated()) {
         setDevices([]);
@@ -171,16 +181,23 @@ export default function DevicesPage() {
     try {
       const baseUrl = 'https://lab.lamassu.io/api/devmanager/v1/devices';
       const params = new URLSearchParams({
-        sort_by: 'creation_timestamp', 
+        sort_by: 'creation_timestamp',
         sort_mode: 'desc',
         page_size: currentPageSize,
       });
       if (bookmarkToFetch) {
         params.append('bookmark', bookmarkToFetch);
       }
-      if (currentFilter.trim() !== '') {
-        params.append('filter', `id[contains]${currentFilter.trim()}`);
+      
+      const filtersToApply: string[] = [];
+      if (filterTerm.trim() !== '') {
+        filtersToApply.push(`${filterField}[contains]${filterTerm.trim()}`);
       }
+      if (filterStatus !== 'ALL') {
+        filtersToApply.push(`status[equal]${filterStatus}`);
+      }
+      filtersToApply.forEach(f => params.append('filter', f));
+
       const url = `${baseUrl}?${params.toString()}`;
 
       const response = await fetch(url, {
@@ -196,11 +213,10 @@ export default function DevicesPage() {
           errorJson = await response.json();
           if (errorJson && errorJson.err) {
             errorMessage = `Failed to fetch devices: ${errorJson.err}`;
-          } else if (errorJson && errorJson.message) { 
+          } else if (errorJson && errorJson.message) {
             errorMessage = `Failed to fetch devices: ${errorJson.message}`;
           }
         } catch (e) {
-          // Response was not JSON or JSON parsing failed
           console.error("Failed to parse error response as JSON for devices:", e);
         }
         throw new Error(errorMessage);
@@ -212,7 +228,7 @@ export default function DevicesPage() {
         id: apiDevice.id,
         displayId: apiDevice.id,
         iconType: mapApiIconToIconType(apiDevice.icon),
-        status: apiDevice.status as DeviceStatus, 
+        status: apiDevice.status as DeviceStatus,
         deviceGroup: apiDevice.dms_owner,
         createdAt: apiDevice.creation_timestamp,
         tags: apiDevice.tags || [],
@@ -233,9 +249,15 @@ export default function DevicesPage() {
 
   useEffect(() => {
     if (bookmarkStack.length > 0 && currentPageIndex < bookmarkStack.length) {
-        fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter, pageSize);
+        fetchDevices(
+          bookmarkStack[currentPageIndex],
+          debouncedSearchTerm,
+          searchField,
+          statusFilter,
+          pageSize
+        );
     }
-  }, [fetchDevices, currentPageIndex, bookmarkStack, debouncedDeviceIdFilter, pageSize]);
+  }, [fetchDevices, currentPageIndex, bookmarkStack, debouncedSearchTerm, searchField, statusFilter, pageSize]);
 
   const requestSort = (column: SortableColumn) => {
     let direction: SortDirection = 'asc';
@@ -246,7 +268,7 @@ export default function DevicesPage() {
   };
 
   const sortedAndFilteredDevices = useMemo(() => {
-    let processed = [...devices]; 
+    let processed = [...devices];
 
     if (sortConfig) {
       processed.sort((a, b) => {
@@ -293,11 +315,11 @@ export default function DevicesPage() {
     if (isSorted) {
       if (column === 'createdAt') {
         Icon = sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10;
-      } else { 
+      } else {
         Icon = sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ;
       }
     } else if (column === 'createdAt') {
-         Icon = ChevronsUpDown; 
+         Icon = ChevronsUpDown;
     }
 
 
@@ -316,7 +338,7 @@ export default function DevicesPage() {
   };
 
   const handleViewDetails = (deviceIdValue: string) => {
-    router.push(`/devices/details?deviceId=${deviceIdValue}`); // Updated navigation
+    router.push(`/devices/details?deviceId=${deviceIdValue}`);
   };
 
   const handleEditDevice = (deviceIdValue: string) => {
@@ -332,7 +354,13 @@ export default function DevicesPage() {
 
   const handleRefresh = () => {
     if (currentPageIndex < bookmarkStack.length) {
-        fetchDevices(bookmarkStack[currentPageIndex], debouncedDeviceIdFilter, pageSize);
+        fetchDevices(
+          bookmarkStack[currentPageIndex],
+          debouncedSearchTerm,
+          searchField,
+          statusFilter,
+          pageSize
+        );
     }
   };
 
@@ -346,7 +374,7 @@ export default function DevicesPage() {
         const newPageBookmark = nextTokenFromApi;
         const newStack = bookmarkStack.slice(0, currentPageIndex + 1);
         setBookmarkStack([...newStack, newPageBookmark]);
-        setCurrentPageIndex(newStack.length); 
+        setCurrentPageIndex(newStack.length);
     }
   };
 
@@ -356,8 +384,7 @@ export default function DevicesPage() {
     setCurrentPageIndex(prevIndex);
   };
 
-
-  if (authLoading && !sortedAndFilteredDevices.length) { 
+  if (authLoading && !sortedAndFilteredDevices.length) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -366,6 +393,7 @@ export default function DevicesPage() {
     );
   }
 
+  const hasActiveFilters = debouncedSearchTerm || statusFilter !== 'ALL';
 
   return (
     <div className="space-y-6 w-full">
@@ -387,17 +415,50 @@ export default function DevicesPage() {
         Overview of all registered IoT devices, their status, and associated groups.
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-2 items-center">
-        <div className="relative flex-grow w-full sm:w-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-          <Input
-            type="text"
-            placeholder="Filter by Device ID..."
-            value={deviceIdFilter}
-            onChange={(e) => setDeviceIdFilter(e.target.value)}
-            className="w-full pl-10"
-            disabled={isLoadingApi || authLoading}
-          />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div className="space-y-1">
+          <Label htmlFor="searchTermInput">Search Term</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <Input
+              id="searchTermInput"
+              type="text"
+              placeholder="Filter by ID or Tag..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10"
+              disabled={isLoadingApi || authLoading}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="searchFieldSelect">Search In</Label>
+          <Select value={searchField} onValueChange={(value: 'id' | 'tags') => setSearchField(value)} disabled={isLoadingApi || authLoading}>
+            <SelectTrigger id="searchFieldSelect">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="id">Device ID</SelectItem>
+              <SelectItem value="tags">Tags</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-1">
+          <Label htmlFor="statusFilter">Status</Label>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as DeviceStatus | 'ALL')} disabled={isLoadingApi || authLoading}>
+            <SelectTrigger id="statusFilter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="NO_IDENTITY">No Identity</SelectItem>
+              <SelectItem value="INACTIVE">Inactive</SelectItem>
+              <SelectItem value="PENDING_ACTIVATION">Pending Activation</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -492,7 +553,7 @@ export default function DevicesPage() {
         </>
       )}
 
-      {!apiError && (sortedAndFilteredDevices.length > 0 || isLoadingApi || debouncedDeviceIdFilter !== '' || pageSize !== '10') && (
+      {!apiError && (sortedAndFilteredDevices.length > 0 || isLoadingApi || hasActiveFilters) && (
         <div className="flex justify-between items-center mt-4">
             <div className="flex items-center space-x-2">
               <Label htmlFor="pageSizeSelectBottom" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
@@ -535,11 +596,11 @@ export default function DevicesPage() {
       {!apiError && !isLoadingApi && sortedAndFilteredDevices.length === 0 && (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">
-            {debouncedDeviceIdFilter ? `No Devices Found Matching "${debouncedDeviceIdFilter}"` : "No Devices Registered"}
+            {hasActiveFilters ? "No Devices Found" : "No Devices Registered"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {debouncedDeviceIdFilter
-              ? "Try adjusting your filter or clear it to see all devices."
+            {hasActiveFilters
+              ? "Try adjusting your filters or clear them to see all devices."
               : "There are no devices registered in the system yet."
             }
           </p>
@@ -551,4 +612,3 @@ export default function DevicesPage() {
     </div>
   );
 }
-
