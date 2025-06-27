@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -58,6 +57,7 @@ export const CrlCheckModal: React.FC<CrlCheckModalProps> = ({ isOpen, onClose, c
     const [isLoading, setIsLoading] = useState(false);
     const [crlDetails, setCrlDetails] = useState<CrlDetails | null>(null);
     const [rawCrlDer, setRawCrlDer] = useState<ArrayBuffer | null>(null);
+    const [showHttpWarning, setShowHttpWarning] = useState(false);
 
     useEffect(() => {
         if (isOpen && ca?.crlDistributionPoints && ca.crlDistributionPoints.length > 0) {
@@ -68,6 +68,11 @@ export const CrlCheckModal: React.FC<CrlCheckModalProps> = ({ isOpen, onClose, c
         setCrlDetails(null);
         setRawCrlDer(null);
     }, [isOpen, ca]);
+
+    useEffect(() => {
+        setShowHttpWarning(crlUrl.startsWith('http://'));
+    }, [crlUrl]);
+
 
     const handleFetchAndParse = async () => {
         if (!crlUrl) {
@@ -164,6 +169,16 @@ export const CrlCheckModal: React.FC<CrlCheckModalProps> = ({ isOpen, onClose, c
                             <Input id="crl-url-input" type="text" placeholder="http://crl.example.com/ca.crl" value={crlUrl} onChange={(e) => setCrlUrl(e.target.value)} disabled={isLoading} className="mt-1"/>
                         </div>
                     </div>
+                    {showHttpWarning && (
+                        <Alert variant="destructive">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Insecure URL Warning</AlertTitle>
+                            <AlertDescription>
+                                The provided URL uses 'http'. Modern browsers may upgrade this request to 'https' due to Content-Security-Policy.
+                                This may cause the request to fail if the server does not support HTTPS on this endpoint.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     <Button onClick={handleFetchAndParse} disabled={!crlUrl || isLoading} className="w-full">
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                         Fetch & Parse CRL
