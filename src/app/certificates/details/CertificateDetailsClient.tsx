@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation'; // Changed from useParams
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText, ShieldAlert, Loader2, AlertTriangle, Layers, Code2, Info, ShieldCheck } from "lucide-react";
@@ -16,10 +16,11 @@ import { fetchAndProcessCAs, findCaById } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
-
+import { AkiCaSelectorModal } from '@/components/shared/AkiCaSelectorModal';
 import { InformationTabContent } from '@/components/shared/details-tabs/InformationTabContent';
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
 import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTabContent';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 
 const buildCertificateChainPem = (
@@ -58,6 +59,7 @@ export default function CertificateDetailsClient() { // Renamed component
 
   const [certificateDetails, setCertificateDetails] = useState<CertificateData | null>(null);
   const [allCAs, setAllCAs] = useState<CA[]>([]);
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   
   const [isLoadingCert, setIsLoadingCert] = useState(true);
   const [isLoadingAllCAs, setIsLoadingAllCAs] = useState(true);
@@ -67,6 +69,9 @@ export default function CertificateDetailsClient() { // Renamed component
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  
+  const [isAkiModalOpen, setIsAkiModalOpen] = useState(false);
+  const [akiToSearch, setAkiToSearch] = useState<string | null>(null);
 
   const fullChainPemString = useMemo(() => {
     if (certificateDetails && allCAs.length > 0) {
@@ -153,10 +158,24 @@ export default function CertificateDetailsClient() { // Renamed component
             setIsLoadingAllCAs(false);
         }
     };
+
+    const loadAllEngines = async () => {
+        if (!isAuthenticated() || !user?.access_token) return;
+        try {
+            const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+                headers: { 'Authorization': `Bearer ${user.access_token}` },
+            });
+            if (!response.ok) throw new Error('Failed to fetch crypto engines');
+            setAllCryptoEngines(await response.json());
+        } catch (err: any) {
+            console.error(err.message || 'Failed to load engines for AKI modal.');
+        }
+    };
     
     if (!authLoading) {
         loadCertificate();
         loadAllCAsForChain();
+        loadAllEngines();
     }
 
   }, [certificateId, user?.access_token, isAuthenticated, authLoading]);
@@ -179,6 +198,7 @@ export default function CertificateDetailsClient() { // Renamed component
     }
     
     setIsRevocationModalOpen(false);
+    setIsRevoking(true);
 
     try {
       await updateCertificateStatus({
@@ -203,6 +223,7 @@ export default function CertificateDetailsClient() { // Renamed component
       });
     } finally {
       setCertificateToRevoke(null);
+      setIsRevoking(false);
     }
   };
 
@@ -233,6 +254,11 @@ export default function CertificateDetailsClient() { // Renamed component
         variant: "destructive",
       });
     }
+  };
+
+  const handleAkiClick = (aki: string) => {
+    setAkiToSearch(aki);
+    setIsAkiModalOpen(true);
   };
 
 
@@ -331,9 +357,10 @@ export default function CertificateDetailsClient() { // Renamed component
             <Button 
               variant="destructive" 
               onClick={handleOpenRevokeModal} 
-              disabled={statusText === 'REVOKED'}
+              disabled={statusText === 'REVOKED' || isRevoking}
             >
-              <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
+              {isRevoking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldAlert className="mr-2 h-4 w-4" />}
+              {isRevoking ? 'Revoking...' : 'Revoke Certificate'}
             </Button>
           )}
         </div>
@@ -356,6 +383,7 @@ export default function CertificateDetailsClient() { // Renamed component
                 apiStatusText: statusText,
               }}
               routerHook={routerHook}
+              onAkiClick={handleAkiClick}
             />
           </TabsContent>
 
@@ -392,6 +420,12 @@ export default function CertificateDetailsClient() { // Renamed component
           isConfirming={isRevoking}
         />
       )}
+      <AkiCaSelectorModal
+        isOpen={isAkiModalOpen}
+        onOpenChange={setIsAkiModalOpen}
+        aki={akiToSearch}
+        allCryptoEngines={allCryptoEngines}
+      />
     </div>
   );
 }

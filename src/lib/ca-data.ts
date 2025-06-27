@@ -253,8 +253,11 @@ function buildCaHierarchy(flatCaList: Omit<CA, 'children'>[]): CA[] {
 
 
 // Function to fetch, transform, and build hierarchy
-export async function fetchAndProcessCAs(accessToken: string): Promise<CA[]> {
-  const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas', {
+export async function fetchAndProcessCAs(accessToken: string, apiQueryString?: string): Promise<CA[]> {
+  const baseUrl = 'https://lab.lamassu.io/api/ca/v1/cas';
+  const url = apiQueryString ? `${baseUrl}?${apiQueryString}` : baseUrl;
+
+  const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
     },

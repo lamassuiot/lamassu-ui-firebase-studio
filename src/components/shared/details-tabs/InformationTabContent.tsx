@@ -44,6 +44,7 @@ interface InformationTabContentProps {
     apiStatusText: string;
   };
   routerHook: AppRouterInstance;
+  onAkiClick?: (aki: string) => void;
 }
 
 const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
@@ -66,6 +67,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   caSpecific,
   certificateSpecific,
   routerHook,
+  onAkiClick,
 }) => {
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
 
@@ -207,7 +209,23 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="Signature Algorithm" value={certDetails.signatureAlgorithm || 'N/A'} />
             <DetailItem label="SHA-256 Fingerprint" value={certDetails.fingerprintSha256 || 'N/A (Generate if needed)'} isMono />
             {certDetails.rawApiData?.subject_key_id && <DetailItem label="Subject Key ID (SKI)" value={certDetails.rawApiData.subject_key_id} isMono />}
-            {certDetails.rawApiData?.authority_key_id && <DetailItem label="Authority Key ID (AKI)" value={certDetails.rawApiData.authority_key_id} isMono />}
+            <DetailItem
+                label="Authority Key Identifier (AKI)"
+                value={
+                    certDetails.rawApiData?.authority_key_id && onAkiClick ? (
+                        <Button
+                            variant="link"
+                            className="p-0 h-auto font-mono text-xs text-left whitespace-normal break-all"
+                            onClick={() => onAkiClick(certDetails.rawApiData.authority_key_id)}
+                            title="Find Issuer CA by AKI"
+                        >
+                            {certDetails.rawApiData.authority_key_id}
+                        </Button>
+                    ) : (
+                        <span className="font-mono text-xs">{certDetails.rawApiData?.authority_key_id || 'N/A'}</span>
+                    )
+                }
+            />
           </AccordionContent>
         </AccordionItem>
 
