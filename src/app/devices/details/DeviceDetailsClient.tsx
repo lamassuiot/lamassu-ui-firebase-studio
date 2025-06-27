@@ -51,6 +51,7 @@ interface CertificateHistoryEntry {
   isSuperseded: boolean;
   commonName: string;
   ca: string;
+  issuerCaId?: string;
   validFrom: string;
   validTo: string;
   lifespan: string;
@@ -104,6 +105,7 @@ export default function DeviceDetailsClient() { // Renamed component
                 isSuperseded: isSuperseded,
                 commonName: getCertSubjectCommonName(certData.subject),
                 ca: getCertSubjectCommonName(certData.issuer),
+                issuerCaId: certData.issuerCaId,
                 validFrom: certData.validFrom,
                 validTo: certData.validTo,
                 lifespan: formatDistanceStrict(parseISO(certData.validTo), parseISO(certData.validFrom)),
@@ -378,7 +380,20 @@ export default function DeviceDetailsClient() { // Renamed component
                             </div>
                           </TableCell>
                           <TableCell className="hidden md:table-cell">{cert.commonName}</TableCell>
-                          <TableCell className="hidden lg:table-cell">{cert.ca}</TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                             {cert.issuerCaId ? (
+                                <Button
+                                    variant="link"
+                                    className="p-0 h-auto font-normal text-left whitespace-normal leading-tight"
+                                    onClick={() => router.push(`/certificate-authorities/details?caId=${cert.issuerCaId}`)}
+                                    title={`View details for CA ${cert.ca}`}
+                                >
+                                    {cert.ca}
+                                </Button>
+                                ) : (
+                                cert.ca
+                                )}
+                          </TableCell>
                           <TableCell className="hidden lg:table-cell">{format(parseISO(cert.validFrom), 'dd/MM/yy HH:mm')}</TableCell>
                           <TableCell className="hidden lg:table-cell">{format(parseISO(cert.validTo), 'dd/MM/yy HH:mm')}</TableCell>
                           <TableCell className="hidden md:table-cell">{cert.lifespan}</TableCell>
