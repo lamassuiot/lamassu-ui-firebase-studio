@@ -18,6 +18,7 @@ import { Loader2 } from 'lucide-react';
 import { TimelineEventItem, type TimelineEventDisplayData } from '@/components/devices/TimelineEventItem';
 import type { CertificateData } from '@/types/certificate';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
+import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 
 
 interface ApiDeviceIdentity {
@@ -43,50 +44,17 @@ interface ApiDevice {
 }
 
 interface CertificateHistoryEntry {
-  version: string; 
+  version: string;
   serialNumber: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'REVOKED_SOON' | 'REVOKED' | 'EXPIRED_SUPERCEDED'; 
+  apiStatus?: string;
+  revocationReason?: string;
+  isSuperseded: boolean;
   commonName: string;
   ca: string;
   validFrom: string;
   validTo: string;
   lifespan: string;
-  revocationStatus: string;
-  supersededTimestamp?: string; 
 }
-
-
-const CertificateStatusBadge: React.FC<{ status: CertificateHistoryEntry['status'] }> = ({ status }) => {
-  let badgeClass = "bg-muted text-muted-foreground border-border";
-  let Icon = Info;
-  let text = status.replace('_', ' ').toLowerCase();
-
-  switch (status) {
-    case 'ACTIVE':
-      badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
-      Icon = CheckCircle;
-      break;
-    case 'INACTIVE':
-      badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
-      Icon = Clock;
-      break;
-    case 'REVOKED_SOON':
-      badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
-      Icon = AlertTriangle;
-      break;
-    case 'REVOKED':
-      badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
-      Icon = XCircle;
-      text = "Revoked";
-      break;
-    case 'EXPIRED_SUPERCEDED':
-      badgeClass = "bg-rose-100 text-rose-700 dark:bg-rose-700/30 dark:text-rose-300 border-rose-300 dark:border-rose-700";
-      Icon = XCircle;
-      text = "Expired & Superseded";
-      break;
-  }
-  return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}><Icon className="mr-1 h-3 w-3" />{text}</Badge>;
-};
 
 const getCertSubjectCommonName = (subject: string): string => {
   const cnMatch = subject.match(/CN=([^,]+)/);
@@ -126,30 +94,19 @@ export default function DeviceDetailsClient() { // Renamed component
             const certData = certificates[0];
             if (!certData) return null;
 
-            const isActive = certData.apiStatus === 'ACTIVE' && !isPast(parseISO(certData.validTo));
             const isSuperseded = parseInt(version, 10) < identity.active_version;
-
-            let status: CertificateHistoryEntry['status'];
-            if (isSuperseded) {
-                status = 'EXPIRED_SUPERCEDED';
-            } else if (certData.apiStatus === 'REVOKED') {
-                status = 'REVOKED';
-            } else if (isActive) {
-                status = 'ACTIVE';
-            } else {
-                status = 'INACTIVE';
-            }
             
             return {
                 version: version,
                 serialNumber: certData.serialNumber,
-                status: status,
+                apiStatus: certData.apiStatus,
+                revocationReason: certData.revocationReason,
+                isSuperseded: isSuperseded,
                 commonName: getCertSubjectCommonName(certData.subject),
                 ca: getCertSubjectCommonName(certData.issuer),
                 validFrom: certData.validFrom,
                 validTo: certData.validTo,
                 lifespan: formatDistanceStrict(parseISO(certData.validTo), parseISO(certData.validFrom)),
-                revocationStatus: certData.apiStatus === 'REVOKED' ? certData.revocationReason || 'Revoked' : 'Not Revoked',
             };
         });
 
@@ -398,10 +355,19 @@ export default function DeviceDetailsClient() { // Renamed component
                     </TableHeader>
                     <TableBody>
                       {certificateHistory.map((cert) => (
-                        <TableRow key={cert.version}>
+                        <TableRow key={cert.version} className={cn(cert.isSuperseded && "opacity-60")}>
                           <TableCell>{cert.version}</TableCell>
                           <TableCell className="font-mono text-xs">{cert.serialNumber}</TableCell>
-                          <TableCell><CertificateStatusBadge status={cert.status} /></TableCell>
+                          <TableCell>
+                            <div>
+                              <ApiStatusBadge status={cert.apiStatus} />
+                              {cert.apiStatus === 'REVOKED' && cert.revocationReason && (
+                                <p className="text-xs text-muted-foreground mt-1 truncate max-w-[120px]" title={cert.revocationReason}>
+                                  {cert.revocationReason}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="hidden md:table-cell">{cert.commonName}</TableCell>
                           <TableCell className="hidden lg:table-cell">{cert.ca}</TableCell>
                           <TableCell className="hidden lg:table-cell">{format(parseISO(cert.validFrom), 'dd/MM/yy HH:mm')}</TableCell>
