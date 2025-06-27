@@ -24,6 +24,7 @@ import type { CertSortConfig, SortableCertColumn } from '@/app/certificates/page
 import { OcspCheckModal } from '@/components/shared/OcspCheckModal';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 import { updateCertificateStatus } from '@/lib/issued-certificate-data';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CertificateListProps {
   certificates: CertificateData[];
