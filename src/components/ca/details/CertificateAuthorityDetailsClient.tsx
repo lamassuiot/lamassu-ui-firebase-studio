@@ -65,7 +65,7 @@ const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] =
     }
     const parentCa = findCaById(current.issuer, allCAs);
     if (!parentCa || path.some(p => p.id === parentCa.id)) {
-        break;
+      break;
     }
     current = parentCa;
     safetyNet++;
@@ -111,7 +111,7 @@ export default function CertificateAuthorityDetailsClient() {
   const [allCertificateAuthoritiesData, setAllCertificateAuthoritiesData] = useState<CA[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
-  
+
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingEngines, setIsLoadingEngines] = useState(true);
   const [errorEngines, setErrorEngines] = useState<string | null>(null);
@@ -189,39 +189,39 @@ export default function CertificateAuthorityDetailsClient() {
 
   const loadInitialData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
-        if (!authLoading) {
-            setErrorCAs("User not authenticated.");
-            setErrorEngines("User not authenticated.");
-        }
-        setIsLoadingCAs(false);
-        setIsLoadingEngines(false);
-        return;
+      if (!authLoading) {
+        setErrorCAs("User not authenticated.");
+        setErrorEngines("User not authenticated.");
+      }
+      setIsLoadingCAs(false);
+      setIsLoadingEngines(false);
+      return;
     }
 
     setIsLoadingCAs(true);
     setErrorCAs(null);
     try {
-        const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-        setAllCertificateAuthoritiesData(fetchedCAs);
+      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+      setAllCertificateAuthoritiesData(fetchedCAs);
     } catch (err: any) {
-        setErrorCAs(err.message || 'Failed to load CA data.');
+      setErrorCAs(err.message || 'Failed to load CA data.');
     } finally {
-        setIsLoadingCAs(false);
+      setIsLoadingCAs(false);
     }
-    
+
     setIsLoadingEngines(true);
     setErrorEngines(null);
     try {
-        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-            headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) throw new Error('Failed to fetch crypto engines');
-        const enginesData: ApiCryptoEngine[] = await response.json();
-        setAllCryptoEngines(enginesData);
+      const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+        headers: { 'Authorization': `Bearer ${user.access_token}` },
+      });
+      if (!response.ok) throw new Error('Failed to fetch crypto engines');
+      const enginesData: ApiCryptoEngine[] = await response.json();
+      setAllCryptoEngines(enginesData);
     } catch (err: any) {
-        setErrorEngines(err.message || 'Failed to load Crypto Engines.');
+      setErrorEngines(err.message || 'Failed to load Crypto Engines.');
     } finally {
-        setIsLoadingEngines(false);
+      setIsLoadingEngines(false);
     }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
@@ -235,9 +235,9 @@ export default function CertificateAuthorityDetailsClient() {
       if (!response.ok) {
         let errorBody = 'Request failed.';
         try {
-            const errJson = await response.json();
-            errorBody = errJson.err || errJson.message || errorBody;
-        } catch(e) { /* Ignore parsing error */ }
+          const errJson = await response.json();
+          errorBody = errJson.err || errJson.message || errorBody;
+        } catch (e) { /* Ignore parsing error */ }
         throw new Error(`Failed to fetch CA statistics: ${errorBody} (Status: ${response.status})`);
       }
       const data: CaStats = await response.json();
@@ -268,8 +268,8 @@ export default function CertificateAuthorityDetailsClient() {
       setCaPathToRoot(path);
       const chainPem = path.map(p => p.pemData).filter(Boolean).join('\\n\\n');
       setFullChainPemString(chainPem);
-      setPlaceholderSerial(`${Math.random().toString(16).slice(2,10)}:${Math.random().toString(16).slice(2,10)}`);
-      
+      setPlaceholderSerial(`${Math.random().toString(16).slice(2, 10)}:${Math.random().toString(16).slice(2, 10)}`);
+
       if (isAuthenticated() && user?.access_token) {
         loadCaStats(foundCa.id, user.access_token);
       }
@@ -368,7 +368,7 @@ export default function CertificateAuthorityDetailsClient() {
   ]);
 
   useEffect(() => {
-    if (activeTab !== 'issued' ) {
+    if (activeTab !== 'issued') {
       setIssuedCertificatesList([]);
       setIssuedCertsBookmarkStack([null]);
       setIssuedCertsCurrentPageIndex(0);
@@ -387,7 +387,7 @@ export default function CertificateAuthorityDetailsClient() {
 
   const handleConfirmCARevocation = (reason: string) => {
     if (caToRevoke) {
-      setCaDetails(prev => prev ? {...prev, status: 'revoked'} : null);
+      setCaDetails(prev => prev ? { ...prev, status: 'revoked' } : null);
       toast({
         title: "CA Revocation (Mock)",
         description: `CA "${caToRevoke.name}" marked as revoked with reason: ${reason}.`,
@@ -409,11 +409,11 @@ export default function CertificateAuthorityDetailsClient() {
     if (isLoadingIssuedCerts) return;
     const potentialNextPageIndex = issuedCertsCurrentPageIndex + 1;
     if (potentialNextPageIndex < issuedCertsBookmarkStack.length) {
-        setIssuedCertsCurrentPageIndex(potentialNextPageIndex);
+      setIssuedCertsCurrentPageIndex(potentialNextPageIndex);
     } else if (issuedCertsNextTokenFromApi) {
-        const newStack = [...issuedCertsBookmarkStack, issuedCertsNextTokenFromApi];
-        setIssuedCertsBookmarkStack(newStack);
-        setIssuedCertsCurrentPageIndex(newStack.length -1);
+      const newStack = [...issuedCertsBookmarkStack, issuedCertsNextTokenFromApi];
+      setIssuedCertsBookmarkStack(newStack);
+      setIssuedCertsCurrentPageIndex(newStack.length - 1);
     }
   };
 
@@ -430,27 +430,27 @@ export default function CertificateAuthorityDetailsClient() {
     }
     setIssuedCertsSortConfig({ column, direction });
   };
-  
+
   const handleRefreshIssuedCerts = () => {
-     if (caDetails?.id && user?.access_token) {
-        actualLoadIssuedCertificatesByCa(
-            caDetails.id,
-            user.access_token,
-            issuedCertsBookmarkStack[issuedCertsCurrentPageIndex],
-            issuedCertsPageSize,
-            issuedCertsSortConfig,
-            issuedCertsDebouncedSearchTermCN,
-            issuedCertsDebouncedSearchTermSN,
-            issuedCertsStatusFilter
-        );
+    if (caDetails?.id && user?.access_token) {
+      actualLoadIssuedCertificatesByCa(
+        caDetails.id,
+        user.access_token,
+        issuedCertsBookmarkStack[issuedCertsCurrentPageIndex],
+        issuedCertsPageSize,
+        issuedCertsSortConfig,
+        issuedCertsDebouncedSearchTermCN,
+        issuedCertsDebouncedSearchTermSN,
+        issuedCertsStatusFilter
+      );
     }
   };
 
   const handleIssueNewCertificate = () => {
     if (caDetails?.id) {
-        routerHook.push(`/certificate-authorities/issue-certificate?caId=${caDetails.id}`);
+      routerHook.push(`/certificate-authorities/issue-certificate?caId=${caDetails.id}`);
     } else {
-        toast({ title: "Error", description: "Cannot issue certificate, CA ID is missing.", variant: "destructive" });
+      toast({ title: "Error", description: "Cannot issue certificate, CA ID is missing.", variant: "destructive" });
     }
   };
 
@@ -483,9 +483,9 @@ export default function CertificateAuthorityDetailsClient() {
   if ((errorCAs || errorEngines) && !caDetails) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
+        <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
@@ -517,44 +517,42 @@ export default function CertificateAuthorityDetailsClient() {
   } else if (caDetails.status === 'revoked') {
     statusColorClass = 'bg-red-500 hover:bg-red-600';
     statusVariant = 'destructive';
-  } else if (isPast(parseISO(caDetails.expires))) { 
+  } else if (isPast(parseISO(caDetails.expires))) {
     statusColorClass = 'bg-orange-500 hover:bg-orange-600';
     statusVariant = 'destructive';
-  } else { 
-    statusColorClass = 'bg-yellow-500 hover:bg-yellow-600'; 
-    statusVariant = 'outline'; 
+  } else {
+    statusColorClass = 'bg-yellow-500 hover:bg-yellow-600';
+    statusVariant = 'outline';
   }
 
 
   return (
-    <div className="w-full space-y-6">
-       <div className="flex justify-between items-center mb-4">
+    <div className="w-full">
+      <div className="flex justify-between items-center mb-4">
         <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
         </Button>
       </div>
 
-      <div className="w-full">
-        <div className="p-6 border-b">
+      <div className="w-full mt-0">
+        <div className="p-6 pt-0 border-b">
           <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
             <div className="flex-shrink-0 self-start xl:self-center">
               <div className="flex items-center space-x-3">
                 <FileText className="h-8 w-8 text-primary" />
                 <div>
-                    <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        CA ID: {caDetails.id}
-                    </p>
+                  <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    CA ID: {caDetails.id}
+                  </p>
+                  <div className="mt-1.5">
+                    <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
+                  </div>
                 </div>
               </div>
             </div>
-            
             <div className="flex-grow w-full xl:w-auto">
               <CaStatsDisplay stats={caStats} isLoading={isLoadingStats} error={errorStats} />
-            </div>
-
-            <div className="flex-shrink-0 self-start xl:self-center">
-              <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
             </div>
           </div>
         </div>
@@ -602,7 +600,7 @@ export default function CertificateAuthorityDetailsClient() {
           </TabsContent>
 
           <TabsContent value="metadata">
-             <MetadataTabContent
+            <MetadataTabContent
               rawJsonData={mockLamassuMetadata}
               itemName={caDetails.name}
               tabTitle="LamassuIoT Specific Metadata"
@@ -612,53 +610,53 @@ export default function CertificateAuthorityDetailsClient() {
 
           <TabsContent value="issued">
             <div className="space-y-4 py-4">
-               <div className="flex flex-col sm:flex-row justify-between items-end gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-end gap-3 mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end w-full sm:w-auto flex-grow">
-                    <div className="relative col-span-1 md:col-span-1">
-                        <Label htmlFor="issuedCertSearchCN">Search CN</Label>
-                        <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                            id="issuedCertSearchCN"
-                            type="text"
-                            placeholder="Filter by Common Name..."
-                            value={issuedCertsSearchTermCN}
-                            onChange={(e) => setIssuedCertsSearchTermCN(e.target.value)}
-                            className="w-full pl-10 mt-1"
-                            disabled={isLoadingIssuedCerts || authLoading}
-                        />
-                    </div>
-                    <div className="relative col-span-1 md:col-span-1">
-                        <Label htmlFor="issuedCertSearchSN">Search SN</Label>
-                        <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                            id="issuedCertSearchSN"
-                            type="text"
-                            placeholder="Filter by Serial Number..."
-                            value={issuedCertsSearchTermSN}
-                            onChange={(e) => setIssuedCertsSearchTermSN(e.target.value)}
-                            className="w-full pl-10 mt-1"
-                            disabled={isLoadingIssuedCerts || authLoading}
-                        />
-                    </div>
-                    <div className="col-span-1 md:col-span-1">
-                        <Label htmlFor="issuedCertStatusFilter">Status</Label>
-                        <Select value={issuedCertsStatusFilter} onValueChange={(value) => setIssuedCertsStatusFilter(value as ApiStatusFilterValue)} disabled={isLoadingIssuedCerts || authLoading}>
-                            <SelectTrigger id="issuedCertStatusFilter" className="w-full mt-1">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {Object.entries(API_STATUS_VALUES_FOR_FILTER).map(([key, val]) => <SelectItem key={val} value={val}>{val === 'ALL' ? 'All Statuses' : key.charAt(0) + key.slice(1).toLowerCase()}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                  <div className="relative col-span-1 md:col-span-1">
+                    <Label htmlFor="issuedCertSearchCN">Search CN</Label>
+                    <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="issuedCertSearchCN"
+                      type="text"
+                      placeholder="Filter by Common Name..."
+                      value={issuedCertsSearchTermCN}
+                      onChange={(e) => setIssuedCertsSearchTermCN(e.target.value)}
+                      className="w-full pl-10 mt-1"
+                      disabled={isLoadingIssuedCerts || authLoading}
+                    />
+                  </div>
+                  <div className="relative col-span-1 md:col-span-1">
+                    <Label htmlFor="issuedCertSearchSN">Search SN</Label>
+                    <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="issuedCertSearchSN"
+                      type="text"
+                      placeholder="Filter by Serial Number..."
+                      value={issuedCertsSearchTermSN}
+                      onChange={(e) => setIssuedCertsSearchTermSN(e.target.value)}
+                      className="w-full pl-10 mt-1"
+                      disabled={isLoadingIssuedCerts || authLoading}
+                    />
+                  </div>
+                  <div className="col-span-1 md:col-span-1">
+                    <Label htmlFor="issuedCertStatusFilter">Status</Label>
+                    <Select value={issuedCertsStatusFilter} onValueChange={(value) => setIssuedCertsStatusFilter(value as ApiStatusFilterValue)} disabled={isLoadingIssuedCerts || authLoading}>
+                      <SelectTrigger id="issuedCertStatusFilter" className="w-full mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(API_STATUS_VALUES_FOR_FILTER).map(([key, val]) => <SelectItem key={val} value={val}>{val === 'ALL' ? 'All Statuses' : key.charAt(0) + key.slice(1).toLowerCase()}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                 <div className="flex space-x-2 mt-4 sm:mt-0">
-                    <Button onClick={handleRefreshIssuedCerts} variant="outline" disabled={isLoadingIssuedCerts}>
-                        <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingIssuedCerts && "animate-spin")} /> Refresh
-                    </Button>
-                    <Button onClick={handleIssueNewCertificate} variant="default" disabled={!caDetails || caDetails.status !== 'active' || isPast(parseISO(caDetails.expires))}>
-                        <FilePlus2 className="mr-2 h-4 w-4" /> Issue New
-                    </Button>
+                <div className="flex space-x-2 mt-4 sm:mt-0">
+                  <Button onClick={handleRefreshIssuedCerts} variant="outline" disabled={isLoadingIssuedCerts}>
+                    <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingIssuedCerts && "animate-spin")} /> Refresh
+                  </Button>
+                  <Button onClick={handleIssueNewCertificate} variant="default" disabled={!caDetails || caDetails.status !== 'active' || isPast(parseISO(caDetails.expires))}>
+                    <FilePlus2 className="mr-2 h-4 w-4" /> Issue New
+                  </Button>
                 </div>
               </div>
 
@@ -716,33 +714,33 @@ export default function CertificateAuthorityDetailsClient() {
                   </div>
                   <div className="flex justify-between items-center mt-4">
                     <div className="flex items-center space-x-2">
-                        <Label htmlFor="issuedCertsPageSizeSelect" className="text-sm text-muted-foreground">Page Size:</Label>
-                        <Select value={issuedCertsPageSize} onValueChange={setIssuedCertsPageSize}>
-                            <SelectTrigger id="issuedCertsPageSizeSelect" className="w-[70px] h-9">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="5">5</SelectItem>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                            </SelectContent>
-                        </Select>
+                      <Label htmlFor="issuedCertsPageSizeSelect" className="text-sm text-muted-foreground">Page Size:</Label>
+                      <Select value={issuedCertsPageSize} onValueChange={setIssuedCertsPageSize}>
+                        <SelectTrigger id="issuedCertsPageSizeSelect" className="w-[70px] h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Button
-                            onClick={handlePreviousIssuedCertsPage}
-                            disabled={isLoadingIssuedCerts || issuedCertsCurrentPageIndex === 0}
-                            variant="outline" size="sm"
-                        >
-                            <ChevronLeft className="mr-1 h-4 w-4" /> Previous
-                        </Button>
-                        <Button
-                            onClick={handleNextIssuedCertsPage}
-                            disabled={isLoadingIssuedCerts || !issuedCertsNextTokenFromApi}
-                            variant="outline" size="sm"
-                        >
-                            Next <ChevronRight className="ml-1 h-4 w-4" />
-                        </Button>
+                      <Button
+                        onClick={handlePreviousIssuedCertsPage}
+                        disabled={isLoadingIssuedCerts || issuedCertsCurrentPageIndex === 0}
+                        variant="outline" size="sm"
+                      >
+                        <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                      </Button>
+                      <Button
+                        onClick={handleNextIssuedCertsPage}
+                        disabled={isLoadingIssuedCerts || !issuedCertsNextTokenFromApi}
+                        variant="outline" size="sm"
+                      >
+                        Next <ChevronRight className="ml-1 h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </>

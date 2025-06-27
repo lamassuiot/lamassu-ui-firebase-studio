@@ -224,6 +224,7 @@ async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificat
     pemData: pemData,
     apiStatus: apiCert.status,
     revocationReason: apiCert.revocation_reason,
+    revocationTimestamp: apiCert.revocation_timestamp,
     publicKeyAlgorithm,
     signatureAlgorithm,
     fingerprintSha256,

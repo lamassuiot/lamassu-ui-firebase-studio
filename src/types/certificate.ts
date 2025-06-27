@@ -15,6 +15,7 @@ export interface CertificateData {
   issuerCaId?: string; // ID of the CA that issued this certificate
   apiStatus?: string; // To store the raw status from the API
   revocationReason?: string;
+  revocationTimestamp?: string;
   rawApiData?: any; // To store the original API response for this certificate
   ocspUrls?: string[]; // Added for OCSP check feature
   crlDistributionPoints?: string[];

@@ -122,8 +122,6 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             } />
             <Separator className="my-2" />
             <DetailItem label="Extended Key Usage" value={"Not Specified"} />
-            <Separator className="my-2" />
-            <DetailItem label="Certificate Policies" value={"anyPolicy (placeholder)"} />
           </AccordionContent>
         </AccordionItem>
 

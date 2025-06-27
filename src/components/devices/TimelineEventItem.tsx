@@ -3,19 +3,49 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { Card, CardContent } from '@/components/ui/card';
+import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, Eye, HelpCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, HelpCircle, FileText, ShieldAlert, ShieldCheck, Landmark } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Button } from '../ui/button';
+
+// This interface must match the one defined in DeviceDetailsClient.tsx
+// It's copied here to avoid circular dependency issues with shared types.
+interface CertificateHistoryEntry {
+  version: string;
+  serialNumber: string;
+  apiStatus?: string;
+  revocationReason?: string;
+  revocationTimestamp?: string;
+  isSuperseded: boolean;
+  commonName: string;
+  ca: string;
+  issuerCaId?: string;
+  validFrom: string;
+  validTo: string;
+  lifespan: string;
+}
 
 export interface TimelineEventDisplayData {
   id: string;
   timestamp: Date;
-  eventType: string; // Raw API event type
-  title: string; // Formatted description or type
-  details?: React.ReactNode; // For serial, device ID, cert status etc.
-  relativeTime: string; // e.g., "2 days ago"
-  secondaryRelativeTime?: string; // e.g., "2 minutes later"
+  eventType: string;
+  title: string;
+  details?: React.ReactNode;
+  relativeTime: string;
+  secondaryRelativeTime?: string;
+  certificate?: CertificateHistoryEntry;
 }
+
+interface TimelineEventItemProps {
+    event: TimelineEventDisplayData;
+    isLastItem: boolean;
+    onRevoke: (certInfo: CertificateHistoryEntry) => void;
+    onReactivate: (certInfo: CertificateHistoryEntry) => void;
+}
+
 
 const eventTypeVisuals: Record<string, { display: string; colorClass: string; Icon: React.ElementType }> = {
   'CREATED': { display: 'Created', colorClass: 'bg-green-500', Icon: CheckCircle },
@@ -28,8 +58,12 @@ const eventTypeVisuals: Record<string, { display: string; colorClass: string; Ic
 };
 
 
-export const TimelineEventItem: React.FC<{ event: TimelineEventDisplayData; isLastItem: boolean }> = ({ event, isLastItem }) => {
+export const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event, isLastItem, onRevoke, onReactivate }) => {
+  const router = useRouter();
   const visuals = eventTypeVisuals[event.eventType] || eventTypeVisuals['DEFAULT'];
+
+  const isRevoked = event.certificate?.apiStatus === 'REVOKED';
+  const isOnHold = isRevoked && event.certificate?.revocationReason === 'CertificateHold';
 
   return (
     <li className="flex gap-4 py-3 relative">
@@ -61,19 +95,91 @@ export const TimelineEventItem: React.FC<{ event: TimelineEventDisplayData; isLa
                     <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" title="Device identity was updated with a new certificate version."/>
                 )}
             </div>
-             {/* Placeholder for actions like viewing cert, if applicable */}
-             {(event.eventType === 'PROVISIONED' || event.eventType === 'RE-PROVISIONED') && event.details && (
-                <button title="View Associated Certificate (placeholder)" className="text-muted-foreground hover:text-primary transition-colors">
-                    <Eye className="h-4 w-4" />
-                </button>
-            )}
         </div>
         <p className="text-sm font-medium text-foreground mt-1 break-words">{event.title}</p>
-        {event.details && (
-          <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
-            {event.details}
-          </div>
-        )}
+        
+        {event.certificate ? (
+            <Card className="mt-2 p-3 bg-muted/40 border-border">
+                <CardContent className="p-0 space-y-2 text-xs">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <Button
+                                    variant="link"
+                                    className="p-0 h-auto font-mono text-xs text-foreground"
+                                    onClick={() => router.push(`/certificates/details?certificateId=${event.certificate?.serialNumber}`)}
+                                >
+                                    SN: {event.certificate.serialNumber}
+                                </Button>
+                                <div className="mt-1">
+                                    <ApiStatusBadge status={event.certificate.apiStatus} />
+                                </div>
+                            </div>
+                        </div>
+                        {isOnHold ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-1 text-xs text-green-600 hover:bg-green-600/10"
+                                onClick={() => onReactivate(event.certificate!)}
+                            >
+                                <ShieldCheck className="h-3 w-3 mr-1" />
+                                Re-activate
+                            </Button>
+                        ) : !isRevoked ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-1 text-xs text-destructive hover:bg-destructive/10"
+                                onClick={() => onRevoke(event.certificate!)}
+                            >
+                                <ShieldAlert className="h-3 w-3 mr-1" />
+                                Revoke
+                            </Button>
+                        ) : null }
+                    </div>
+
+                    <div className="text-xs text-muted-foreground border-t pt-2 mt-2 space-y-1">
+                        <div className="flex items-center">
+                            <Landmark className="h-3.5 w-3.5 mr-1.5 flex-shrink-0"/>
+                            {event.certificate.issuerCaId ? (
+                                <Button
+                                    variant="link"
+                                    className="p-0 h-auto font-normal text-left whitespace-normal leading-tight text-xs text-muted-foreground"
+                                    onClick={() => router.push(`/certificate-authorities/details?caId=${event.certificate!.issuerCaId}`)}
+                                    title={`View details for CA ${event.certificate.ca}`}
+                                >
+                                    Issued by: {event.certificate.ca}
+                                </Button>
+                            ) : (
+                                <span>Issued by: {event.certificate.ca}</span>
+                            )}
+                        </div>
+
+                        {isRevoked ? (
+                            <div className="pt-1">
+                                <p className="text-destructive/90"><strong>Reason:</strong> {event.certificate.revocationReason || 'Unspecified'}</p>
+                                {event.certificate.revocationTimestamp && (
+                                    <p className="text-destructive/90"><strong>On:</strong> {format(parseISO(event.certificate.revocationTimestamp), 'dd MMM yyyy, HH:mm')}</p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="pt-1 space-y-1">
+                                 <p><strong>Valid From:</strong> {format(parseISO(event.certificate.validFrom), 'dd MMM yyyy, HH:mm')}</p>
+                                 <p><strong>Valid To:</strong> {format(parseISO(event.certificate.validTo), 'dd MMM yyyy, HH:mm')}</p>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+          ) : (
+            event.details && (
+              <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                {event.details}
+              </div>
+            )
+          )}
       </div>
     </li>
   );
