@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation'; // Changed from useParams
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
 import { TimelineEventItem, type TimelineEventDisplayData } from '@/components/devices/TimelineEventItem';
+import type { CertificateData } from '@/types/certificate';
+import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 
 
 interface ApiDeviceIdentity {
@@ -86,6 +88,10 @@ const CertificateStatusBadge: React.FC<{ status: CertificateHistoryEntry['status
   return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}><Icon className="mr-1 h-3 w-3" />{text}</Badge>;
 };
 
+const getCertSubjectCommonName = (subject: string): string => {
+  const cnMatch = subject.match(/CN=([^,]+)/);
+  return cnMatch ? cnMatch[1] : subject;
+};
 
 export default function DeviceDetailsClient() { // Renamed component
   const searchParams = useSearchParams(); // Changed from useParams
@@ -98,8 +104,66 @@ export default function DeviceDetailsClient() { // Renamed component
   const [errorDevice, setErrorDevice] = useState<string | null>(null);
   
   const [certificateHistory, setCertificateHistory] = useState<CertificateHistoryEntry[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [errorHistory, setErrorHistory] = useState<string | null>(null);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventDisplayData[]>([]);
 
+  const fetchCertificateHistory = useCallback(async (identity: ApiDeviceIdentity, accessToken: string) => {
+    setIsLoadingHistory(true);
+    setErrorHistory(null);
+    try {
+        const serialsByVersion = Object.entries(identity.versions);
+        if (serialsByVersion.length === 0) {
+            setCertificateHistory([]);
+            return;
+        }
+
+        const certPromises = serialsByVersion.map(async ([version, serialNumber]) => {
+            const { certificates } = await fetchIssuedCertificates({
+                accessToken: accessToken,
+                apiQueryString: `filter=serial_number[equal]${serialNumber}&page_size=1`
+            });
+            const certData = certificates[0];
+            if (!certData) return null;
+
+            const isActive = certData.apiStatus === 'ACTIVE' && !isPast(parseISO(certData.validTo));
+            const isSuperseded = parseInt(version, 10) < identity.active_version;
+
+            let status: CertificateHistoryEntry['status'];
+            if (isSuperseded) {
+                status = 'EXPIRED_SUPERCEDED';
+            } else if (certData.apiStatus === 'REVOKED') {
+                status = 'REVOKED';
+            } else if (isActive) {
+                status = 'ACTIVE';
+            } else {
+                status = 'INACTIVE';
+            }
+            
+            return {
+                version: version,
+                serialNumber: certData.serialNumber,
+                status: status,
+                commonName: getCertSubjectCommonName(certData.subject),
+                ca: getCertSubjectCommonName(certData.issuer),
+                validFrom: certData.validFrom,
+                validTo: certData.validTo,
+                lifespan: formatDistanceStrict(parseISO(certData.validTo), parseISO(certData.validFrom)),
+                revocationStatus: certData.apiStatus === 'REVOKED' ? certData.revocationReason || 'Revoked' : 'Not Revoked',
+            };
+        });
+
+        const historyEntries = (await Promise.all(certPromises)).filter((e): e is CertificateHistoryEntry => e !== null);
+        historyEntries.sort((a, b) => parseInt(b.version, 10) - parseInt(a.version, 10));
+
+        setCertificateHistory(historyEntries);
+
+    } catch (err: any) {
+        setErrorHistory(err.message || 'Failed to load certificate history.');
+    } finally {
+        setIsLoadingHistory(false);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchDeviceDetails = async () => {
@@ -132,7 +196,6 @@ export default function DeviceDetailsClient() { // Renamed component
               errorMessage = `Failed to fetch device details: ${errorJson.message}`;
             }
           } catch (e) {
-            // Response was not JSON or JSON parsing failed
             console.error("Failed to parse error response as JSON for device details:", e);
           }
           throw new Error(errorMessage);
@@ -140,11 +203,13 @@ export default function DeviceDetailsClient() { // Renamed component
         const data: ApiDevice = await response.json();
         setDevice(data);
         
-        // This tab is intentionally left empty as certificate history details are not available
-        // from this endpoint and would require N+1 requests.
-        setCertificateHistory([]);
+        if (data.identity?.versions) {
+            fetchCertificateHistory(data.identity, user.access_token);
+        } else {
+            setCertificateHistory([]);
+            setIsLoadingHistory(false);
+        }
 
-        // Combine device and identity events for the timeline
         const combinedRawEvents: { timestampStr: string; type: string; description: string; source: 'device' | 'identity' }[] = [];
         Object.entries(data.events || {}).forEach(([ts, event]) => {
           combinedRawEvents.push({ timestampStr: ts, ...event, source: 'device' });
@@ -157,7 +222,6 @@ export default function DeviceDetailsClient() { // Renamed component
 
         combinedRawEvents.sort((a, b) => parseISO(b.timestampStr).getTime() - parseISO(a.timestampStr).getTime()); 
 
-        // Process combined events into displayable timeline items
         const processedTimelineEvents: TimelineEventDisplayData[] = combinedRawEvents.map((rawEvent, index, arr) => {
           const timestamp = parseISO(rawEvent.timestampStr);
           let title = rawEvent.description || rawEvent.type;
@@ -211,7 +275,7 @@ export default function DeviceDetailsClient() { // Renamed component
     };
 
     fetchDeviceDetails();
-  }, [deviceId, user?.access_token, authLoading, isAuthenticated]);
+  }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistory]);
 
 
   if (isLoadingDevice || authLoading) {
@@ -304,7 +368,18 @@ export default function DeviceDetailsClient() { // Renamed component
               <CardDescription>History of X.509 certificates associated with this device identity.</CardDescription>
             </CardHeader>
             <CardContent>
-              {certificateHistory.length > 0 ? (
+              {isLoadingHistory ? (
+                  <div className="flex items-center justify-center p-6">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="ml-2 text-muted-foreground">Loading certificate history...</p>
+                  </div>
+              ) : errorHistory ? (
+                  <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Error Loading History</AlertTitle>
+                      <AlertDescription>{errorHistory}</AlertDescription>
+                  </Alert>
+              ) : certificateHistory.length > 0 ? (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -342,7 +417,7 @@ export default function DeviceDetailsClient() { // Renamed component
                   </Table>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">Certificate history details are not available from this endpoint.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">This device does not have an identity with a certificate history.</p>
               )}
             </CardContent>
           </Card>
