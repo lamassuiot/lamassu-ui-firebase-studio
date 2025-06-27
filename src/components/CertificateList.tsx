@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { RevocationModal } from '@/components/shared/RevocationModal';
 import type { CertSortConfig, SortableCertColumn } from '@/app/certificates/page'; // Import shared types
 import { OcspCheckModal } from '@/components/shared/OcspCheckModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CertificateListProps {
   certificates: CertificateData[];
@@ -74,9 +75,11 @@ export function CertificateList({
 }: CertificateListProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useAuth();
 
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
   
   const [isOcspModalOpen, setIsOcspModalOpen] = useState(false);
   const [certForOcsp, setCertForOcsp] = useState<CertificateData | null>(null);
@@ -110,16 +113,53 @@ export function CertificateList({
     setIsRevocationModalOpen(true);
   };
 
-  const handleConfirmCertificateRevocation = (reason: string) => {
-    if (certificateToRevoke) {
-      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED' }); // Update local state
-      toast({
-        title: "Certificate Revocation (Mock)",
-        description: `Certificate "${getCommonName(certificateToRevoke.subject)}" marked as revoked with reason: ${reason}.`,
-      });
+  const handleConfirmCertificateRevocation = async (reason: string) => {
+    if (!certificateToRevoke || !user?.access_token) {
+      toast({ title: "Error", description: "Missing certificate data or authentication token.", variant: "destructive" });
+      return;
     }
-    setIsRevocationModalOpen(false);
-    setCertificateToRevoke(null);
+
+    setIsRevoking(true);
+    try {
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateToRevoke.serialNumber}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}`,
+        },
+        body: JSON.stringify({
+          status: 'REVOKED',
+          revocation_reason: reason,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to revoke certificate. Status: ${response.status}`;
+        try {
+          errorJson = await response.json();
+          errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore json parsing error */ }
+        throw new Error(errorMessage);
+      }
+      
+      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED' });
+      toast({
+        title: "Certificate Revoked",
+        description: `Successfully revoked certificate "${getCommonName(certificateToRevoke.subject)}".`,
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Revocation Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsRevoking(false);
+      setIsRevocationModalOpen(false);
+      setCertificateToRevoke(null);
+    }
   };
 
   const handleOpenOcspModal = (certificate: CertificateData, issuer: CA | null) => {
@@ -243,6 +283,7 @@ export function CertificateList({
           onConfirm={handleConfirmCertificateRevocation}
           itemName={getCommonName(certificateToRevoke.subject)}
           itemType="Certificate"
+          isConfirming={isRevoking}
         />
       )}
       {certForOcsp && issuerForOcsp && (

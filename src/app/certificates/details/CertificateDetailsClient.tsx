@@ -66,6 +66,7 @@ export default function CertificateDetailsClient() { // Renamed component
   
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   const fullChainPemString = useMemo(() => {
     if (certificateDetails && allCAs.length > 0) {
@@ -167,17 +168,53 @@ export default function CertificateDetailsClient() { // Renamed component
     }
   };
 
-  const handleConfirmRevocation = (reason: string) => {
-    if (certificateToRevoke) {
-      setCertificateDetails(prev => prev ? {...prev, apiStatus: 'REVOKED'} : null);
-      toast({
-        title: "Certificate Revocation (Mock)",
-        description: `Certificate "${certificateToRevoke.subject}" (SN: ${certificateToRevoke.serialNumber}) marked as revoked with reason: ${reason}.`,
-        variant: "default"
-      });
+  const handleConfirmRevocation = async (reason: string) => {
+    if (!certificateToRevoke || !user?.access_token) {
+      toast({ title: "Error", description: "Missing certificate data or authentication token.", variant: "destructive" });
+      return;
     }
-    setIsRevocationModalOpen(false);
-    setCertificateToRevoke(null);
+
+    setIsRevoking(true);
+    try {
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateToRevoke.serialNumber}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}`,
+        },
+        body: JSON.stringify({
+          status: 'REVOKED',
+          revocation_reason: reason,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to revoke certificate. Status: ${response.status}`;
+        try {
+          errorJson = await response.json();
+          errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore json parsing error */ }
+        throw new Error(errorMessage);
+      }
+      
+      setCertificateDetails(prev => prev ? { ...prev, apiStatus: 'REVOKED' } : null);
+      toast({
+        title: "Certificate Revoked",
+        description: `Successfully revoked certificate "${certificateToRevoke.subject}".`,
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Revocation Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsRevoking(false);
+      setIsRevocationModalOpen(false);
+      setCertificateToRevoke(null);
+    }
   };
 
 
@@ -269,7 +306,7 @@ export default function CertificateDetailsClient() { // Renamed component
           <Button 
             variant="destructive" 
             onClick={handleOpenRevokeModal} 
-            disabled={statusText === 'REVOKED'}
+            disabled={statusText === 'REVOKED' || isRevoking}
           >
             <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
           </Button>
@@ -326,6 +363,7 @@ export default function CertificateDetailsClient() { // Renamed component
           onConfirm={handleConfirmRevocation}
           itemName={certificateToRevoke.subject}
           itemType="Certificate"
+          isConfirming={isRevoking}
         />
       )}
     </div>
