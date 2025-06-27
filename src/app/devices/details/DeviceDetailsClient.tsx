@@ -90,7 +90,7 @@ export default function DeviceDetailsClient() {
   // Timeline Tab State
   const [allRawEvents, setAllRawEvents] = useState<any[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventDisplayData[]>([]);
-  const [timelineDisplayCount, setTimelineDisplayCount] = useState(10);
+  const [timelineDisplayCount, setTimelineDisplayCount] = useState(5);
   const [timelineFetchedCerts, setTimelineFetchedCerts] = useState<Map<string, CertificateHistoryEntry>>(new Map());
   const [isTimelineLoading, setIsTimelineLoading] = useState(false);
 
@@ -452,7 +452,7 @@ export default function DeviceDetailsClient() {
   };
 
   const handleLoadMoreTimeline = () => {
-    setTimelineDisplayCount(prev => prev + 10);
+    setTimelineDisplayCount(prev => prev + 5);
   };
 
   const totalHistoryPages = Math.ceil(fullCertificateIdentityList.length / historyPageSize);
