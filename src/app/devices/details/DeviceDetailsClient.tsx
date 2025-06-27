@@ -85,7 +85,7 @@ export default function DeviceDetailsClient() { // Renamed component
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventDisplayData[]>([]);
 
   // Pagination for History tab
-  const [historyPageSize, setHistoryPageSize] = useState(10);
+  const [historyPageSize, setHistoryPageSize] = useState(5);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
 
   // State for revocation modal
@@ -687,4 +687,3 @@ export default function DeviceDetailsClient() { // Renamed component
     </div>
   );
 }
-
