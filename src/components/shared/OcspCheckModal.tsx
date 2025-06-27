@@ -342,7 +342,7 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
                         </div>
                     </div>
                     {showHttpWarning && (
-                        <Alert variant="destructive">
+                        <Alert variant="warning">
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Insecure URL Warning</AlertTitle>
                             <AlertDescription>
