@@ -534,10 +534,10 @@ export default function DeviceDetailsClient() {
         )}
       </div>
 
-      <Tabs defaultValue="timeline" className="w-full">
+      <Tabs defaultValue="certificatesHistory" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-          <TabsTrigger value="timeline"><Clock className="mr-2 h-4 w-4" />Timeline</TabsTrigger>
           <TabsTrigger value="certificatesHistory"><History className="mr-2 h-4 w-4" />Certificates History</TabsTrigger>
+          <TabsTrigger value="timeline"><Clock className="mr-2 h-4 w-4" />Timeline</TabsTrigger>
           <TabsTrigger value="metadata"><SlidersHorizontal className="mr-2 h-4 w-4" />Metadata</TabsTrigger>
           <TabsTrigger value="rawApiData"><Layers className="mr-2 h-4 w-4" />Raw API Data</TabsTrigger>
         </TabsList>
