@@ -15,6 +15,7 @@ import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
 
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION';
 
@@ -144,6 +145,9 @@ export default function DevicesPage() {
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
+
+  // Modal State
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -334,7 +338,11 @@ export default function DevicesPage() {
 
 
   const handleCreateNewDevice = () => {
-    alert('Navigate to Create New Device form (placeholder)');
+    setIsRegisterModalOpen(true);
+  };
+
+  const handleDeviceRegistered = () => {
+    handleRefresh();
   };
 
   const handleViewDetails = (deviceIdValue: string) => {
@@ -609,6 +617,12 @@ export default function DevicesPage() {
           </Button>
         </div>
       )}
+
+      <RegisterDeviceModal
+        isOpen={isRegisterModalOpen}
+        onOpenChange={setIsRegisterModalOpen}
+        onDeviceRegistered={handleDeviceRegistered}
+      />
     </div>
   );
 }
