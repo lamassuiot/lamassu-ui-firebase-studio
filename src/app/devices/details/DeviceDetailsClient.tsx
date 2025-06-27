@@ -48,6 +48,7 @@ interface CertificateHistoryEntry {
   serialNumber: string;
   apiStatus?: string;
   revocationReason?: string;
+  revocationTimestamp?: string;
   isSuperseded: boolean;
   commonName: string;
   ca: string;
@@ -102,6 +103,7 @@ export default function DeviceDetailsClient() { // Renamed component
                 serialNumber: certData.serialNumber,
                 apiStatus: certData.apiStatus,
                 revocationReason: certData.revocationReason,
+                revocationTimestamp: certData.revocationTimestamp,
                 isSuperseded: isSuperseded,
                 commonName: getCertSubjectCommonName(certData.subject),
                 ca: getCertSubjectCommonName(certData.issuer),
@@ -371,12 +373,21 @@ export default function DeviceDetailsClient() { // Renamed component
                           </TableCell>
                           <TableCell>
                             <div>
-                              <ApiStatusBadge status={cert.apiStatus} />
-                              {cert.apiStatus === 'REVOKED' && cert.revocationReason && (
-                                <p className="text-xs text-muted-foreground mt-1 truncate max-w-[120px]" title={cert.revocationReason}>
-                                  {cert.revocationReason}
-                                </p>
-                              )}
+                                <ApiStatusBadge status={cert.apiStatus} />
+                                {cert.apiStatus === 'REVOKED' && (
+                                <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                                    {cert.revocationReason && (
+                                    <p className="truncate max-w-[120px]" title={cert.revocationReason}>
+                                        {cert.revocationReason}
+                                    </p>
+                                    )}
+                                    {cert.revocationTimestamp && (
+                                    <p className="truncate max-w-[120px]">
+                                        {format(parseISO(cert.revocationTimestamp), 'dd/MM/yy HH:mm')}
+                                    </p>
+                                    )}
+                                </div>
+                                )}
                             </div>
                           </TableCell>
                           <TableCell className="hidden md:table-cell">{cert.commonName}</TableCell>
