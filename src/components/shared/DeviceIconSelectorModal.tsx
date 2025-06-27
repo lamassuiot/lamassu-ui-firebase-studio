@@ -34,12 +34,11 @@ import {
     CgSmartphoneShake,
     CgBatteryFull
 } from 'react-icons/cg';
-import { GoRadioTower } from 'react-icons/go';
 import { BiSolidCreditCardFront } from 'react-icons/bi';
 import { BsSdCard, BsHouse, BsHouseGear } from 'react-icons/bs';
 import { IoMdCar } from 'react-icons/io';
 import { AiOutlineIdcard } from 'react-icons/ai';
-import { GiElectric } from 'react-icons/gi';
+import { GiElectric, GiRadioTower } from 'react-icons/gi';
 import { TbCrane } from 'react-icons/tb';
 
 
@@ -76,7 +75,7 @@ const AVAILABLE_ICONS: IconDefinition[] = [
     { name: "CgSmartphoneRam", IconComponent: CgSmartphoneRam },
     { name: "CgSmartphoneShake", IconComponent: CgSmartphoneShake },
     { name: "CgBatteryFull", IconComponent: CgBatteryFull },
-    { name: "GoRadioTower", IconComponent: GoRadioTower },
+    { name: "GiRadioTower", IconComponent: GiRadioTower },
     { name: "BiSolidCreditCardFront", IconComponent: BiSolidCreditCardFront },
     { name: "BsSdCard", IconComponent: BsSdCard },
     { name: "IoMdCar", IconComponent: IoMdCar },
