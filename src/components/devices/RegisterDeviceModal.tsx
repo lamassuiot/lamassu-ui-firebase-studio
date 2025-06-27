@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, Edit } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { TagInput } from '@/components/shared/TagInput';
 import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { Separator } from '../ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
 // Re-defining RA types here to avoid complex imports, but ideally these would be shared
 interface ApiRaDeviceProfile {
@@ -312,6 +313,16 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
                     <Label htmlFor="device-tags">Tags</Label>
                     <TagInput id="device-tags" value={tags} onChange={setTags} />
                   </div>
+                   <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="raw-data" className="border-t">
+                        <AccordionTrigger className="text-sm text-muted-foreground pt-3">View Raw RA Data</AccordionTrigger>
+                        <AccordionContent>
+                        <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto mt-1">
+                            {JSON.stringify(selectedRa, null, 2)}
+                        </pre>
+                        </AccordionContent>
+                    </AccordionItem>
+                    </Accordion>
                 </div>
               </>
             )}

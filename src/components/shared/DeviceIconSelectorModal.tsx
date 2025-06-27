@@ -152,4 +152,3 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
     </Dialog>
   );
 };
-
