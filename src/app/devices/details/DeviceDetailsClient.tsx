@@ -632,7 +632,7 @@ export default function DeviceDetailsClient() {
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" onClick={fetchDeviceDetails}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
-            <Button onClick={() => setIsAssignIdentityModalOpen(true)} disabled={!!device.identity}>
+            <Button onClick={() => setIsAssignIdentityModalOpen(true)} disabled={!!device.identity && device.identity.status !== 'REVOKED'}>
               <PlusCircle className="mr-2 h-4 w-4" /> Assign Identity
             </Button>
             <Button variant="destructive" onClick={() => setIsDecommissionModalOpen(true)} disabled={device.status === 'DECOMMISSIONED'}>
