@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers, ShieldAlert, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers, ShieldAlert, ChevronLeft, Trash2 } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
@@ -24,6 +24,7 @@ import { RevocationModal } from '@/components/shared/RevocationModal';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
+import { DecommissionDeviceModal } from '@/components/shared/DecommissionDeviceModal';
 
 
 interface ApiDeviceIdentity {
@@ -103,6 +104,10 @@ export default function DeviceDetailsClient() {
   // State for assigning identity
   const [isAssignIdentityModalOpen, setIsAssignIdentityModalOpen] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+
+  // State for decommissioning
+  const [isDecommissionModalOpen, setIsDecommissionModalOpen] = useState(false);
+  const [isDecommissioning, setIsDecommissioning] = useState(false);
 
 
   const fetchCertificateHistoryData = useCallback(async (identity: ApiDeviceIdentity) => {
@@ -507,6 +512,52 @@ export default function DeviceDetailsClient() {
     }
   };
 
+  const handleDecommissionConfirm = async () => {
+    if (!deviceId || !user?.access_token) {
+        toast({
+            title: "Error",
+            description: "Cannot decommission device. Device ID or authentication is missing.",
+            variant: "destructive"
+        });
+        return;
+    }
+    setIsDecommissioning(true);
+    try {
+        const response = await fetch(`https://lab.lamassu.io/api/devmanager/v1/devices/${deviceId}/decommission`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${user.access_token}`
+            }
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to decommission device. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Failed to decommission device: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        toast({
+            title: "Success!",
+            description: "Device has been successfully decommissioned.",
+        });
+        setIsDecommissionModalOpen(false);
+        router.push('/devices'); // Redirect to the list page
+
+    } catch (e: any) {
+        toast({
+            title: "Decommission Failed",
+            description: e.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsDecommissioning(false);
+    }
+  };
+
   const handleLoadMoreTimeline = () => {
     setTimelineDisplayCount(prev => prev + 5);
   };
@@ -583,6 +634,9 @@ export default function DeviceDetailsClient() {
             <Button variant="outline" onClick={fetchDeviceDetails}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
             <Button onClick={() => setIsAssignIdentityModalOpen(true)} disabled={!!device.identity}>
               <PlusCircle className="mr-2 h-4 w-4" /> Assign Identity
+            </Button>
+            <Button variant="destructive" onClick={() => setIsDecommissionModalOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Decommission
             </Button>
           </div>
         </div>
@@ -828,6 +882,13 @@ export default function DeviceDetailsClient() {
         onAssignConfirm={handleAssignIdentityConfirm}
         deviceId={deviceId || ''}
         isAssigning={isAssigning}
+      />
+      <DecommissionDeviceModal
+        isOpen={isDecommissionModalOpen}
+        onOpenChange={setIsDecommissionModalOpen}
+        onConfirm={handleDecommissionConfirm}
+        deviceName={device.id}
+        isDecommissioning={isDecommissioning}
       />
     </div>
   );
