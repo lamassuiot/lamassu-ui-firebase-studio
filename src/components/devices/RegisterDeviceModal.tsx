@@ -12,7 +12,7 @@ import { Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { TagInput } from '@/components/shared/TagInput';
-import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
+import { DeviceIconSelectorModal, getReactIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { Separator } from '../ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
@@ -61,7 +61,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
 
   // Device profile state (defaults from RA, but editable)
   const [tags, setTags] = useState<string[]>([]);
-  const [iconName, setIconName] = useState<string>('HelpCircle');
+  const [iconName, setIconName] = useState<string>('CgSmartphoneChip');
   const [iconColor, setIconColor] = useState<string>('#888888');
   const [iconBgColor, setIconBgColor] = useState<string>('#e0e0e0');
 
@@ -78,7 +78,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
       setDeviceId(crypto.randomUUID());
       setSelectedRa(null);
       setTags([]);
-      setIconName('HelpCircle');
+      setIconName('CgSmartphoneChip');
       setIconColor('#888888');
       setIconBgColor('#e0e0e0');
     }
@@ -123,13 +123,13 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
     if (selectedRa) {
       const profile = selectedRa.settings.enrollment_settings.device_provisioning_profile;
       setTags(profile.tags || []);
-      setIconName(profile.icon || 'HelpCircle');
+      setIconName(profile.icon || 'CgSmartphoneChip');
       setIconColor(profile.icon_color || '#888888');
       setIconBgColor('#e0e0e0'); // Set a neutral default BG color that user can override
     } else {
       // Reset if RA is deselected
       setTags([]);
-      setIconName('HelpCircle');
+      setIconName('CgSmartphoneChip');
       setIconColor('#888888');
       setIconBgColor('#e0e0e0');
     }
@@ -205,7 +205,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
     setIsIconModalOpen(false);
   };
   
-  const SelectedIconComponent = getLucideIconByName(iconName);
+  const SelectedIconComponent = getReactIconByName(iconName);
 
   return (
     <>

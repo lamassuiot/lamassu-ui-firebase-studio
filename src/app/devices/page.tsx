@@ -10,19 +10,20 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
+import { HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
+import { getReactIconByName } from '@/components/shared/DeviceIconSelectorModal';
 
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION';
 
 interface DeviceData {
   id: string;
   displayId: string;
-  iconType: 'router' | 'globe' | 'unknown';
+  iconType: string;
   status: DeviceStatus;
   deviceGroup: string;
   createdAt: string;
@@ -96,31 +97,22 @@ export const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
   return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}>{status.replace('_', ' ').toLowerCase()}</Badge>;
 };
 
-export const mapApiIconToIconType = (apiIcon: string): DeviceData['iconType'] => {
-  if (apiIcon === 'CgSmartphoneChip') {
-    return 'router';
-  }
-  return 'unknown';
+export const mapApiIconToIconType = (apiIcon: string): string => {
+  return apiIcon || 'HelpCircle'; // Pass through name, or default.
 };
 
-export const DeviceIcon: React.FC<{ type: DeviceData['iconType'] }> = ({ type }) => {
-  let IconComponent = HelpCircle;
-  let iconColorClass = "text-amber-500";
-  let bgColorClass = "bg-amber-100 dark:bg-amber-900/30";
-
-  if (type === 'router') {
-    IconComponent = RouterIconLucide;
-    iconColorClass = "text-red-500";
-    bgColorClass = "bg-red-100 dark:bg-red-900/30";
-  } else if (type === 'globe') {
-    IconComponent = Globe;
-    iconColorClass = "text-teal-500";
-    bgColorClass = "bg-teal-100 dark:bg-teal-900/30";
-  }
+export const DeviceIcon: React.FC<{ type: string }> = ({ type }) => {
+  const IconComponent = getReactIconByName(type);
+  const iconColorClass = "text-primary";
+  const bgColorClass = "bg-primary/10";
 
   return (
     <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center", bgColorClass)}>
-      <IconComponent className={cn("h-5 w-5", iconColorClass)} />
+      {IconComponent ? (
+        <IconComponent className={cn("h-5 w-5", iconColorClass)} />
+      ) : (
+        <HelpCircle className={cn("h-5 w-5", iconColorClass)} />
+      )}
     </div>
   );
 };
@@ -294,7 +286,7 @@ export default function DevicesPage() {
             break;
           case 'createdAt':
             aValue = parseISO(a.createdAt).getTime();
-            bValue = parseISO(b.createdAt).getTime();
+            bValue = b.createdAt.getTime();
             break;
           default:
             return 0;
@@ -407,7 +399,7 @@ export default function DevicesPage() {
     <div className="space-y-6 w-full">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center space-x-3">
-          <RouterIconLucide className="h-8 w-8 text-primary" />
+          <DeviceIcon type="CgSmartphoneChip" />
           <h1 className="text-2xl font-headline font-semibold">Managed Devices</h1>
         </div>
         <div className="flex items-center space-x-2">
