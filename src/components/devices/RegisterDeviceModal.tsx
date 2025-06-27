@@ -11,8 +11,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, Edit } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { TagInput } from '@/components/shared/TagInput'; // Import TagInput
-import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal'; // Import Icon Selector
+import { TagInput } from '@/components/shared/TagInput';
+import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { Separator } from '../ui/separator';
 
 // Re-defining RA types here to avoid complex imports, but ideally these would be shared
@@ -62,6 +62,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
   const [tags, setTags] = useState<string[]>([]);
   const [iconName, setIconName] = useState<string>('HelpCircle');
   const [iconColor, setIconColor] = useState<string>('#888888');
+  const [iconBgColor, setIconBgColor] = useState<string>('#e0e0e0');
 
   // Modal and loading states
   const [ras, setRas] = useState<ApiRaItem[]>([]);
@@ -78,6 +79,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
       setTags([]);
       setIconName('HelpCircle');
       setIconColor('#888888');
+      setIconBgColor('#e0e0e0');
     }
   }, [isOpen]);
 
@@ -122,11 +124,13 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
       setTags(profile.tags || []);
       setIconName(profile.icon || 'HelpCircle');
       setIconColor(profile.icon_color || '#888888');
+      setIconBgColor('#e0e0e0'); // Set a neutral default BG color that user can override
     } else {
       // Reset if RA is deselected
       setTags([]);
       setIconName('HelpCircle');
       setIconColor('#888888');
+      setIconBgColor('#e0e0e0');
     }
   }, [selectedRa]);
 
@@ -275,21 +279,33 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
                             variant="outline"
                             className="h-16 w-16 p-2 flex flex-col items-center justify-center"
                             onClick={() => setIsIconModalOpen(true)}
-                            style={{ color: iconColor, backgroundColor: `${iconColor}20` }}
+                            style={{ backgroundColor: iconBgColor }}
                          >
-                            <SelectedIconComponent className="h-8 w-8" />
+                            <SelectedIconComponent className="h-8 w-8" style={{ color: iconColor }} />
                          </Button>
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="icon-color-input">Color</Label>
-                      <Input
-                        id="icon-color-input"
-                        type="color"
-                        value={iconColor}
-                        onChange={(e) => setIconColor(e.target.value)}
-                        className="h-10 w-16 p-1"
-                      />
+                     <div className="grid grid-cols-2 gap-4 flex-grow">
+                        <div className="space-y-2">
+                          <Label htmlFor="icon-color-input" className="text-sm">Icon Color</Label>
+                          <Input
+                            id="icon-color-input"
+                            type="color"
+                            value={iconColor}
+                            onChange={(e) => setIconColor(e.target.value)}
+                            className="h-10 w-full p-1"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="icon-bg-color-input" className="text-sm">BG Color</Label>
+                          <Input
+                            id="icon-bg-color-input"
+                            type="color"
+                            value={iconBgColor}
+                            onChange={(e) => setIconBgColor(e.target.value)}
+                            className="h-10 w-full p-1"
+                          />
+                        </div>
                     </div>
                   </div>
                   <div className="space-y-2">
