@@ -94,7 +94,7 @@
     --foreground: 210 40% 95%;
     /* Light Gray */
 
-    --primary: 217 90% 60%;
+    --primary: 217 90% 35%;
     /* Slightly lighter/desaturated primary */
     --primary-foreground: 0 0% 98%;
     /* Near White */
@@ -115,7 +115,7 @@
     --popover-foreground: 210 40% 95%;
     /* Light Gray */
 
-    --secondary: 217 30% 25%;
+    --secondary: 217 30% 15%;
     /* Darker secondary */
     --secondary-foreground: 210 40% 90%;
     /* Lighter secondary text */
@@ -184,6 +184,7 @@
 }
 
 .vis-item {
+  border-color: white !important;
   background-color: white !important;
   padding: 0 !important;
 }
@@ -198,13 +199,32 @@
 
 .vis-timeline {
   @apply rounded-lg bg-card;
-  border: none!important;
+  border: none !important;
+  background: hsl(var(--primary)) !important;
 }
 
-.vis-panel.vis-bottom  {
-  border-top: 1px solid blue !important;
+.vis-panel.vis-bottom {
+  border-top: 1px solid white !important;
 }
 
+.vis-time-axis .vis-grid.vis-minor {
+  border-color: #ccc !important;
+}
+
+.vis-time-axis .vis-grid.vis-major {
+  border-color: #999 !important;
+}
+
+.vis-text {
+  color: #ddd !important;
+}
+
+
+.vis-custom-time.now-marker {
+  width: 2px;
+  background-color: white !important;
+  z-index: 10;
+}
 
 @layer components {
 
@@ -268,11 +288,6 @@
     padding: 0 !important;
   }
 
-  .vis-custom-time.now-marker {
-    width: 2px;
-    background-color: hsl(var(--primary));
-    z-index: 10;
-  }
 
   /* Group labels */
   .vis-labelset .vis-label {
