@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers, ShieldAlert } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
@@ -17,8 +16,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
 import { TimelineEventItem, type TimelineEventDisplayData, type TimelineCertificateInfo } from '@/components/devices/TimelineEventItem';
 import type { CertificateData } from '@/types/certificate';
-import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
+import { fetchIssuedCertificates, updateCertificateStatus } from '@/lib/issued-certificate-data';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
+import { useToast } from '@/hooks/use-toast';
+import { RevocationModal } from '@/components/shared/RevocationModal';
 
 
 interface ApiDeviceIdentity {
@@ -68,6 +69,7 @@ export default function DeviceDetailsClient() { // Renamed component
   const router = useRouter();
   const deviceId = searchParams.get('deviceId'); // Get deviceId from query params
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const [device, setDevice] = useState<ApiDevice | null>(null);
   const [isLoadingDevice, setIsLoadingDevice] = useState(true);
@@ -77,6 +79,12 @@ export default function DeviceDetailsClient() { // Renamed component
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [errorHistory, setErrorHistory] = useState<string | null>(null);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventDisplayData[]>([]);
+
+  // State for revocation modal
+  const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
+  const [certToRevoke, setCertToRevoke] = useState<CertificateHistoryEntry | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
+
 
   const fetchCertificateHistory = useCallback(async (identity: ApiDeviceIdentity, accessToken: string) => {
     setIsLoadingHistory(true);
@@ -256,6 +264,54 @@ export default function DeviceDetailsClient() { // Renamed component
 
     setTimelineEvents(processedTimelineEvents);
   }, [device, certificateHistory, isLoadingHistory]);
+  
+  const handleOpenRevokeModal = (certInfo: TimelineCertificateInfo) => {
+    const fullCertEntry = certificateHistory.find(c => c.serialNumber === certInfo.serialNumber);
+    if (fullCertEntry) {
+        setCertToRevoke(fullCertEntry);
+        setIsRevocationModalOpen(true);
+    } else {
+        toast({ title: "Error", description: "Could not find full certificate details to revoke.", variant: "destructive" });
+    }
+  };
+
+  const handleConfirmRevocation = async (reason: string) => {
+    if (!certToRevoke || !user?.access_token) {
+        toast({ title: "Error", description: "Cannot revoke. Missing data or authentication.", variant: "destructive" });
+        return;
+    }
+    
+    setIsRevoking(true);
+    setIsRevocationModalOpen(false);
+
+    try {
+      await updateCertificateStatus({
+        serialNumber: certToRevoke.serialNumber,
+        status: 'REVOKED',
+        reason: reason,
+        accessToken: user.access_token,
+      });
+      
+      setCertificateHistory(prevHistory => 
+          prevHistory.map(c => 
+              c.serialNumber === certToRevoke.serialNumber
+              ? { ...c, apiStatus: 'REVOKED', revocationReason: reason, revocationTimestamp: new Date().toISOString() }
+              : c
+          )
+      );
+      
+      toast({
+        title: "Certificate Revoked",
+        description: `Certificate with SN: ${certToRevoke.serialNumber} has been revoked.`,
+      });
+
+    } catch (error: any) {
+        toast({ title: "Revocation Failed", description: error.message, variant: "destructive" });
+    } finally {
+        setIsRevoking(false);
+        setCertToRevoke(null);
+    }
+  };
 
 
   if (isLoadingDevice || authLoading) {
@@ -461,6 +517,7 @@ export default function DeviceDetailsClient() { // Renamed component
                         key={event.id} 
                         event={event} 
                         isLastItem={index === timelineEvents.length -1} 
+                        onRevoke={handleOpenRevokeModal}
                       />
                     ))}
                   </ul>
@@ -498,6 +555,19 @@ export default function DeviceDetailsClient() { // Renamed component
             </Card>
         </TabsContent>
       </Tabs>
+       {certToRevoke && (
+        <RevocationModal
+          isOpen={isRevocationModalOpen}
+          onClose={() => {
+            setIsRevocationModalOpen(false);
+            setCertToRevoke(null);
+          }}
+          onConfirm={handleConfirmRevocation}
+          itemName={certToRevoke.commonName}
+          itemType="Certificate"
+          isConfirming={isRevoking}
+        />
+      )}
     </div>
   );
 }

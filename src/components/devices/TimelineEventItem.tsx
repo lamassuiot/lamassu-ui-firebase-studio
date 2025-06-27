@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -7,8 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, HelpCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, History, Edit, Info, HelpCircle, FileText, ShieldAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Button } from '../ui/button';
 
 export interface TimelineCertificateInfo {
   serialNumber: string;
@@ -28,6 +28,13 @@ export interface TimelineEventDisplayData {
   certificate?: TimelineCertificateInfo;
 }
 
+interface TimelineEventItemProps {
+    event: TimelineEventDisplayData;
+    isLastItem: boolean;
+    onRevoke: (certInfo: TimelineCertificateInfo) => void;
+}
+
+
 const eventTypeVisuals: Record<string, { display: string; colorClass: string; Icon: React.ElementType }> = {
   'CREATED': { display: 'Created', colorClass: 'bg-green-500', Icon: CheckCircle },
   'STATUS-UPDATED': { display: 'Status Update', colorClass: 'bg-blue-500', Icon: Edit },
@@ -39,7 +46,7 @@ const eventTypeVisuals: Record<string, { display: string; colorClass: string; Ic
 };
 
 
-export const TimelineEventItem: React.FC<{ event: TimelineEventDisplayData; isLastItem: boolean }> = ({ event, isLastItem }) => {
+export const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event, isLastItem, onRevoke }) => {
   const router = useRouter();
   const visuals = eventTypeVisuals[event.eventType] || eventTypeVisuals['DEFAULT'];
 
@@ -77,25 +84,45 @@ export const TimelineEventItem: React.FC<{ event: TimelineEventDisplayData; isLa
         <p className="text-sm font-medium text-foreground mt-1 break-words">{event.title}</p>
         
         {event.certificate ? (
-            <Card 
-              onClick={() => router.push(`/certificates/details?certificateId=${event.certificate?.serialNumber}`)}
-              className="mt-2 p-3 bg-muted/40 border-border cursor-pointer hover:bg-muted/60 hover:border-primary/50 transition-colors"
-            >
-              <CardContent className="p-0 space-y-1 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-foreground">Certificate Provisioned</span>
-                  <ApiStatusBadge status={event.certificate.apiStatus} />
-                </div>
-                <p className="font-mono text-muted-foreground">SN: {event.certificate.serialNumber}</p>
-                {event.certificate.apiStatus === 'REVOKED' && (
-                  <div className="text-destructive/90">
-                    <p>Reason: {event.certificate.revocationReason || 'Unspecified'}</p>
-                    {event.certificate.revocationTimestamp && (
-                      <p>On: {format(parseISO(event.certificate.revocationTimestamp), 'dd MMM yyyy, HH:mm')}</p>
+            <Card className="mt-2 p-3 bg-muted/40 border-border">
+                <CardContent className="p-0 space-y-2 text-xs">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <Button
+                                    variant="link"
+                                    className="p-0 h-auto font-mono text-xs text-foreground"
+                                    onClick={() => router.push(`/certificates/details?certificateId=${event.certificate?.serialNumber}`)}
+                                >
+                                    SN: {event.certificate.serialNumber}
+                                </Button>
+                                <div className="mt-1">
+                                    <ApiStatusBadge status={event.certificate.apiStatus} />
+                                </div>
+                            </div>
+                        </div>
+                        {event.certificate.apiStatus?.toUpperCase() !== 'REVOKED' && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-1 text-xs text-destructive hover:bg-destructive/10"
+                                onClick={() => onRevoke(event.certificate!)}
+                            >
+                                <ShieldAlert className="h-3 w-3 mr-1" />
+                                Revoke
+                            </Button>
+                        )}
+                    </div>
+                    {event.certificate.apiStatus === 'REVOKED' && (
+                        <div className="text-destructive/90 text-xs border-t pt-2 mt-2">
+                            <p><strong>Reason:</strong> {event.certificate.revocationReason || 'Unspecified'}</p>
+                            {event.certificate.revocationTimestamp && (
+                                <p><strong>On:</strong> {format(parseISO(event.certificate.revocationTimestamp), 'dd MMM yyyy, HH:mm')}</p>
+                            )}
+                        </div>
                     )}
-                  </div>
-                )}
-              </CardContent>
+                </CardContent>
             </Card>
           ) : (
             event.details && (
