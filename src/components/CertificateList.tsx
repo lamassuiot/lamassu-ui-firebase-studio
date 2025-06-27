@@ -23,6 +23,7 @@ import { RevocationModal } from '@/components/shared/RevocationModal';
 import type { CertSortConfig, SortableCertColumn } from '@/app/certificates/page'; // Import shared types
 import { OcspCheckModal } from '@/components/shared/OcspCheckModal';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
+import { updateCertificateStatus } from '@/lib/issued-certificate-data';
 
 interface CertificateListProps {
   certificates: CertificateData[];
@@ -101,28 +102,14 @@ export function CertificateList({
     setIsRevocationModalOpen(false);
 
     try {
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateToRevoke.serialNumber}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          status: 'REVOKED',
-          revocation_reason: reason,
-        }),
+      await updateCertificateStatus({
+        serialNumber: certificateToRevoke.serialNumber,
+        status: 'REVOKED',
+        reason: reason,
+        accessToken: accessToken,
       });
-
-      if (!response.ok) {
-        let errorBody = 'Request failed.';
-        try {
-            const errJson = await response.json();
-            errorBody = errJson.err || errJson.message || errorBody;
-        } catch(e) { /* Ignore parsing error */ }
-        throw new Error(`Failed to revoke certificate: ${errorBody} (Status: ${response.status})`);
-      }
       
-      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED' });
+      onCertificateUpdated({ ...certificateToRevoke, apiStatus: 'REVOKED', revocationReason: reason });
       toast({
         title: "Certificate Revoked",
         description: `Certificate "${getCommonName(certificateToRevoke.subject)}" has been successfully revoked.`,
@@ -146,23 +133,11 @@ export function CertificateList({
     }
 
     try {
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificate.serialNumber}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ status: 'ACTIVE' }),
+      await updateCertificateStatus({
+        serialNumber: certificate.serialNumber,
+        status: 'ACTIVE',
+        accessToken: accessToken,
       });
-
-      if (!response.ok) {
-        let errorBody = 'Request failed.';
-        try {
-            const errJson = await response.json();
-            errorBody = errJson.err || errJson.message || errorBody;
-        } catch(e) { /* Ignore parsing error */ }
-        throw new Error(`Failed to reactivate certificate: ${errorBody} (Status: ${response.status})`);
-      }
       
       onCertificateUpdated({ ...certificate, apiStatus: 'ACTIVE', revocationReason: undefined });
       toast({
@@ -223,7 +198,7 @@ export function CertificateList({
                       <Button
                         variant="link"
                         className="p-0 h-auto text-left whitespace-normal leading-tight"
-                        onClick={() => router.push(`/certificate-authorities/details?caId=${issuerCa.id}`)} // Updated navigation
+                        onClick={() => router.push(`/certificate-authorities/details?caId=${issuerCa.id}`)}
                         title={`View details for CA: ${issuerCa.name}`}
                       >
                         {issuerCa.name}
@@ -241,7 +216,7 @@ export function CertificateList({
                     <Button 
                       variant="outline" 
                       size="icon" 
-                      onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)} // Updated navigation
+                      onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
                       title="View Certificate Details" 
                       className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1"
                     >

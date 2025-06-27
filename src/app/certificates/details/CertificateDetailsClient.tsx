@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
-import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
+import { fetchIssuedCertificates, updateCertificateStatus } from '@/lib/issued-certificate-data';
 import { fetchAndProcessCAs, findCaById } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -180,28 +180,14 @@ export default function CertificateDetailsClient() { // Renamed component
     setIsRevocationModalOpen(false);
 
     try {
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateToRevoke.serialNumber}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-        body: JSON.stringify({
-          status: 'REVOKED',
-          revocation_reason: reason,
-        }),
+      await updateCertificateStatus({
+        serialNumber: certificateToRevoke.serialNumber,
+        status: 'REVOKED',
+        reason: reason,
+        accessToken: user.access_token,
       });
 
-      if (!response.ok) {
-        let errorBody = 'Request failed.';
-        try {
-          const errJson = await response.json();
-          errorBody = errJson.err || errJson.message || errorBody;
-        } catch(e) { /* Ignore parsing error */ }
-        throw new Error(`Failed to revoke certificate: ${errorBody} (Status: ${response.status})`);
-      }
-
-      setCertificateDetails(prev => prev ? {...prev, apiStatus: 'REVOKED'} : null);
+      setCertificateDetails(prev => prev ? {...prev, apiStatus: 'REVOKED', revocationReason: reason} : null);
       toast({
         title: "Certificate Revoked",
         description: `Certificate with SN: ${certificateToRevoke.serialNumber} has been revoked.`,
@@ -226,23 +212,11 @@ export default function CertificateDetailsClient() { // Renamed component
     }
 
     try {
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${certificateDetails.serialNumber}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-        body: JSON.stringify({ status: 'ACTIVE' }),
+       await updateCertificateStatus({
+        serialNumber: certificateDetails.serialNumber,
+        status: 'ACTIVE',
+        accessToken: user.access_token,
       });
-
-      if (!response.ok) {
-        let errorBody = 'Request failed.';
-        try {
-          const errJson = await response.json();
-          errorBody = errJson.err || errJson.message || errorBody;
-        } catch(e) { /* Ignore parsing error */ }
-        throw new Error(`Failed to reactivate certificate: ${errorBody} (Status: ${response.status})`);
-      }
 
       setCertificateDetails(prev => prev ? {...prev, apiStatus: 'ACTIVE', revocationReason: undefined} : null);
       toast({

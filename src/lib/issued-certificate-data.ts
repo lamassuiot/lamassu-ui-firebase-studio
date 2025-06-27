@@ -257,3 +257,43 @@ export async function fetchIssuedCertificates(
 export function findCertificateBySerialNumber(serialNumber: string, certificates: CertificateData[]): CertificateData | null {
   return certificates.find(cert => cert.serialNumber === serialNumber) || null;
 }
+
+// Shared function to update certificate status (revoke or re-activate)
+interface UpdateStatusParams {
+  serialNumber: string;
+  status: 'ACTIVE' | 'REVOKED';
+  reason?: string;
+  accessToken: string;
+}
+
+export async function updateCertificateStatus({
+  serialNumber,
+  status,
+  reason,
+  accessToken,
+}: UpdateStatusParams): Promise<void> {
+  const body: { status: 'ACTIVE' | 'REVOKED', revocation_reason?: string } = { status };
+  if (status === 'REVOKED' && reason) {
+    body.revocation_reason = reason;
+  }
+  
+  const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${serialNumber}/status`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let errorBody = 'Request failed.';
+    try {
+      const errJson = await response.json();
+      errorBody = errJson.err || errJson.message || errorBody;
+    } catch (e) { /* Ignore parsing error */ }
+    
+    const actionText = status === 'REVOKED' ? 'revoke' : 're-activate';
+    throw new Error(`Failed to ${actionText} certificate: ${errorBody} (Status: ${response.status})`);
+  }
+}
