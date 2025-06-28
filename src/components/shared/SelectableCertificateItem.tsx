@@ -73,6 +73,9 @@ export const SelectableCertificateItem: React.FC<SelectableCertificateItemProps>
             <p className="text-xs text-muted-foreground truncate">
                 SN: <span className="font-mono">{certificate.serialNumber}</span>
             </p>
+            <p className="text-xs text-muted-foreground truncate" title={certificate.issuer}>
+                Issuer: {certificate.issuer}
+            </p>
         </div>
         <div className="flex items-center space-x-1.5 flex-shrink-0" title={statusText}>
             {statusIcon}

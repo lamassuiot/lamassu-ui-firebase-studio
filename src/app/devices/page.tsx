@@ -6,22 +6,25 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Router as RouterIconLucide, Globe, HelpCircle, Eye, PlusCircle, MoreVertical, Edit, Trash2, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
+import { HelpCircle, Eye, PlusCircle, MoreVertical, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
+import { getReactIconByName } from '@/components/shared/DeviceIconSelectorModal';
 
-type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION';
+type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION' | 'DECOMMISSIONED';
 
 interface DeviceData {
   id: string;
   displayId: string;
-  iconType: 'router' | 'globe' | 'unknown';
+  iconType: string;
+  icon_color: string;
   status: DeviceStatus;
   deviceGroup: string;
   createdAt: string;
@@ -71,6 +74,7 @@ const statusSortOrder: Record<DeviceStatus, number> = {
   'PENDING_ACTIVATION': 1,
   'INACTIVE': 2,
   'NO_IDENTITY': 3,
+  'DECOMMISSIONED': 4,
 };
 
 
@@ -89,37 +93,29 @@ export const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
     case 'PENDING_ACTIVATION':
       badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
       break;
+    case 'DECOMMISSIONED':
+      badgeClass = "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400 border-gray-400 dark:border-gray-600";
+      break;
     default:
       badgeClass = "bg-muted text-muted-foreground border-border";
   }
   return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}>{status.replace('_', ' ').toLowerCase()}</Badge>;
 };
 
-export const mapApiIconToIconType = (apiIcon: string): DeviceData['iconType'] => {
-  if (apiIcon === 'CgSmartphoneChip') {
-    return 'router';
-  }
-  return 'unknown';
+export const mapApiIconToIconType = (apiIcon: string): string => {
+  return apiIcon || 'HelpCircle'; // Pass through name, or default.
 };
 
-export const DeviceIcon: React.FC<{ type: DeviceData['iconType'] }> = ({ type }) => {
-  let IconComponent = HelpCircle;
-  let iconColorClass = "text-amber-500";
-  let bgColorClass = "bg-amber-100 dark:bg-amber-900/30";
-
-  if (type === 'router') {
-    IconComponent = RouterIconLucide;
-    iconColorClass = "text-red-500";
-    bgColorClass = "bg-red-100 dark:bg-red-900/30";
-  } else if (type === 'globe') {
-    IconComponent = Globe;
-    iconColorClass = "text-teal-500";
-    bgColorClass = "bg-teal-100 dark:bg-teal-900/30";
-  }
+export const DeviceIcon: React.FC<{ type: string; iconColor?: string; bgColor?: string; }> = ({ type, iconColor, bgColor }) => {
+  const IconComponent = getReactIconByName(type);
 
   return (
-    <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center", bgColorClass)}>
-      <IconComponent className={cn("h-5 w-5", iconColorClass)} />
+    <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center")} style={{ backgroundColor: bgColor || '#F0F8FF' }}>
+      {IconComponent ? (
+        <IconComponent className={cn("h-5 w-5")} style={{ color: iconColor || '#0f67ff' }} />
+      ) : (
+        <HelpCircle className={cn("h-5 w-5")} style={{ color: iconColor || '#0f67ff' }} />
+      )}
     </div>
   );
 };
@@ -144,6 +140,9 @@ export default function DevicesPage() {
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
+
+  // Modal State
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -228,6 +227,7 @@ export default function DevicesPage() {
         id: apiDevice.id,
         displayId: apiDevice.id,
         iconType: mapApiIconToIconType(apiDevice.icon),
+        icon_color: apiDevice.icon_color,
         status: apiDevice.status as DeviceStatus,
         deviceGroup: apiDevice.dms_owner,
         createdAt: apiDevice.creation_timestamp,
@@ -290,7 +290,7 @@ export default function DevicesPage() {
             break;
           case 'createdAt':
             aValue = parseISO(a.createdAt).getTime();
-            bValue = parseISO(b.createdAt).getTime();
+            bValue = b.createdAt.getTime();
             break;
           default:
             return 0;
@@ -334,22 +334,15 @@ export default function DevicesPage() {
 
 
   const handleCreateNewDevice = () => {
-    alert('Navigate to Create New Device form (placeholder)');
+    setIsRegisterModalOpen(true);
+  };
+
+  const handleDeviceRegistered = () => {
+    handleRefresh();
   };
 
   const handleViewDetails = (deviceIdValue: string) => {
     router.push(`/devices/details?deviceId=${deviceIdValue}`);
-  };
-
-  const handleEditDevice = (deviceIdValue: string) => {
-    alert(`Edit device ID: ${deviceIdValue} (placeholder)`);
-  };
-
-  const handleDeleteDevice = (deviceIdValue: string) => {
-    if(confirm(`Are you sure you want to delete device ${deviceIdValue}? This action cannot be undone.`)){
-        setDevices(prev => prev.filter(d => d.id !== deviceIdValue));
-        alert(`Device ${deviceIdValue} deleted (mock - API call not implemented).`);
-    }
   };
 
   const handleRefresh = () => {
@@ -399,7 +392,7 @@ export default function DevicesPage() {
     <div className="space-y-6 w-full">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center space-x-3">
-          <RouterIconLucide className="h-8 w-8 text-primary" />
+          <DeviceIcon type="CgSmartphoneChip" />
           <h1 className="text-2xl font-headline font-semibold">Managed Devices</h1>
         </div>
         <div className="flex items-center space-x-2">
@@ -457,6 +450,7 @@ export default function DevicesPage() {
               <SelectItem value="NO_IDENTITY">No Identity</SelectItem>
               <SelectItem value="INACTIVE">Inactive</SelectItem>
               <SelectItem value="PENDING_ACTIVATION">Pending Activation</SelectItem>
+              <SelectItem value="DECOMMISSIONED">Decommissioned</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -492,61 +486,54 @@ export default function DevicesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedAndFilteredDevices.map((device) => (
-                  <TableRow key={device.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <DeviceIcon type={device.iconType} />
-                        <Button
-                          variant="link"
-                          className="font-medium truncate p-0 h-auto text-left"
-                          onClick={() => handleViewDetails(device.id)}
-                          title={`View details for ${device.displayId}`}
-                        >
-                          {device.displayId}
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell><StatusBadge status={device.status} /></TableCell>
-                    <TableCell><Badge variant="secondary" className="truncate" title={device.deviceGroup}>{device.deviceGroup}</Badge></TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                          <span className="text-xs">{format(parseISO(device.createdAt), 'dd/MM/yyyy HH:mm')}</span>
-                          <span className="text-xs text-muted-foreground">{formatDistanceToNowStrict(parseISO(device.createdAt))} ago</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {device.tags.map(tag => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">Device Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(device.id)}>
-                            <Eye className="mr-2 h-4 w-4" /> View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditDevice(device.id)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit Device
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                              onClick={() => handleDeleteDevice(device.id)}
-                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                {sortedAndFilteredDevices.map((device) => {
+                  const [iconColor, bgColor] = device.icon_color ? device.icon_color.split('-') : ['#0f67ff', '#F0F8FF'];
+                  return (
+                    <TableRow key={device.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <DeviceIcon type={device.iconType} iconColor={iconColor} bgColor={bgColor} />
+                          <Button
+                            variant="link"
+                            className="font-medium truncate p-0 h-auto text-left"
+                            onClick={() => handleViewDetails(device.id)}
+                            title={`View details for ${device.displayId}`}
                           >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete Device
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                            {device.displayId}
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell><StatusBadge status={device.status} /></TableCell>
+                      <TableCell><Badge variant="secondary" className="truncate" title={device.deviceGroup}>{device.deviceGroup}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                            <span className="text-xs">{format(parseISO(device.createdAt), 'dd/MM/yyyy HH:mm')}</span>
+                            <span className="text-xs text-muted-foreground">{formatDistanceToNowStrict(parseISO(device.createdAt))} ago</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {device.tags.map(tag => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Device Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewDetails(device.id)}>
+                              <Eye className="mr-2 h-4 w-4" /> View Details
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
@@ -609,6 +596,12 @@ export default function DevicesPage() {
           </Button>
         </div>
       )}
+
+      <RegisterDeviceModal
+        isOpen={isRegisterModalOpen}
+        onOpenChange={setIsRegisterModalOpen}
+        onDeviceRegistered={handleDeviceRegistered}
+      />
     </div>
   );
 }
