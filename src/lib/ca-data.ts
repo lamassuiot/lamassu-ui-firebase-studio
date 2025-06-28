@@ -89,6 +89,7 @@ export interface CA {
   ocspUrls?: string[];
   caIssuersUrls?: string[];
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
+  caType?: string;
 }
 
 // OID Map for signature algorithms
@@ -252,6 +253,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     ocspUrls: aiaUrls.ocsp,
     caIssuersUrls: aiaUrls.caIssuers,
     rawApiData: apiCa,
+    caType: apiCa.certificate.type,
   };
 }
 

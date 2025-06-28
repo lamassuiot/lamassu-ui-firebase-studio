@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -522,8 +523,11 @@ export default function CertificateAuthorityDetailsClient() {
                     <p className="text-sm text-muted-foreground mt-0.5">
                         CA ID: {caDetails.id}
                     </p>
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
+                      {caDetails.caType && (
+                        <Badge variant="secondary" className="text-xs">{caDetails.caType.replace(/_/g, ' ').toUpperCase()}</Badge>
+                      )}
                     </div>
                 </div>
               </div>
