@@ -150,29 +150,6 @@ export default function CertificateAuthorityDetailsClient() {
   const [issuedCertsStatusFilter, setIssuedCertsStatusFilter] = useState<ApiStatusFilterValue>(API_STATUS_VALUES_FOR_FILTER.ALL);
   const [issuedCertsSortConfig, setIssuedCertsSortConfig] = useState<IssuedCertSortConfig | null>({ column: 'expires', direction: 'desc' });
 
-  const mockLamassuMetadata = useMemo(() => (caDetails ? {
-    caId: caDetails.id,
-    name: caDetails.name,
-    status: caDetails.status,
-    configuration: {
-      maxPathLength: caDetails.issuer === 'Self-signed' ? -1 : (caDetails.children && caDetails.children.length > 0 ? 1 : 0),
-      crlDistributionPoints: caDetails.crlDistributionPoints || [`http://crl.example.com/${caDetails.id.replace(/-/g, '')}.crl`],
-      ocspServers: [`http://ocsp.example.com/${caDetails.id.replace(/-/g, '')}`],
-      defaultCertificateLifetime: '365d',
-      allowedKeyTypes: ['RSA 2048', 'ECDSA P-256'],
-    },
-    usageStats: {
-      activeCertificates: Math.floor(Math.random() * 1000),
-      revokedCertificates: Math.floor(Math.random() * 50),
-      expiredCertificates: Math.floor(Math.random() * 100),
-      lastIssuedDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    auditLogSummary: [
-      { timestamp: new Date().toISOString(), action: "CA Created", user: "admin" },
-      { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), action: "Certificate Issued (SN: ...)", user: "system" },
-    ]
-  } : {}), [caDetails]);
-
 
   useEffect(() => {
     const cnHandler = setTimeout(() => setIssuedCertsDebouncedSearchTermCN(issuedCertsSearchTermCN), 500);
@@ -569,7 +546,7 @@ export default function CertificateAuthorityDetailsClient() {
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-6">
             <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Information</TabsTrigger>
             <TabsTrigger value="certificate"><KeyRound className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Certificate PEM</TabsTrigger>
-            <TabsTrigger value="metadata"><Lock className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Lamassu Metadata</TabsTrigger>
+            <TabsTrigger value="metadata"><Lock className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Metadata</TabsTrigger>
             <TabsTrigger value="issued"><ListChecks className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Issued Certificates</TabsTrigger>
             <TabsTrigger value="raw_api"><Layers className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Raw API Data</TabsTrigger>
           </TabsList>
@@ -604,9 +581,9 @@ export default function CertificateAuthorityDetailsClient() {
 
           <TabsContent value="metadata">
              <MetadataTabContent
-              rawJsonData={mockLamassuMetadata}
+              rawJsonData={caDetails.rawApiData?.metadata}
               itemName={caDetails.name}
-              tabTitle="LamassuIoT Specific Metadata"
+              tabTitle="CA Metadata"
               toast={toast}
             />
           </TabsContent>
