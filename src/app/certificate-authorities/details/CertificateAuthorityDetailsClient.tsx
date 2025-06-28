@@ -30,6 +30,7 @@ import { format, parseISO, isPast } from 'date-fns';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Eye, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CaStatsDisplay } from '@/components/ca/details/CaStatsDisplay';
+import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 
 
 type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
@@ -150,6 +151,13 @@ export default function CertificateAuthorityDetailsClient() {
   const [issuedCertsDebouncedSearchTermSN, setIssuedCertsDebouncedSearchTermSN] = useState('');
   const [issuedCertsStatusFilter, setIssuedCertsStatusFilter] = useState<ApiStatusFilterValue>(API_STATUS_VALUES_FOR_FILTER.ALL);
   const [issuedCertsSortConfig, setIssuedCertsSortConfig] = useState<IssuedCertSortConfig | null>({ column: 'expires', direction: 'desc' });
+
+  const cryptoEngine = useMemo(() => {
+    if (caDetails?.kmsKeyId && allCryptoEngines.length > 0) {
+        return allCryptoEngines.find(e => e.id === caDetails.kmsKeyId);
+    }
+    return undefined;
+  }, [caDetails, allCryptoEngines]);
 
 
   useEffect(() => {
@@ -527,6 +535,11 @@ export default function CertificateAuthorityDetailsClient() {
                       <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
                       {caDetails.caType && (
                         <Badge variant="secondary" className="text-xs">{caDetails.caType.replace(/_/g, ' ').toUpperCase()}</Badge>
+                      )}
+                      {cryptoEngine && (
+                        <div className="border-l-2 border-border pl-2">
+                            <CryptoEngineViewer engine={cryptoEngine} />
+                        </div>
                       )}
                     </div>
                 </div>
