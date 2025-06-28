@@ -28,7 +28,7 @@ import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTab
 import { format, parseISO, isPast } from 'date-fns';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Eye, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
-import { CaStatsDisplay } from './CaStatsDisplay';
+import { CaStatsDisplay } from '@/components/ca/details/CaStatsDisplay';
 
 
 type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
@@ -65,7 +65,7 @@ const buildCaPathToRoot = (targetCaId: string | undefined, allCAs: CA[]): CA[] =
     }
     const parentCa = findCaById(current.issuer, allCAs);
     if (!parentCa || path.some(p => p.id === parentCa.id)) {
-        break;
+      break;
     }
     current = parentCa;
     safetyNet++;
@@ -527,15 +527,15 @@ export default function CertificateAuthorityDetailsClient() {
 
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full">
        <div className="flex justify-between items-center mb-4">
-        <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+        <Button variant="outline" onClick={() => routerHook.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
 
-      <div className="w-full">
-        <div className="p-6 border-b">
+      <div className="w-full mt-0">
+        <div className="p-6 pt-0 border-b">
           <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
             <div className="flex-shrink-0 self-start xl:self-center">
               <div className="flex items-center space-x-3">
@@ -545,6 +545,9 @@ export default function CertificateAuthorityDetailsClient() {
                     <p className="text-sm text-muted-foreground mt-0.5">
                         CA ID: {caDetails.id}
                     </p>
+                    <div className="mt-1.5">
+                      <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
+                    </div>
                 </div>
               </div>
             </div>
@@ -553,9 +556,6 @@ export default function CertificateAuthorityDetailsClient() {
               <CaStatsDisplay stats={caStats} isLoading={isLoadingStats} error={errorStats} />
             </div>
 
-            <div className="flex-shrink-0 self-start xl:self-center">
-              <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
-            </div>
           </div>
         </div>
 
@@ -566,7 +566,7 @@ export default function CertificateAuthorityDetailsClient() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full p-6">
-          <TabsList className="mb-6">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
             <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Information</TabsTrigger>
             <TabsTrigger value="certificate"><KeyRound className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Certificate PEM</TabsTrigger>
             <TabsTrigger value="metadata"><Lock className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Lamassu Metadata</TabsTrigger>

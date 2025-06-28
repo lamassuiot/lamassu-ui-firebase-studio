@@ -278,8 +278,8 @@ export default function CertificateDetailsClient() { // Renamed component
   if (errorCert || errorAllCAs) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => routerHook.push('/certificates')} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certificates
+         <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -324,8 +324,8 @@ export default function CertificateDetailsClient() { // Renamed component
 
   return (
     <div className="w-full space-y-6">
-      <Button variant="outline" onClick={() => routerHook.push('/certificates')}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certificates List
+      <Button variant="outline" onClick={() => routerHook.back()}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
       
       <div className="w-full">
