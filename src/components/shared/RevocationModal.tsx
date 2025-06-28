@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { revocationReasons, type RevocationReason } from '@/lib/revocation-reasons';
@@ -30,12 +31,14 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
 }) => {
   const [selectedReasonValue, setSelectedReasonValue] = useState<string>(revocationReasons[0].value);
   const [selectedReasonDetails, setSelectedReasonDetails] = useState<RevocationReason | undefined>(revocationReasons[0]);
+  const [confirmationText, setConfirmationText] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       // Reset to default reason when modal opens
       setSelectedReasonValue(revocationReasons[0].value);
       setSelectedReasonDetails(revocationReasons[0]);
+      setConfirmationText('');
     }
   }, [isOpen]);
 
@@ -49,6 +52,8 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
       onConfirm(selectedReasonValue);
     }
   };
+
+  const isCaRevocationAndUnconfirmed = itemType === 'CA' && confirmationText !== itemName;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -73,7 +78,7 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
             </Alert>
         )}
 
-        <div className="py-4 space-y-3">
+        <div className="py-4 space-y-4">
           <div>
             <Label htmlFor="revocationReasonSelect" className="text-base">Revocation Reason</Label>
             <Select value={selectedReasonValue} onValueChange={setSelectedReasonValue} disabled={isConfirming}>
@@ -98,6 +103,24 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
               <p className="text-xs text-muted-foreground">{selectedReasonDetails.description}</p>
             </div>
           )}
+
+          {itemType === 'CA' && (
+            <div className="pt-2 space-y-2">
+                <Label htmlFor="ca-name-confirm" className="font-bold text-destructive">
+                    To confirm, please type the CA name: <span className="font-mono bg-destructive/10 p-1 rounded-sm">{itemName}</span>
+                </Label>
+                <Input
+                    id="ca-name-confirm"
+                    value={confirmationText}
+                    onChange={(e) => setConfirmationText(e.target.value)}
+                    placeholder="Enter CA name to confirm"
+                    disabled={isConfirming}
+                    className="border-destructive focus-visible:ring-destructive"
+                    autoComplete="off"
+                />
+            </div>
+          )}
+
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -106,7 +129,7 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
               Cancel
             </Button>
           </DialogClose>
-          <Button type="button" variant="destructive" onClick={handleConfirm} disabled={!selectedReasonValue || isConfirming}>
+          <Button type="button" variant="destructive" onClick={handleConfirm} disabled={!selectedReasonValue || isConfirming || isCaRevocationAndUnconfirmed}>
             {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isConfirming ? 'Revoking...' : 'Confirm Revocation'}
           </Button>
