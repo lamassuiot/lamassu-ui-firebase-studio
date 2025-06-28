@@ -140,6 +140,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
              {renderUrlList(caDetails.crlDistributionPoints, 'CRL Distribution Points (CDP)')}
              {caDetails.crlDistributionPoints && (caDetails.ocspUrls || caDetails.caIssuersUrls) && <Separator/>}
              {renderUrlList(caDetails.ocspUrls, 'OCSP Responders (from AIA)')}
+             {caDetails.ocspUrls && caDetails.caIssuersUrls && <Separator/>}
              {renderUrlList(caDetails.caIssuersUrls, 'CA Issuers (from AIA)')}
              {(!caDetails.crlDistributionPoints || caDetails.crlDistributionPoints.length === 0) && (!caDetails.ocspUrls || caDetails.ocspUrls.length === 0) && (!caDetails.caIssuersUrls || caDetails.caIssuersUrls.length === 0) && (
                 <p className="text-sm text-muted-foreground">No distribution points specified in certificate.</p>
