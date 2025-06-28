@@ -16,6 +16,7 @@ import { getCaDisplayName } from '@/lib/ca-data';
 import { format, parseISO } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 
 
 interface CaStats {
@@ -73,6 +74,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
 
   if (itemType === 'ca' && caSpecific) {
     const caDetails = item as CA;
+    const cryptoEngine = caDetails.kmsKeyId && caSpecific.allCryptoEngines ? caSpecific.allCryptoEngines.find(e => e.id === caDetails.kmsKeyId) : undefined;
     
     return (
       <Accordion type="multiple" defaultValue={['general', 'hierarchy']} className="w-full space-y-3">
@@ -94,6 +96,11 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <KeyRound className="mr-2 h-5 w-5" /> Key & Signature Information
           </AccordionTrigger>
           <AccordionContent className="space-y-1 px-4 pt-3">
+            {cryptoEngine ? (
+              <DetailItem label="Crypto Engine" value={<CryptoEngineViewer engine={cryptoEngine} />} />
+            ) : caDetails.kmsKeyId ? (
+              <DetailItem label="Crypto Engine ID" value={caDetails.kmsKeyId} isMono />
+            ) : null}
             <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
             <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
             <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{caDetails.subjectKeyId || 'N/A'}</span>} />
