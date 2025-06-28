@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -96,11 +95,6 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <KeyRound className="mr-2 h-5 w-5" /> Key & Signature Information
           </AccordionTrigger>
           <AccordionContent className="space-y-1 px-4 pt-3">
-            {cryptoEngine ? (
-              <DetailItem label="Crypto Engine" value={<CryptoEngineViewer engine={cryptoEngine} />} />
-            ) : caDetails.kmsKeyId ? (
-              <DetailItem label="Crypto Engine ID" value={caDetails.kmsKeyId} isMono />
-            ) : null}
             <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
             <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
             <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{caDetails.subjectKeyId || 'N/A'}</span>} />
