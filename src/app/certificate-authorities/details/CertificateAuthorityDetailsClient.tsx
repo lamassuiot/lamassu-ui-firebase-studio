@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, ListChecks, Search, RefreshCw, FilePlus2, Info, KeyRound, Lock, Network, Layers } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, ListChecks, Search, RefreshCw, FilePlus2, Info, KeyRound, Lock, Network, Layers, Trash2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,7 +20,8 @@ import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
-import { CrlCheckModal } from '@/components/shared/CrlCheckModal'; // New Import
+import { CrlCheckModal } from '@/components/shared/CrlCheckModal';
+import { DeleteCaModal } from '@/components/shared/DeleteCaModal';
 
 import { InformationTabContent } from '@/components/shared/details-tabs/InformationTabContent';
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
@@ -126,6 +126,10 @@ export default function CertificateAuthorityDetailsClient() {
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [caToRevoke, setCaToRevoke] = useState<CA | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [caToDelete, setCaToDelete] = useState<CA | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [isCrlModalOpen, setIsCrlModalOpen] = useState(false);
   const [caForCrlCheck, setCaForCrlCheck] = useState<CA | null>(null);
@@ -424,6 +428,59 @@ export default function CertificateAuthorityDetailsClient() {
     }
   };
 
+  const handleDeleteCA = () => {
+    if (caDetails) {
+        setCaToDelete(caDetails);
+        setIsDeleteModalOpen(true);
+    }
+  };
+
+  const handleConfirmDeleteCA = async () => {
+    if (!caToDelete || !user?.access_token) {
+        toast({ title: "Error", description: "Cannot delete CA. Details or authentication missing.", variant: "destructive" });
+        return;
+    }
+
+    setIsDeleting(true);
+    setIsDeleteModalOpen(false); // Close modal immediately
+
+    try {
+        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caToDelete.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${user.access_token}`,
+            },
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to delete CA. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        toast({
+            title: "CA Deleted",
+            description: `CA "${caToDelete.name}" has been permanently deleted.`,
+            variant: "default"
+        });
+        routerHook.push('/certificate-authorities'); // Redirect to the list page
+
+    } catch (error: any) {
+        toast({
+            title: "Deletion Failed",
+            description: error.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsDeleting(false);
+        setCaToDelete(null);
+    }
+  };
+
   const handleOpenCrlModal = () => {
     if (caDetails) {
       setCaForCrlCheck(caDetails);
@@ -593,12 +650,20 @@ export default function CertificateAuthorityDetailsClient() {
           </div>
         </div>
 
-        <div className="p-6 space-x-2 border-b">
+        <div className="p-6 flex flex-wrap gap-2 border-b">
           <Button variant="outline" onClick={handleOpenCrlModal}><Download className="mr-2 h-4 w-4" /> Download/View CRL</Button>
-          <Button variant="destructive" onClick={handleCARevocation} disabled={caDetails.status === 'revoked' || isRevoking}>
-            {isRevoking ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldAlert className="mr-2 h-4 w-4" />}
-            {isRevoking ? 'Revoking...' : 'Revoke CA'}
-          </Button>
+          {caDetails.status !== 'revoked' && (
+              <Button variant="destructive" onClick={handleCARevocation} disabled={isRevoking}>
+                  {isRevoking ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldAlert className="mr-2 h-4 w-4" />}
+                  {isRevoking ? 'Revoking...' : 'Revoke CA'}
+              </Button>
+          )}
+          {caDetails.status === 'revoked' && (
+              <Button variant="destructive" onClick={handleDeleteCA} disabled={isDeleting}>
+                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4" />}
+                  {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+              </Button>
+          )}
           <Button variant="outline" onClick={() => alert('Edit Configuration (placeholder)')}><Edit className="mr-2 h-4 w-4" /> Edit Configuration</Button>
         </div>
 
@@ -817,6 +882,15 @@ export default function CertificateAuthorityDetailsClient() {
           itemName={caToRevoke.name}
           itemType="CA"
           isConfirming={isRevoking}
+        />
+      )}
+      {caToDelete && (
+        <DeleteCaModal
+            isOpen={isDeleteModalOpen}
+            onOpenChange={setIsDeleteModalOpen}
+            onConfirm={handleConfirmDeleteCA}
+            caName={caToDelete.name}
+            isDeleting={isDeleting}
         />
       )}
       {caForCrlCheck && (
