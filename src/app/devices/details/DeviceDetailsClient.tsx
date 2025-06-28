@@ -577,8 +577,8 @@ export default function DeviceDetailsClient() {
   if (errorDevice) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => router.push('/devices')} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
+         <Button variant="outline" onClick={() => router.back()} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -592,8 +592,8 @@ export default function DeviceDetailsClient() {
   if (!device) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => router.push('/devices')} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
+         <Button variant="outline" onClick={() => router.back()} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         <Alert>
           <Info className="h-4 w-4" />
@@ -611,8 +611,8 @@ export default function DeviceDetailsClient() {
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => router.push('/devices')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
+        <Button variant="outline" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
 

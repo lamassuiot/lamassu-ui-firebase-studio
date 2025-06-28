@@ -28,7 +28,7 @@ import { MetadataTabContent } from '@/components/shared/details-tabs/MetadataTab
 import { format, parseISO, isPast } from 'date-fns';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Eye, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
-import { CaStatsDisplay } from './CaStatsDisplay';
+import { CaStatsDisplay } from '@/components/ca/details/CaStatsDisplay';
 
 
 type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
