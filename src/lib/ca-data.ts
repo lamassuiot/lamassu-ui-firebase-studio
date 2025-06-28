@@ -91,6 +91,42 @@ export interface CA {
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
 }
 
+// OID Map for signature algorithms
+const SIG_OID_MAP: Record<string, string> = {
+    "1.2.840.113549.1.1.11": "sha256WithRSAEncryption",
+    "1.2.840.113549.1.1.12": "sha384WithRSAEncryption",
+    "1.2.840.113549.1.1.13": "sha512WithRSAEncryption",
+    "1.2.840.113549.1.1.14": "sha224WithRSAEncryption",
+    "1.2.840.10045.4.3.2": "ecdsa-with-SHA256",
+    "1.2.840.10045.4.3.3": "ecdsa-with-SHA384",
+    "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
+};
+
+function parseSignatureAlgorithmFromPem(pem: string): string {
+    if (typeof window === 'undefined' || !pem) return 'N/A';
+    try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const binaryString = window.atob(pemString);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const asn1 = asn1js.fromBER(bytes.buffer);
+        if (asn1.offset === -1) return 'Parsing Error (ASN.1)';
+
+        const certificate = new Certificate({ schema: asn1.result });
+        const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
+        
+        return SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
+
+    } catch (e) {
+        console.error("Failed to parse signature algorithm from certificate PEM:", e);
+        return 'Parsing Error';
+    }
+}
+
+
 function parseCrlUrlsFromPem(pem: string): string[] {
   if (typeof window === 'undefined' || !pem) return [];
   try {
@@ -193,6 +229,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
   const pemData = typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : ''; // Decode base64 PEM
   const crlUrls = parseCrlUrlsFromPem(pemData);
   const aiaUrls = parseAiaUrls(pemData);
+  const signatureAlgorithm = parseSignatureAlgorithmFromPem(pemData);
 
   return {
     id: apiCa.id,
@@ -202,7 +239,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     serialNumber: apiCa.certificate.serial_number,
     status,
     keyAlgorithm: keyAlgorithm,
-    signatureAlgorithm: 'N/A (from API)', // Placeholder, not directly in this part of API response
+    signatureAlgorithm: signatureAlgorithm,
     kmsKeyId: apiCa.certificate.engine_id,
     pemData: pemData,
     subjectKeyId: apiCa.certificate.subject_key_id,
