@@ -125,6 +125,7 @@ export default function CertificateAuthorityDetailsClient() {
 
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [caToRevoke, setCaToRevoke] = useState<CA | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   const [isCrlModalOpen, setIsCrlModalOpen] = useState(false);
   const [caForCrlCheck, setCaForCrlCheck] = useState<CA | null>(null);
@@ -371,17 +372,56 @@ export default function CertificateAuthorityDetailsClient() {
     }
   };
 
-  const handleConfirmCARevocation = (reason: string) => {
-    if (caToRevoke) {
-      setCaDetails(prev => prev ? {...prev, status: 'revoked'} : null);
-      toast({
-        title: "CA Revocation (Mock)",
-        description: `CA "${caToRevoke.name}" marked as revoked with reason: ${reason}.`,
-        variant: "default"
-      });
+  const handleConfirmCARevocation = async (reason: string) => {
+    if (!caToRevoke || !user?.access_token) {
+        toast({ title: "Error", description: "Cannot revoke CA. Details or authentication missing.", variant: "destructive" });
+        return;
     }
-    setIsRevocationModalOpen(false);
-    setCaToRevoke(null);
+
+    setIsRevoking(true);
+    setIsRevocationModalOpen(false); // Close modal immediately
+
+    try {
+        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caToRevoke.id}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token}`,
+            },
+            body: JSON.stringify({
+                status: 'REVOKED',
+                revocation_reason: reason,
+            }),
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to revoke CA. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        // Success
+        setCaDetails(prev => prev ? { ...prev, status: 'revoked' } : null);
+        toast({
+            title: "CA Revoked",
+            description: `CA "${caToRevoke.name}" has been successfully revoked.`,
+            variant: "default"
+        });
+
+    } catch (error: any) {
+        toast({
+            title: "Revocation Failed",
+            description: error.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsRevoking(false);
+        setCaToRevoke(null);
+    }
   };
 
   const handleOpenCrlModal = () => {
@@ -555,7 +595,10 @@ export default function CertificateAuthorityDetailsClient() {
 
         <div className="p-6 space-x-2 border-b">
           <Button variant="outline" onClick={handleOpenCrlModal}><Download className="mr-2 h-4 w-4" /> Download/View CRL</Button>
-          <Button variant="destructive" onClick={handleCARevocation} disabled={caDetails.status === 'revoked'}><ShieldAlert className="mr-2 h-4 w-4" /> Revoke CA</Button>
+          <Button variant="destructive" onClick={handleCARevocation} disabled={caDetails.status === 'revoked' || isRevoking}>
+            {isRevoking ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldAlert className="mr-2 h-4 w-4" />}
+            {isRevoking ? 'Revoking...' : 'Revoke CA'}
+          </Button>
           <Button variant="outline" onClick={() => alert('Edit Configuration (placeholder)')}><Edit className="mr-2 h-4 w-4" /> Edit Configuration</Button>
         </div>
 
@@ -766,12 +809,14 @@ export default function CertificateAuthorityDetailsClient() {
         <RevocationModal
           isOpen={isRevocationModalOpen}
           onClose={() => {
+            if (isRevoking) return;
             setIsRevocationModalOpen(false);
             setCaToRevoke(null);
           }}
           onConfirm={handleConfirmCARevocation}
           itemName={caToRevoke.name}
           itemType="CA"
+          isConfirming={isRevoking}
         />
       )}
       {caForCrlCheck && (
