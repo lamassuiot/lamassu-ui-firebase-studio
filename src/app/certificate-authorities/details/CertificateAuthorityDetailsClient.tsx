@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, ListChecks, Search, RefreshCw, FilePlus2, Info, KeyRound, Lock, Network, Layers, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, ListChecks, Search, RefreshCw, FilePlus2, Info, KeyRound, Lock, Network, Layers, Trash2, MoreVertical } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +22,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
 import { CrlCheckModal } from '@/components/shared/CrlCheckModal';
 import { DeleteCaModal } from '@/components/shared/DeleteCaModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { InformationTabContent } from '@/components/shared/details-tabs/InformationTabContent';
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
@@ -798,19 +799,33 @@ export default function CertificateAuthorityDetailsClient() {
                       <TableBody>
                         {issuedCertificatesList.map((cert) => (
                           <TableRow key={cert.id}>
-                            <TableCell className="font-medium truncate max-w-[200px]">{getCertSubjectCommonName(cert.subject)}</TableCell>
+                            <TableCell className="truncate max-w-[200px]">
+                                <Button
+                                    variant="link"
+                                    className="p-0 h-auto font-medium text-left whitespace-normal"
+                                    onClick={() => routerHook.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
+                                >
+                                    {getCertSubjectCommonName(cert.subject)}
+                                </Button>
+                            </TableCell>
                             <TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[150px]">{cert.serialNumber}</TableCell>
                             <TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>
                             <TableCell><IssuedCertApiStatusBadge status={cert.apiStatus} /></TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => routerHook.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
-                              >
-                                <Eye className="mr-1 h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">View</span>
-                              </Button>
+                               <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <span className="sr-only">Open menu</span>
+                                            <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => routerHook.push(`/certificates/details?certificateId=${cert.serialNumber}`)}>
+                                            <Eye className="mr-2 h-4 w-4" />
+                                            <span>View Details</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))}
