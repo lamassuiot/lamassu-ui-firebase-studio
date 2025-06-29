@@ -2,7 +2,7 @@
 
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -91,6 +91,7 @@ export interface CA {
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
   caType?: string;
   defaultIssuanceLifetime?: string;
+  pathLenConstraint?: number | 'None';
 }
 
 // OID Map for signature algorithms
@@ -208,6 +209,36 @@ function parseAiaUrls(pem: string): { ocsp: string[], caIssuers: string[] } {
   }
 }
 
+function parsePathLenConstraintFromPem(pem: string): number | 'None' {
+    if (typeof window === 'undefined' || !pem) return 'None';
+    try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const binaryString = window.atob(pemString);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const asn1 = asn1js.fromBER(bytes.buffer);
+        if (asn1.offset === -1) return 'None';
+
+        const certificate = new Certificate({ schema: asn1.result });
+        const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19"); // id-ce-basicConstraints
+
+        if (bcExtension && bcExtension.parsedValue) {
+            const basicConstraints = bcExtension.parsedValue as BasicConstraints;
+            if (basicConstraints.pathLenConstraint !== undefined) {
+                return basicConstraints.pathLenConstraint;
+            }
+        }
+        return 'None';
+
+    } catch (e) {
+        console.error("Failed to parse Path Length Constraint from certificate PEM:", e);
+        return 'None';
+    }
+}
+
 
 // Helper to transform API CA item to local CA structure (without children)
 function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
@@ -232,6 +263,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
   const crlUrls = parseCrlUrlsFromPem(pemData);
   const aiaUrls = parseAiaUrls(pemData);
   const signatureAlgorithm = parseSignatureAlgorithmFromPem(pemData);
+  const pathLenConstraint = parsePathLenConstraintFromPem(pemData);
 
   let defaultIssuanceLifetime = 'Not Specified';
   if (apiCa.validity) {
@@ -272,6 +304,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     rawApiData: apiCa,
     caType: apiCa.certificate.type,
     defaultIssuanceLifetime: defaultIssuanceLifetime,
+    pathLenConstraint: pathLenConstraint,
   };
 }
 
