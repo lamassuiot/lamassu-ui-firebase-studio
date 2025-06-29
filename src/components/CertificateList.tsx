@@ -220,7 +220,16 @@ export function CertificateList({
 
               return (
                 <TableRow key={cert.id}>{/*
-                  */}<TableCell className="font-medium truncate max-w-[150px] sm:max-w-xs">{getCommonName(cert.subject)}</TableCell>{/*
+                  */}<TableCell className="font-medium truncate max-w-[150px] sm:max-w-xs">
+                    <Button
+                        variant="link"
+                        className="p-0 h-auto font-medium text-left whitespace-normal"
+                        onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
+                        title={`View details for ${getCommonName(cert.subject)}`}
+                    >
+                        {getCommonName(cert.subject)}
+                    </Button>
+                  </TableCell>{/*
                   */}<TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[120px]">{cert.serialNumber}</TableCell>{/*
                   */}<TableCell className="hidden lg:table-cell truncate max-w-[200px]">
                     {issuerCa ? (
@@ -241,58 +250,43 @@ export function CertificateList({
                   */}<TableCell>
                     <ApiStatusBadge status={cert.apiStatus} />
                   </TableCell>{/*
-                  */}<TableCell className="text-right space-x-1">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
-                      title="View Certificate Details" 
-                      className="h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span className="sr-only sm:not-sr-only sm:ml-1 hidden sm:inline">Details</span>
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => onInspectCertificate(cert)} 
-                      title="Quick Inspect"
-                      className="h-8 w-8 sm:hidden" // Hide on sm and up, use Details button instead
-                    >
-                      <Eye className="h-4 w-4" />
-                      <span className="sr-only">Inspect</span>
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" title="More actions" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
-                          <span className="sr-only">More actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
-                          <Eye className="mr-2 h-4 w-4" /> Quick Inspect
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenOcspModal(cert, issuerCa)} disabled={!cert.ocspUrls || cert.ocspUrls.length === 0}>
-                           <ShieldCheck className="mr-2 h-4 w-4" /> OCSP Check
-                        </DropdownMenuItem>
-                        
-                        {isOnHold ? (
-                          <DropdownMenuItem onClick={() => handleReactivateCertificate(cert)}>
-                            <ShieldCheck className="mr-2 h-4 w-4" /> Re-activate Certificate
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
-                            <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
-                          </DropdownMenuItem>
-                        )}
+                  */}<TableCell className="text-right">
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" title="More actions" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                                <span className="sr-only">More actions</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                <span>View Details</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
+                                <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleOpenOcspModal(cert, issuerCa)} disabled={!cert.ocspUrls || cert.ocspUrls.length === 0}>
+                                <ShieldCheck className="mr-2 h-4 w-4" /> OCSP Check
+                            </DropdownMenuItem>
+                            
+                            {isOnHold ? (
+                            <DropdownMenuItem onClick={() => handleReactivateCertificate(cert)}>
+                                <ShieldCheck className="mr-2 h-4 w-4" /> Re-activate Certificate
+                            </DropdownMenuItem>
+                            ) : (
+                            <DropdownMenuItem onClick={() => handleOpenRevokeCertModal(cert)} disabled={cert.apiStatus?.toUpperCase() === 'REVOKED'}>
+                                <ShieldAlert className="mr-2 h-4 w-4" /> Revoke Certificate
+                            </DropdownMenuItem>
+                            )}
 
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleDownloadPem(cert)}>
-                          <Download className="mr-2 h-4 w-4" />
-                          Download PEM
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleDownloadPem(cert)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download PEM
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>{/*
                 */}</TableRow>
