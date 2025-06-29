@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, ListChecks, Search, RefreshCw, FilePlus2, Info, KeyRound, Lock, Network } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, ListChecks, Search, RefreshCw, FilePlus2, Info, KeyRound, Lock, Network, Layers, Trash2, MoreVertical } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,7 +20,9 @@ import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
-import { CrlCheckModal } from '@/components/shared/CrlCheckModal'; // New Import
+import { CrlCheckModal } from '@/components/shared/CrlCheckModal';
+import { DeleteCaModal } from '@/components/shared/DeleteCaModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { InformationTabContent } from '@/components/shared/details-tabs/InformationTabContent';
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';
@@ -29,6 +31,7 @@ import { format, parseISO, isPast } from 'date-fns';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Eye, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CaStatsDisplay } from '@/components/ca/details/CaStatsDisplay';
+import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 
 
 type SortableIssuedCertColumn = 'subject' | 'serialNumber' | 'expires' | 'status';
@@ -123,6 +126,11 @@ export default function CertificateAuthorityDetailsClient() {
 
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [caToRevoke, setCaToRevoke] = useState<CA | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
+  
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [caToDelete, setCaToDelete] = useState<CA | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [isCrlModalOpen, setIsCrlModalOpen] = useState(false);
   const [caForCrlCheck, setCaForCrlCheck] = useState<CA | null>(null);
@@ -150,28 +158,12 @@ export default function CertificateAuthorityDetailsClient() {
   const [issuedCertsStatusFilter, setIssuedCertsStatusFilter] = useState<ApiStatusFilterValue>(API_STATUS_VALUES_FOR_FILTER.ALL);
   const [issuedCertsSortConfig, setIssuedCertsSortConfig] = useState<IssuedCertSortConfig | null>({ column: 'expires', direction: 'desc' });
 
-  const mockLamassuMetadata = useMemo(() => (caDetails ? {
-    caId: caDetails.id,
-    name: caDetails.name,
-    status: caDetails.status,
-    configuration: {
-      maxPathLength: caDetails.issuer === 'Self-signed' ? -1 : (caDetails.children && caDetails.children.length > 0 ? 1 : 0),
-      crlDistributionPoints: caDetails.crlDistributionPoints || [`http://crl.example.com/${caDetails.id.replace(/-/g, '')}.crl`],
-      ocspServers: [`http://ocsp.example.com/${caDetails.id.replace(/-/g, '')}`],
-      defaultCertificateLifetime: '365d',
-      allowedKeyTypes: ['RSA 2048', 'ECDSA P-256'],
-    },
-    usageStats: {
-      activeCertificates: Math.floor(Math.random() * 1000),
-      revokedCertificates: Math.floor(Math.random() * 50),
-      expiredCertificates: Math.floor(Math.random() * 100),
-      lastIssuedDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    auditLogSummary: [
-      { timestamp: new Date().toISOString(), action: "CA Created", user: "admin" },
-      { timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), action: "Certificate Issued (SN: ...)", user: "system" },
-    ]
-  } : {}), [caDetails]);
+  const cryptoEngine = useMemo(() => {
+    if (caDetails?.kmsKeyId && allCryptoEngines.length > 0) {
+        return allCryptoEngines.find(e => e.id === caDetails.kmsKeyId);
+    }
+    return undefined;
+  }, [caDetails, allCryptoEngines]);
 
 
   useEffect(() => {
@@ -385,17 +377,109 @@ export default function CertificateAuthorityDetailsClient() {
     }
   };
 
-  const handleConfirmCARevocation = (reason: string) => {
-    if (caToRevoke) {
-      setCaDetails(prev => prev ? {...prev, status: 'revoked'} : null);
-      toast({
-        title: "CA Revocation (Mock)",
-        description: `CA "${caToRevoke.name}" marked as revoked with reason: ${reason}.`,
-        variant: "default"
-      });
+  const handleConfirmCARevocation = async (reason: string) => {
+    if (!caToRevoke || !user?.access_token) {
+        toast({ title: "Error", description: "Cannot revoke CA. Details or authentication missing.", variant: "destructive" });
+        return;
     }
-    setIsRevocationModalOpen(false);
-    setCaToRevoke(null);
+
+    setIsRevoking(true);
+    setIsRevocationModalOpen(false); // Close modal immediately
+
+    try {
+        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caToRevoke.id}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token}`,
+            },
+            body: JSON.stringify({
+                status: 'REVOKED',
+                revocation_reason: reason,
+            }),
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to revoke CA. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        // Success
+        setCaDetails(prev => prev ? { ...prev, status: 'revoked' } : null);
+        toast({
+            title: "CA Revoked",
+            description: `CA "${caToRevoke.name}" has been successfully revoked.`,
+            variant: "default"
+        });
+
+    } catch (error: any) {
+        toast({
+            title: "Revocation Failed",
+            description: error.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsRevoking(false);
+        setCaToRevoke(null);
+    }
+  };
+
+  const handleDeleteCA = () => {
+    if (caDetails) {
+        setCaToDelete(caDetails);
+        setIsDeleteModalOpen(true);
+    }
+  };
+
+  const handleConfirmDeleteCA = async () => {
+    if (!caToDelete || !user?.access_token) {
+        toast({ title: "Error", description: "Cannot delete CA. Details or authentication missing.", variant: "destructive" });
+        return;
+    }
+
+    setIsDeleting(true);
+    setIsDeleteModalOpen(false); // Close modal immediately
+
+    try {
+        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caToDelete.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${user.access_token}`,
+            },
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to delete CA. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        toast({
+            title: "CA Deleted",
+            description: `CA "${caToDelete.name}" has been permanently deleted.`,
+            variant: "default"
+        });
+        routerHook.push('/certificate-authorities'); // Redirect to the list page
+
+    } catch (error: any) {
+        toast({
+            title: "Deletion Failed",
+            description: error.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsDeleting(false);
+        setCaToDelete(null);
+    }
   };
 
   const handleOpenCrlModal = () => {
@@ -545,8 +629,16 @@ export default function CertificateAuthorityDetailsClient() {
                     <p className="text-sm text-muted-foreground mt-0.5">
                         CA ID: {caDetails.id}
                     </p>
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
+                      {caDetails.caType && (
+                        <Badge variant="secondary" className="text-xs">{caDetails.caType.replace(/_/g, ' ').toUpperCase()}</Badge>
+                      )}
+                      {cryptoEngine && (
+                        <div className="border-l-2 border-border pl-2">
+                            <CryptoEngineViewer engine={cryptoEngine} />
+                        </div>
+                      )}
                     </div>
                 </div>
               </div>
@@ -559,18 +651,29 @@ export default function CertificateAuthorityDetailsClient() {
           </div>
         </div>
 
-        <div className="p-6 space-x-2 border-b">
+        <div className="p-6 flex flex-wrap gap-2 border-b">
           <Button variant="outline" onClick={handleOpenCrlModal}><Download className="mr-2 h-4 w-4" /> Download/View CRL</Button>
-          <Button variant="destructive" onClick={handleCARevocation} disabled={caDetails.status === 'revoked'}><ShieldAlert className="mr-2 h-4 w-4" /> Revoke CA</Button>
-          <Button variant="outline" onClick={() => alert('Edit Configuration (placeholder)')}><Edit className="mr-2 h-4 w-4" /> Edit Configuration</Button>
+          {caDetails.status !== 'revoked' && (
+              <Button variant="destructive" onClick={handleCARevocation} disabled={isRevoking}>
+                  {isRevoking ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldAlert className="mr-2 h-4 w-4" />}
+                  {isRevoking ? 'Revoking...' : 'Revoke CA'}
+              </Button>
+          )}
+          {caDetails.status === 'revoked' && (
+              <Button variant="destructive" onClick={handleDeleteCA} disabled={isDeleting}>
+                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4" />}
+                  {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+              </Button>
+          )}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full p-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-6">
             <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Information</TabsTrigger>
             <TabsTrigger value="certificate"><KeyRound className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Certificate PEM</TabsTrigger>
-            <TabsTrigger value="metadata"><Lock className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Lamassu Metadata</TabsTrigger>
+            <TabsTrigger value="metadata"><Lock className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Metadata</TabsTrigger>
             <TabsTrigger value="issued"><ListChecks className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Issued Certificates</TabsTrigger>
+            <TabsTrigger value="raw_api"><Layers className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Raw API Data</TabsTrigger>
           </TabsList>
 
           <TabsContent value="information">
@@ -588,6 +691,7 @@ export default function CertificateAuthorityDetailsClient() {
                 errorStats: errorStats,
               }}
               routerHook={routerHook}
+              onUpdateSuccess={loadInitialData}
             />
           </TabsContent>
 
@@ -603,9 +707,9 @@ export default function CertificateAuthorityDetailsClient() {
 
           <TabsContent value="metadata">
              <MetadataTabContent
-              rawJsonData={mockLamassuMetadata}
+              rawJsonData={caDetails.rawApiData?.metadata}
               itemName={caDetails.name}
-              tabTitle="LamassuIoT Specific Metadata"
+              tabTitle="CA Metadata"
               toast={toast}
             />
           </TabsContent>
@@ -695,19 +799,33 @@ export default function CertificateAuthorityDetailsClient() {
                       <TableBody>
                         {issuedCertificatesList.map((cert) => (
                           <TableRow key={cert.id}>
-                            <TableCell className="font-medium truncate max-w-[200px]">{getCertSubjectCommonName(cert.subject)}</TableCell>
+                            <TableCell className="truncate max-w-[200px]">
+                                <Button
+                                    variant="link"
+                                    className="p-0 h-auto font-medium text-left whitespace-normal"
+                                    onClick={() => routerHook.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
+                                >
+                                    {getCertSubjectCommonName(cert.subject)}
+                                </Button>
+                            </TableCell>
                             <TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[150px]">{cert.serialNumber}</TableCell>
                             <TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>
                             <TableCell><IssuedCertApiStatusBadge status={cert.apiStatus} /></TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => routerHook.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
-                              >
-                                <Eye className="mr-1 h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">View</span>
-                              </Button>
+                               <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <span className="sr-only">Open menu</span>
+                                            <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => routerHook.push(`/certificates/details?certificateId=${cert.serialNumber}`)}>
+                                            <Eye className="mr-2 h-4 w-4" />
+                                            <span>View Details</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -756,18 +874,38 @@ export default function CertificateAuthorityDetailsClient() {
               )}
             </div>
           </TabsContent>
+
+          <TabsContent value="raw_api">
+            <MetadataTabContent
+              rawJsonData={caDetails.rawApiData}
+              itemName={caDetails.name}
+              tabTitle="Raw API Data (Debug)"
+              toast={toast}
+            />
+          </TabsContent>
         </Tabs>
       </div>
       {caToRevoke && (
         <RevocationModal
           isOpen={isRevocationModalOpen}
           onClose={() => {
+            if (isRevoking) return;
             setIsRevocationModalOpen(false);
             setCaToRevoke(null);
           }}
           onConfirm={handleConfirmCARevocation}
           itemName={caToRevoke.name}
           itemType="CA"
+          isConfirming={isRevoking}
+        />
+      )}
+      {caToDelete && (
+        <DeleteCaModal
+            isOpen={isDeleteModalOpen}
+            onOpenChange={setIsDeleteModalOpen}
+            onConfirm={handleConfirmDeleteCA}
+            caName={caToDelete.name}
+            isDeleting={isDeleting}
         />
       )}
       {caForCrlCheck && (
