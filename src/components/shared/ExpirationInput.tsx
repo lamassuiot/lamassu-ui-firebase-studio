@@ -39,12 +39,13 @@ export const ExpirationInput: React.FC<ExpirationInputProps> = ({
   defaultDate,
   idPrefix,
 }) => {
+  // Internal state to manage the component's UI without immediately propagating every keystroke
   const [currentType, setCurrentType] = useState<ExpirationType>(value.type || defaultType);
   const [duration, setDuration] = useState<string>(value.durationValue || defaultDuration);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(value.dateValue || defaultDate);
 
+  // Effect to sync internal state if the prop `value` changes from the parent
   useEffect(() => {
-    // Sync with prop value changes
     setCurrentType(value.type);
     setDuration(value.durationValue || defaultDuration);
     setSelectedDate(value.dateValue || defaultDate);
@@ -52,14 +53,12 @@ export const ExpirationInput: React.FC<ExpirationInputProps> = ({
 
   const handleTypeChange = (newType: ExpirationType) => {
     setCurrentType(newType);
+    // Construct the new config object and propagate it up
     let newConfig: ExpirationConfig = { type: newType };
     if (newType === "Duration") {
       newConfig.durationValue = duration;
     } else if (newType === "Date") {
-      newConfig.dateValue = selectedDate || new Date(); // Default to today if no date selected
-    } else if (newType === "Indefinite") {
-      // For Indefinite, no specific value is stored in the config other than type
-      // The parent component will translate this to the special date for the API
+      newConfig.dateValue = selectedDate || new Date(); // Default to today if no date selected yet
     }
     onValueChange(newConfig);
   };

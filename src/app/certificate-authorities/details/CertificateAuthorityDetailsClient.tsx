@@ -664,6 +664,7 @@ export default function CertificateAuthorityDetailsClient() {
                   {isDeleting ? 'Deleting...' : 'Permanently Delete'}
               </Button>
           )}
+          {/* This button is now redundant due to inline editing, but can be kept for future bulk edits. For now, it will stay as a placeholder. */}
           <Button variant="outline" onClick={() => alert('Edit Configuration (placeholder)')}><Edit className="mr-2 h-4 w-4" /> Edit Configuration</Button>
         </div>
 
@@ -691,6 +692,7 @@ export default function CertificateAuthorityDetailsClient() {
                 errorStats: errorStats,
               }}
               routerHook={routerHook}
+              onUpdateSuccess={loadInitialData}
             />
           </TabsContent>
 

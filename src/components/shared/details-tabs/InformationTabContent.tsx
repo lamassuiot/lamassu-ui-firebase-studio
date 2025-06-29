@@ -1,10 +1,11 @@
+
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { CA } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText } from "lucide-react";
+import { Info, KeyRound, Lock, Link as LinkIcon, Network, ListChecks, Users, FileText, Loader2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,9 @@ import { format, parseISO, isValid } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
+import { ExpirationInput, type ExpirationConfig } from '../ExpirationInput';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 
 interface CaStats {
@@ -27,6 +31,7 @@ interface CaStats {
 interface InformationTabContentProps {
   item: CA | CertificateData;
   itemType: 'ca' | 'certificate';
+  onUpdateSuccess?: () => void;
   caSpecific?: {
     pathToRoot: CA[];
     allCAsForLinking: CA[];
@@ -67,6 +72,7 @@ const formatIssuanceLifetime = (lifetime?: string): string => {
   }
   // Check if it's an ISO date string (a bit of a heuristic)
   if (lifetime.includes('T') && lifetime.endsWith('Z')) {
+    if (lifetime.startsWith('9999-12-31')) return 'Indefinite';
     const date = parseISO(lifetime);
     if (isValid(date)) {
       return format(date, 'PPpp');
@@ -74,6 +80,17 @@ const formatIssuanceLifetime = (lifetime?: string): string => {
   }
   // Otherwise, assume it's a duration string like "1y" or "Indefinite"
   return lifetime;
+};
+
+const parseLifetime = (lifetime?: string): ExpirationConfig => {
+  if (!lifetime || lifetime === 'Not Specified') return { type: 'Duration', durationValue: '1y' };
+  if (lifetime === 'Indefinite' || lifetime.startsWith('9999-12-31')) return { type: 'Indefinite' };
+  if (lifetime.includes('T') && lifetime.endsWith('Z')) {
+    const date = parseISO(lifetime);
+    if (isValid(date)) return { type: 'Date', dateValue: date };
+  }
+  // Assume duration if nothing else matches
+  return { type: 'Duration', durationValue: lifetime };
 };
 
 
@@ -84,8 +101,97 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   certificateSpecific,
   routerHook,
   onAkiClick,
+  onUpdateSuccess,
 }) => {
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
+
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
+  const [isEditingExpiration, setIsEditingExpiration] = useState(false);
+  const [expirationValue, setExpirationValue] = useState<ExpirationConfig | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const initialExpirationConfig = React.useMemo(() => {
+    if (itemType === 'ca') {
+      return parseLifetime((item as CA).defaultIssuanceLifetime);
+    }
+    return null;
+  }, [item, itemType]);
+
+  useEffect(() => {
+    setExpirationValue(initialExpirationConfig);
+  }, [initialExpirationConfig]);
+
+  const handleSaveExpiration = async () => {
+    if (!expirationValue || itemType !== 'ca' || !user?.access_token) {
+        toast({ title: "Error", description: "Cannot update. Missing data or authentication.", variant: "destructive" });
+        return;
+    }
+
+    const caDetails = item as CA;
+    let payload: { type: string; duration?: string; time?: string } = { type: '' };
+
+    if (expirationValue.type === 'Duration') {
+        if (!expirationValue.durationValue?.trim()) {
+            toast({ title: "Validation Error", description: "Duration cannot be empty.", variant: "destructive" });
+            return;
+        }
+        payload = { type: 'Duration', duration: expirationValue.durationValue };
+    } else if (expirationValue.type === 'Date') {
+        if (!expirationValue.dateValue || !isValid(expirationValue.dateValue)) {
+            toast({ title: "Validation Error", description: "A valid date must be selected.", variant: "destructive" });
+            return;
+        }
+        payload = { type: 'Date', time: expirationValue.dateValue.toISOString() };
+    } else if (expirationValue.type === 'Indefinite') {
+        payload = { type: 'Date', time: "9999-12-31T23:59:59.999Z" };
+    }
+
+    setIsSubmitting(true);
+    try {
+        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caDetails.id}/issuance-expiration`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to update issuance expiration. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        toast({
+            title: "Success",
+            description: "Default issuance expiration has been updated successfully.",
+        });
+        onUpdateSuccess?.(); // Trigger parent to re-fetch data
+        setIsEditingExpiration(false);
+
+    } catch (e: any) {
+        toast({
+            title: "Update Failed",
+            description: e.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setExpirationValue(initialExpirationConfig);
+    setIsEditingExpiration(false);
+  };
+
 
   if (itemType === 'ca' && caSpecific) {
     const caDetails = item as CA;
@@ -102,7 +208,35 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
             <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, caSpecific.allCAsForLinking)} />
             <DetailItem label="Expires On" value={format(parseISO(caDetails.expires), 'PPpp')} />
-            <DetailItem label="Default Issuance Lifetime" value={formatIssuanceLifetime(caDetails.defaultIssuanceLifetime)} />
+            
+            <div className="py-2 grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 items-center">
+              <dt className="text-sm font-medium text-muted-foreground">Default Issuance Lifetime</dt>
+              <dd className="mt-1 sm:mt-0 flex items-center gap-2">
+                {!isEditingExpiration ? (
+                   <>
+                    <span>{formatIssuanceLifetime(caDetails.defaultIssuanceLifetime)}</span>
+                    <Button variant="outline" size="sm" onClick={() => setIsEditingExpiration(true)}>Edit</Button>
+                  </>
+                ) : expirationValue && (
+                  <div className='w-full'>
+                    <ExpirationInput
+                        label=""
+                        value={expirationValue}
+                        onValueChange={setExpirationValue}
+                        idPrefix="ca-issuance-exp"
+                    />
+                    <div className="flex justify-end space-x-2 mt-2">
+                        <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isSubmitting}>Cancel</Button>
+                        <Button size="sm" onClick={handleSaveExpiration} disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Save
+                        </Button>
+                    </div>
+                  </div>
+                )}
+              </dd>
+            </div>
+            
             <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
           </AccordionContent>
         </AccordionItem>
