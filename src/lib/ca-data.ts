@@ -90,6 +90,7 @@ export interface CA {
   caIssuersUrls?: string[];
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
   caType?: string;
+  defaultIssuanceLifetime?: string;
 }
 
 // OID Map for signature algorithms
@@ -232,6 +233,22 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
   const aiaUrls = parseAiaUrls(pemData);
   const signatureAlgorithm = parseSignatureAlgorithmFromPem(pemData);
 
+  let defaultIssuanceLifetime = 'Not Specified';
+  if (apiCa.validity) {
+      if (apiCa.validity.type === 'Duration' && apiCa.validity.duration) {
+          defaultIssuanceLifetime = apiCa.validity.duration;
+      } else if (apiCa.validity.type === 'Date' && apiCa.validity.time) {
+          if (apiCa.validity.time.startsWith('9999-12-31')) {
+              defaultIssuanceLifetime = 'Indefinite';
+          } else {
+              defaultIssuanceLifetime = apiCa.validity.time; // Pass ISO string to be formatted by component
+          }
+      } else if (apiCa.validity.type === "Indefinite") {
+          defaultIssuanceLifetime = "Indefinite";
+      }
+  }
+
+
   return {
     id: apiCa.id,
     name: apiCa.certificate.subject.common_name || apiCa.id,
@@ -254,6 +271,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     caIssuersUrls: aiaUrls.caIssuers,
     rawApiData: apiCa,
     caType: apiCa.certificate.type,
+    defaultIssuanceLifetime: defaultIssuanceLifetime,
   };
 }
 

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { CaHierarchyPathNode } from '@/components/ca/details/CaHierarchyPathNode';
 import { getCaDisplayName } from '@/lib/ca-data';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
@@ -61,6 +61,22 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
   );
 }
 
+const formatIssuanceLifetime = (lifetime?: string): string => {
+  if (!lifetime || lifetime === 'Not Specified') {
+    return 'Not Specified';
+  }
+  // Check if it's an ISO date string (a bit of a heuristic)
+  if (lifetime.includes('T') && lifetime.endsWith('Z')) {
+    const date = parseISO(lifetime);
+    if (isValid(date)) {
+      return format(date, 'PPpp');
+    }
+  }
+  // Otherwise, assume it's a duration string like "1y" or "Indefinite"
+  return lifetime;
+};
+
+
 export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   item,
   itemType,
@@ -85,7 +101,8 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="Full Name" value={caDetails.name} />
             <DetailItem label="CA ID" value={<Badge variant="outline">{caDetails.id}</Badge>} />
             <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, caSpecific.allCAsForLinking)} />
-            <DetailItem label="Expires On" value={new Date(caDetails.expires).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
+            <DetailItem label="Expires On" value={format(parseISO(caDetails.expires), 'PPpp')} />
+            <DetailItem label="Default Issuance Lifetime" value={formatIssuanceLifetime(caDetails.defaultIssuanceLifetime)} />
             <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
           </AccordionContent>
         </AccordionItem>
