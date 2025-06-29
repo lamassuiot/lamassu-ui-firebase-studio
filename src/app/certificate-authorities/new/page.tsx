@@ -5,7 +5,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight } from "lucide-react";
+import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight, FileSignature } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,13 @@ const creationModes = [
     description: "Provision a new Root or Intermediate CA using an existing cryptographic key pair stored securely in LamassuIoT's KMS or an external HSM.",
     icon: <Repeat className="h-8 w-8 text-primary" />,
     isComingSoon: true,
+  },
+  {
+    id: 'generate-csr',
+    href: '/certificate-authorities/new/generate-csr',
+    title: 'Generate CSR for External CA',
+    description: 'Create a key pair and generate a CSR. Take the CSR to an external/offline CA to be signed, then import the resulting certificate.',
+    icon: <FileSignature className="h-8 w-8 text-primary" />,
   },
   {
     id: 'import-full',
