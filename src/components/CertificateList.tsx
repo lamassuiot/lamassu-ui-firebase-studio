@@ -208,7 +208,7 @@ export function CertificateList({
           */}<TableHead className="hidden lg:table-cell">CA Issuer</TableHead>{/*
           */}<SortableHeader column="validFrom" title="Valid From" />{/*
           */}<SortableHeader column="expires" title="Expires" />{/*
-          */}<SortableHeader column="status" title="API Status" />{/*
+          */}<SortableHeader column="status" title="Status" />{/*
           */}<TableHead className="text-right">Actions</TableHead>{/*
         */}</TableRow>
           </TableHeader>
