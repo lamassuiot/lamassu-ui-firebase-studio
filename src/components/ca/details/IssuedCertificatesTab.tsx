@@ -191,11 +191,11 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
 
     return (
         <div className="space-y-4 py-4">
-            <div className="flex flex-col sm:flex-row justify-between items-end gap-3 mb-4">
-                <div className="flex flex-wrap items-end gap-3 flex-grow w-full">
-                    <div className="flex-grow min-w-[200px]">
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                    <div className="relative col-span-1 md:col-span-1">
                         <Label htmlFor="issuedCertSearchTerm">Search</Label>
-                        <div className="relative mt-1">
+                         <div className="relative mt-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                             <Input
                                 id="issuedCertSearchTerm"
@@ -208,7 +208,7 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
                             />
                         </div>
                     </div>
-                    <div className="flex-grow xs:flex-grow-0 w-full xs:w-auto">
+                    <div className="col-span-1 md:col-span-1">
                         <Label htmlFor="issuedCertSearchField">Search In</Label>
                         <Select value={searchField} onValueChange={(value: 'commonName' | 'serialNumber') => setSearchField(value)} disabled={isLoading || authLoading}>
                             <SelectTrigger id="issuedCertSearchField" className="w-full mt-1">
@@ -220,7 +220,7 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
                             </SelectContent>
                         </Select>
                     </div>
-                     <div className="flex-grow xs:flex-grow-0 w-full xs:w-auto">
+                    <div className="col-span-1 md:col-span-1">
                         <Label htmlFor="issuedCertStatusFilter">Status</Label>
                         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ApiStatusFilterValue)} disabled={isLoading || authLoading}>
                             <SelectTrigger id="issuedCertStatusFilter" className="w-full mt-1">
@@ -232,7 +232,7 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
                         </Select>
                     </div>
                 </div>
-                 <div className="flex space-x-2 flex-shrink-0 self-end">
+                <div className="flex justify-end space-x-2">
                     <Button onClick={handleRefresh} variant="outline" disabled={isLoading}>
                         <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
                     </Button>
