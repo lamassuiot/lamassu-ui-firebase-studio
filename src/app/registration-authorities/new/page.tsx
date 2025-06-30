@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { TagInput } from '@/components/shared/TagInput';
 import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { useToast } from '@/hooks/use-toast';
 
 const hslToHex = (h: number, s: number, l: number): string => {
   l /= 100;
@@ -46,11 +47,22 @@ const mockSigningProfiles = [
   { id: 'profile-short-lived-api', name: 'Short-Lived API Client Profile' },
 ];
 
+const serverKeygenTypes = [ { value: 'RSA', label: 'RSA' }, { value: 'ECDSA', label: 'ECDSA' }];
+const serverKeygenRsaBits = [ { value: '2048', label: '2048 bit' }, { value: '3072', label: '3072 bit' }, { value: '4096', label: '4096 bit' }];
+const serverKeygenEcdsaCurves = [ { value: 'P-256', label: 'P-256' }, { value: 'P-384', label: 'P-384' }, { value: 'P-521', label: 'P-521' }];
 
 export default function CreateRegistrationAuthorityPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // General RA Settings
+  const [raName, setRaName] = useState('');
+  const [raId, setRaId] = useState('');
+
+  // Enrollment Settings
   const [registrationMode, setRegistrationMode] = useState('JITP');
   const [tags, setTags] = useState<string[]>(['iot']);
   const [protocol, setProtocol] = useState('EST');
@@ -62,26 +74,32 @@ export default function CreateRegistrationAuthorityPage() {
   const [allowExpiredAuth, setAllowExpiredAuth] = useState(true);
   const [chainValidationLevel, setChainValidationLevel] = useState(-1);
 
+  // Re-enrollment Settings
   const [revokeOnReEnroll, setRevokeOnReEnroll] = useState(true);
   const [allowExpiredRenewal, setAllowExpiredRenewal] = useState(true);
   const [certLifespan, setCertLifespan] = useState('2y');
-  const [allowedRenewalDelta, setAllowedRenewalDelta] = useState('14w2d');
-  const [preventiveRenewalDelta, setPreventiveRenewalDelta] = useState('4w3d');
-  const [criticalRenewalDelta, setCriticalRenewalDelta] = useState('1w');
+  const [allowedRenewalDelta, setAllowedRenewalDelta] = useState('100d');
+  const [preventiveRenewalDelta, setPreventiveRenewalDelta] = useState('31d');
+  const [criticalRenewalDelta, setCriticalRenewalDelta] = useState('7d');
   const [additionalValidationCAs, setAdditionalValidationCAs] = useState<CA[]>([]);
 
+  // Server Key Generation Settings
   const [enableKeyGeneration, setEnableKeyGeneration] = useState(false);
+  const [serverKeygenType, setServerKeygenType] = useState('RSA');
+  const [serverKeygenSpec, setServerKeygenSpec] = useState('4096');
 
+  // CA Distribution Settings
   const [includeDownstreamCA, setIncludeDownstreamCA] = useState(true);
   const [includeEnrollmentCA, setIncludeEnrollmentCA] = useState(false);
   const [managedCAs, setManagedCAs] = useState<CA[]>([]);
 
+  // Device Profile Settings
   const [selectedDeviceIconName, setSelectedDeviceIconName] = useState<string | null>('Router');
   const [selectedDeviceIconColor, setSelectedDeviceIconColor] = useState<string>('#0f67ff');
   const [selectedDeviceIconBgColor, setSelectedDeviceIconBgColor] = useState<string>('#F0F8FF');
   const [isDeviceIconModalOpen, setIsDeviceIconModalOpen] = useState(false);
 
-
+  // Modal and Data Loading State
   const [isEnrollmentCaModalOpen, setIsEnrollmentCaModalOpen] = useState(false);
   const [isValidationCaModalOpen, setIsValidationCaModalOpen] = useState(false);
   const [isAdditionalValidationCaModalOpen, setIsAdditionalValidationCaModalOpen] = useState(false);
@@ -152,7 +170,7 @@ export default function CreateRegistrationAuthorityPage() {
     const bgLightness = 92;
     const bgColorHex = hslToHex(randomHue, saturation, bgLightness);
     setSelectedDeviceIconBgColor(bgColorHex);
-  }, []); // Empty dependency array ensures this runs once on mount.
+  }, []); 
 
 
   const handleEnrollmentCaSelectFromModal = (ca: CA) => {
@@ -173,39 +191,115 @@ export default function CreateRegistrationAuthorityPage() {
     setIsDeviceIconModalOpen(false);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = {
-      dmsName: 'ECS DMS',
-      dmsId: 'ecs-dms',
-      registrationMode,
-      tags,
-      protocol,
-      signingProfileId,
-      enrollmentCaId: enrollmentCa?.id,
-      allowOverrideEnrollment,
-      authMode,
-      validationCaIds: validationCAs.map(ca => ca.id),
-      allowExpiredAuth,
-      chainValidationLevel,
-      revokeOnReEnroll,
-      allowExpiredRenewal,
-      certLifespan,
-      allowedRenewalDelta,
-      preventiveRenewalDelta,
-      criticalRenewalDelta,
-      additionalValidationCaIds: additionalValidationCAs.map(ca => ca.id),
-      enableKeyGeneration,
-      includeDownstreamCA,
-      includeEnrollmentCA,
-      managedCaIds: managedCAs.map(ca => ca.id),
-      deviceIconName: selectedDeviceIconName,
-      deviceIconColor: selectedDeviceIconColor,
-      deviceIconBgColor: selectedDeviceIconBgColor,
+    setIsSubmitting(true);
+
+    if (!raName.trim() || !raId.trim()) {
+        toast({ title: "Validation Error", description: "RA Name and RA ID are required.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+    if (!enrollmentCa) {
+        toast({ title: "Validation Error", description: "An Enrollment CA must be selected.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+    if (!user?.access_token) {
+        toast({ title: "Authentication Error", description: "User not authenticated.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+
+    const mapIconName = (name: string | null): string => (name === 'Router' ? 'CgSmartphoneChip' : 'CgSmartphoneChip');
+    const protocolMapping = { 'EST': 'EST_RFC7030', 'CMP': 'CMP_RFC4210' };
+    const authModeMapping = { 'Client Certificate': 'CLIENT_CERTIFICATE', 'External Webhook': 'EXTERNAL_WEBHOOK', 'No Auth': 'NONE' };
+    
+    let keySettings;
+    if (enableKeyGeneration) {
+        if (serverKeygenType === 'ECDSA') {
+            const curveBits: { [key: string]: number } = { 'P-256': 256, 'P-384': 384, 'P-521': 521 };
+            keySettings = { type: serverKeygenType, bits: curveBits[serverKeygenSpec] || 256 };
+        } else {
+            keySettings = { type: serverKeygenType, bits: parseInt(serverKeygenSpec, 10) || 4096 };
+        }
+    }
+
+    const payload = {
+      name: raName.trim(),
+      id: raId.trim(),
+      metadata: {},
+      settings: {
+        enrollment_settings: {
+          enrollment_ca: enrollmentCa.id,
+          protocol: protocolMapping[protocol as keyof typeof protocolMapping],
+          enable_replaceable_enrollment: allowOverrideEnrollment,
+          est_rfc7030_settings: {
+            auth_mode: authModeMapping[authMode as keyof typeof authModeMapping],
+            client_certificate_settings: {
+              chain_level_validation: chainValidationLevel,
+              validation_cas: validationCAs.map(ca => ca.id),
+              allow_expired: allowExpiredAuth,
+            }
+          },
+          device_provisioning_profile: {
+            icon: mapIconName(selectedDeviceIconName),
+            icon_color: `${selectedDeviceIconColor}-${selectedDeviceIconBgColor}`,
+            metadata: {},
+            tags: tags,
+          },
+          registration_mode: registrationMode,
+        },
+        reenrollment_settings: {
+          revoke_on_reenrollment: revokeOnReEnroll,
+          enable_expired_renewal: allowExpiredRenewal,
+          critical_delta: criticalRenewalDelta,
+          preventive_delta: preventiveRenewalDelta,
+          reenrollment_delta: allowedRenewalDelta,
+          additional_validation_cas: additionalValidationCAs.map(ca => ca.id),
+        },
+        server_keygen_settings: {
+          enabled: enableKeyGeneration,
+          ...(enableKeyGeneration && { key: keySettings }),
+        },
+        ca_distribution_settings: {
+          include_enrollment_ca: includeEnrollmentCA,
+          include_system_ca: includeDownstreamCA,
+          managed_cas: managedCAs.map(ca => ca.id),
+        }
+      }
     };
-    console.log('Creating new RA with data:', formData);
-    alert(`Mock RA Creation Submitted!\nCheck console for details.`);
-    router.push('/registration-authorities'); 
+
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/dmsmanager/v1/dms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token}`,
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to create RA. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `RA creation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            } catch (e) {
+                // ignore
+            }
+            throw new Error(errorMessage);
+        }
+        
+        toast({ title: "Success!", description: `Registration Authority "${raName}" created successfully.` });
+        router.push('/registration-authorities');
+
+    } catch (error: any) {
+        toast({ title: "RA Creation Failed", description: error.message, variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
   
   const renderMultiSelectCaDialogContent = (
@@ -263,6 +357,8 @@ export default function CreateRegistrationAuthorityPage() {
 
   const sectionHeadingStyle = "text-lg font-semibold flex items-center mb-3 mt-15";
   const SelectedIconComponent = selectedDeviceIconName ? getLucideIconByName(selectedDeviceIconName) : null;
+  const currentServerKeygenSpecOptions = serverKeygenType === 'RSA' ? serverKeygenRsaBits : serverKeygenEcdsaCurves;
+
 
   return (
     <div className="w-full space-y-6 mb-8">
@@ -283,18 +379,20 @@ export default function CreateRegistrationAuthorityPage() {
           <form onSubmit={handleSubmit} className="">
             
             <h3 className={cn(sectionHeadingStyle)}>
-              <Settings className="mr-2 h-5 w-5 text-muted-foreground"/>Device Manufacturing Definition
+              <Settings className="mr-2 h-5 w-5 text-muted-foreground"/>General RA Settings
             </h3>
             <Card className="border-border shadow-sm rounded-md">
               <CardContent className="p-4">
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="dmsName">DMS Name</Label>
-                    <Input id="dmsName" value="ECS DMS" readOnly className="mt-1 bg-card" />
+                    <Label htmlFor="raName">RA Name</Label>
+                    <Input id="raName" value={raName} onChange={(e) => setRaName(e.target.value)} placeholder="e.g., Main IoT Enrollment Service" required className="mt-1" />
+                    {!raName.trim() && <p className="text-xs text-destructive mt-1">RA Name is required.</p>}
                   </div>
                   <div>
-                    <Label htmlFor="dmsId">DMS ID</Label>
-                    <Input id="dmsId" value="ecs-dms" readOnly className="mt-1 bg-card" />
+                    <Label htmlFor="raId">RA ID</Label>
+                    <Input id="raId" value={raId} onChange={(e) => setRaId(e.target.value)} placeholder="e.g., main-iot-ra" required className="mt-1" />
+                    {!raId.trim() && <p className="text-xs text-destructive mt-1">RA ID is required.</p>}
                   </div>
                 </div>
               </CardContent>
@@ -502,16 +600,16 @@ export default function CreateRegistrationAuthorityPage() {
                     <Input id="certLifespan" value={certLifespan} onChange={(e) => setCertLifespan(e.target.value)} placeholder="e.g., 2y" className="mt-1" />
                   </div>
                   <div>
-                    <Label htmlFor="allowedRenewalDelta">Allowed Renewal Delta (e.g., 14w2d)</Label>
-                    <Input id="allowedRenewalDelta" value={allowedRenewalDelta} onChange={(e) => setAllowedRenewalDelta(e.target.value)} placeholder="e.g., 14w2d" className="mt-1" />
+                    <Label htmlFor="allowedRenewalDelta">Allowed Renewal Delta (e.g., 100d)</Label>
+                    <Input id="allowedRenewalDelta" value={allowedRenewalDelta} onChange={(e) => setAllowedRenewalDelta(e.target.value)} placeholder="e.g., 100d" className="mt-1" />
                   </div>
                   <div>
-                    <Label htmlFor="preventiveRenewalDelta">Preventive Renewal Delta (e.g., 4w3d)</Label>
-                    <Input id="preventiveRenewalDelta" value={preventiveRenewalDelta} onChange={(e) => setPreventiveRenewalDelta(e.target.value)} placeholder="e.g., 4w3d" className="mt-1" />
+                    <Label htmlFor="preventiveRenewalDelta">Preventive Renewal Delta (e.g., 31d)</Label>
+                    <Input id="preventiveRenewalDelta" value={preventiveRenewalDelta} onChange={(e) => setPreventiveRenewalDelta(e.target.value)} placeholder="e.g., 31d" className="mt-1" />
                   </div>
                   <div>
-                    <Label htmlFor="criticalRenewalDelta">Critical Renewal Delta (e.g., 1w)</Label>
-                    <Input id="criticalRenewalDelta" value={criticalRenewalDelta} onChange={(e) => setCriticalRenewalDelta(e.target.value)} placeholder="e.g., 1w" className="mt-1" />
+                    <Label htmlFor="criticalRenewalDelta">Critical Renewal Delta (e.g., 7d)</Label>
+                    <Input id="criticalRenewalDelta" value={criticalRenewalDelta} onChange={(e) => setCriticalRenewalDelta(e.target.value)} placeholder="e.g., 7d" className="mt-1" />
                   </div>
                   <div>
                     <Label htmlFor="additionalValidationCAs">Additional Validation CAs (for re-enrollment)</Label>
@@ -538,11 +636,33 @@ export default function CreateRegistrationAuthorityPage() {
             <Card className="border-border shadow-sm rounded-md">
               <CardContent className="p-4">
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">Devices will be able to enroll using EST-defined ServerKeyGen endpoints if enabled.</p>
                   <div className="flex items-center space-x-2">
                     <Switch id="enableKeyGeneration" checked={enableKeyGeneration} onCheckedChange={setEnableKeyGeneration} />
                     <Label htmlFor="enableKeyGeneration">Enable Server-Side Key Generation</Label>
                   </div>
+                  <p className="text-xs text-muted-foreground">If enabled, devices can request key generation via EST endpoints.</p>
+                  {enableKeyGeneration && (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <Label htmlFor="serverKeygenType">Key Type</Label>
+                            <Select value={serverKeygenType} onValueChange={setServerKeygenType}>
+                                <SelectTrigger id="serverKeygenType" className="mt-1"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    {serverKeygenTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="serverKeygenSpec">{serverKeygenType === 'RSA' ? 'Key Bits' : 'Curve'}</Label>
+                            <Select value={serverKeygenSpec} onValueChange={setServerKeygenSpec}>
+                                <SelectTrigger id="serverKeygenSpec" className="mt-1"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    {currentServerKeygenSpecOptions.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                     </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -582,8 +702,9 @@ export default function CreateRegistrationAuthorityPage() {
 
             <div className="flex justify-end space-x-2 pt-8">
                 <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-                <Button type="submit">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Create RA
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" />}
+                    {isSubmitting ? 'Creating...' : 'Create RA'}
                 </Button>
             </div>
           </form>
