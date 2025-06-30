@@ -191,13 +191,13 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Row 2: Device Status & Summary */}
+      {/* Row 2: Summary and Device Status */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
-        <div className="xl:col-span-2">
-            <DeviceStatusChartCard />
-        </div>
         <div className="xl:col-span-1">
           <SummaryStatsCard stats={summaryStats} isLoading={isLoadingStats || authLoading} />
+        </div>
+        <div className="xl:col-span-2">
+            <DeviceStatusChartCard />
         </div>
       </div>
     </div>
