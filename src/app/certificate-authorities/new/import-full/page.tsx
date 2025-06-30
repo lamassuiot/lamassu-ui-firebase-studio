@@ -41,14 +41,6 @@ function ab2hex(ab: ArrayBuffer) {
   return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const stripPemHeaders = (pem: string): string => {
-  if (!pem) return '';
-  return pem
-    .replace(/-----(BEGIN|END) (PRIVATE KEY|CERTIFICATE)-----/g, "")
-    .replace(/-----(BEGIN|END) (EC|RSA|ENCRYPTED) PRIVATE KEY-----/g, "") // More key types
-    .replace(/\s+/g, "");
-};
-
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 
 export default function CreateCaImportFullPage() {
@@ -133,18 +125,15 @@ export default function CreateCaImportFullPage() {
       return;
     }
     
-    // Split chain PEM into an array of base64 encoded certs
-    const caChainCerts = caChainPem
-      .split('-----BEGIN CERTIFICATE-----')
-      .filter(pem => pem.trim() !== '')
-      .map(pem => stripPemHeaders('-----BEGIN CERTIFICATE-----' + pem));
+    // Correctly split a PEM bundle into an array of full PEM strings
+    const caChainPems = caChainPem.match(/-----BEGIN CERTIFICATE-----[^-]*-----END CERTIFICATE-----/g) || [];
 
     const payload = {
       id: caId,
       engine_id: cryptoEngineId,
-      private_key: window.btoa(stripPemHeaders(importedPrivateKeyPem)),
-      ca: window.btoa(stripPemHeaders(importedCaCertPem)),
-      ca_chain: caChainCerts.map(cert => window.btoa(cert)),
+      private_key: window.btoa(importedPrivateKeyPem),
+      ca: window.btoa(importedCaCertPem),
+      ca_chain: caChainPems.map(cert => window.btoa(cert)),
       ca_type: "IMPORTED",
       issuance_expiration: formatExpirationForApi(issuanceExpiration),
       parent_id: "",
