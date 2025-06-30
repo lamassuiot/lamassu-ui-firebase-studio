@@ -52,7 +52,7 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'Settings2', IconComponent: LucideIcons.Settings2 },
   { name: 'Power', IconComponent: LucideIcons.Power },
   { name: 'Plug', IconComponent: LucideIcons.Plug },
-  { name: 'Speaker', IconComponent: LucideIcons.Speaker },
+  { name: 'Volume2', IconComponent: LucideIcons.Volume2 },
   { name: 'Printer', IconComponent: LucideIcons.Printer },
   { name: 'Cloud', IconComponent: LucideIcons.Cloud },
   { name: 'Database', IconComponent: LucideIcons.Database },
@@ -92,7 +92,6 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'Trash2', IconComponent: LucideIcons.Trash2 },
   { name: 'UploadCloud', IconComponent: LucideIcons.UploadCloud },
   { name: 'User', IconComponent: LucideIcons.User },
-  { name: 'Volume2', IconComponent: LucideIcons.Volume2 },
   { name: 'Wallet', IconComponent: LucideIcons.Wallet },
   { name: 'Webhook', IconComponent: LucideIcons.Webhook },
   { name: 'Zap', IconComponent: LucideIcons.Zap },
@@ -176,7 +175,6 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   "CgSmartHomeRefrigerator": 'Refrigerator',
   "CgSmartHomeWashMachine": 'WashingMachine',
   "CgSmartphone": 'Smartphone',
-  "CgSmartphoneChip": 'Cpu',
   "CgSmartphoneRam": 'MemoryStick',
   "CgSmartphoneShake": 'SmartphoneNfc',
   "CgBatteryFull": 'BatteryFull',
@@ -217,6 +215,31 @@ export const getLucideIconByName = (iconName: string | null): React.ElementType 
     // 3. Fallback to HelpCircle if no match is found
     return LucideIcons.HelpCircle;
 };
+
+const ICON_PALETTE = ['#0f67ff', '#334155', '#ef4444', '#22c55e', '#f97316', '#8b5cf6'];
+const BG_PALETTE = ['#F0F8FF', '#f1f5f9', '#fee2e2', '#dcfce7', '#ffedd5', '#ede9fe'];
+
+const ColorPalette: React.FC<{
+  colors: string[];
+  onColorSelect: (color: string) => void;
+  title: string;
+}> = ({ colors, onColorSelect, title }) => (
+  <div>
+    <p className="text-xs text-muted-foreground mb-1.5">{title}</p>
+    <div className="flex flex-wrap gap-2">
+      {colors.map((color) => (
+        <button
+          key={color}
+          type="button"
+          className="h-6 w-6 rounded-full border shadow-inner"
+          style={{ backgroundColor: color }}
+          onClick={() => onColorSelect(color)}
+          aria-label={`Select color ${color}`}
+        />
+      ))}
+    </div>
+  </div>
+);
 
 
 export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = ({
@@ -273,26 +296,49 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
         </div>
         
         {onColorsChange && (
-            <div className="grid grid-cols-2 gap-4 pt-4 mt-2 border-t">
-                <div>
-                    <Label htmlFor="modal-icon-color">Icon Color</Label>
-                    <Input
-                        id="modal-icon-color"
-                        type="color"
-                        value={initialIconColor}
-                        onChange={(e) => onColorsChange({ iconColor: e.target.value, bgColor: initialBgColor || '#e0e0e0' })}
-                        className="w-full h-10 p-1"
-                    />
-                </div>
-                <div>
-                    <Label htmlFor="modal-bg-color">Background Color</Label>
-                    <Input
-                        id="modal-bg-color"
-                        type="color"
-                        value={initialBgColor}
-                        onChange={(e) => onColorsChange({ iconColor: initialIconColor || '#888888', bgColor: e.target.value })}
-                        className="w-full h-10 p-1"
-                    />
+            <div className="pt-4 mt-2 border-t">
+                <p className="text-sm font-medium mb-3">Customize Colors</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Icon Color Section */}
+                    <div className="space-y-2">
+                        <Label htmlFor="modal-icon-color" className="font-semibold">Icon Color</Label>
+                        <ColorPalette
+                          colors={ICON_PALETTE}
+                          onColorSelect={(color) => onColorsChange({ iconColor: color, bgColor: initialBgColor || '#e0e0e0' })}
+                          title="Quick Select"
+                        />
+                        <div className="flex items-center gap-2 pt-2">
+                           <Input
+                                id="modal-icon-color"
+                                type="color"
+                                value={initialIconColor}
+                                onChange={(e) => onColorsChange({ iconColor: e.target.value, bgColor: initialBgColor || '#e0e0e0' })}
+                                className="w-12 h-10 p-1"
+                                aria-label="Advanced icon color picker"
+                            />
+                            <p className="text-xs text-muted-foreground">Or use the advanced color picker.</p>
+                        </div>
+                    </div>
+                    {/* Background Color Section */}
+                    <div className="space-y-2">
+                        <Label htmlFor="modal-bg-color" className="font-semibold">Background Color</Label>
+                         <ColorPalette
+                          colors={BG_PALETTE}
+                          onColorSelect={(color) => onColorsChange({ iconColor: initialIconColor || '#888888', bgColor: color })}
+                          title="Quick Select"
+                        />
+                         <div className="flex items-center gap-2 pt-2">
+                           <Input
+                                id="modal-bg-color"
+                                type="color"
+                                value={initialBgColor}
+                                onChange={(e) => onColorsChange({ iconColor: initialIconColor || '#888888', bgColor: e.target.value })}
+                                className="w-12 h-10 p-1"
+                                aria-label="Advanced background color picker"
+                            />
+                            <p className="text-xs text-muted-foreground">Or use the advanced color picker.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         )}
