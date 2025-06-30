@@ -180,8 +180,7 @@ export default function CertificateAuthorityDetailsClient() {
       setCaPathToRoot(path);
       const chainPem = path.map(p => p.pemData).filter(Boolean).join('\\n\\n');
       setFullChainPemString(chainPem);
-      setPlaceholderSerial(`${Math.random().toString(16).slice(2,10)}:${Math.random().toString(16).slice(2,10)}`);
-      
+      g
       if (isAuthenticated() && user?.access_token) {
         loadCaStats(foundCa.id, user.access_token);
       }
