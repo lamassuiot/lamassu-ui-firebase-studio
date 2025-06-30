@@ -155,7 +155,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
 
     const CodeBlock = ({ content }: { content: string }) => (
       <div className="relative">
-        <pre className="text-xs bg-muted p-3 rounded-md font-mono overflow-x-auto">
+        <pre className="text-xs bg-muted p-3 rounded-md font-mono overflow-x-auto whitespace-pre-wrap break-all">
           <code>{content}</code>
         </pre>
         <Button variant="ghost" size="icon" className="absolute top-1.5 right-1.5 h-7 w-7" onClick={() => handleCopy(content, "Command")}>
@@ -164,7 +164,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
       </div>
     );
     
-    const opensslCombinedCommand = `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out device.key && openssl req -new -key device.key -out device.csr -subj "/CN=${deviceId || 'your_device_id'}"`;
+    const opensslCombinedCommand = `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out device.key && \\
+  openssl req -new -key device.key -out device.csr -subj "/CN=${deviceId || 'your_device_id'}"`;
     
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
