@@ -6,42 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Router, Server, Thermometer, Laptop, Smartphone, Watch, Tv, Bot, ToyBrick, Car, Wind, Camera } from 'lucide-react';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
-
-// Import desired icons from react-icons
-import {
-    MdDeviceThermostat,
-    MdOutlineElectricScooter,
-    MdOutlineElectricRickshaw,
-    MdOutlineElectricalServices,
-    MdOutlineElectricMeter,
-    MdOutlineElectricBike,
-    MdOutlineTrain,
-    MdOutlineElevator
-} from 'react-icons/md';
-import {
-    CgDatabase,
-    CgModem,
-    CgSmartHomeBoiler,
-    CgSmartHomeCooker,
-    CgSmartHomeHeat,
-    CgSmartHomeLight,
-    CgSmartHomeRefrigerator,
-    CgSmartHomeWashMachine,
-    CgSmartphone,
-    CgSmartphoneChip,
-    CgSmartphoneRam,
-    CgSmartphoneShake,
-    CgBatteryFull
-} from 'react-icons/cg';
-import { BiSolidCreditCardFront } from 'react-icons/bi';
-import { BsSdCard, BsHouse, BsHouseGear } from 'react-icons/bs';
-import { IoMdCar } from 'react-icons/io';
-import { AiOutlineIdcard } from 'react-icons/ai';
-import { GiElectric, GiRadioTower } from 'react-icons/gi';
-import { TbCrane } from 'react-icons/tb';
 
 
 interface DeviceIconSelectorModalProps {
@@ -59,41 +26,24 @@ interface IconDefinition {
   IconComponent: React.ElementType;
 }
 
+// Curated list of icons from Lucide
 const AVAILABLE_ICONS: IconDefinition[] = [
-    { name: "MdDeviceThermostat", IconComponent: MdDeviceThermostat },
-    { name: "MdOutlineElectricScooter", IconComponent: MdOutlineElectricScooter },
-    { name: "MdOutlineElectricRickshaw", IconComponent: MdOutlineElectricRickshaw },
-    { name: "MdOutlineElectricalServices", IconComponent: MdOutlineElectricalServices },
-    { name: "MdOutlineElectricMeter", IconComponent: MdOutlineElectricMeter },
-    { name: "MdOutlineElectricBike", IconComponent: MdOutlineElectricBike },
-    { name: "MdOutlineTrain", IconComponent: MdOutlineTrain },
-    { name: "CgDatabase", IconComponent: CgDatabase },
-    { name: "CgModem", IconComponent: CgModem },
-    { name: "CgSmartHomeBoiler", IconComponent: CgSmartHomeBoiler },
-    { name: "CgSmartHomeCooker", IconComponent: CgSmartHomeCooker },
-    { name: "CgSmartHomeHeat", IconComponent: CgSmartHomeHeat },
-    { name: "CgSmartHomeLight", IconComponent: CgSmartHomeLight },
-    { name: "CgSmartHomeRefrigerator", IconComponent: CgSmartHomeRefrigerator },
-    { name: "CgSmartHomeWashMachine", IconComponent: CgSmartHomeWashMachine },
-    { name: "CgSmartphone", IconComponent: CgSmartphone },
-    { name: "CgSmartphoneChip", IconComponent: CgSmartphoneChip },
-    { name: "CgSmartphoneRam", IconComponent: CgSmartphoneRam },
-    { name: "CgSmartphoneShake", IconComponent: CgSmartphoneShake },
-    { name: "CgBatteryFull", IconComponent: CgBatteryFull },
-    { name: "GiRadioTower", IconComponent: GiRadioTower },
-    { name: "BiSolidCreditCardFront", IconComponent: BiSolidCreditCardFront },
-    { name: "BsSdCard", IconComponent: BsSdCard },
-    { name: "IoMdCar", IconComponent: IoMdCar },
-    { name: "AiOutlineIdcard", IconComponent: AiOutlineIdcard },
-    { name: "GiElectric", IconComponent: GiElectric },
-    { name: "BsHouse", IconComponent: BsHouse },
-    { name: "BsHouseGear", IconComponent: BsHouseGear },
-    { name: "TbCrane", IconComponent: TbCrane },
-    { name: "MdOutlineElevator", IconComponent: MdOutlineElevator },
+    { name: "Router", IconComponent: Router },
+    { name: "Server", IconComponent: Server },
+    { name: "Thermometer", IconComponent: Thermometer },
+    { name: "Laptop", IconComponent: Laptop },
+    { name: "Smartphone", IconComponent: Smartphone },
+    { name: "Watch", IconComponent: Watch },
+    { name: "Tv", IconComponent: Tv },
+    { name: "Bot", IconComponent: Bot },
+    { name: "ToyBrick", IconComponent: ToyBrick },
+    { name: "Car", IconComponent: Car },
+    { name: "Wind", IconComponent: Wind },
+    { name: "Camera", IconComponent: Camera },
 ];
 
 
-export const getReactIconByName = (iconName: string | null): React.ElementType | null => {
+export const getLucideIconByName = (iconName: string | null): React.ElementType | null => {
     if (!iconName) return null;
     const foundIcon = AVAILABLE_ICONS.find(icon => icon.name === iconName);
     return foundIcon ? foundIcon.IconComponent : HelpCircle; // Fallback icon
@@ -143,8 +93,8 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
           <DialogDescription>Choose an icon and its colors that best represents the device type.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-6">
-          <ScrollArea className="flex-grow my-4 border rounded-md">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-6 flex-grow min-h-0">
+          <ScrollArea className="border rounded-md">
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 p-4">
               {AVAILABLE_ICONS.map(({ name, IconComponent }) => (
                 <Button
@@ -161,7 +111,7 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
                       "h-8 w-8 mb-1", 
                       currentSelectedIconName === name ? "text-primary-foreground" : "text-primary"
                   )} />
-                  <span className="text-xs truncate w-full">{name.replace(/^(Md|Cg|Bs|Io|Ai|Gi|Tb)/, '')}</span>
+                  <span className="text-xs truncate w-full">{name}</span>
                 </Button>
               ))}
             </div>
@@ -171,7 +121,7 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
             <div>
               <Label className="mb-2 block text-center">Preview</Label>
               <div className="flex justify-center">
-                {getReactIconByName(currentSelectedIconName) && React.createElement(getReactIconByName(currentSelectedIconName)!, {
+                {getLucideIconByName(currentSelectedIconName) && React.createElement(getLucideIconByName(currentSelectedIconName)!, {
                     className: "h-16 w-16 p-3 rounded-lg",
                     style: { color: localIconColor, backgroundColor: localBgColor }
                 })}
