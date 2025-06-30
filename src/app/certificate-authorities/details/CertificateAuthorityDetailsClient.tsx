@@ -472,7 +472,11 @@ export default function CertificateAuthorityDetailsClient() {
           </TabsContent>
 
           <TabsContent value="issued">
-            <IssuedCertificatesTab caId={caDetails.id} caIsActive={caIsActive} />
+            <IssuedCertificatesTab 
+              caId={caDetails.id} 
+              caIsActive={caIsActive}
+              allCAs={allCertificateAuthoritiesData}
+            />
           </TabsContent>
 
           <TabsContent value="raw_api">

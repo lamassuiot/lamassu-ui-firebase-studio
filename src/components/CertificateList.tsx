@@ -29,7 +29,7 @@ import { useAuth } from '@/contexts/AuthContext';
 interface CertificateListProps {
   certificates: CertificateData[];
   allCAs: CA[];
-  onInspectCertificate: (certificate: CertificateData) => void;
+  onInspectCertificate?: (certificate: CertificateData) => void;
   onCertificateUpdated: (updatedCertificate: CertificateData) => void;
   sortConfig: CertSortConfig | null;
   requestSort: (column: SortableCertColumn) => void;
@@ -263,9 +263,11 @@ export function CertificateList({
                                 <FileText className="mr-2 h-4 w-4" />
                                 <span>View Details</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
-                                <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
-                            </DropdownMenuItem>
+                            {onInspectCertificate && (
+                                <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
+                                    <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleOpenOcspModal(cert, issuerCa)} disabled={!cert.ocspUrls || cert.ocspUrls.length === 0}>
                                 <ShieldCheck className="mr-2 h-4 w-4" /> OCSP Check
