@@ -192,7 +192,7 @@ export default function HomePage() {
       </div>
 
       {/* Row 2: Summary and Device Status */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div className="xl:col-span-1">
           <SummaryStatsCard stats={summaryStats} isLoading={isLoadingStats || authLoading} />
         </div>
