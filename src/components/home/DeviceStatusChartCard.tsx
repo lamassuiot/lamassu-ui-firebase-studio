@@ -183,7 +183,7 @@ export function DeviceStatusChartCard() {
               </PieChart>
             </ResponsiveContainer>
             {totalDevices !== null && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <div className="absolute top-0 left-0 right-0 bottom-8 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-3xl font-bold text-primary-foreground">{totalDevices}</span>
                     <span className="text-sm text-primary-foreground/80">Total Devices</span>
                 </div>
