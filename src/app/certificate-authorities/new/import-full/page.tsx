@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -10,13 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, PlusCircle, UploadCloud, Loader2, Settings, AlertTriangle, Key } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Certificate as PkijsCertificate,
-  BasicConstraints as PkijsBasicConstraints,
-  EncryptedPrivateKeyInfo,
-  getCrypto,
-  setEngine
-} from "pkijs";
+import * as pkijs from "pkijs";
 import * as asn1js from "asn1js";
 import { format as formatDate } from 'date-fns';
 import { DetailItem } from '@/components/shared/DetailItem';
@@ -88,7 +81,7 @@ export default function CreateCaImportFullPage() {
   // Set up pkijs engine
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setEngine("webcrypto", getCrypto());
+      pkijs.setEngine("webcrypto", pkijs.getCrypto());
     }
   }, []);
 
@@ -112,10 +105,10 @@ export default function CreateCaImportFullPage() {
       const derBuffer = Uint8Array.from(atob(pemContent), c => c.charCodeAt(0)).buffer;
       const asn1 = asn1js.fromBER(derBuffer);
       if (asn1.offset === -1) throw new Error("Invalid ASN.1 structure.");
-      const certificate = new PkijsCertificate({ schema: asn1.result });
+      const certificate = new pkijs.Certificate({ schema: asn1.result });
       
       const basicConstraintsExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
-      const isCa = basicConstraintsExtension ? (basicConstraintsExtension.parsedValue as PkijsBasicConstraints).cA : false;
+      const isCa = basicConstraintsExtension ? (basicConstraintsExtension.parsedValue as pkijs.BasicConstraints).cA : false;
 
       setDecodedImportedCertInfo({
         subject: formatPkijsSubject(certificate.subject),
@@ -182,7 +175,8 @@ export default function CreateCaImportFullPage() {
           const asn1 = asn1js.fromBER(derBuffer);
           if(asn1.offset === -1) throw new Error("Could not parse encrypted private key structure.");
           
-          const encryptedPrivateKeyInfo = new EncryptedPrivateKeyInfo({ schema: asn1.result });
+          // Use `(pkijs as any)` to bypass potential bundler/tree-shaking issues with this specific export.
+          const encryptedPrivateKeyInfo = new (pkijs as any).EncryptedPrivateKeyInfo({ schema: asn1.result });
           const privateKeyInfoBuffer = await encryptedPrivateKeyInfo.decrypt({ password: passphrase });
           
           // The result is the DER of the PrivateKeyInfo, which we can re-wrap as a standard PKCS#8 PEM
