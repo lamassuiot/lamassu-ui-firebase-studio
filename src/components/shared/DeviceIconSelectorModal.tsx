@@ -176,6 +176,7 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   "CgSmartHomeRefrigerator": 'Refrigerator',
   "CgSmartHomeWashMachine": 'WashingMachine',
   "CgSmartphone": 'Smartphone',
+  "CgSmartphoneChip": 'Cpu',
   "CgSmartphoneRam": 'MemoryStick',
   "CgSmartphoneShake": 'SmartphoneNfc',
   "CgBatteryFull": 'BatteryFull',
@@ -246,19 +247,25 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
               {AVAILABLE_ICONS.map(({ name, IconComponent }) => (
                 <Button
                   key={name}
-                  variant={currentSelectedIconName === name ? "default" : "outline"}
+                  variant="outline"
                   className={cn(
-                    "flex flex-col items-center justify-center h-24 p-2 space-y-1 text-center",
+                    "flex flex-col items-center justify-center h-24 p-2 space-y-1 text-center transition-colors",
                     currentSelectedIconName === name && "ring-2 ring-primary ring-offset-2"
                   )}
                   onClick={() => handleSelect(name)}
                   title={name}
+                  style={{ backgroundColor: initialBgColor }}
                 >
-                  <IconComponent className={cn(
-                      "h-8 w-8 mb-1", 
-                      currentSelectedIconName === name ? "text-primary-foreground" : "text-primary"
-                  )} />
-                  <span className="text-xs truncate w-full">{name}</span>
+                  <IconComponent
+                    className="h-8 w-8 mb-1"
+                    style={{ color: initialIconColor }}
+                  />
+                  <span
+                    className="text-xs truncate w-full"
+                    style={{ color: initialIconColor }}
+                  >
+                    {name}
+                  </span>
                 </Button>
               ))}
             </div>
