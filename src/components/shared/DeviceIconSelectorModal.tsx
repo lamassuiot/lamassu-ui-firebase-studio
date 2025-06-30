@@ -181,7 +181,7 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   "CgBatteryFull": 'BatteryFull',
   "GoRadioTower": 'TowerControl',
   "BiSolidCreditCardFront": 'CreditCard',
-  "BsSdCard": 'MemoryStick',
+  "BsSdCard": 'MemoryStick', // Updated: maps to MemoryStick
   "IoMdCar": 'Car',
   "AiOutlineIdcard": 'Badge',
   "GiElectric": 'Zap',
@@ -217,8 +217,8 @@ export const getLucideIconByName = (iconName: string | null): React.ElementType 
     return LucideIcons.HelpCircle;
 };
 
-const ICON_PALETTE = ['#0f67ff', '#334155', '#ef4444', '#22c55e', '#f97316', '#8b5cf6', '#14b8a6', '#ec4899', '#000000', '#4f46e5'];
-const BG_PALETTE = ['#F0F8FF', '#f1f5f9', '#fee2e2', '#dcfce7', '#ffedd5', '#ede9fe', '#ccfbf1', '#fce7f3', '#e5e7eb', '#e0e7ff'];
+const ICON_PALETTE = ['#0f67ff', '#334155', '#ef4444', '#22c55e', '#f97316', '#8b5cf6', '#14b8a6', '#ec4899', '#000000', '#4f46e5', '#e11d48', '#65a30d'];
+const BG_PALETTE = ['#F0F8FF', '#f1f5f9', '#fee2e2', '#dcfce7', '#ffedd5', '#ede9fe', '#ccfbf1', '#fce7f3', '#e5e7eb', '#e0e7ff', '#fef2f2', '#f7fee7'];
 
 const ColorPalette: React.FC<{
   colors: string[];
@@ -298,7 +298,21 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
         
         {onColorsChange && (
             <div className="pt-4 mt-2 border-t">
-                <p className="text-sm font-medium mb-3">Customize Colors</p>
+                 <div className="flex justify-between items-center mb-3">
+                    <p className="text-sm font-medium">Customize Colors</p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onColorsChange({
+                            iconColor: initialBgColor || '#e0e0e0',
+                            bgColor: initialIconColor || '#888888'
+                        })}
+                    >
+                        <LucideIcons.ArrowLeftRight className="mr-2 h-4 w-4" />
+                        Invert
+                    </Button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Icon Color Section */}
                     <div className="space-y-2">
