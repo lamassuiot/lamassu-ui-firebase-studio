@@ -248,8 +248,20 @@ export default function CaRequestsPage() {
     fetchRequests(bookmarkStack[currentPageIndex]);
   };
 
-  const handleViewCsr = (csrPem: string) => {
-    setSelectedCsr(csrPem);
+  const handleViewCsr = (csrPemBase64: string) => {
+    try {
+      // The PEM from the API is base64 encoded.
+      const decodedCsr = window.atob(csrPemBase64);
+      setSelectedCsr(decodedCsr);
+    } catch (e) {
+      console.error("Failed to decode CSR PEM:", e);
+      setSelectedCsr("Error decoding CSR content. The data might not be valid base64.");
+      toast({
+        title: "Display Error",
+        description: "Could not decode the CSR content.",
+        variant: "destructive"
+      });
+    }
     setIsCsrModalOpen(true);
   };
   
