@@ -175,6 +175,7 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   "CgSmartHomeRefrigerator": 'Refrigerator',
   "CgSmartHomeWashMachine": 'WashingMachine',
   "CgSmartphone": 'Smartphone',
+  "CgSmartphoneChip": 'Cpu',
   "CgSmartphoneRam": 'MemoryStick',
   "CgSmartphoneShake": 'SmartphoneNfc',
   "CgBatteryFull": 'BatteryFull',
@@ -216,8 +217,8 @@ export const getLucideIconByName = (iconName: string | null): React.ElementType 
     return LucideIcons.HelpCircle;
 };
 
-const ICON_PALETTE = ['#0f67ff', '#334155', '#ef4444', '#22c55e', '#f97316', '#8b5cf6'];
-const BG_PALETTE = ['#F0F8FF', '#f1f5f9', '#fee2e2', '#dcfce7', '#ffedd5', '#ede9fe'];
+const ICON_PALETTE = ['#0f67ff', '#334155', '#ef4444', '#22c55e', '#f97316', '#8b5cf6', '#14b8a6', '#ec4899', '#000000', '#4f46e5'];
+const BG_PALETTE = ['#F0F8FF', '#f1f5f9', '#fee2e2', '#dcfce7', '#ffedd5', '#ede9fe', '#ccfbf1', '#fce7f3', '#e5e7eb', '#e0e7ff'];
 
 const ColorPalette: React.FC<{
   colors: string[];
