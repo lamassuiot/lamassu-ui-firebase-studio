@@ -10,20 +10,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ArrowLeft, Check, Copy, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
+import { findCaById } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CaSelectorModal } from './CaSelectorModal';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { DurationInput } from './DurationInput';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Alert } from '../ui/alert';
 
+// Re-defining RA type here to avoid complex imports, but ideally this would be shared
+interface ApiRaItem {
+  id: string;
+  name: string;
+  settings: {
+    enrollment_settings: {
+      enrollment_ca: string;
+    }
+  }
+}
 
 interface EstEnrollModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  raId: string;
-  raName: string;
+  ra: ApiRaItem | null;
   availableCAs: CA[];
   allCryptoEngines: ApiCryptoEngine[];
   isLoadingCAs: boolean;
@@ -69,17 +78,15 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
 };
 
 
-export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenChange, raId, raName, availableCAs, allCryptoEngines, isLoadingCAs, errorCAs, loadCAsAction }) => {
+export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenChange, ra, availableCAs, allCryptoEngines }) => {
     const { toast } = useToast();
-    const { user, isLoading: authLoading } = useAuth();
-
+    
     const [step, setStep] = useState(1);
     const [deviceId, setDeviceId] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     
     // Step 3 state
     const [bootstrapSigner, setBootstrapSigner] = useState<CA | null>(null);
-    const [isCaSelectorOpen, setIsCaSelectorOpen] = useState(false);
     const [bootstrapValidity, setBootstrapValidity] = useState('1h');
     
     // Step 4 state
@@ -93,12 +100,31 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         if(isOpen) {
             setStep(1);
             setDeviceId('');
-            setBootstrapSigner(null);
             setBootstrapValidity('1h');
             setBootstrapCertificate('');
             setEnrollCommand('');
+            
+            // Auto-select CA based on RA config
+            if (ra && availableCAs.length > 0) {
+                const enrollmentCaId = ra.settings.enrollment_settings.enrollment_ca;
+                const signerCa = findCaById(enrollmentCaId, availableCAs);
+
+                if (signerCa) {
+                    setBootstrapSigner(signerCa);
+                    // Pre-populate validity if it's a duration string
+                    if (signerCa.defaultIssuanceLifetime && !signerCa.defaultIssuanceLifetime.includes('T') && signerCa.defaultIssuanceLifetime !== 'Indefinite' && signerCa.defaultIssuanceLifetime !== 'Not Specified') {
+                        setBootstrapValidity(signerCa.defaultIssuanceLifetime);
+                    } else {
+                        setBootstrapValidity('1h'); // Fallback for ISO dates, Indefinite, or unspecified
+                    }
+                } else {
+                    setBootstrapSigner(null);
+                }
+            } else {
+                setBootstrapSigner(null);
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, ra, availableCAs]);
 
     const handleNext = async () => {
         if (step === 1) { // --> Show CSR commands
@@ -111,7 +137,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setStep(3);
         } else if (step === 3) { // --> Issue Bootstrap Cert
              if (!bootstrapSigner) {
-                toast({ title: "Bootstrap Signer required", description: "Please select a CA to sign the bootstrap certificate.", variant: "destructive" });
+                toast({ title: "Bootstrap Signer Required", description: "The RA policy does not specify a valid enrollment CA for bootstrapping.", variant: "destructive" });
                 return;
             }
             setIsGenerating(true);
@@ -129,7 +155,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                             `  --key-type PEM --key device.key \\ \n`+
                             `  -H "Content-Type: application/pkcs10" \\ \n`+
                             `  --data-binary @device.csr \\ \n`+
-                            `  "https://lab.lamassu.io/api/dmsmanager/.well-known/est/${raId}/simpleenroll"`;
+                            `  "https://lab.lamassu.io/api/dmsmanager/.well-known/est/${ra?.id}/simpleenroll"`;
             setEnrollCommand(command);
             setStep(5);
         }
@@ -148,11 +174,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         }
     }
     
-    const handleCaSelectedForBootstrap = (ca: CA) => {
-        setBootstrapSigner(ca);
-        setIsCaSelectorOpen(false);
-    }
-
     const CodeBlock = ({ content }: { content: string }) => (
       <div className="relative">
         <pre className="text-xs bg-muted p-3 rounded-md font-mono overflow-x-auto whitespace-pre-wrap break-all">
@@ -173,7 +194,7 @@ cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CER
                 <DialogHeader>
                     <DialogTitle>EST Enroll</DialogTitle>
                     <DialogDescription>
-                        Generate enrollment commands for RA: {raName} ({raId})
+                        Generate enrollment commands for RA: {ra?.name} ({ra?.id})
                     </DialogDescription>
                 </DialogHeader>
 
@@ -201,10 +222,16 @@ cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CER
                         <div className="space-y-4">
                             <div>
                                 <Label htmlFor="bootstrapSigner">Bootstrap signer</Label>
-                                <Button id="bootstrapSigner" type="button" variant="outline" onClick={() => setIsCaSelectorOpen(true)} className="w-full justify-start text-left font-normal mt-1">
-                                    {bootstrapSigner ? bootstrapSigner.name : "Select CA..."}
-                                </Button>
-                                {bootstrapSigner && <div className="mt-2"><CaVisualizerCard ca={bootstrapSigner} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/></div>}
+                                <p className="text-xs text-muted-foreground mb-2">
+                                    The RA policy dictates that the bootstrap certificate must be signed by the following CA.
+                                </p>
+                                {bootstrapSigner ? (
+                                    <div className="mt-2"><CaVisualizerCard ca={bootstrapSigner} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/></div>
+                                ) : (
+                                    <div className="mt-2 p-4 text-center border rounded-md bg-muted/30 text-muted-foreground">
+                                        <p>No authorized enrollment CA found for this RA.</p>
+                                    </div>
+                                )}
                             </div>
                             <DurationInput id="bootstrapValidity" label="Bootstrap Certificate Validity" value={bootstrapValidity} onChange={setBootstrapValidity} />
                         </div>
@@ -262,20 +289,6 @@ cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CER
                     </div>
                 </DialogFooter>
             </DialogContent>
-            <CaSelectorModal
-                isOpen={isCaSelectorOpen}
-                onOpenChange={setIsCaSelectorOpen}
-                title="Select Bootstrap Signer"
-                description="Choose a CA to issue the short-lived bootstrap certificate."
-                availableCAs={availableCAs}
-                isLoadingCAs={isLoadingCAs}
-                errorCAs={errorCAs}
-                loadCAsAction={loadCAsAction}
-                onCaSelected={handleCaSelectedForBootstrap}
-                currentSelectedCaId={bootstrapSigner?.id}
-                isAuthLoading={authLoading}
-                allCryptoEngines={allCryptoEngines}
-            />
         </Dialog>
     );
 };

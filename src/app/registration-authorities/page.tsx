@@ -318,19 +318,16 @@ export default function RegistrationAuthoritiesPage() {
         </div>
       )}
 
-      {selectedRaForEnroll && (
-        <EstEnrollModal
-            isOpen={isEnrollModalOpen}
-            onOpenChange={setIsEnrollModalOpen}
-            raId={selectedRaForEnroll.id}
-            raName={selectedRaForEnroll.name}
-            availableCAs={allCAs}
-            allCryptoEngines={allCryptoEngines}
-            isLoadingCAs={isLoading}
-            errorCAs={error}
-            loadCAsAction={loadData}
-        />
-      )}
+      <EstEnrollModal
+          isOpen={isEnrollModalOpen}
+          onOpenChange={setIsEnrollModalOpen}
+          ra={selectedRaForEnroll}
+          availableCAs={allCAs}
+          allCryptoEngines={allCryptoEngines}
+          isLoadingCAs={isLoading}
+          errorCAs={error}
+          loadCAsAction={loadData}
+      />
     </div>
   );
 }
