@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
-import { getReactIconByName } from '@/components/shared/DeviceIconSelectorModal';
+import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION' | 'DECOMMISSIONED';
 
@@ -107,7 +107,7 @@ export const mapApiIconToIconType = (apiIcon: string): string => {
 };
 
 export const DeviceIcon: React.FC<{ type: string; iconColor?: string; bgColor?: string; }> = ({ type, iconColor, bgColor }) => {
-  const IconComponent = getReactIconByName(type);
+  const IconComponent = getLucideIconByName(type);
 
   return (
     <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center")} style={{ backgroundColor: bgColor || '#F0F8FF' }}>

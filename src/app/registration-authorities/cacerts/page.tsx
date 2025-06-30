@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, ArrowLeft, Copy, Check, FileText, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -132,12 +132,11 @@ export default function EstCaCertsPage() {
         setError(null);
         
         try {
-            const baseUrl = `https://lab.lamassu.io/api/dmsmanager/v1/dms/${raId}/cacerts`;
+            const baseUrl = `https://lab.lamassu.io/api/dmsmanager/.well-known/est/${raId}/cacerts`;
 
             // Fetch PKCS7
             const pkcs7Response = await fetch(baseUrl, {
                 headers: { 
-                    'Authorization': `Bearer ${user.access_token}`,
                     'Accept': 'application/pkcs7-mime'
                 },
             });
@@ -173,8 +172,8 @@ export default function EstCaCertsPage() {
         fetchData();
     }, [fetchData]);
 
-    const curlPkcs7 = `curl https://lab.lamassu.io/api/dmsmanager/v1/dms/${raId}/cacerts \\ \n  -H "Accept: application/pkcs7-mime"`;
-    const curlPem = `curl https://lab.lamassu.io/api/dmsmanager/v1/dms/${raId}/cacerts \\ \n  -H "Accept: application/x-pem-file"`;
+    const curlPkcs7 = `curl https://lab.lamassu.io/api/dmsmanager/.well-known/est/${raId}/cacerts \\ \n  -H "Accept: application/pkcs7-mime"`;
+    const curlPem = `curl https://lab.lamassu.io/api/dmsmanager/.well-known/est/${raId}/cacerts \\ \n  -H "Accept: application/x-pem-file"`;
 
     if (isLoading || authLoading) {
         return (
@@ -218,7 +217,7 @@ export default function EstCaCertsPage() {
                             <Alert>
                                 <Info className="h-4 w-4" />
                                 <AlertDescription>Obtain CACerts using cURL</AlertDescription>
-                                <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono">{curlPkcs7}</pre>
+                                <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPkcs7}</pre>
                             </Alert>
                             <CodeBlock content={pkcs7Certs} />
                         </CardContent>
@@ -231,7 +230,7 @@ export default function EstCaCertsPage() {
                              <Alert>
                                 <Info className="h-4 w-4" />
                                 <AlertDescription>Obtain CACerts using cURL</AlertDescription>
-                                <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono">{curlPem}</pre>
+                                <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPem}</pre>
                             </Alert>
                             <CodeBlock content={pemCerts} />
                         </CardContent>

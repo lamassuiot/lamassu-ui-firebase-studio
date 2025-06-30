@@ -649,7 +649,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
                                 <Input id="oidcClientSecret" type="password" value={oidcClientSecret} onChange={e => setOidcClientSecret(e.target.value)} placeholder="Enter OIDC Client Secret" className="mt-1"/>
                             </div>
                             <div>
-                                <Label htmlFor="oidcWellKnownUrl">OIDC .well-known URL</Label>
+                                <Label htmlFor="oidcWellKnownUrl">OIDC Well Known URL</Label>
                                 <Input id="oidcWellKnownUrl" value={oidcWellKnownUrl} onChange={e => setOidcWellKnownUrl(e.target.value)} placeholder="https://your-issuer.com/.well-known/openid-configuration" className="mt-1"/>
                             </div>
                         </div>
