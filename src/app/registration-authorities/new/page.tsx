@@ -41,6 +41,15 @@ interface ApiRaSettings {
                 validation_cas: string[];
                 allow_expired: boolean;
             };
+            external_webhook_settings?: {
+                name: string;
+                url: string;
+                log_level: string;
+                auth_mode: string;
+                api_key_auth?: {
+                    key: string;
+                };
+            };
         };
         device_provisioning_profile: {
             icon: string;
@@ -124,6 +133,14 @@ export default function CreateOrEditRegistrationAuthorityPage() {
   const [validationCAs, setValidationCAs] = useState<CA[]>([]);
   const [allowExpiredAuth, setAllowExpiredAuth] = useState(true);
   const [chainValidationLevel, setChainValidationLevel] = useState(-1);
+  
+  // Webhook state
+  const [webhookName, setWebhookName] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookLogLevel, setWebhookLogLevel] = useState('Info');
+  const [webhookAuthMode, setWebhookAuthMode] = useState('No Auth');
+  const [webhookApiKey, setWebhookApiKey] = useState('');
+
   const [revokeOnReEnroll, setRevokeOnReEnroll] = useState(true);
   const [allowExpiredRenewal, setAllowExpiredRenewal] = useState(true);
   const [allowedRenewalDelta, setAllowedRenewalDelta] = useState('100d');
@@ -224,11 +241,28 @@ export default function CreateOrEditRegistrationAuthorityPage() {
         const authSettings = enrollment_settings.est_rfc7030_settings;
         if (authSettings) {
             const authModeMap: { [key: string]: string } = { 'CLIENT_CERTIFICATE': 'Client Certificate', 'EXTERNAL_WEBHOOK': 'External Webhook', 'NONE': 'No Auth' };
-            setAuthMode(authModeMap[authSettings.auth_mode] || 'Client Certificate');
-            if (authSettings.client_certificate_settings) {
+            const currentAuthMode = authModeMap[authSettings.auth_mode] || 'Client Certificate';
+            setAuthMode(currentAuthMode);
+            
+            if (currentAuthMode === 'Client Certificate' && authSettings.client_certificate_settings) {
                 setChainValidationLevel(authSettings.client_certificate_settings.chain_level_validation);
                 setAllowExpiredAuth(authSettings.client_certificate_settings.allow_expired);
                 setValidationCAs(authSettings.client_certificate_settings.validation_cas.map(id => findCaById(id, availableCAsForSelection)).filter(Boolean) as CA[]);
+            } else if (currentAuthMode === 'External Webhook' && authSettings.external_webhook_settings) {
+                const webhookSettings = authSettings.external_webhook_settings;
+                setWebhookName(webhookSettings.name || '');
+                setWebhookUrl(webhookSettings.url || '');
+                setWebhookLogLevel(webhookSettings.log_level || 'Info');
+                
+                const apiWebhookAuthMode = webhookSettings.auth_mode;
+                let uiWebhookAuthMode = 'No Auth';
+                if (apiWebhookAuthMode === 'OIDC') uiWebhookAuthMode = 'OIDC';
+                if (apiWebhookAuthMode === 'API_KEY') uiWebhookAuthMode = 'API Key';
+                setWebhookAuthMode(uiWebhookAuthMode);
+
+                if (uiWebhookAuthMode === 'API Key' && webhookSettings.api_key_auth) {
+                    setWebhookApiKey(webhookSettings.api_key_auth.key || '');
+                }
             }
         }
 
@@ -299,6 +333,33 @@ export default function CreateOrEditRegistrationAuthorityPage() {
     
     const protocolMapping = { 'EST': 'EST_RFC7030', 'CMP': 'CMP_RFC4210' };
     const authModeMapping = { 'Client Certificate': 'CLIENT_CERTIFICATE', 'External Webhook': 'EXTERNAL_WEBHOOK', 'No Auth': 'NONE' };
+    
+    const estSettings: any = {
+        auth_mode: authModeMapping[authMode as keyof typeof authModeMapping],
+    };
+
+    if (authMode === 'Client Certificate') {
+        estSettings.client_certificate_settings = {
+            chain_level_validation: chainValidationLevel,
+            validation_cas: validationCAs.map(ca => ca.id),
+            allow_expired: allowExpiredAuth,
+        };
+    } else if (authMode === 'External Webhook') {
+        const webhookAuthModeMapping: { [key: string]: string } = { 'No Auth': 'NO_AUTH', 'OIDC': 'OIDC', 'API Key': 'API_KEY' };
+        estSettings.external_webhook_settings = {
+            name: webhookName,
+            url: webhookUrl,
+            log_level: webhookLogLevel,
+            auth_mode: webhookAuthModeMapping[webhookAuthMode],
+        };
+        if (webhookAuthMode === 'API Key') {
+            estSettings.external_webhook_settings.api_key_auth = {
+                key: webhookApiKey
+            };
+        }
+    }
+
+
     let keySettings;
     if (enableKeyGeneration) {
         const bits = serverKeygenType === 'ECDSA' 
@@ -315,14 +376,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
           enrollment_ca: enrollmentCa.id,
           protocol: protocolMapping[protocol as keyof typeof protocolMapping],
           enable_replaceable_enrollment: allowOverrideEnrollment,
-          est_rfc7030_settings: {
-            auth_mode: authModeMapping[authMode as keyof typeof authModeMapping],
-            client_certificate_settings: {
-              chain_level_validation: chainValidationLevel,
-              validation_cas: validationCAs.map(ca => ca.id),
-              allow_expired: allowExpiredAuth,
-            }
-          },
+          est_rfc7030_settings: estSettings,
           device_provisioning_profile: {
             icon: selectedDeviceIconName,
             icon_color: `${selectedDeviceIconColor}-${selectedDeviceIconBgColor}`,
@@ -504,7 +558,65 @@ export default function CreateOrEditRegistrationAuthorityPage() {
             </CardContent></Card>
             <Separator className="my-6"/>
             <h3 className={cn(sectionHeadingStyle)}><Key className="mr-2 h-5 w-5 text-muted-foreground"/>Enrollment Settings</h3>
-            <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4"><div><Label htmlFor="protocol">Protocol</Label><Select value={protocol} onValueChange={setProtocol}><SelectTrigger id="protocol" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="EST">EST</SelectItem><SelectItem value="CMP">CMP</SelectItem></SelectContent></Select></div><div><Label htmlFor="enrollmentCa">Enrollment CA</Label><Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : enrollmentCa ? enrollmentCa.name : "Select Enrollment CA..."}</Button>{enrollmentCa && <div className="mt-2"><CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines} /></div>}</div><div className="flex items-center space-x-2 pt-2"><Switch id="allowOverrideEnrollment" checked={allowOverrideEnrollment} onCheckedChange={setAllowOverrideEnrollment} /><Label htmlFor="allowOverrideEnrollment">Allow Override Enrollment</Label></div><div><Label htmlFor="authMode">Authentication Mode</Label><Select value={authMode} onValueChange={setAuthMode}><SelectTrigger id="authMode" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Client Certificate">Client Certificate</SelectItem><SelectItem value="External Webhook">External Webhook</SelectItem><SelectItem value="No Auth">No Auth</SelectItem></SelectContent></Select></div><div><Label htmlFor="validationCAs">Validation CAs</Label><Button type="button" variant="outline" onClick={() => setIsValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : validationCAs.length > 0 ? `Selected ${validationCAs.length} CA(s) - Click to modify` : "Select Validation CAs..."}</Button>{validationCAs.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{validationCAs.map(ca => <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" allCryptoEngines={allCryptoEngines} />)}</div>}</div><div className="flex items-center space-x-2 pt-2"><Switch id="allowExpiredAuth" checked={allowExpiredAuth} onCheckedChange={setAllowExpiredAuth} /><Label htmlFor="allowExpiredAuth">Allow Authenticating Expired Certificates</Label></div><div><Label htmlFor="chainValidationLevel" className="flex items-center">Chain Validation Level<TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="ml-1 h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p>-1 equals full chain validation.</p></TooltipContent></Tooltip></TooltipProvider></Label><Input id="chainValidationLevel" type="number" value={chainValidationLevel} onChange={(e) => setChainValidationLevel(parseInt(e.target.value))} className="mt-1" /></div></div></CardContent></Card>
+            <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4"><div><Label htmlFor="protocol">Protocol</Label><Select value={protocol} onValueChange={setProtocol}><SelectTrigger id="protocol" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="EST">EST</SelectItem><SelectItem value="CMP">CMP</SelectItem></SelectContent></Select></div><div><Label htmlFor="enrollmentCa">Enrollment CA</Label><Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : enrollmentCa ? enrollmentCa.name : "Select Enrollment CA..."}</Button>{enrollmentCa && <div className="mt-2"><CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines} /></div>}</div><div className="flex items-center space-x-2 pt-2"><Switch id="allowOverrideEnrollment" checked={allowOverrideEnrollment} onCheckedChange={setAllowOverrideEnrollment} /><Label htmlFor="allowOverrideEnrollment">Allow Override Enrollment</Label></div><div><Label htmlFor="authMode">Authentication Mode</Label><Select value={authMode} onValueChange={setAuthMode}><SelectTrigger id="authMode" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Client Certificate">Client Certificate</SelectItem><SelectItem value="External Webhook">External Webhook</SelectItem><SelectItem value="No Auth">No Auth</SelectItem></SelectContent></Select></div>
+            
+            {authMode === 'Client Certificate' && (
+                <div className="space-y-4 pt-2 border-t mt-4">
+                    <h4 className="font-medium text-md text-muted-foreground pt-2">Client Certificate Auth Settings</h4>
+                    <div><Label htmlFor="validationCAs">Validation CAs</Label><Button type="button" variant="outline" onClick={() => setIsValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : validationCAs.length > 0 ? `Selected ${validationCAs.length} CA(s) - Click to modify` : "Select Validation CAs..."}</Button>{validationCAs.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{validationCAs.map(ca => <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" allCryptoEngines={allCryptoEngines} />)}</div>}</div>
+                    <div className="flex items-center space-x-2 pt-2"><Switch id="allowExpiredAuth" checked={allowExpiredAuth} onCheckedChange={setAllowExpiredAuth} /><Label htmlFor="allowExpiredAuth">Allow Authenticating Expired Certificates</Label></div>
+                    <div><Label htmlFor="chainValidationLevel" className="flex items-center">Chain Validation Level<TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="ml-1 h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p>-1 equals full chain validation.</p></TooltipContent></Tooltip></TooltipProvider></Label><Input id="chainValidationLevel" type="number" value={chainValidationLevel} onChange={(e) => setChainValidationLevel(parseInt(e.target.value))} className="mt-1" /></div>
+                </div>
+            )}
+
+            {authMode === 'External Webhook' && (
+                <div className="space-y-4 pt-2 border-t mt-4">
+                    <h4 className="font-medium text-md text-muted-foreground pt-2">Webhook Settings</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="webhookName">Webhook Name</Label>
+                            <Input id="webhookName" value={webhookName} onChange={(e) => setWebhookName(e.target.value)} placeholder="e.g., MyValidationFunc" className="mt-1" />
+                        </div>
+                        <div>
+                            <Label htmlFor="webhookUrl">Webhook URL</Label>
+                            <Input id="webhookUrl" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="http://localhost:8080/verify" className="mt-1" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="webhookLogLevel">Webhook Log Level</Label>
+                            <Select value={webhookLogLevel} onValueChange={setWebhookLogLevel}>
+                                <SelectTrigger id="webhookLogLevel" className="mt-1"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Info">Info</SelectItem>
+                                    <SelectItem value="Debug">Debug</SelectItem>
+                                    <SelectItem value="Warn">Warn</SelectItem>
+                                    <SelectItem value="Error">Error</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="webhookAuthMode">Webhook Auth Mode</Label>
+                            <Select value={webhookAuthMode} onValueChange={setWebhookAuthMode}>
+                                <SelectTrigger id="webhookAuthMode" className="mt-1"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="No Auth">No Auth</SelectItem>
+                                    <SelectItem value="OIDC">OIDC</SelectItem>
+                                    <SelectItem value="API Key">API Key</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    {webhookAuthMode === 'API Key' && (
+                        <div>
+                            <Label htmlFor="webhookApiKey">API Key</Label>
+                            <Input id="webhookApiKey" type="password" value={webhookApiKey} onChange={e => setWebhookApiKey(e.target.value)} placeholder="Enter API Key" className="mt-1"/>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            </div></CardContent></Card>
             <Separator className="my-6"/>
             <h3 className={cn(sectionHeadingStyle)}><PackageCheck className="mr-2 h-5 w-5 text-muted-foreground"/>Re-Enrollment Settings</h3>
             <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4"><div className="flex items-center space-x-2"><Switch id="revokeOnReEnroll" checked={revokeOnReEnroll} onCheckedChange={setRevokeOnReEnroll} /><Label htmlFor="revokeOnReEnroll">Revoke On Re-Enroll</Label></div><div className="flex items-center space-x-2"><Switch id="allowExpiredRenewal" checked={allowExpiredRenewal} onCheckedChange={setAllowExpiredRenewal} /><Label htmlFor="allowExpiredRenewal">Allow Expired Renewal</Label></div><div><Label htmlFor="allowedRenewalDelta">Allowed Renewal Delta (e.g., 100d)</Label><Input id="allowedRenewalDelta" value={allowedRenewalDelta} onChange={(e) => setAllowedRenewalDelta(e.target.value)} placeholder="e.g., 100d" className="mt-1" /></div><div><Label htmlFor="preventiveRenewalDelta">Preventive Renewal Delta (e.g., 31d)</Label><Input id="preventiveRenewalDelta" value={preventiveRenewalDelta} onChange={(e) => setPreventiveRenewalDelta(e.target.value)} placeholder="e.g., 31d" className="mt-1" /></div><div><Label htmlFor="criticalRenewalDelta">Critical Renewal Delta (e.g., 7d)</Label><Input id="criticalRenewalDelta" value={criticalRenewalDelta} onChange={(e) => setCriticalRenewalDelta(e.target.value)} placeholder="e.g., 7d" className="mt-1" /></div><div><Label htmlFor="additionalValidationCAs">Additional Validation CAs (for re-enrollment)</Label><Button type="button" variant="outline" onClick={() => setIsAdditionalValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : additionalValidationCAs.length > 0 ? `Selected ${additionalValidationCAs.length} CA(s)` : "Select CAs..."}</Button>{additionalValidationCAs.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{additionalValidationCAs.map(ca => <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" allCryptoEngines={allCryptoEngines}/>)}</div>}</div></div></CardContent></Card>
