@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,10 +19,6 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
-import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
-import { CaVisualizerCard } from '@/components/CaVisualizerCard';
-import { fetchAndProcessCAs, type CA } from '@/lib/ca-data';
-import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Separator } from '@/components/ui/separator';
 
 interface DecodedImportedCertInfo {
@@ -58,7 +54,7 @@ const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 export default function CreateCaImportFullPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [caId, setCaId] = useState('');
@@ -71,39 +67,10 @@ export default function CreateCaImportFullPage() {
   const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined);
   const [caChainPem, setCaChainPem] = useState('');
   const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
-  const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
-  const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
   
-  const [availableParentCAs, setAvailableParentCAs] = useState<CA[]>([]);
-  const [isLoadingCAs, setIsLoadingCAs] = useState(false);
-  const [errorCAs, setErrorCAs] = useState<string | null>(null);
-  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
-
   useEffect(() => {
     setCaId(crypto.randomUUID());
   }, []);
-
-  const loadCaData = useCallback(async () => {
-    if (!isAuthenticated() || !user?.access_token) return;
-    
-    setIsLoadingCAs(true);
-    setErrorCAs(null);
-    try {
-      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-      setAvailableParentCAs(fetchedCAs); 
-    } catch (err: any) {
-      setErrorCAs(err.message || 'Failed to load available parent CAs.');
-    } finally {
-      setIsLoadingCAs(false);
-    }
-  }, [user?.access_token, isAuthenticated]);
-
-  useEffect(() => {
-    if (!authLoading && isAuthenticated()) {
-        loadCaData();
-        // Engines are loaded via the CryptoEngineSelector component itself
-    }
-  }, [loadCaData, authLoading, isAuthenticated]);
   
   const parseCertificatePem = async (pem: string) => {
     try {
@@ -180,7 +147,7 @@ export default function CreateCaImportFullPage() {
       ca_chain: caChainCerts.map(cert => window.btoa(cert)),
       ca_type: "IMPORTED",
       issuance_expiration: formatExpirationForApi(issuanceExpiration),
-      parent_id: selectedParentCa?.id || "",
+      parent_id: "",
     };
     
     try {
@@ -305,21 +272,6 @@ export default function CreateCaImportFullPage() {
                    <p className="text-xs text-muted-foreground mt-1">The key must be unencrypted. Passphrase support is not yet implemented.</p>
                 </div>
                  <div>
-                    <Label htmlFor="parentCa">Parent CA (Optional)</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsParentCaModalOpen(true)}
-                      className="w-full justify-start text-left font-normal mt-1"
-                      id="parentCa"
-                      disabled={isLoadingCAs || authLoading}
-                    >
-                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
-                    </Button>
-                    <p className="text-xs text-muted-foreground mt-1">If this is an intermediate CA, select its issuer from the list of existing CAs in LamassuIoT.</p>
-                    {selectedParentCa && <div className="mt-2"><CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines} /></div>}
-                  </div>
-                 <div>
                    <Label htmlFor="caChainPem">CA Certificate Chain (PEM, Optional)</Label>
                     <Textarea 
                         id="caChainPem" 
@@ -343,20 +295,6 @@ export default function CreateCaImportFullPage() {
           </form>
         </CardContent>
       </Card>
-       <CaSelectorModal
-        isOpen={isParentCaModalOpen}
-        onOpenChange={setIsParentCaModalOpen}
-        title="Select Parent Certificate Authority"
-        description="Choose the existing CA that issued the certificate you are importing."
-        availableCAs={availableParentCAs}
-        isLoadingCAs={isLoadingCAs}
-        errorCAs={errorCAs}
-        loadCAsAction={loadCaData}
-        onCaSelected={(ca) => { setSelectedParentCa(ca); setIsParentCaModalOpen(false); }}
-        currentSelectedCaId={selectedParentCa?.id}
-        isAuthLoading={authLoading}
-        allCryptoEngines={allCryptoEngines}
-      />
     </div>
   );
 }
