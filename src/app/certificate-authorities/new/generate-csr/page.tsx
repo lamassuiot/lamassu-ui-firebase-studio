@@ -1,262 +1,437 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, FileSignature, KeyRound, Info, Loader2, Copy, Check, Download as DownloadIcon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2, FileSignature } from "lucide-react";
+import type { CA } from '@/lib/ca-data';
+import { fetchAndProcessCAs } from '@/lib/ca-data';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { CaVisualizerCard } from '@/components/CaVisualizerCard';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CertificationRequest, Attribute, AttributeTypeAndValue, BasicConstraints, Extension as PkijsExtension, Extensions, getCrypto, setEngine } from "pkijs";
-import * as asn1js from "asn1js";
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Switch } from '@/components/ui/switch';
-
-// --- Helper Functions ---
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-}
-
-function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'CERTIFICATE REQUEST'): string {
-  const header = `-----BEGIN ${type}-----`;
-  const footer = `-----END ${type}-----`;
-  const body = base64String.match(/.{1,64}/g)?.join('\n') || '';
-  return `${header}\n${body}\n${footer}`;
-}
+import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
+import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
+import { formatISO } from 'date-fns';
+import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 const keyTypes = [
   { value: 'RSA', label: 'RSA' },
   { value: 'ECDSA', label: 'ECDSA' },
 ];
+
 const rsaKeySizes = [
   { value: '2048', label: '2048 bit' },
   { value: '3072', label: '3072 bit' },
   { value: '4096', label: '4096 bit' },
 ];
-const ecdsaCurves = [
-  { value: 'P-256', label: 'P-256 (secp256r1)' },
-  { value: 'P-384', label: 'P-384 (secp384r1)' },
-  { value: 'P-521', label: 'P-521 (secp521r1)' },
+
+const ecdsaKeySizes = [ 
+  { value: 'P-256', label: 'P-256' },
+  { value: 'P-384', label: 'P-384' },
+  { value: 'P-521', label: 'P-521' },
 ];
 
+const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 
-export default function GenerateCsrForExternalCaPage() {
+export default function RequestCaCsrPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const [step, setStep] = useState(1);
 
-  // Form state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [caType, setCaType] = useState('root');
+  const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined);
+  const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
+  const [caId, setCaId] = useState('');
   const [caName, setCaName] = useState('');
-  const [organization, setOrganization] = useState('');
-  const [organizationalUnit, setOrganizationalUnit] = useState('');
+
+  const [keyType, setKeyType] = useState('RSA');
+  const [keySize, setKeySize] = useState('2048');
+
   const [country, setCountry] = useState('');
   const [stateProvince, setStateProvince] = useState('');
   const [locality, setLocality] = useState('');
-  const [keyType, setKeyType] = useState('RSA');
-  const [keySpec, setKeySpec] = useState('2048');
-  const [definePathLen, setDefinePathLen] = useState(false);
-  const [pathLenConstraint, setPathLenConstraint] = useState<number>(0);
+  const [organization, setOrganization] = useState('');
+  const [organizationalUnit, setOrganizationalUnit] = useState('');
 
-  // Result state
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
-  const [generatedPrivateKey, setGeneratedPrivateKey] = useState('');
-  const [generatedCsr, setGeneratedCsr] = useState('');
-  const [privateKeyCopied, setPrivateKeyCopied] = useState(false);
-  const [csrCopied, setCsrCopied] = useState(false);
+  const [caExpiration, setCaExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '10y' });
+  const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
+
+  const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
+
+  const [availableParentCAs, setAvailableParentCAs] = useState<CA[]>([]);
+  const [isLoadingCAs, setIsLoadingCAs] = useState(false);
+  const [errorCAs, setErrorCAs] = useState<string | null>(null);
+  
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+  const [isLoadingEngines, setIsLoadingEngines] = useState(false);
+  const [errorEngines, setErrorEngines] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.crypto) setEngine("webcrypto", getCrypto());
+    setCaId(crypto.randomUUID());
   }, []);
+
+  const loadDependencies = useCallback(async () => {
+    if (!isAuthenticated() || !user?.access_token) {
+      if (!authLoading) {
+        setErrorCAs("User not authenticated. Cannot load parent CAs.");
+        setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
+      }
+      setIsLoadingCAs(false);
+      setIsLoadingEngines(false);
+      return;
+    }
+    
+    setIsLoadingCAs(true);
+    setErrorCAs(null);
+    try {
+      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+      setAvailableParentCAs(fetchedCAs); 
+    } catch (err: any) {
+      setErrorCAs(err.message || 'Failed to load available parent CAs.');
+      setAvailableParentCAs([]);
+    } finally {
+      setIsLoadingCAs(false);
+    }
+
+    setIsLoadingEngines(true);
+    setErrorEngines(null);
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+            headers: { 'Authorization': `Bearer ${user.access_token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch crypto engines');
+        const enginesData: ApiCryptoEngine[] = await response.json();
+        setAllCryptoEngines(enginesData);
+    } catch (err: any) {
+        setErrorEngines(err.message || 'Failed to load Crypto Engines.');
+        setAllCryptoEngines([]);
+    } finally {
+        setIsLoadingEngines(false);
+    }
+  }, [user?.access_token, isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    if (!authLoading) {
+        loadDependencies();
+    }
+  }, [loadDependencies, authLoading]);
+
+  const handleCaTypeChange = (value: string) => {
+    setCaType(value);
+    setSelectedParentCa(null);
+    if (value === 'root') {
+      setCaExpiration({ type: 'Duration', durationValue: '10y' });
+      setIssuanceExpiration({ type: 'Duration', durationValue: '1y' });
+    } else {
+      setCaExpiration({ type: 'Duration', durationValue: '5y' });
+      setIssuanceExpiration({ type: 'Duration', durationValue: '90d' });
+    }
+  };
 
   const handleKeyTypeChange = (value: string) => {
     setKeyType(value);
     if (value === 'RSA') {
-      setKeySpec('2048');
+      setKeySize('2048');
     } else if (value === 'ECDSA') {
-      setKeySpec('P-256');
+      setKeySize('P-256');
     }
   };
 
-  const currentKeySpecOptions = keyType === 'RSA' ? rsaKeySizes : ecdsaCurves;
+  const currentKeySizeOptions = keyType === 'RSA' ? rsaKeySizes : ecdsaKeySizes;
+
+  const handleParentCaSelectFromModal = (ca: CA) => {
+    if (ca.rawApiData?.certificate.type === 'EXTERNAL_PUBLIC' || ca.status !== 'active') {
+        toast({
+            title: "Invalid Parent CA",
+            description: `CA "${ca.name}" cannot be used as a parent as it's external-public or not active.`,
+            variant: "destructive"
+        });
+        return;
+    }
+    setSelectedParentCa(ca);
+    setIsParentCaModalOpen(false);
+  };
+
+  const mapEcdsaCurveToBits = (curveName: string): number => {
+    switch (curveName) {
+      case 'P-256': return 256;
+      case 'P-384': return 384;
+      case 'P-521': return 521;
+      default: return 256; 
+    }
+  };
   
-  const handleGenerate = async () => {
-    if (isGenerating) return;
-    if (!caName.trim()) {
-      toast({ title: "Validation Error", description: "CA Name (Common Name) is required.", variant: "destructive" });
+  const formatExpirationForApi = (config: ExpirationConfig): { type: string; duration?: string; time?: string } => {
+    if (config.type === "Duration") {
+      return { type: "Duration", duration: config.durationValue };
+    }
+    if (config.type === "Date" && config.dateValue) {
+      return { type: "Date", time: formatISO(config.dateValue) };
+    }
+    if (config.type === "Indefinite") {
+      return { type: "Date", time: INDEFINITE_DATE_API_VALUE };
+    }
+    return { type: "Duration", duration: "1y" }; 
+  };
+  
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+
+    if (caType === 'intermediate' && !selectedParentCa) {
+      toast({ title: "Validation Error", description: "Please select a Parent CA for intermediate CAs.", variant: "destructive" });
+      setIsSubmitting(false);
       return;
     }
-    setIsGenerating(true);
-    setGenerationError(null);
+    if (!caName.trim()) {
+      toast({ title: "Validation Error", description: "CA Name (Common Name) cannot be empty.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+    if (!cryptoEngineId) {
+      toast({ title: "Validation Error", description: "Please select a Crypto Engine.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+    if (!user?.access_token) {
+      toast({ title: "Authentication Error", description: "User not authenticated.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const payload = {
+      parent_id: caType === 'root' ? "" : selectedParentCa?.id || "",
+      id: caId,
+      engine_id: cryptoEngineId, 
+      subject: {
+        country: country || undefined,
+        state_province: stateProvince || undefined,
+        locality: locality || undefined,
+        organization: organization || undefined,
+        organization_unit: organizationalUnit || undefined,
+        common_name: caName,
+      },
+      key_metadata: {
+        type: keyType,
+        bits: keyType === 'RSA' ? parseInt(keySize) : mapEcdsaCurveToBits(keySize),
+      },
+      ca_expiration: formatExpirationForApi(caExpiration),
+      issuance_expiration: formatExpirationForApi(issuanceExpiration),
+      metadata: {},
+    };
 
     try {
-      const algorithm = keyType === 'RSA' 
-        ? { name: "RSASSA-PKCS1-v1_5", modulusLength: parseInt(keySpec, 10), publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }
-        : { name: "ECDSA", namedCurve: keySpec };
-
-      const keyPair = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
-      const privateKeyPem = formatAsPem(arrayBufferToBase64(await crypto.subtle.exportKey("pkcs8", keyPair.privateKey)), 'PRIVATE KEY');
-      setGeneratedPrivateKey(privateKeyPem);
-
-      const pkcs10 = new CertificationRequest({ version: 0 });
-      pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: caName.trim() }) }));
-      if (organization.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.10", value: new asn1js.Utf8String({ value: organization.trim() })}));
-      if (organizationalUnit.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.11", value: new asn1js.Utf8String({ value: organizationalUnit.trim() })}));
-      if (locality.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.7", value: new asn1js.Utf8String({ value: locality.trim() })}));
-      if (stateProvince.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.8", value: new asn1js.Utf8String({ value: stateProvince.trim() })}));
-      if (country.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.6", value: new asn1js.Utf8String({ value: country.trim() })}));
-      
-      await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
-
-      const bcParams: { cA: boolean; pathLenConstraint?: number } = { cA: true };
-      if (definePathLen) {
-        bcParams.pathLenConstraint = pathLenConstraint;
-      }
-      const basicConstraints = new BasicConstraints(bcParams);
-
-      const extensions = new Extensions({
-          extensions: [
-              new PkijsExtension({
-                  extnID: "2.5.29.19", // id-ce-basicConstraints
-                  critical: true,
-                  extnValue: basicConstraints.toSchema().toBER(false)
-              })
-          ]
+      const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}`,
+        },
+        body: JSON.stringify(payload),
       });
 
-      pkcs10.attributes = [new Attribute({
-          type: "1.2.840.113549.1.9.14", // id-pkcs9-at-extensionRequest
-          values: [extensions.toSchema()]
-      })];
-      
-      await pkcs10.sign(keyPair.privateKey, "SHA-256");
-      const signedCsrPem = formatAsPem(arrayBufferToBase64(pkcs10.toSchema().toBER(false)), 'CERTIFICATE REQUEST');
-      setGeneratedCsr(signedCsrPem);
-      setStep(2);
+      if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to create CA request. Status: ${response.status}`;
+        try {
+          errorJson = await response.json();
+          errorMessage = `Failed to create CA request: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) {
+          console.error("Failed to parse error response as JSON for CA request:", e);
+        }
+        throw new Error(errorMessage);
+      }
 
-    } catch (e: any) {
-        setGenerationError(`Failed to generate CSR: ${e.message}`);
+      toast({ title: "CA Request Successful", description: `Request for CA "${caName}" has been submitted.`, variant: "default" });
+      router.push('/certificate-authorities/requests');
+
+    } catch (error: any) {
+      console.error("CA Request API Error:", error);
+      toast({ title: "CA Request Failed", description: error.message, variant: "destructive" });
     } finally {
-        setIsGenerating(false);
+      setIsSubmitting(false);
     }
   };
-
-  const handleCopy = async (text: string, type: string, setCopied: (v: boolean) => void) => {
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      toast({ title: "Copied!", description: `${type} PEM copied to clipboard.` });
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      toast({ title: "Copy Failed", description: `Could not copy ${type}.`, variant: "destructive" });
-    }
-  };
-
-  const handleDownload = (content: string, filename: string) => {
-    if (!content) return;
-    const blob = new Blob([content], { type: 'application/pem-file' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-  
 
   return (
     <div className="w-full space-y-6 mb-8">
-        <Button variant="outline" onClick={() => step === 1 ? router.push('/certificate-authorities/new') : setStep(1)}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-        <Card>
-            <CardHeader>
-                <div className="flex items-center space-x-3">
-                    <FileSignature className="h-8 w-8 text-primary" />
-                    <h1 className="text-2xl font-headline font-semibold">Generate CSR for External CA</h1>
+      <Button variant="outline" onClick={() => router.push('/certificate-authorities/new')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Creation Methods
+      </Button>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center space-x-3">
+            <FileSignature className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl font-headline font-semibold">
+              Request New CA (Server-side Key)
+            </h1>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Submit a request for a new Root or Intermediate CA. A new key pair and CSR will be generated on the backend, awaiting approval.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <section>
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground" />KMS: New Key Pair Generation settings</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="cryptoEngine">Crypto Engine</Label>
+                  <CryptoEngineSelector
+                    value={cryptoEngineId}
+                    onValueChange={setCryptoEngineId}
+                    disabled={authLoading}
+                    className="mt-1"
+                  />
                 </div>
-                <CardDescription>
-                   {step === 1 
-                    ? "Generate a key pair and a CSR for a new CA. This CSR can then be signed by an external authority (e.g., an offline root CA)."
-                    : "CSR and Private Key have been generated. Save them securely."}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {step === 1 && (
-                    <div className="space-y-8">
-                        <section>
-                            <h3 className="text-lg font-semibold mb-3 flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground" />Key Generation Parameters</h3>
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div><Label htmlFor="keyType">Key Type</Label><Select value={keyType} onValueChange={handleKeyTypeChange}><SelectTrigger id="keyType"><SelectValue /></SelectTrigger><SelectContent>{keyTypes.map(kt=><SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}</SelectContent></Select></div>
-                                    <div><Label htmlFor="keySpec">{keyType === 'ECDSA' ? 'Curve' : 'Size'}</Label><Select value={keySpec} onValueChange={setKeySpec}><SelectTrigger id="keySpec"><SelectValue /></SelectTrigger><SelectContent>{currentKeySpecOptions.map(ks=><SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}</SelectContent></Select></div>
-                                </div>
-                            </div>
-                        </section>
-                        <section>
-                            <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />CA Subject Distinguished Name (DN)</h3>
-                            <div className="space-y-4">
-                                <div><Label htmlFor="caName">CA Name (Common Name)</Label><Input id="caName" value={caName} onChange={(e) => setCaName(e.target.value)} placeholder="e.g., LamassuIoT Secure Services CA" required /></div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div><Label htmlFor="country">Country (C)</Label><Input id="country" value={country} onChange={e => setCountry(e.target.value)} placeholder="e.g., US (2-letter code)" maxLength={2} /></div>
-                                    <div><Label htmlFor="stateProvince">State / Province (ST)</Label><Input id="stateProvince" value={stateProvince} onChange={e => setStateProvince(e.target.value)} placeholder="e.g., California" /></div>
-                                    <div><Label htmlFor="locality">Locality (L)</Label><Input id="locality" value={locality} onChange={e => setLocality(e.target.value)} placeholder="e.g., San Francisco" /></div>
-                                    <div><Label htmlFor="organization">Organization (O)</Label><Input id="organization" value={organization} onChange={e => setOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" /></div>
-                                </div>
-                                <div><Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label><Input id="organizationalUnit" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)} placeholder="e.g., Secure Devices Division" /></div>
-                            </div>
-                        </section>
-                        <section>
-                            <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />CA Extensions</h3>
-                            <div className="flex items-center space-x-2"><Switch id="definePathLen" checked={definePathLen} onCheckedChange={setDefinePathLen} /><Label htmlFor="definePathLen">Define Path Length Constraint</Label></div>
-                            {definePathLen && <div className="pl-8 pt-2"><Label htmlFor="pathLen">Path Length</Label><Input id="pathLen" type="number" min="0" value={pathLenConstraint} onChange={e => setPathLenConstraint(parseInt(e.target.value, 10) || 0)} /></div>}
-                        </section>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="keyType">Key Type</Label>
+                    <Select value={keyType} onValueChange={handleKeyTypeChange}>
+                      <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="keySize">{keyType === 'ECDSA' ? 'ECDSA Curve' : 'Key Size'}</Label>
+                    <Select value={keySize} onValueChange={setKeySize}>
+                      <SelectTrigger id="keySize"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {currentKeySizeOptions.map(ks => <SelectItem key={ks.value} value={ks.value}>{ks.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="caType">CA Type</Label>
+                  <Select value={caType} onValueChange={handleCaTypeChange}>
+                    <SelectTrigger id="caType"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="root">Root CA</SelectItem>
+                      <SelectItem value="intermediate">Intermediate CA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {caType === 'intermediate' && (
+                  <div>
+                    <Label htmlFor="parentCa">Parent CA</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsParentCaModalOpen(true)}
+                      className="w-full justify-start text-left font-normal mt-1"
+                      id="parentCa"
+                      disabled={isLoadingCAs || authLoading}
+                    >
+                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
+                    </Button>
+                    {selectedParentCa && (
+                      <div className="mt-2">
+                        <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/>
+                      </div>
+                    )}
+                    {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected for intermediate CAs.</p>}
+                  </div>
                 )}
-                {step === 2 && (
-                    <div className="space-y-6">
-                        <Alert variant="destructive">
-                            <Info className="h-4 w-4" />
-                            <AlertTitle>Important: Save Your Private Key</AlertTitle>
-                            <AlertDescription>
-                            This is your only opportunity to save the private key. It is not stored by LamassuIoT and cannot be recovered if lost. Store it in a secure location.
-                            </AlertDescription>
-                        </Alert>
-                        <div>
-                            <div className="flex justify-between items-center mb-2">
-                                <h4 className="font-medium">Generated Private Key (PEM)</h4>
-                                <div className="flex space-x-2"><Button variant="outline" size="sm" onClick={()=>handleCopy(generatedPrivateKey, "Private Key", setPrivateKeyCopied)}>{privateKeyCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}{privateKeyCopied?'Copied':'Copy'}</Button><Button variant="outline" size="sm" onClick={()=>handleDownload(generatedPrivateKey, `${caName.replace(/\s+/g, '_')}_private_key.pem`)}><DownloadIcon className="mr-1 h-4 w-4"/>Download</Button></div>
-                            </div>
-                            <Textarea readOnly value={generatedPrivateKey} rows={8} className="font-mono bg-muted/50"/>
-                        </div>
-                        <div>
-                            <div className="flex justify-between items-center mb-2">
-                                <h4 className="font-medium">Generated Certificate Signing Request (PEM)</h4>
-                                <div className="flex space-x-2"><Button variant="outline" size="sm" onClick={()=>handleCopy(generatedCsr, "CSR", setCsrCopied)}>{csrCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}{csrCopied?'Copied':'Copy'}</Button><Button variant="outline" size="sm" onClick={()=>handleDownload(generatedCsr, `${caName.replace(/\s+/g, '_')}.csr`)}><DownloadIcon className="mr-1 h-4 w-4"/>Download</Button></div>
-                            </div>
-                            <Textarea readOnly value={generatedCsr} rows={8} className="font-mono bg-muted/50"/>
-                        </div>
-                    </div>
+                {caType === 'root' && (
+                  <div>
+                    <Label htmlFor="issuerName">Issuer</Label>
+                    <Input id="issuerName" value="Self-signed" disabled className="mt-1 bg-muted/50" />
+                    <p className="text-xs text-muted-foreground mt-1">Root CAs are self-signed.</p>
+                  </div>
                 )}
-                 {generationError && <Alert variant="destructive" className="mt-4"><AlertTitle>Generation Failed</AlertTitle><AlertDescription>{generationError}</AlertDescription></Alert>}
-            </CardContent>
-            <CardFooter className="flex justify-end pt-4">
-                {step === 1 && <Button onClick={handleGenerate} disabled={isGenerating || !caName.trim()}> {isGenerating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Generating...</> : 'Generate CSR & Key'} </Button>}
-                {step === 2 && <Button onClick={() => router.push('/certificate-authorities')}>Finish</Button>}
-            </CardFooter>
-        </Card>
+                <div>
+                  <Label htmlFor="caId">CA Request ID (generated)</Label>
+                  <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
+                </div>
+                <div>
+                  <Label htmlFor="caName">CA Name (Subject Common Name)</Label>
+                  <Input id="caName" value={caName} onChange={(e) => setCaName(e.target.value)} placeholder="e.g., LamassuIoT Secure Services CA" required className="mt-1" />
+                  {!caName.trim() && <p className="text-xs text-destructive mt-1">CA Name (Common Name) cannot be empty.</p>}
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-muted-foreground" />Subject Distinguished Name (DN)</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="country">Country (C)</Label>
+                    <Input id="country" value={country} onChange={e => setCountry(e.target.value)} placeholder="e.g., US (2-letter code)" maxLength={2} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="stateProvince">State / Province (ST)</Label>
+                    <Input id="stateProvince" value={stateProvince} onChange={e => setStateProvince(e.target.value)} placeholder="e.g., California" className="mt-1" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="locality">Locality (L)</Label>
+                    <Input id="locality" value={locality} onChange={e => setLocality(e.target.value)} placeholder="e.g., San Francisco" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="organization">Organization (O)</Label>
+                    <Input id="organization" value={organization} onChange={e => setOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" className="mt-1" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
+                  <Input id="organizationalUnit" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)} placeholder="e.g., Secure Devices Division" className="mt-1" />
+                </div>
+                <p className="text-xs text-muted-foreground">The "CA Name" entered in CA Settings will be used as the Common Name (CN) for the subject.</p>
+              </div>
+            </section>
+            
+            <section>
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ExpirationInput idPrefix="ca-exp" label="CA Certificate Expiration" value={caExpiration} onValueChange={setCaExpiration} />
+                <ExpirationInput idPrefix="issuance-exp" label="Default End-Entity Certificate Issuance Expiration" value={issuanceExpiration} onValueChange={setIssuanceExpiration} />
+              </div>
+            </section>
+
+            <div className="flex justify-end pt-4">
+              <Button type="submit" size="lg" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
+                {isSubmitting ? 'Submitting...' : 'Submit Request'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+      
+      <CaSelectorModal
+        isOpen={isParentCaModalOpen}
+        onOpenChange={setIsParentCaModalOpen}
+        title="Select Parent Certificate Authority"
+        description="Choose an existing CA to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
+        availableCAs={availableParentCAs}
+        isLoadingCAs={isLoadingCAs}
+        errorCAs={errorCAs}
+        loadCAsAction={loadDependencies}
+        onCaSelected={handleParentCaSelectFromModal}
+        currentSelectedCaId={selectedParentCa?.id}
+        isAuthLoading={authLoading}
+        allCryptoEngines={allCryptoEngines}
+      />
     </div>
   );
 }

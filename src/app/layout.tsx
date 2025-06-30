@@ -24,7 +24,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu } from 'lucide-react';
+import { Shield, FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, FileSignature } from 'lucide-react';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +54,7 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'devices': "Devices",
   'device-groups': "Device Groups",
   'crypto-engines': "Crypto Engines",
+  'requests': "CA Requests",
 };
 
 function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
@@ -129,6 +130,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const pkiItems = [
     { href: '/certificates', label: 'Certificates', icon: FileText },
     { href: '/certificate-authorities', label: 'Certificate Authorities', icon: Landmark },
+    { href: '/certificate-authorities/requests', label: 'CA Requests', icon: FileSignature },
     { href: '/signing-profiles', label: 'Signing Profiles', icon: ScrollTextIcon },
     { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
     { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },

@@ -8,30 +8,21 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight, FileSignature } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 
 const creationModes = [
   {
     id: 'generate',
     href: '/certificate-authorities/new/generate',
-    title: 'Create New CA (new Key Pair)',
-    description: 'Provision a new Root or Intermediate CA. A new cryptographic key pair will be generated and managed by LamassuIoT.',
+    title: 'Create New CA (Direct)',
+    description: 'Provision a new Root or Intermediate CA directly. The CA will be active immediately upon creation.',
     icon: <KeyRound className="h-8 w-8 text-primary" />,
     isComingSoon: false,
   },
   {
-    id: 'reuse-key',
-    href: '/certificate-authorities/new/reuse-key',
-    title: 'Create CA (reuse Key Pair)',
-    description: "Provision a new Root or Intermediate CA using an existing cryptographic key pair stored securely in LamassuIoT's KMS or an external HSM.",
-    icon: <Repeat className="h-8 w-8 text-primary" />,
-    isComingSoon: true,
-  },
-  {
     id: 'generate-csr',
     href: '/certificate-authorities/new/generate-csr',
-    title: 'Generate CSR for External CA',
-    description: 'Create a key pair and generate a CSR. Take the CSR to an external/offline CA to be signed, then import the resulting certificate.',
+    title: 'Request New CA (Server-side Key)',
+    description: 'Generate a key pair and CSR on the backend. This request must be approved and signed by an administrator.',
     icon: <FileSignature className="h-8 w-8 text-primary" />,
   },
   {
@@ -51,6 +42,13 @@ const creationModes = [
     isComingSoon: false,
   },
 ];
+
+const ComingSoonBadge = () => (
+    <Badge variant="outline" className="absolute top-2 right-2 bg-yellow-100 text-yellow-800 border-yellow-300">
+      Coming Soon
+    </Badge>
+);
+
 
 export default function CreateCaHubPage() {
   const router = useRouter();
