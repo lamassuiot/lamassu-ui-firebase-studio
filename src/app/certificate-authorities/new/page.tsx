@@ -5,7 +5,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight, FileSignature } from "lucide-react";
+import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight, FileSignature, ShieldCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,13 @@ const creationModes: CreationMode[] = [
     title: 'Request New CA (Server-side Key)',
     description: 'Generate a key pair and CSR on the backend. This request must be approved and signed by an administrator.',
     icon: <FileSignature className="h-8 w-8 text-primary" />,
+  },
+  {
+    id: 'approve-request',
+    href: '/certificate-authorities/new/approve-request',
+    title: 'Approve CA Request (Import Certificate)',
+    description: 'Import a signed certificate to approve a pending CA request that was generated on the backend.',
+    icon: <ShieldCheck className="h-8 w-8 text-primary" />,
   },
   {
     id: 'import-full',
