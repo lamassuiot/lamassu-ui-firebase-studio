@@ -14,7 +14,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
@@ -144,7 +143,7 @@ const EKU_OPTIONS = [
 
 // --- Stepper Component ---
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Details", "Review", "Configure", "Issue", "Done"];
+  const steps = ["Configure", "Issue", "Done"];
   return (
     <div className="flex items-center space-x-4 mb-8">
       {steps.map((label, index) => {
@@ -189,8 +188,7 @@ export default function IssueCertificateFormClient() {
   const caId = searchParams.get('caId');
   const [step, setStep] = useState(1);
 
-  // --- State for the entire wizard ---
-  // Step 1
+  // Step 1 State
   const [issuanceMode, setIssuanceMode] = useState<'generate' | 'upload'>('generate');
   const [commonName, setCommonName] = useState('');
   const [organization, setOrganization] = useState('');
@@ -205,25 +203,22 @@ export default function IssueCertificateFormClient() {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('RSA');
   const [selectedRsaKeySize, setSelectedRsaKeySize] = useState<string>('2048');
   const [selectedEcdsaCurve, setSelectedEcdsaCurve] = useState<string>('P-256');
-
-  // Step 2
   const [csrPem, setCsrPem] = useState('');
-  const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
-  const [privateKeyCopied, setPrivateKeyCopied] = useState(false);
-  const [csrCopied, setCsrCopied] = useState(false);
   const [decodedCsrInfo, setDecodedCsrInfo] = useState<DecodedCsrInfo | null>(null);
 
-  // Step 3
+  // Step 1 - Configuration State (previously step 3)
   const [keyUsages, setKeyUsages] = useState<string[]>(['DigitalSignature', 'KeyEncipherment']);
   const [extendedKeyUsages, setExtendedKeyUsages] = useState<string[]>(['ClientAuth', 'ServerAuth']);
   const [duration, setDuration] = useState('1y');
-  const [honorExtensions, setHonorExtensions] = useState(true);
-  const [honorSubject, setHonorSubject] = useState(true);
-  
-  // Step 4/5
+
+  // Step 2 & 3 State
+  const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [issuedCertificate, setIssuedCertificate] = useState<{ pem: string; serial: string } | null>(null);
+  
+  // UX State for copy buttons
+  const [privateKeyCopied, setPrivateKeyCopied] = useState(false);
   const [issuedCertCopied, setIssuedCertCopied] = useState(false);
 
 
@@ -243,8 +238,9 @@ export default function IssueCertificateFormClient() {
   // --- Handlers ---
   const handleBack = () => {
     setGenerationError(null);
-    setStep(prev => prev - 1);
+    setStep(1);
   };
+
   const handleCopy = async (text: string, type: string, setCopied: (v: boolean) => void) => {
     if (!text) return;
     try {
@@ -256,6 +252,7 @@ export default function IssueCertificateFormClient() {
       toast({ title: "Copy Failed", description: `Could not copy ${type} PEM.`, variant: "destructive" });
     }
   };
+
   const handleDownload = (content: string, filename: string, mime: string) => {
     if (!content) return;
     const blob = new Blob([content.replace(/\\n/g, '\n')], { type: mime });
@@ -268,10 +265,10 @@ export default function IssueCertificateFormClient() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
   const handleCsrFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // setUploadedCsrFileName(file.name);
       const content = await file.text();
       setCsrPem(content);
     }
@@ -302,31 +299,42 @@ export default function IssueCertificateFormClient() {
     }
   };
 
-  const handleGenerateAndReview = async () => {
+  const handleKeyUsageChange = (usage: string, checked: boolean) => {
+    setKeyUsages(prev => checked ? [...prev, usage] : prev.filter(u => u !== usage));
+  };
+  const handleExtendedKeyUsageChange = (usage: string, checked: boolean) => {
+    setExtendedKeyUsages(prev => checked ? [...prev, usage] : prev.filter(u => u !== usage));
+  };
+
+  // New combined handler for Generate mode
+  const handleGenerateAndIssue = async () => {
     if (isGenerating) return;
     if (!commonName.trim()) {
-      toast({ title: "Validation Error", description: "Common Name is required to generate a CSR.", variant: "destructive" });
+      toast({ title: "Validation Error", description: "Common Name is required.", variant: "destructive" });
       return;
     }
+    
+    setStep(2); // Move to "Issuing" screen
     setIsGenerating(true);
     setGenerationError(null);
+
     try {
+      // --- Part 1: Generate Key & CSR ---
       const algorithm = selectedAlgorithm === 'RSA' 
         ? { name: "RSASSA-PKCS1-v1_5", modulusLength: parseInt(selectedRsaKeySize, 10), publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }
         : { name: "ECDSA", namedCurve: selectedEcdsaCurve };
       const keyPair = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
+      
       const privateKeyPem = formatAsPem(arrayBufferToBase64(await crypto.subtle.exportKey("pkcs8", keyPair.privateKey)), 'PRIVATE KEY');
-      setGeneratedPrivateKeyPem(privateKeyPem);
+      setGeneratedPrivateKeyPem(privateKeyPem); // Save for the "Done" screen
       
       const pkcs10 = new CertificationRequest({ version: 0 });
       pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: commonName.trim() }) }));
       if (organization.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.10", value: new asn1js.Utf8String({ value: organization.trim() })}));
-      // Add other subject parts similarly...
+      // Add other subject parts here if needed
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
       
-      // Explicitly initialize attributes to handle case with no SANs
       pkcs10.attributes = [];
-
       const generalNamesArray: GeneralName[] = [
         ...emailSans.map(email => new GeneralName({ type: 1, value: email.trim() })),
         ...dnsSans.map(dnsName => new GeneralName({ type: 2, value: dnsName.trim() })),
@@ -355,56 +363,68 @@ export default function IssueCertificateFormClient() {
 
       await pkcs10.sign(keyPair.privateKey, "SHA-256");
       const signedCsrPem = formatAsPem(arrayBufferToBase64(pkcs10.toSchema().toBER(false)), 'CERTIFICATE REQUEST');
-      setCsrPem(signedCsrPem);
-      await parseCsr(signedCsrPem);
-      setStep(2);
+
+      // --- Part 2: Issue Certificate ---
+      const payload = {
+        csr: window.btoa(signedCsrPem),
+        profile: {
+            extended_key_usage: extendedKeyUsages,
+            key_usage: keyUsages,
+            honor_extensions: true,
+            honor_subject: true,
+            validity: { type: "Duration", duration: duration }
+        }
+      };
+    
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caId}/certificates/sign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.access_token}` },
+          body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+          throw new Error(result.err || `Failed to issue certificate. Status: ${response.status}`);
+      }
+
+      const issuedPem = result.certificate ? window.atob(result.certificate) : 'Error: Certificate not found in response.';
+      setIssuedCertificate({ pem: issuedPem, serial: result.serial_number });
+      setStep(3);
+      toast({ title: "Success!", description: "Certificate issued successfully." });
+
     } catch (e: any) {
-      setGenerationError(`Failed to generate: ${e.message}`);
+      setGenerationError(e.message);
+      toast({ title: "Issuance Failed", description: e.message, variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
   };
-  
-  const handleReviewUploadedCsr = () => {
-      if (!csrPem.trim()) {
-          toast({ title: "Validation Error", description: "Please upload or paste a CSR first.", variant: "destructive" });
-          return;
-      }
-      if (decodedCsrInfo?.error) {
-          toast({ title: "CSR Error", description: `Cannot proceed, CSR is invalid: ${decodedCsrInfo.error}`, variant: "destructive" });
-          return;
-      }
-      setStep(2);
-  };
-  
-  const handleKeyUsageChange = (usage: string, checked: boolean) => {
-    setKeyUsages(prev => checked ? [...prev, usage] : prev.filter(u => u !== usage));
-  };
-  const handleExtendedKeyUsageChange = (usage: string, checked: boolean) => {
-    setExtendedKeyUsages(prev => checked ? [...prev, usage] : prev.filter(u => u !== usage));
-  };
 
-  const handleIssueCertificate = async () => {
+  // Updated handler for Upload CSR mode
+  const handleIssueCertificateFromUpload = async () => {
     if (!csrPem.trim() || !caId) {
         toast({ title: "Error", description: "CSR or CA ID is missing.", variant: "destructive" });
         return;
     }
+     if (decodedCsrInfo?.error) {
+        toast({ title: "CSR Error", description: `Cannot proceed, CSR is invalid: ${decodedCsrInfo.error}`, variant: "destructive" });
+        return;
+    }
+
+    setStep(2);
+    setIsGenerating(true);
+    setGenerationError(null);
+
     const payload = {
         csr: window.btoa(csrPem),
         profile: {
             extended_key_usage: extendedKeyUsages,
             key_usage: keyUsages,
-            honor_extensions: honorExtensions,
-            honor_subject: honorSubject,
-            validity: {
-                type: "Duration",
-                duration: duration
-            }
+            honor_extensions: true,
+            honor_subject: true,
+            validity: { type: "Duration", duration: duration }
         }
     };
     
-    setIsGenerating(true); // Reuse for submission loading state
-    setGenerationError(null);
     try {
         const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caId}/certificates/sign`, {
             method: 'POST',
@@ -418,7 +438,7 @@ export default function IssueCertificateFormClient() {
 
         const issuedPem = result.certificate ? window.atob(result.certificate) : 'Error: Certificate not found in response.';
         setIssuedCertificate({ pem: issuedPem, serial: result.serial_number });
-        setStep(5);
+        setStep(3);
         toast({ title: "Success!", description: "Certificate issued successfully." });
     } catch (e: any) {
         setGenerationError(e.message);
@@ -454,78 +474,48 @@ export default function IssueCertificateFormClient() {
                         <SelectItem value="upload">Upload Existing CSR</SelectItem>
                     </SelectContent>
                 </Select>
+                
+                {/* --- Subject & SANs section --- */}
+                <h3 className="font-medium text-lg border-t pt-4">Certificate Subject {issuanceMode === 'upload' && '(from CSR)'}</h3>
                 {issuanceMode === 'generate' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1"><Label htmlFor="commonName">Common Name (CN)</Label><Input id="commonName" value={commonName} onChange={e => setCommonName(e.target.value)} required /></div>
+                    <div className="space-y-1"><Label htmlFor="organization">Organization (O)</Label><Input id="organization" value={organization} onChange={e => setOrganization(e.target.value)} /></div>
+                    <div className="space-y-1 md:col-span-2"><Label htmlFor="dnsSans">DNS Names (SAN)</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="Add DNS names..."/></div>
+                  </div>
+                ) : (
                   <div className="space-y-4">
-                    <h3 className="font-medium text-lg">Certificate Subject & Key Details</h3>
+                     <div className="space-y-1"><Label htmlFor="csrFile">Upload CSR File</Label><Input id="csrFile" type="file" accept=".csr,.pem" onChange={handleCsrFileUpload}/></div>
+                     <div className="space-y-1"><Label htmlFor="csrPemTextarea">Or Paste CSR (PEM)</Label><Textarea id="csrPemTextarea" value={csrPem} onChange={e=>setCsrPem(e.target.value)} rows={8} className="font-mono"/></div>
+                     {decodedCsrInfo && (
+                        <Card className="bg-muted/30"><CardHeader><CardTitle className="text-md">Decoded CSR Information</CardTitle></CardHeader><CardContent className="space-y-2 text-sm">{decodedCsrInfo.error ? <Alert variant="destructive">{decodedCsrInfo.error}</Alert> : <>
+                            <DetailItem label="Subject" value={decodedCsrInfo.subject} isMono />
+                            <DetailItem label="Public Key" value={decodedCsrInfo.publicKeyInfo} isMono />
+                            {decodedCsrInfo.sans && decodedCsrInfo.sans.length > 0 && <DetailItem label="SANs" value={<div className="flex flex-wrap gap-1">{decodedCsrInfo.sans.map((san, i)=><Badge key={i} variant="secondary">{san}</Badge>)}</div>}/>}
+                            {decodedCsrInfo.basicConstraints && <DetailItem label="Basic Constraints" value={decodedCsrInfo.basicConstraints} isMono />}
+                        </> }</CardContent></Card>
+                    )}
+                  </div>
+                )}
+
+                {/* --- Key Generation section (generate mode only) --- */}
+                {issuanceMode === 'generate' && (
+                    <>
+                    <h3 className="font-medium text-lg border-t pt-4">Key Generation Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <Label htmlFor="keyAlgorithm">Algorithm</Label>
-                            <Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{availableAlgorithms.map(a=><SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent></Select>
-                        </div>
+                        <div className="space-y-1"><Label htmlFor="keyAlgorithm">Algorithm</Label><Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{availableAlgorithms.map(a=><SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent></Select></div>
                         {selectedAlgorithm === 'RSA' ? (
                            <div className="space-y-1"><Label htmlFor="rsaKeySize">RSA Key Size</Label><Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{rsaKeySizes.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
                         ) : (
                            <div className="space-y-1"><Label htmlFor="ecdsaCurve">ECDSA Curve</Label><Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ecdsaCurves.map(c=><SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
                         )}
-                        <div className="space-y-1"><Label htmlFor="commonName">Common Name (CN)</Label><Input id="commonName" value={commonName} onChange={e => setCommonName(e.target.value)} required /></div>
-                        <div className="space-y-1"><Label htmlFor="organization">Organization (O)</Label><Input id="organization" value={organization} onChange={e => setOrganization(e.target.value)} /></div>
                     </div>
-                    <h3 className="font-medium text-lg pt-4">Subject Alternative Names (SANs)</h3>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1"><Label htmlFor="dnsSans">DNS Names</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="Add DNS names..."/></div>
-                        <div className="space-y-1"><Label htmlFor="ipSans">IP Addresses</Label><TagInput id="ipSans" value={ipSans} onChange={setIpSans} placeholder="Add IP addresses..."/></div>
-                        <div className="space-y-1"><Label htmlFor="emailSans">Email Addresses</Label><TagInput id="emailSans" value={setEmailSans} placeholder="Add email addresses..."/></div>
-                        <div className="space-y-1"><Label htmlFor="uriSans">URIs</Label><TagInput id="uriSans" value={uriSans} onChange={setUriSans} placeholder="Add URIs..."/></div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                     <h3 className="font-medium text-lg">Upload or Paste CSR</h3>
-                     <div className="space-y-1"><Label htmlFor="csrFile">Upload CSR File</Label><Input id="csrFile" type="file" accept=".csr,.pem" onChange={handleCsrFileUpload}/></div>
-                     <div className="space-y-1"><Label htmlFor="csrPemTextarea">Or Paste CSR (PEM)</Label><Textarea id="csrPemTextarea" value={csrPem} onChange={e=>setCsrPem(e.target.value)} rows={8} className="font-mono"/></div>
-                  </div>
+                    </>
                 )}
-            </div>
-          )}
-
-          {step === 2 && (
-             <div className="space-y-6 mt-6">
-                {generatedPrivateKeyPem && (
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                            <h3 className="font-medium text-lg">Generated Private Key</h3>
-                            <div className="flex space-x-2">
-                                <Button type="button" variant="outline" size="sm" onClick={()=>handleCopy(generatedPrivateKeyPem, "Private Key", setPrivateKeyCopied)}>
-                                    {privateKeyCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}
-                                    {privateKeyCopied?'Copied':'Copy'}
-                                </Button>
-                                <Button type="button" variant="outline" size="sm" onClick={()=>handleDownload(generatedPrivateKeyPem, "private_key.pem", "application/x-pem-file")}>
-                                    <DownloadIcon className="mr-1 h-4 w-4"/>Download
-                                </Button>
-                            </div>
-                        </div>
-                        <p className="text-xs text-destructive">This is your only chance to save the private key. Store it securely.</p>
-                        <Textarea readOnly value={generatedPrivateKeyPem} rows={8} className="font-mono bg-muted/50"/>
-                    </div>
-                )}
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center"><h3 className="font-medium text-lg">Certificate Signing Request (CSR)</h3><div className="flex space-x-2"><Button type="button" variant="outline" size="sm" onClick={()=>handleCopy(csrPem, "CSR", setCsrCopied)}>{csrCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}{csrCopied?'Copied':'Copy'}</Button><Button type="button" variant="outline" size="sm" onClick={()=>handleDownload(csrPem, "request.csr", "application/pkcs10")}><DownloadIcon className="mr-1 h-4 w-4"/>Download</Button></div></div>
-                    <Textarea readOnly value={csrPem} rows={8} className="font-mono bg-muted/50"/>
-                </div>
-                {decodedCsrInfo && (
-                    <Card className="bg-muted/30"><CardHeader><CardTitle className="text-md">Decoded CSR Information</CardTitle></CardHeader><CardContent className="space-y-2 text-sm">{decodedCsrInfo.error ? <Alert variant="destructive">{decodedCsrInfo.error}</Alert> : <>
-                        <DetailItem label="Subject" value={decodedCsrInfo.subject} isMono />
-                        <DetailItem label="Public Key" value={decodedCsrInfo.publicKeyInfo} isMono />
-                        {decodedCsrInfo.sans && decodedCsrInfo.sans.length > 0 && <DetailItem label="SANs" value={<div className="flex flex-wrap gap-1">{decodedCsrInfo.sans.map((san, i)=><Badge key={i} variant="secondary">{san}</Badge>)}</div>}/>}
-                        {decodedCsrInfo.basicConstraints && <DetailItem label="Basic Constraints" value={decodedCsrInfo.basicConstraints} isMono />}
-                    </> }</CardContent></Card>
-                )}
-             </div>
-          )}
-
-          {step === 3 && (
-             <div className="space-y-6 mt-6">
-                <DurationInput 
+                
+                {/* --- Configuration section (both modes) --- */}
+                <h3 className="font-medium text-lg border-t pt-4">Certificate Configuration</h3>
+                 <DurationInput 
                   id="duration" 
                   label="Validity Duration" 
                   value={duration} 
@@ -537,15 +527,10 @@ export default function IssueCertificateFormClient() {
                     <div className="space-y-2"><h4 className="font-medium">Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{KEY_USAGE_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`ku-${o.id}`} checked={keyUsages.includes(o.id)} onCheckedChange={(c)=>handleKeyUsageChange(o.id, !!c)}/><Label htmlFor={`ku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
                     <div className="space-y-2"><h4 className="font-medium">Extended Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{EKU_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`eku-${o.id}`} checked={extendedKeyUsages.includes(o.id)} onCheckedChange={(c)=>handleExtendedKeyUsageChange(o.id, !!c)}/><Label htmlFor={`eku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
                 </div>
-                 <div className="space-y-2 pt-4">
-                    <h4 className="font-medium text-lg">CSR Honoring Policy</h4>
-                    <div className="flex items-center space-x-2"><Switch id="honorSubject" checked={honorSubject} onCheckedChange={setHonorSubject} /><Label htmlFor="honorSubject">Honor Subject from CSR</Label></div>
-                    <div className="flex items-center space-x-2"><Switch id="honorExtensions" checked={honorExtensions} onCheckedChange={setHonorExtensions} /><Label htmlFor="honorExtensions">Honor Extensions from CSR</Label></div>
-                </div>
-             </div>
+            </div>
           )}
 
-          {step === 4 && (
+          {step === 2 && (
             <div className="flex items-center justify-center p-8 flex-col text-center">
               {isGenerating ? (
                 <>
@@ -567,7 +552,7 @@ export default function IssueCertificateFormClient() {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 3 && (
             <div className="space-y-6 mt-6 text-center">
               <Check className="h-16 w-16 text-green-500 mx-auto" />
               <h3 className="text-2xl font-semibold">Certificate Issued Successfully!</h3>
@@ -615,24 +600,23 @@ export default function IssueCertificateFormClient() {
 
         </CardContent>
         <CardFooter className="flex justify-between">
-          {step < 4 || (step === 4 && !!generationError) ? (
+          {step < 2 || (step === 2 && !!generationError) ? (
             <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1}>
               Back
             </Button>
           ) : <div/> /* Spacer */}
             
             <div className="flex space-x-2">
-                {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndReview} disabled={isGenerating || !commonName.trim()}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Next: Review</Button>}
-                {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleReviewUploadedCsr} disabled={!csrPem.trim()}>Next: Review</Button>}
-                {step === 2 && <Button type="button" onClick={() => setStep(3)}>Next: Configure</Button>}
-                {step === 3 && <Button type="button" onClick={() => { setStep(4); handleIssueCertificate(); }} disabled={isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Issue Certificate</Button>}
-                {step === 4 && !!generationError && (
-                  <Button type="button" onClick={handleIssueCertificate} disabled={isGenerating}>
+                {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndIssue} disabled={isGenerating || !commonName.trim()}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Generate & Issue</Button>}
+                {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleIssueCertificateFromUpload} disabled={isGenerating || !csrPem.trim() || !!decodedCsrInfo?.error}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Issue Certificate</Button>}
+                
+                {step === 2 && !!generationError && (
+                  <Button type="button" onClick={issuanceMode === 'generate' ? handleGenerateAndIssue : handleIssueCertificateFromUpload} disabled={isGenerating}>
                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Retry
                   </Button>
                 )}
-                {step === 5 && (
+                {step === 3 && (
                     <>
                         <Button type="button" variant="outline" onClick={() => router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`)}>
                             Finish
