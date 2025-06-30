@@ -1,52 +1,102 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { HelpCircle, Router, Server, Thermometer, Laptop, Smartphone, Watch, Tv, Bot, ToyBrick, Car, Wind, Camera } from 'lucide-react';
-import { Label } from '../ui/label';
-import { Input } from '../ui/input';
-
+import * as LucideIcons from 'lucide-react';
 
 interface DeviceIconSelectorModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onIconSelected: (iconName: string) => void;
   currentSelectedIconName?: string | null;
-  initialIconColor: string;
-  initialBgColor: string;
-  onColorsChange: (colors: { iconColor: string; bgColor: string }) => void;
 }
 
+// Define a type for the structure of our icon list
 interface IconDefinition {
-  name: string;
+  name: keyof typeof LucideIcons; // Ensures names are valid Lucide icon names
   IconComponent: React.ElementType;
 }
 
-// Curated list of icons from Lucide
+// Curated list of Lucide icons for IoT devices
 const AVAILABLE_ICONS: IconDefinition[] = [
-    { name: "Router", IconComponent: Router },
-    { name: "Server", IconComponent: Server },
-    { name: "Thermometer", IconComponent: Thermometer },
-    { name: "Laptop", IconComponent: Laptop },
-    { name: "Smartphone", IconComponent: Smartphone },
-    { name: "Watch", IconComponent: Watch },
-    { name: "Tv", IconComponent: Tv },
-    { name: "Bot", IconComponent: Bot },
-    { name: "ToyBrick", IconComponent: ToyBrick },
-    { name: "Car", IconComponent: Car },
-    { name: "Wind", IconComponent: Wind },
-    { name: "Camera", IconComponent: Camera },
+  { name: 'Router', IconComponent: LucideIcons.Router },
+  { name: 'Smartphone', IconComponent: LucideIcons.Smartphone },
+  { name: 'Tablet', IconComponent: LucideIcons.Tablet },
+  { name: 'Laptop', IconComponent: LucideIcons.Laptop },
+  { name: 'Monitor', IconComponent: LucideIcons.Monitor },
+  { name: 'HardDrive', IconComponent: LucideIcons.HardDrive },
+  { name: 'Server', IconComponent: LucideIcons.Server },
+  { name: 'Cpu', IconComponent: LucideIcons.Cpu },
+  { name: 'MemoryStick', IconComponent: LucideIcons.MemoryStick },
+  { name: 'Radio', IconComponent: LucideIcons.Radio },
+  { name: 'Wifi', IconComponent: LucideIcons.Wifi },
+  { name: 'Bluetooth', IconComponent: LucideIcons.Bluetooth },
+  { name: 'Signal', IconComponent: LucideIcons.Signal },
+  { name: 'BatteryFull', IconComponent: LucideIcons.BatteryFull },
+  { name: 'Thermometer', IconComponent: LucideIcons.Thermometer },
+  { name: 'Lightbulb', IconComponent: LucideIcons.Lightbulb },
+  { name: 'Fan', IconComponent: LucideIcons.Fan },
+  { name: 'Lock', IconComponent: LucideIcons.Lock },
+  { name: 'KeyRound', IconComponent: LucideIcons.KeyRound },
+  { name: 'Camera', IconComponent: LucideIcons.Camera },
+  { name: 'Video', IconComponent: LucideIcons.Video },
+  { name: 'Settings2', IconComponent: LucideIcons.Settings2 },
+  { name: 'Power', IconComponent: LucideIcons.Power },
+  { name: 'Plug', IconComponent: LucideIcons.Plug },
+  { name: 'Speaker', IconComponent: LucideIcons.Speaker },
+  { name: 'Printer', IconComponent: LucideIcons.Printer },
+  { name: 'Cloud', IconComponent: LucideIcons.Cloud },
+  { name: 'Database', IconComponent: LucideIcons.Database },
+  { name: 'Disc3', IconComponent: LucideIcons.Disc3 },
+  { name: 'CircuitBoard', IconComponent: LucideIcons.CircuitBoard },
+  { name: 'Activity', IconComponent: LucideIcons.Activity },
+  { name: 'AirVent', IconComponent: LucideIcons.AirVent },
+  { name: 'AlertTriangle', IconComponent: LucideIcons.AlertTriangle },
+  { name: 'Archive', IconComponent: LucideIcons.Archive },
+  { name: 'AppWindow', IconComponent: LucideIcons.AppWindow },
+  { name: 'BadgeAlert', IconComponent: LucideIcons.BadgeAlert },
+  { name: 'Box', IconComponent: LucideIcons.Box },
+  { name: 'Briefcase', IconComponent: LucideIcons.Briefcase },
+  { name: 'Cable', IconComponent: LucideIcons.Cable },
+  { name: 'Container', IconComponent: LucideIcons.Container },
+  { name: 'DiscAlbum', IconComponent: LucideIcons.DiscAlbum },
+  { name: 'Gauge', IconComponent: LucideIcons.Gauge },
+  { name: 'Globe', IconComponent: LucideIcons.Globe },
+  { name: 'Home', IconComponent: LucideIcons.Home },
+  { name: 'Image', IconComponent: LucideIcons.Image },
+  { name: 'LifeBuoy', IconComponent: LucideIcons.LifeBuoy },
+  { name: 'Link', IconComponent: LucideIcons.Link },
+  { name: 'MapPin', IconComponent: LucideIcons.MapPin },
+  { name: 'MessageSquare', IconComponent: LucideIcons.MessageSquare },
+  { name: 'Mic', IconComponent: LucideIcons.Mic },
+  { name: 'Navigation', IconComponent: LucideIcons.Navigation },
+  { name: 'Network', IconComponent: LucideIcons.Network },
+  { name: 'Package', IconComponent: LucideIcons.Package },
+  { name: 'QrCode', IconComponent: LucideIcons.QrCode },
+  { name: 'SatelliteDish', IconComponent: LucideIcons.SatelliteDish },
+  { name: 'Save', IconComponent: LucideIcons.Save },
+  { name: 'Shield', IconComponent: LucideIcons.Shield },
+  { name: 'ShoppingBag', IconComponent: LucideIcons.ShoppingBag },
+  { name: 'Siren', IconComponent: LucideIcons.Siren },
+  { name: 'SlidersHorizontal', IconComponent: LucideIcons.SlidersHorizontal },
+  { name: 'ToyBrick', IconComponent: LucideIcons.ToyBrick },
+  { name: 'Trash2', IconComponent: LucideIcons.Trash2 },
+  { name: 'UploadCloud', IconComponent: LucideIcons.UploadCloud },
+  { name: 'User', IconComponent: LucideIcons.User },
+  { name: 'Volume2', IconComponent: LucideIcons.Volume2 },
+  { name: 'Wallet', IconComponent: LucideIcons.Wallet },
+  { name: 'Webhook', IconComponent: LucideIcons.Webhook },
+  { name: 'Zap', IconComponent: LucideIcons.Zap },
 ];
-
 
 export const getLucideIconByName = (iconName: string | null): React.ElementType | null => {
     if (!iconName) return null;
     const foundIcon = AVAILABLE_ICONS.find(icon => icon.name === iconName);
-    return foundIcon ? foundIcon.IconComponent : HelpCircle; // Fallback icon
+    return foundIcon ? foundIcon.IconComponent : LucideIcons.HelpCircle; // Fallback icon
 };
 
 
@@ -55,107 +105,47 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
   onOpenChange,
   onIconSelected,
   currentSelectedIconName,
-  initialIconColor,
-  initialBgColor,
-  onColorsChange,
 }) => {
-
-  const [localIconColor, setLocalIconColor] = useState(initialIconColor);
-  const [localBgColor, setLocalBgColor] = useState(initialBgColor);
-
-  useEffect(() => {
-    if (isOpen) {
-      setLocalIconColor(initialIconColor);
-      setLocalBgColor(initialBgColor);
-    }
-  }, [isOpen, initialIconColor, initialBgColor]);
-
-  const handleColorChange = (type: 'icon' | 'bg', value: string) => {
-    if (type === 'icon') {
-        setLocalIconColor(value);
-        onColorsChange({ iconColor: value, bgColor: localBgColor });
-    } else {
-        setLocalBgColor(value);
-        onColorsChange({ iconColor: localIconColor, bgColor: value });
-    }
-  };
-
 
   const handleSelect = (iconName: string) => {
     onIconSelected(iconName);
+    onOpenChange(false); // Close modal on selection
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Select Device Icon and Colors</DialogTitle>
-          <DialogDescription>Choose an icon and its colors that best represents the device type.</DialogDescription>
+          <DialogTitle>Select Device Icon</DialogTitle>
+          <DialogDescription>Choose an icon that best represents the device type.</DialogDescription>
         </DialogHeader>
-
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-6 flex-grow min-h-0">
-          <ScrollArea className="border rounded-md">
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 p-4">
-              {AVAILABLE_ICONS.map(({ name, IconComponent }) => (
-                <Button
-                  key={name}
-                  variant={currentSelectedIconName === name ? "default" : "outline"}
-                  className={cn(
-                    "flex flex-col items-center justify-center h-24 p-2 space-y-1 text-center",
-                    currentSelectedIconName === name && "ring-2 ring-primary ring-offset-2"
-                  )}
-                  onClick={() => handleSelect(name)}
-                  title={name}
-                >
-                  <IconComponent className={cn(
-                      "h-8 w-8 mb-1", 
-                      currentSelectedIconName === name ? "text-primary-foreground" : "text-primary"
-                  )} />
-                  <span className="text-xs truncate w-full">{name}</span>
-                </Button>
-              ))}
-            </div>
-          </ScrollArea>
-
-          <div className="space-y-6 pt-4">
-            <div>
-              <Label className="mb-2 block text-center">Preview</Label>
-              <div className="flex justify-center">
-                {getLucideIconByName(currentSelectedIconName) && React.createElement(getLucideIconByName(currentSelectedIconName)!, {
-                    className: "h-16 w-16 p-3 rounded-lg",
-                    style: { color: localIconColor, backgroundColor: localBgColor }
-                })}
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-               <div>
-                <Label htmlFor="icon-color-input" className="text-sm">Icon Color</Label>
-                <Input
-                id="icon-color-input"
-                type="color"
-                value={localIconColor}
-                onChange={(e) => handleColorChange('icon', e.target.value)}
-                className="mt-1 h-10 w-full p-1"
-                />
-              </div>
-              <div>
-                  <Label htmlFor="icon-bg-color-input" className="text-sm">Background Color</Label>
-                  <Input
-                  id="icon-bg-color-input"
-                  type="color"
-                  value={localBgColor}
-                  onChange={(e) => handleColorChange('bg', e.target.value)}
-                  className="mt-1 h-10 w-full p-1"
-                  />
-              </div>
-            </div>
+        
+        <ScrollArea className="flex-grow my-4 border rounded-md">
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 p-4">
+            {AVAILABLE_ICONS.map(({ name, IconComponent }) => (
+              <Button
+                key={name}
+                variant={currentSelectedIconName === name ? "default" : "outline"}
+                className={cn(
+                  "flex flex-col items-center justify-center h-24 p-2 space-y-1 text-center",
+                  currentSelectedIconName === name && "ring-2 ring-primary ring-offset-2"
+                )}
+                onClick={() => handleSelect(name)}
+                title={name}
+              >
+                <IconComponent className={cn(
+                    "h-8 w-8 mb-1", 
+                    currentSelectedIconName === name ? "text-primary-foreground" : "text-primary"
+                )} />
+                <span className="text-xs truncate w-full">{name}</span>
+              </Button>
+            ))}
           </div>
-        </div>
+        </ScrollArea>
         
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">Done</Button>
+            <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>
