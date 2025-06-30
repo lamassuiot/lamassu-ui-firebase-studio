@@ -4,7 +4,6 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -42,11 +41,9 @@ export const ViewCsrModal: React.FC<ViewCsrModalProps> = ({ isOpen, onOpenChange
         </DialogHeader>
         <div className="relative my-4">
           <ScrollArea className="h-80 w-full rounded-md border bg-muted/30">
-            <Textarea
-              readOnly
-              value={csrPem || 'No CSR data available.'}
-              className="h-full w-full p-3 font-mono text-xs whitespace-pre-wrap break-all resize-none border-0"
-            />
+            <pre className="p-4 text-xs whitespace-pre-wrap break-all font-mono">
+              <code>{csrPem || 'No CSR data available.'}</code>
+            </pre>
           </ScrollArea>
           <Button
             variant="ghost"
