@@ -77,9 +77,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const [deviceId, setDeviceId] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     
-    // Step 2 state
-    const [userCsr, setUserCsr] = useState('');
-
     // Step 3 state
     const [bootstrapSigner, setBootstrapSigner] = useState<CA | null>(null);
     const [isCaSelectorOpen, setIsCaSelectorOpen] = useState(false);
@@ -96,7 +93,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         if(isOpen) {
             setStep(1);
             setDeviceId('');
-            setUserCsr('');
             setBootstrapSigner(null);
             setBootstrapValidity('1h');
             setBootstrapCertificate('');
@@ -112,10 +108,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             }
             setStep(2);
         } else if (step === 2) { // --> Define Props
-            if (!userCsr.trim()) {
-                toast({ title: "CSR required", description: "Please generate a CSR using the commands and paste it in the text area.", variant: "destructive"});
-                return;
-            }
             setStep(3);
         } else if (step === 3) { // --> Issue Bootstrap Cert
              if (!bootstrapSigner) {
@@ -123,11 +115,10 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 return;
             }
             setIsGenerating(true);
-            // MOCK API call to issue bootstrap certificate
+            // MOCK API call to issue bootstrap certificate (no CSR needed for this mock)
             await new Promise(res => setTimeout(res, 800));
             const mockCert = `-----BEGIN CERTIFICATE-----\n` +
-                `MOCK_CERT_FOR_${deviceId}_ISSUED_BY_${bootstrapSigner.name}\n` +
-                `BASED_ON_CSR_PROVIDED\n`+
+                `MOCK_BOOTSTRAP_CERT_FOR_${deviceId}_ISSUED_BY_${bootstrapSigner.name}\n` +
                 `${btoa(Date.now().toString())}\n` +
                 `-----END CERTIFICATE-----`;
             setBootstrapCertificate(mockCert);
@@ -172,10 +163,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         </Button>
       </div>
     );
-
-    const opensslKeyCommand = `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out device.key`;
-    const opensslCsrCommand = `openssl req -new -key device.key -out device.csr -subj "/CN=${deviceId || 'your_device_id'}"`;
-
+    
+    const opensslCombinedCommand = `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out device.key && openssl req -new -key device.key -out device.csr -subj "/CN=${deviceId || 'your_device_id'}"`;
     
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -199,23 +188,17 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                     {step === 2 && (
                          <div className="space-y-4">
                             <div>
-                                <Label>1. Generate Device Private Key</Label>
-                                <CodeBlock content={opensslKeyCommand}/>
+                                <Label>1. Generate Key & CSR</Label>
+                                <p className="text-xs text-muted-foreground mb-1">
+                                    Run the following command on your device to generate a private key (`device.key`) and a CSR (`device.csr`).
+                                </p>
+                                <CodeBlock content={opensslCombinedCommand}/>
                             </div>
                             <div>
-                                <Label>2. Generate Certificate Signing Request (CSR)</Label>
-                                <CodeBlock content={opensslCsrCommand}/>
-                            </div>
-                            <div>
-                                <Label htmlFor="csr-paste-area">3. Paste CSR Content</Label>
-                                <Textarea 
-                                    id="csr-paste-area"
-                                    placeholder="Paste the content of device.csr here..."
-                                    value={userCsr}
-                                    onChange={(e) => setUserCsr(e.target.value)} 
-                                    rows={6}
-                                    className="font-mono mt-1"
-                                />
+                                <Label>2. Proceed to Next Step</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Once you have `device.key` and `device.csr` on your machine, click Next to generate the bootstrap certificate.
+                                </p>
                             </div>
                         </div>
                     )}
