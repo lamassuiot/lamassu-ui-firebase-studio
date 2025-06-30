@@ -86,6 +86,17 @@ const serverKeygenTypes = [ { value: 'RSA', label: 'RSA' }, { value: 'ECDSA', la
 const serverKeygenRsaBits = [ { value: '2048', label: '2048 bit' }, { value: '3072', label: '3072 bit' }, { value: '4096', label: '4096 bit' }];
 const serverKeygenEcdsaCurves = [ { value: 'P-256', label: 'P-256' }, { value: 'P-384', label: 'P-384' }, { value: 'P-521', label: 'P-521' }];
 
+function hslToHex(h: number, s: number, l: number) {
+  l /= 100;
+  const a = s * Math.min(l, 1 - l) / 100;
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
 export default function CreateOrEditRegistrationAuthorityPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -249,6 +260,22 @@ export default function CreateOrEditRegistrationAuthorityPage() {
         setManagedCAs(ca_distribution_settings.managed_cas.map(id => findCaById(id, availableCAsForSelection)).filter(Boolean) as CA[]);
     }
   }, [isEditMode, raData, availableCAsForSelection]);
+  
+  // Effect to randomize icon color for new RAs
+  useEffect(() => {
+    if (!isEditMode) {
+      const randomHue = Math.floor(Math.random() * 360);
+      const saturation = 80;
+
+      const iconLightness = 50;
+      const iconColorHex = hslToHex(randomHue, saturation, iconLightness);
+      setSelectedDeviceIconColor(iconColorHex);
+
+      const bgLightness = 92;
+      const bgColorHex = hslToHex(randomHue, saturation, bgLightness);
+      setSelectedDeviceIconBgColor(bgColorHex);
+    }
+  }, [isEditMode]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -449,28 +476,6 @@ export default function CreateOrEditRegistrationAuthorityPage() {
                       </div>
                     ) : "Select Device Icon..."}
                   </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                    <div>
-                        <Label htmlFor="iconColor">Icon Color</Label>
-                        <Input
-                            id="iconColor"
-                            type="color"
-                            value={selectedDeviceIconColor}
-                            onChange={(e) => setSelectedDeviceIconColor(e.target.value)}
-                            className="w-full h-10 p-1"
-                        />
-                    </div>
-                    <div>
-                        <Label htmlFor="bgColor">Background Color</Label>
-                        <Input
-                            id="bgColor"
-                            type="color"
-                            value={selectedDeviceIconBgColor}
-                            onChange={(e) => setSelectedDeviceIconBgColor(e.target.value)}
-                            className="w-full h-10 p-1"
-                        />
-                    </div>
                 </div>
                 <p className="text-xs text-muted-foreground">Default icon and colors for devices registered through this RA.</p>
               </div>
