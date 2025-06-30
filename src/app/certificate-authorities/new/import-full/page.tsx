@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, PlusCircle, UploadCloud, Loader2, Settings, AlertTriangle } from "lucide-react";
+import { ArrowLeft, PlusCircle, UploadCloud, Loader2, Settings, AlertTriangle, Key } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Certificate as PkijsCertificate, BasicConstraints as PkijsBasicConstraints } from "pkijs";
@@ -60,9 +60,22 @@ export default function CreateCaImportFullPage() {
   const [caChainPem, setCaChainPem] = useState('');
   const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
   
+  // State for encrypted key handling
+  const [passphrase, setPassphrase] = useState('');
+  const [isPrivateKeyEncrypted, setIsPrivateKeyEncrypted] = useState(false);
+  
   useEffect(() => {
     setCaId(crypto.randomUUID());
   }, []);
+
+  useEffect(() => {
+    if (importedPrivateKeyPem && importedPrivateKeyPem.includes('ENCRYPTED PRIVATE KEY')) {
+        setIsPrivateKeyEncrypted(true);
+    } else {
+        setIsPrivateKeyEncrypted(false);
+    }
+  }, [importedPrivateKeyPem]);
+
   
   const parseCertificatePem = async (pem: string) => {
     try {
@@ -114,6 +127,11 @@ export default function CreateCaImportFullPage() {
       setIsSubmitting(false);
       return;
     }
+     if (isPrivateKeyEncrypted && !passphrase.trim()) {
+        toast({ title: "Validation Error", description: "The provided private key is encrypted. Please enter its passphrase.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
     if (decodedImportedCertInfo?.error) {
       toast({ title: "Certificate Error", description: "Cannot import due to invalid certificate data.", variant: "destructive" });
       setIsSubmitting(false);
@@ -132,6 +150,7 @@ export default function CreateCaImportFullPage() {
       id: caId,
       engine_id: cryptoEngineId,
       private_key: window.btoa(importedPrivateKeyPem),
+      private_key_passphrase: passphrase || undefined,
       ca: window.btoa(importedCaCertPem),
       ca_chain: caChainPems.map(cert => window.btoa(cert)),
       ca_type: "IMPORTED",
@@ -258,8 +277,32 @@ export default function CreateCaImportFullPage() {
                 <div>
                    <Label htmlFor="importedCaKeyPem">CA Private Key (PEM)</Label>
                    <Textarea id="importedCaKeyPem" value={importedPrivateKeyPem} onChange={(e) => setImportedPrivateKeyPem(e.target.value)} placeholder="Paste the corresponding private key PEM here..." rows={6} required className="mt-1 font-mono"/>
-                   <p className="text-xs text-muted-foreground mt-1">The key must be unencrypted. Passphrase support is not yet implemented.</p>
+                   <p className="text-xs text-muted-foreground mt-1">The key can be unencrypted or encrypted with a passphrase.</p>
                 </div>
+                 {isPrivateKeyEncrypted && (
+                    <div className="space-y-3">
+                        <Alert variant="warning">
+                            <Key className="h-4 w-4" />
+                            <AlertTitle>Encrypted Private Key Detected</AlertTitle>
+                            <AlertDescription>
+                                Please provide the passphrase to decrypt the private key for import.
+                            </AlertDescription>
+                        </Alert>
+                        <div>
+                            <Label htmlFor="passphrase">Private Key Passphrase</Label>
+                            <Input 
+                                id="passphrase" 
+                                type="password" 
+                                value={passphrase} 
+                                onChange={e => setPassphrase(e.target.value)} 
+                                placeholder="Enter passphrase for the private key"
+                                required
+                                className="mt-1"
+                                autoComplete="new-password"
+                            />
+                        </div>
+                    </div>
+                )}
                  <div>
                    <Label htmlFor="caChainPem">CA Certificate Chain (PEM, Optional)</Label>
                     <Textarea 
