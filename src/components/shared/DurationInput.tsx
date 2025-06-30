@@ -15,7 +15,9 @@ interface DurationInputProps extends Omit<InputProps, 'onChange' | 'value'> {
   labelClassName?: string;
 }
 
-const DURATION_REGEX = /^\d+[smhdwy]$/;
+// Regex to validate compound duration strings like '1y6m30s'
+// It ensures units are in the correct order (y, w, d, h, m, s) and appear at most once.
+const DURATION_REGEX = /^(?=.*\d)(\d+y)?(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$/;
 
 export const DurationInput: React.FC<DurationInputProps> = ({
   label,
@@ -61,7 +63,7 @@ export const DurationInput: React.FC<DurationInputProps> = ({
       {isInvalid && (
          <p className="text-xs text-destructive flex items-center">
             <AlertCircle className="h-3 w-3 mr-1"/>
-            Invalid format. Must be a number followed by s, m, h, d, w, or y.
+            Invalid format. Use combined units like '1y6m30s'.
          </p>
       )}
     </div>
