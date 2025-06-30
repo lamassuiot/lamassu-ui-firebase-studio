@@ -32,6 +32,8 @@ import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
+import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 // Define types based on the provided API response
 interface ApiRaDeviceProfile {
@@ -74,8 +76,12 @@ export default function RegistrationAuthoritiesPage() {
   
   const [ras, setRas] = useState<ApiRaItem[]>([]);
   const [allCAs, setAllCAs] = useState<CA[]>([]);
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+  const [selectedRaForEnroll, setSelectedRaForEnroll] = useState<ApiRaItem | null>(null);
 
   const loadData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -89,11 +95,14 @@ export default function RegistrationAuthoritiesPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [raResponse, casData] = await Promise.all([
+      const [raResponse, casData, enginesResponse] = await Promise.all([
         fetch('https://lab.lamassu.io/api/dmsmanager/v1/dms?page_size=15', {
           headers: { 'Authorization': `Bearer ${user.access_token}` },
         }),
-        fetchAndProcessCAs(user.access_token)
+        fetchAndProcessCAs(user.access_token),
+        fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+          headers: { 'Authorization': `Bearer ${user.access_token}` },
+        })
       ]);
 
       if (!raResponse.ok) {
@@ -105,15 +114,22 @@ export default function RegistrationAuthoritiesPage() {
          } catch (e) { /* ignore json parsing error */ }
          throw new Error(errorMessage);
       }
-      
       const raData: ApiRaListResponse = await raResponse.json();
       setRas(raData.list || []);
+
       setAllCAs(casData);
+
+      if (!enginesResponse.ok) {
+        throw new Error('Failed to fetch crypto engines');
+      }
+      const enginesData: ApiCryptoEngine[] = await enginesResponse.json();
+      setAllCryptoEngines(enginesData);
 
     } catch (err: any) {
       setError(err.message || 'An unknown error occurred.');
       setRas([]);
       setAllCAs([]);
+      setAllCryptoEngines([]);
     } finally {
       setIsLoading(false);
     }
@@ -142,6 +158,11 @@ export default function RegistrationAuthoritiesPage() {
     }
     const ca = findCa(caId, allCAs);
     return ca ? ca.name : caId;
+  };
+  
+  const handleOpenEnrollModal = (ra: ApiRaItem) => {
+    setSelectedRaForEnroll(ra);
+    setIsEnrollModalOpen(true);
   };
 
 
@@ -264,7 +285,7 @@ export default function RegistrationAuthoritiesPage() {
                                   </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => alert(`Show EST Enroll Commands for ${ra.name} (placeholder)`)}>
+                                  <DropdownMenuItem onClick={() => handleOpenEnrollModal(ra)}>
                                       <TerminalSquare className="mr-2 h-4 w-4" />
                                       <span>EST - Enroll: cURL Commands</span>
                                   </DropdownMenuItem>
@@ -297,6 +318,19 @@ export default function RegistrationAuthoritiesPage() {
         </div>
       )}
 
+      {selectedRaForEnroll && (
+        <EstEnrollModal
+            isOpen={isEnrollModalOpen}
+            onOpenChange={setIsEnrollModalOpen}
+            raId={selectedRaForEnroll.id}
+            raName={selectedRaForEnroll.name}
+            availableCAs={allCAs}
+            allCryptoEngines={allCryptoEngines}
+            isLoadingCAs={isLoading}
+            errorCAs={error}
+            loadCAsAction={loadData}
+        />
+      )}
     </div>
   );
 }
