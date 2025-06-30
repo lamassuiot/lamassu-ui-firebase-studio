@@ -41,21 +41,6 @@ function ab2hex(ab: ArrayBuffer) {
   return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-}
-
-function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'CERTIFICATE'): string {
-  const header = `-----BEGIN ${type}-----`;
-  const footer = `-----END ${type}-----`;
-  const body = base64String.match(/.{1,64}/g)?.join('\n') || '';
-  return `${header}\n${body}\n${footer}`;
-}
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 
@@ -75,9 +60,6 @@ export default function CreateCaImportFullPage() {
   const [caChainPem, setCaChainPem] = useState('');
   const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
   
-  const [passphrase, setPassphrase] = useState('');
-  const [isPrivateKeyEncrypted, setIsPrivateKeyEncrypted] = useState(false);
-  
   // Set up pkijs engine
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -88,15 +70,6 @@ export default function CreateCaImportFullPage() {
   useEffect(() => {
     setCaId(crypto.randomUUID());
   }, []);
-
-  useEffect(() => {
-    if (importedPrivateKeyPem && importedPrivateKeyPem.includes('ENCRYPTED PRIVATE KEY')) {
-        setIsPrivateKeyEncrypted(true);
-    } else {
-        setIsPrivateKeyEncrypted(false);
-        setPassphrase(''); // Clear passphrase if key is not encrypted
-    }
-  }, [importedPrivateKeyPem]);
 
   
   const parseCertificatePem = async (pem: string) => {
@@ -160,34 +133,10 @@ export default function CreateCaImportFullPage() {
       return;
     }
     
-    let finalPrivateKeyPem = importedPrivateKeyPem;
-
-    if (isPrivateKeyEncrypted) {
-      if (!passphrase.trim()) {
-          toast({ title: "Validation Error", description: "The provided private key is encrypted. Please enter its passphrase.", variant: "destructive" });
-          setIsSubmitting(false);
-          return;
-      }
-
-      try {
-          const pemContent = importedPrivateKeyPem.replace(/-----(BEGIN|END) ENCRYPTED PRIVATE KEY-----/g, "").replace(/\s+/g, "");
-          const derBuffer = Uint8Array.from(atob(pemContent), c => c.charCodeAt(0)).buffer;
-          const asn1 = asn1js.fromBER(derBuffer);
-          if(asn1.offset === -1) throw new Error("Could not parse encrypted private key structure.");
-          
-          // Use `(pkijs as any)` to bypass potential bundler/tree-shaking issues with this specific export.
-          const encryptedPrivateKeyInfo = new (pkijs as any).EncryptedPrivateKeyInfo({ schema: asn1.result });
-          const privateKeyInfoBuffer = await encryptedPrivateKeyInfo.decrypt({ password: passphrase });
-          
-          // The result is the DER of the PrivateKeyInfo, which we can re-wrap as a standard PKCS#8 PEM
-          finalPrivateKeyPem = formatAsPem(arrayBufferToBase64(privateKeyInfoBuffer), 'PRIVATE KEY');
-
-      } catch (e: any) {
-          console.error("Private key decryption failed:", e);
-          toast({ title: "Decryption Failed", description: "Could not decrypt the private key. Please check the passphrase and ensure the key is in PKCS#8 format.", variant: "destructive" });
-          setIsSubmitting(false);
-          return;
-      }
+    if (importedPrivateKeyPem.includes('ENCRYPTED PRIVATE KEY')) {
+      toast({ title: "Unsupported Key", description: "Encrypted private keys are not supported. Please provide an unencrypted private key in PKCS#8 format.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
     }
     
     const caChainPems = caChainPem.match(/-----BEGIN CERTIFICATE-----[^-]*-----END CERTIFICATE-----/g) || [];
@@ -195,7 +144,7 @@ export default function CreateCaImportFullPage() {
     const payload = {
       id: caId,
       engine_id: cryptoEngineId,
-      private_key: window.btoa(finalPrivateKeyPem), // Base64 encode the final (decrypted) key
+      private_key: window.btoa(importedPrivateKeyPem),
       ca: window.btoa(importedCaCertPem),
       ca_chain: caChainPems.map(cert => window.btoa(cert)),
       ca_type: "IMPORTED",
@@ -322,32 +271,8 @@ export default function CreateCaImportFullPage() {
                 <div>
                    <Label htmlFor="importedCaKeyPem">CA Private Key (PEM)</Label>
                    <Textarea id="importedCaKeyPem" value={importedPrivateKeyPem} onChange={(e) => setImportedPrivateKeyPem(e.target.value)} placeholder="Paste the corresponding private key PEM here..." rows={6} required className="mt-1 font-mono"/>
-                   <p className="text-xs text-muted-foreground mt-1">The key can be unencrypted or encrypted with a passphrase.</p>
+                   <p className="text-xs text-muted-foreground mt-1">Provide the unencrypted private key in PKCS#8 format.</p>
                 </div>
-                 {isPrivateKeyEncrypted && (
-                    <div className="space-y-3">
-                        <Alert variant="warning">
-                            <Key className="h-4 w-4" />
-                            <AlertTitle>Encrypted Private Key Detected</AlertTitle>
-                            <AlertDescription>
-                                Please provide the passphrase to decrypt the private key for import. Decryption happens in your browser.
-                            </AlertDescription>
-                        </Alert>
-                        <div>
-                            <Label htmlFor="passphrase">Private Key Passphrase</Label>
-                            <Input 
-                                id="passphrase" 
-                                type="password" 
-                                value={passphrase} 
-                                onChange={e => setPassphrase(e.target.value)} 
-                                placeholder="Enter passphrase for the private key"
-                                required
-                                className="mt-1"
-                                autoComplete="new-password"
-                            />
-                        </div>
-                    </div>
-                )}
                  <div>
                    <Label htmlFor="caChainPem">CA Certificate Chain (PEM, Optional)</Label>
                     <Textarea 
