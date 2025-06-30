@@ -40,6 +40,7 @@ const statusConfig: { [key: string]: { label: string; color: string } } = {
 export function DeviceStatusChartCard() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [chartData, setChartData] = useState<ChartData[] | null>(null);
+  const [totalDevices, setTotalDevices] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +63,8 @@ export function DeviceStatusChartCard() {
         }
         const data: DeviceStats = await response.json();
         
+        setTotalDevices(data.total);
+
         const transformedData = Object.entries(data.status_distribution)
           .map(([statusKey, value]) => {
               const config = statusConfig[statusKey] || { label: statusKey, color: '#8884d8' };
@@ -90,17 +93,17 @@ export function DeviceStatusChartCard() {
 
   const RADIAN = Math.PI / 180;
   const renderCustomizedLabel = (props: any) => {
-    const { cx, cy, midAngle, outerRadius, fill, payload, percent, value } = props;
+    const { cx, cy, midAngle, outerRadius, fill, percent } = props;
     
-    if (percent < 0.05) return null; // Don't render labels for tiny slices
+    if (percent < 0.05) return null;
 
     const sin = Math.sin(-RADIAN * midAngle);
     const cos = Math.cos(-RADIAN * midAngle);
     const sx = cx + (outerRadius + 0) * cos;
     const sy = cy + (outerRadius + 0) * sin;
-    const mx = cx + (outerRadius + 20) * cos;
-    const my = cy + (outerRadius + 20) * sin;
-    const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+    const mx = cx + (outerRadius + 15) * cos; // Shorter line
+    const my = cy + (outerRadius + 15) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 12;
     const ey = my;
     const textAnchor = cos >= 0 ? 'start' : 'end';
 
@@ -109,13 +112,10 @@ export function DeviceStatusChartCard() {
 
     return (
       <g>
-        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={lineColor} fill="none" />
-        <circle cx={sx} cy={sy} r={2} fill={fill} stroke={lineColor} strokeWidth={1}/>
-        <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey} textAnchor={textAnchor} fill={labelColor} dy={'.35em'} className="text-xs font-medium">
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={lineColor} strokeOpacity={0.7} fill="none" />
+        <circle cx={sx} cy={sy} r={2} fill={fill} stroke="none"/>
+        <text x={ex + (cos >= 0 ? 1 : -1) * 4} y={ey} textAnchor={textAnchor} fill={labelColor} dy={'.35em'} className="text-xs font-medium">
           {`${(percent * 100).toFixed(0)}%`}
-        </text>
-         <text x={ex + (cos >= 0 ? 1 : -1) * 6} y={ey} dy="1.2em" textAnchor={textAnchor} fill={labelColor} className="text-xs opacity-80">
-          {`(${value})`}
         </text>
       </g>
     );
@@ -150,7 +150,7 @@ export function DeviceStatusChartCard() {
             <p className="text-destructive-foreground/80 bg-destructive/30 p-3 rounded-md">Error: {error}</p>
           </div>
         ) : chartData && chartData.length > 0 ? (
-          <div style={{ width: '100%', height: 300 }}>
+          <div className="relative" style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
               <PieChart>
                 <Pie
@@ -159,7 +159,7 @@ export function DeviceStatusChartCard() {
                   cy="50%"
                   labelLine={false}
                   label={renderCustomizedLabel}
-                  outerRadius="75%"
+                  outerRadius="80%"
                   innerRadius="60%"
                   fill="#8884d8"
                   dataKey="value"
@@ -174,7 +174,7 @@ export function DeviceStatusChartCard() {
                 <Legend
                   verticalAlign="bottom"
                   wrapperStyle={{ paddingTop: '20px', color: 'hsl(var(--primary-foreground))' }}
-                  formatter={(value, entry) => (
+                  formatter={(value) => (
                     <span style={{ color: 'hsl(var(--primary-foreground))' }} className="text-xs">
                       {value}
                     </span>
@@ -182,6 +182,12 @@ export function DeviceStatusChartCard() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            {totalDevices !== null && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-4xl font-bold text-primary-foreground">{totalDevices}</span>
+                    <span className="text-sm text-primary-foreground/80">Total Devices</span>
+                </div>
+            )}
           </div>
         ) : (
              <div className="h-[300px] flex flex-col items-center justify-center text-center">
