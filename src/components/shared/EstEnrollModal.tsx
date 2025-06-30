@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, Check, Copy } from "lucide-react";
+import { Loader2, ArrowLeft, Check, Copy, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,28 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { CaSelectorModal } from './CaSelectorModal';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { DurationInput } from './DurationInput';
-import {
-  CertificationRequest, AttributeTypeAndValue, getCrypto, setEngine
-} from "pkijs";
-import * as asn1js from "asn1js";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-
-// Helper functions for CSR generation
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-}
-
-function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'CERTIFICATE REQUEST' | 'CERTIFICATE'): string {
-  const header = `-----BEGIN ${type}-----`;
-  const footer = `-----END ${type}-----`;
-  const body = base64String.match(/.{1,64}/g)?.join('\n') || '';
-  return `${header}\n${body}\n${footer}`;
-}
+import { Alert } from '../ui/alert';
 
 
 interface EstEnrollModalProps {
@@ -98,8 +78,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const [isGenerating, setIsGenerating] = useState(false);
     
     // Step 2 state
-    const [generatedCsr, setGeneratedCsr] = useState('');
-    const [generatedPrivateKey, setGeneratedPrivateKey] = useState('');
+    const [userCsr, setUserCsr] = useState('');
 
     // Step 3 state
     const [bootstrapSigner, setBootstrapSigner] = useState<CA | null>(null);
@@ -117,8 +96,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         if(isOpen) {
             setStep(1);
             setDeviceId('');
-            setGeneratedCsr('');
-            setGeneratedPrivateKey('');
+            setUserCsr('');
             setBootstrapSigner(null);
             setBootstrapValidity('1h');
             setBootstrapCertificate('');
@@ -126,37 +104,18 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         }
     }, [isOpen]);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined' && window.crypto) setEngine("webcrypto", getCrypto());
-    }, []);
-
     const handleNext = async () => {
-        if (step === 1) { // --> Generate CSR
+        if (step === 1) { // --> Show CSR commands
             if (!deviceId.trim()) {
                 toast({ title: "Device ID required", variant: "destructive" });
                 return;
             }
-            setIsGenerating(true);
-            try {
-                const algorithm = { name: "ECDSA", namedCurve: "P-256" };
-                const keyPair = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
-                const privateKeyPem = formatAsPem(arrayBufferToBase64(await crypto.subtle.exportKey("pkcs8", keyPair.privateKey)), 'PRIVATE KEY');
-                setGeneratedPrivateKey(privateKeyPem);
-                
-                const pkcs10 = new CertificationRequest({ version: 0 });
-                pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: deviceId.trim() }) }));
-                await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
-                await pkcs10.sign(keyPair.privateKey, "SHA-256");
-                
-                const csrPem = formatAsPem(arrayBufferToBase64(pkcs10.toSchema().toBER(false)), 'CERTIFICATE REQUEST');
-                setGeneratedCsr(csrPem);
-                setStep(2);
-            } catch(e: any) {
-                toast({ title: "CSR Generation Failed", description: e.message, variant: "destructive"});
-            } finally {
-                setIsGenerating(false);
-            }
+            setStep(2);
         } else if (step === 2) { // --> Define Props
+            if (!userCsr.trim()) {
+                toast({ title: "CSR required", description: "Please generate a CSR using the commands and paste it in the text area.", variant: "destructive"});
+                return;
+            }
             setStep(3);
         } else if (step === 3) { // --> Issue Bootstrap Cert
              if (!bootstrapSigner) {
@@ -168,13 +127,15 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             await new Promise(res => setTimeout(res, 800));
             const mockCert = `-----BEGIN CERTIFICATE-----\n` +
                 `MOCK_CERT_FOR_${deviceId}_ISSUED_BY_${bootstrapSigner.name}\n` +
+                `BASED_ON_CSR_PROVIDED\n`+
                 `${btoa(Date.now().toString())}\n` +
                 `-----END CERTIFICATE-----`;
             setBootstrapCertificate(mockCert);
             setIsGenerating(false);
             setStep(4);
         } else if (step === 4) { // --> Generate Commands
-            const command = `curl -v --cert-type P12 --cert bootstrap.p12:password \\ \n`+
+            const command = `curl -v --cert-type PEM --cert bootstrap.cert \\ \n`+
+                            `  --key-type PEM --key device.key \\ \n`+
                             `  -H "Content-Type: application/pkcs10" \\ \n`+
                             `  --data-binary @device.csr \\ \n`+
                             `  "https://lab.lamassu.io/api/dmsmanager/.well-known/est/${raId}/simpleenroll"`;
@@ -200,6 +161,21 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         setBootstrapSigner(ca);
         setIsCaSelectorOpen(false);
     }
+
+    const CodeBlock = ({ content }: { content: string }) => (
+      <div className="relative">
+        <pre className="text-xs bg-muted p-3 rounded-md font-mono overflow-x-auto">
+          <code>{content}</code>
+        </pre>
+        <Button variant="ghost" size="icon" className="absolute top-1.5 right-1.5 h-7 w-7" onClick={() => handleCopy(content, "Command")}>
+            <Copy className="h-4 w-4"/>
+        </Button>
+      </div>
+    );
+
+    const opensslKeyCommand = `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out device.key`;
+    const opensslCsrCommand = `openssl req -new -key device.key -out device.csr -subj "/CN=${deviceId || 'your_device_id'}"`;
+
     
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -221,10 +197,25 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                         </div>
                     )}
                     {step === 2 && (
-                        <div className="space-y-4">
+                         <div className="space-y-4">
                             <div>
-                                <Label>Generated Device CSR (PEM)</Label>
-                                <Textarea value={generatedCsr} readOnly rows={8} className="font-mono bg-muted/50 mt-1"/>
+                                <Label>1. Generate Device Private Key</Label>
+                                <CodeBlock content={opensslKeyCommand}/>
+                            </div>
+                            <div>
+                                <Label>2. Generate Certificate Signing Request (CSR)</Label>
+                                <CodeBlock content={opensslCsrCommand}/>
+                            </div>
+                            <div>
+                                <Label htmlFor="csr-paste-area">3. Paste CSR Content</Label>
+                                <Textarea 
+                                    id="csr-paste-area"
+                                    placeholder="Paste the content of device.csr here..."
+                                    value={userCsr}
+                                    onChange={(e) => setUserCsr(e.target.value)} 
+                                    rows={6}
+                                    className="font-mono mt-1"
+                                />
                             </div>
                         </div>
                     )}
@@ -242,13 +233,15 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                     )}
                     {step === 4 && (
                         <div className="space-y-4">
-                            <div>
-                                <Label>Generated Private Key</Label>
-                                <Textarea value={generatedPrivateKey} readOnly rows={6} className="font-mono bg-muted/50 mt-1"/>
-                            </div>
+                            <Alert>
+                                <Info className="h-4 w-4" />
+                                <Alert.Description>
+                                    Your private key (device.key) was generated locally on your machine and is not shown here. Keep it safe.
+                                </Alert.Description>
+                            </Alert>
                              <div>
                                 <Label>Bootstrap Certificate</Label>
-                                <Textarea value={bootstrapCertificate} readOnly rows={6} className="font-mono bg-muted/50 mt-1"/>
+                                <Textarea value={bootstrapCertificate} readOnly rows={8} className="font-mono bg-muted/50 mt-1"/>
                             </div>
                         </div>
                     )}
@@ -264,7 +257,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                                 </div>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                               Note: This command assumes you have created a PKCS#12 file named `bootstrap.p12` from the key and certificate in the previous step, and the CSR is saved as `device.csr`.
+                               Note: This command assumes you have saved the bootstrap certificate as `bootstrap.cert` and the key and CSR files (`device.key`, `device.csr`) are in the same directory.
                             </p>
                         </div>
                     )}
