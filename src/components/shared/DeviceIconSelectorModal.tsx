@@ -94,12 +94,79 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'Wallet', IconComponent: LucideIcons.Wallet },
   { name: 'Webhook', IconComponent: LucideIcons.Webhook },
   { name: 'Zap', IconComponent: LucideIcons.Zap },
+  // Adding icons needed for the mapping from react-icons
+  { name: 'Car', IconComponent: LucideIcons.Car },
+  { name: 'Truck', IconComponent: LucideIcons.Truck },
+  { name: 'Warehouse', IconComponent: LucideIcons.Warehouse },
+  { name: 'Factory', IconComponent: LucideIcons.Factory },
+  { name: 'Building2', IconComponent: LucideIcons.Building2 },
+  { name: 'TowerControl', IconComponent: LucideIcons.TowerControl },
+  { name: 'HelpCircle', IconComponent: LucideIcons.HelpCircle },
+  { name: 'GitFork', IconComponent: LucideIcons.GitFork },
+  { name: 'BarChart2', IconComponent: LucideIcons.BarChart2 },
 ];
 
-export const getLucideIconByName = (iconName: string | null): React.ElementType | null => {
-    if (!iconName) return null;
-    const foundIcon = AVAILABLE_ICONS.find(icon => icon.name === iconName);
-    return foundIcon ? foundIcon.IconComponent : LucideIcons.HelpCircle; // Fallback icon
+
+// Mapping from old react-icon names to new lucide-react names for backward compatibility
+const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
+  'FaServer': 'Server',
+  'FaLaptop': 'Laptop',
+  'FaHdd': 'HardDrive',
+  'FaWifi': 'Wifi',
+  'FaCloud': 'Cloud',
+  'FaDatabase': 'Database',
+  'FaKey': 'KeyRound',
+  'FaLock': 'Lock',
+  'FaCamera': 'Camera',
+  'FaVideo': 'Video',
+  'FaLightbulb': 'Lightbulb',
+  'FaThermometerHalf': 'Thermometer',
+  'FaFan': 'Fan',
+  'FaBatteryFull': 'BatteryFull',
+  'FaCar': 'Car',
+  'FaTruck': 'Truck',
+  'FaWarehouse': 'Warehouse',
+  'FaIndustry': 'Factory',
+  'FaCity': 'Building2',
+  'FaBroadcastTower': 'TowerControl',
+  'FaSatelliteDish': 'SatelliteDish',
+  'FaQuestionCircle': 'HelpCircle',
+  'FaPlug': 'Plug',
+  'FaPrint': 'Printer',
+  'FaVolumeUp': 'Volume2',
+  'IoPhonePortraitOutline': 'Smartphone',
+  'IoHardwareChipOutline': 'Cpu',
+  'IoGitNetworkOutline': 'GitFork',
+  'IoBluetooth': 'Bluetooth',
+  'IoSettingsOutline': 'Settings2',
+  'IoPower': 'Power',
+  'IoHomeOutline': 'Home',
+  'IoBarChartOutline': 'BarChart2',
+  // Handling previous mistake where an invalid icon name might have been saved
+  'CgSmartphoneChip': 'Cpu',
+};
+
+
+export const getLucideIconByName = (iconName: string | null): React.ElementType => {
+    if (!iconName) return LucideIcons.HelpCircle;
+
+    // 1. Check for a direct match in the new Lucide icon list
+    const directMatch = AVAILABLE_ICONS.find(icon => icon.name === iconName);
+    if (directMatch) {
+        return directMatch.IconComponent;
+    }
+
+    // 2. Check for a mapping from an old react-icon name
+    const mappedLucideName = REACT_ICONS_TO_LUCIDE_MAP[iconName];
+    if (mappedLucideName) {
+        const mappedMatch = AVAILABLE_ICONS.find(icon => icon.name === mappedLucideName);
+        if (mappedMatch) {
+            return mappedMatch.IconComponent;
+        }
+    }
+    
+    // 3. Fallback to HelpCircle if no match is found
+    return LucideIcons.HelpCircle;
 };
 
 
