@@ -2,7 +2,7 @@
 
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -89,7 +89,46 @@ export interface CA {
   ocspUrls?: string[];
   caIssuersUrls?: string[];
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
+  caType?: string;
+  defaultIssuanceLifetime?: string;
+  pathLenConstraint?: number | 'None';
 }
+
+// OID Map for signature algorithms
+const SIG_OID_MAP: Record<string, string> = {
+    "1.2.840.113549.1.1.11": "sha256WithRSAEncryption",
+    "1.2.840.113549.1.1.12": "sha384WithRSAEncryption",
+    "1.2.840.113549.1.1.13": "sha512WithRSAEncryption",
+    "1.2.840.113549.1.1.14": "sha224WithRSAEncryption",
+    "1.2.840.10045.4.3.2": "ecdsa-with-SHA256",
+    "1.2.840.10045.4.3.3": "ecdsa-with-SHA384",
+    "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
+};
+
+function parseSignatureAlgorithmFromPem(pem: string): string {
+    if (typeof window === 'undefined' || !pem) return 'N/A';
+    try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const binaryString = window.atob(pemString);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const asn1 = asn1js.fromBER(bytes.buffer);
+        if (asn1.offset === -1) return 'Parsing Error (ASN.1)';
+
+        const certificate = new Certificate({ schema: asn1.result });
+        const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
+        
+        return SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
+
+    } catch (e) {
+        console.error("Failed to parse signature algorithm from certificate PEM:", e);
+        return 'Parsing Error';
+    }
+}
+
 
 function parseCrlUrlsFromPem(pem: string): string[] {
   if (typeof window === 'undefined' || !pem) return [];
@@ -170,6 +209,36 @@ function parseAiaUrls(pem: string): { ocsp: string[], caIssuers: string[] } {
   }
 }
 
+function parsePathLenConstraintFromPem(pem: string): number | 'None' {
+    if (typeof window === 'undefined' || !pem) return 'None';
+    try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const binaryString = window.atob(pemString);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const asn1 = asn1js.fromBER(bytes.buffer);
+        if (asn1.offset === -1) return 'None';
+
+        const certificate = new Certificate({ schema: asn1.result });
+        const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19"); // id-ce-basicConstraints
+
+        if (bcExtension && bcExtension.parsedValue) {
+            const basicConstraints = bcExtension.parsedValue as BasicConstraints;
+            if (basicConstraints.pathLenConstraint !== undefined) {
+                return basicConstraints.pathLenConstraint;
+            }
+        }
+        return 'None';
+
+    } catch (e) {
+        console.error("Failed to parse Path Length Constraint from certificate PEM:", e);
+        return 'None';
+    }
+}
+
 
 // Helper to transform API CA item to local CA structure (without children)
 function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
@@ -193,6 +262,24 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
   const pemData = typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : ''; // Decode base64 PEM
   const crlUrls = parseCrlUrlsFromPem(pemData);
   const aiaUrls = parseAiaUrls(pemData);
+  const signatureAlgorithm = parseSignatureAlgorithmFromPem(pemData);
+  const pathLenConstraint = parsePathLenConstraintFromPem(pemData);
+
+  let defaultIssuanceLifetime = 'Not Specified';
+  if (apiCa.validity) {
+      if (apiCa.validity.type === 'Duration' && apiCa.validity.duration) {
+          defaultIssuanceLifetime = apiCa.validity.duration;
+      } else if (apiCa.validity.type === 'Date' && apiCa.validity.time) {
+          if (apiCa.validity.time.startsWith('9999-12-31')) {
+              defaultIssuanceLifetime = 'Indefinite';
+          } else {
+              defaultIssuanceLifetime = apiCa.validity.time; // Pass ISO string to be formatted by component
+          }
+      } else if (apiCa.validity.type === "Indefinite") {
+          defaultIssuanceLifetime = "Indefinite";
+      }
+  }
+
 
   return {
     id: apiCa.id,
@@ -202,7 +289,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     serialNumber: apiCa.certificate.serial_number,
     status,
     keyAlgorithm: keyAlgorithm,
-    signatureAlgorithm: 'N/A (from API)', // Placeholder, not directly in this part of API response
+    signatureAlgorithm: signatureAlgorithm,
     kmsKeyId: apiCa.certificate.engine_id,
     pemData: pemData,
     subjectKeyId: apiCa.certificate.subject_key_id,
@@ -215,6 +302,9 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     ocspUrls: aiaUrls.ocsp,
     caIssuersUrls: aiaUrls.caIssuers,
     rawApiData: apiCa,
+    caType: apiCa.certificate.type,
+    defaultIssuanceLifetime: defaultIssuanceLifetime,
+    pathLenConstraint: pathLenConstraint,
   };
 }
 

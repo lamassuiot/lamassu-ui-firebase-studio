@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers, ShieldAlert, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers, ShieldAlert, ChevronLeft, Trash2 } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
@@ -23,6 +23,8 @@ import { useToast } from '@/hooks/use-toast';
 import { RevocationModal } from '@/components/shared/RevocationModal';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
+import { DecommissionDeviceModal } from '@/components/shared/DecommissionDeviceModal';
 
 
 interface ApiDeviceIdentity {
@@ -98,6 +100,14 @@ export default function DeviceDetailsClient() {
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certToRevoke, setCertToRevoke] = useState<CertificateHistoryEntry | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  
+  // State for assigning identity
+  const [isAssignIdentityModalOpen, setIsAssignIdentityModalOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // State for decommissioning
+  const [isDecommissionModalOpen, setIsDecommissionModalOpen] = useState(false);
+  const [isDecommissioning, setIsDecommissioning] = useState(false);
 
 
   const fetchCertificateHistoryData = useCallback(async (identity: ApiDeviceIdentity) => {
@@ -451,6 +461,103 @@ export default function DeviceDetailsClient() {
     }
   };
 
+  const handleAssignIdentityConfirm = async (certificateSerialNumber: string) => {
+    if (!deviceId || !user?.access_token) {
+        toast({
+            title: "Error",
+            description: "Cannot assign identity. Device ID or authentication is missing.",
+            variant: "destructive"
+        });
+        return;
+    }
+    setIsAssigning(true);
+    try {
+        const response = await fetch('https://lab.lamassu.io/api/dmsmanager/v1/dms/bind-identity', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token}`
+            },
+            body: JSON.stringify({
+                device_id: deviceId,
+                certificate_serial_number: certificateSerialNumber
+            })
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to assign identity. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Failed to assign identity: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        toast({
+            title: "Success!",
+            description: "Identity has been successfully assigned to the device.",
+        });
+        setIsAssignIdentityModalOpen(false);
+        fetchDeviceDetails(); // Refresh device data
+
+    } catch (e: any) {
+        toast({
+            title: "Assignment Failed",
+            description: e.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsAssigning(false);
+    }
+  };
+
+  const handleDecommissionConfirm = async () => {
+    if (!deviceId || !user?.access_token) {
+        toast({
+            title: "Error",
+            description: "Cannot decommission device. Device ID or authentication is missing.",
+            variant: "destructive"
+        });
+        return;
+    }
+    setIsDecommissioning(true);
+    try {
+        const response = await fetch(`https://lab.lamassu.io/api/devmanager/v1/devices/${deviceId}/decommission`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${user.access_token}`
+            }
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to decommission device. Status: ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage = `Failed to decommission device: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+            } catch (e) { /* ignore json parse error */ }
+            throw new Error(errorMessage);
+        }
+
+        toast({
+            title: "Success!",
+            description: "Device has been successfully decommissioned.",
+        });
+        setIsDecommissionModalOpen(false);
+        router.push('/devices'); // Redirect to the list page
+
+    } catch (e: any) {
+        toast({
+            title: "Decommission Failed",
+            description: e.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsDecommissioning(false);
+    }
+  };
+
   const handleLoadMoreTimeline = () => {
     setTimelineDisplayCount(prev => prev + 5);
   };
@@ -470,8 +577,8 @@ export default function DeviceDetailsClient() {
   if (errorDevice) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => router.push('/devices')} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
+         <Button variant="outline" onClick={() => router.back()} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -485,8 +592,8 @@ export default function DeviceDetailsClient() {
   if (!device) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => router.push('/devices')} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
+         <Button variant="outline" onClick={() => router.back()} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         <Alert>
           <Info className="h-4 w-4" />
@@ -499,19 +606,20 @@ export default function DeviceDetailsClient() {
   
   const deviceIconType = mapApiIconToIconType(device.icon);
   const creationDate = parseISO(device.creation_timestamp);
+  const [iconColor, bgColor] = device.icon_color ? device.icon_color.split('-') : ['#0f67ff', '#F0F8FF'];
 
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => router.push('/devices')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Devices
+        <Button variant="outline" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
 
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div className="flex items-center space-x-3">
-            <DeviceIcon type={deviceIconType} />
+            <DeviceIcon type={deviceIconType} iconColor={iconColor} bgColor={bgColor} />
             <div>
               <h1 className="text-2xl font-bold">{device.id}</h1>
               <div className="flex items-center space-x-2 mt-1">
@@ -524,7 +632,12 @@ export default function DeviceDetailsClient() {
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" onClick={fetchDeviceDetails}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
-            <Button><PlusCircle className="mr-2 h-4 w-4" /> Assign Identity</Button>
+            <Button onClick={() => setIsAssignIdentityModalOpen(true)} disabled={!!device.identity && device.identity.status !== 'REVOKED'}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Assign Identity
+            </Button>
+            <Button variant="destructive" onClick={() => setIsDecommissionModalOpen(true)} disabled={device.status === 'DECOMMISSIONED'}>
+              <Trash2 className="mr-2 h-4 w-4" /> Decommission
+            </Button>
           </div>
         </div>
         {device.tags && device.tags.length > 0 && (
@@ -763,6 +876,20 @@ export default function DeviceDetailsClient() {
           isConfirming={isRevoking}
         />
       )}
+      <AssignIdentityModal
+        isOpen={isAssignIdentityModalOpen}
+        onOpenChange={setIsAssignIdentityModalOpen}
+        onAssignConfirm={handleAssignIdentityConfirm}
+        deviceId={deviceId || ''}
+        isAssigning={isAssigning}
+      />
+      <DecommissionDeviceModal
+        isOpen={isDecommissionModalOpen}
+        onOpenChange={setIsDecommissionModalOpen}
+        onConfirm={handleDecommissionConfirm}
+        deviceName={device.id}
+        isDecommissioning={isDecommissioning}
+      />
     </div>
   );
 }

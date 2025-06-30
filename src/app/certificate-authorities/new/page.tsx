@@ -53,27 +53,25 @@ export default function CreateCaHubPage() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {creationModes.map(mode => (
-          <Link href={mode.href} key={mode.id} legacyBehavior>
-            <a className="no-underline">
-              <Card
-                className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col group h-full"
-              >
-                <CardHeader className="flex-grow">
-                  <div className="flex items-start space-x-4">
-                    <div className="mt-1">{mode.icon}</div>
-                    <div>
-                      <CardTitle className="text-xl group-hover:text-primary transition-colors">{mode.title}</CardTitle>
-                      <CardDescription className="mt-1 text-sm">{mode.description}</CardDescription>
-                    </div>
+          <Link href={mode.href} key={mode.id} className="no-underline">
+            <Card
+              className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col group h-full"
+            >
+              <CardHeader className="flex-grow">
+                <div className="flex items-start space-x-4">
+                  <div className="mt-1">{mode.icon}</div>
+                  <div>
+                    <CardTitle className="text-xl group-hover:text-primary transition-colors">{mode.title}</CardTitle>
+                    <CardDescription className="mt-1 text-sm">{mode.description}</CardDescription>
                   </div>
-                </CardHeader>
-                <CardFooter>
-                    <Button variant="default" className="w-full">
-                        Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </CardFooter>
-              </Card>
-            </a>
+                </div>
+              </CardHeader>
+              <CardFooter>
+                  <Button variant="default" className="w-full">
+                      Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+              </CardFooter>
+            </Card>
           </Link>
         ))}
       </div>

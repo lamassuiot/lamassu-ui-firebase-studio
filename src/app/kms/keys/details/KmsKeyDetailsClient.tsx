@@ -51,7 +51,7 @@ const fetchMockKmsKeyDetails = async (keyIdToFetch: string): Promise<KmsKeyDetai
       creationDate: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(),
       description: 'Primary signing key for the LamassuIoT Global Root CA G1, referenced via PKCS11 URI.',
       hasPrivateKey: true,
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0yZ9o2U88eLMDc8X\\nU1jV9qZ1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q\\n0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z\\n1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2\\nAd1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X\\n2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2QIDAQAB\\n-----END PUBLIC KEY-----`,
+      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0yZ9o2U88eLMDc8X\\nU1jV9qZ1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q\\n0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z\\n1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2\\nAd1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2QIDAQAB\\n-----END PUBLIC KEY-----`,
       purpose: ['SIGN_VERIFY', 'KEY_CERT_SIGN'],
       origin: 'IMPORTED_FULL',
     },
@@ -242,8 +242,8 @@ export default function KmsKeyDetailsClient() { // Renamed component
   if (error) {
     return (
       <div className="w-full space-y-4 p-4">
-        <Button variant="outline" onClick={() => router.push('/kms/keys')} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to KMS Keys
+        <Button variant="outline" onClick={() => router.back()} className="mb-4">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -268,8 +268,8 @@ export default function KmsKeyDetailsClient() { // Renamed component
   
   return (
     <div className="w-full space-y-6">
-      <Button variant="outline" onClick={() => router.push('/kms/keys')}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to KMS Keys
+      <Button variant="outline" onClick={() => router.back()}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
       
       <div className="w-full">
