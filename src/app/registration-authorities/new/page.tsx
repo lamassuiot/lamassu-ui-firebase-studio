@@ -421,7 +421,60 @@ export default function CreateOrEditRegistrationAuthorityPage() {
             <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4"><div><Label htmlFor="raName">RA Name</Label><Input id="raName" value={raName} onChange={(e) => setRaName(e.target.value)} placeholder="e.g., Main IoT Enrollment Service" required className="mt-1" />{!raName.trim() && <p className="text-xs text-destructive mt-1">RA Name is required.</p>}</div><div><Label htmlFor="raId">RA ID</Label><Input id="raId" value={raId} onChange={(e) => setRaId(e.target.value)} placeholder="e.g., main-iot-ra" required disabled={isEditMode} className="mt-1" />{!raId.trim() && !isEditMode && <p className="text-xs text-destructive mt-1">RA ID is required.</p>}</div></div></CardContent></Card>
             <Separator className="my-6"/>
             <h3 className={cn(sectionHeadingStyle)}><Cpu className="mr-2 h-5 w-5 text-muted-foreground" /> Enrollment Device Registration</h3>
-            <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4"><div><Label htmlFor="registrationMode">Registration Mode</Label><Select value={registrationMode} onValueChange={setRegistrationMode}><SelectTrigger id="registrationMode" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="JITP">JITP (Just-In-Time Provisioning)</SelectItem><SelectItem value="Pre registration">Pre-registration</SelectItem></SelectContent></Select></div><div><Label htmlFor="raTags"><TagIconLucide className="inline mr-1 h-4 w-4 text-muted-foreground"/>Tags</Label><TagInput id="raTags" value={tags} onChange={setTags} placeholder="Add tags..." className="mt-1" /></div><div className="pt-2"><Label htmlFor="deviceIconButton">Device Icon</Label><Button id="deviceIconButton" type="button" variant="outline" onClick={() => setIsDeviceIconModalOpen(true)} className="w-full justify-start text-left font-normal flex items-center gap-2 mt-1">{SelectedIconComponent ? <div className="flex items-center gap-2"><div className="p-1 rounded-sm flex items-center justify-center" style={{ backgroundColor: selectedDeviceIconBgColor }}><SelectedIconComponent className="h-5 w-5" style={{ color: selectedDeviceIconColor }} /></div>{selectedDeviceIconName}</div> : "Select Device Icon..."}</Button></div></div></CardContent></Card>
+            <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="registrationMode">Registration Mode</Label>
+                  <Select value={registrationMode} onValueChange={setRegistrationMode}>
+                    <SelectTrigger id="registrationMode" className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="JITP">JITP (Just-In-Time Provisioning)</SelectItem>
+                      <SelectItem value="Pre registration">Pre-registration</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="raTags"><TagIconLucide className="inline mr-1 h-4 w-4 text-muted-foreground"/>Tags</Label>
+                  <TagInput id="raTags" value={tags} onChange={setTags} placeholder="Add tags..." className="mt-1" />
+                </div>
+                <div className="pt-2">
+                  <Label htmlFor="deviceIconButton">Device Icon</Label>
+                  <Button id="deviceIconButton" type="button" variant="outline" onClick={() => setIsDeviceIconModalOpen(true)} className="w-full justify-start text-left font-normal flex items-center gap-2 mt-1">
+                    {SelectedIconComponent ? (
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded-sm flex items-center justify-center" style={{ backgroundColor: selectedDeviceIconBgColor }}>
+                          <SelectedIconComponent className="h-5 w-5" style={{ color: selectedDeviceIconColor }} />
+                        </div>
+                        {selectedDeviceIconName}
+                      </div>
+                    ) : "Select Device Icon..."}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div>
+                        <Label htmlFor="iconColor">Icon Color</Label>
+                        <Input
+                            id="iconColor"
+                            type="color"
+                            value={selectedDeviceIconColor}
+                            onChange={(e) => setSelectedDeviceIconColor(e.target.value)}
+                            className="w-full h-10 p-1"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="bgColor">Background Color</Label>
+                        <Input
+                            id="bgColor"
+                            type="color"
+                            value={selectedDeviceIconBgColor}
+                            onChange={(e) => setSelectedDeviceIconBgColor(e.target.value)}
+                            className="w-full h-10 p-1"
+                        />
+                    </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Default icon and colors for devices registered through this RA.</p>
+              </div>
+            </CardContent></Card>
             <Separator className="my-6"/>
             <h3 className={cn(sectionHeadingStyle)}><Key className="mr-2 h-5 w-5 text-muted-foreground"/>Enrollment Settings</h3>
             <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4"><div><Label htmlFor="protocol">Protocol</Label><Select value={protocol} onValueChange={setProtocol}><SelectTrigger id="protocol" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="EST">EST</SelectItem><SelectItem value="CMP">CMP</SelectItem></SelectContent></Select></div><div><Label htmlFor="enrollmentCa">Enrollment CA</Label><Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : enrollmentCa ? enrollmentCa.name : "Select Enrollment CA..."}</Button>{enrollmentCa && <div className="mt-2"><CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines} /></div>}</div><div className="flex items-center space-x-2 pt-2"><Switch id="allowOverrideEnrollment" checked={allowOverrideEnrollment} onCheckedChange={setAllowOverrideEnrollment} /><Label htmlFor="allowOverrideEnrollment">Allow Override Enrollment</Label></div><div><Label htmlFor="authMode">Authentication Mode</Label><Select value={authMode} onValueChange={setAuthMode}><SelectTrigger id="authMode" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Client Certificate">Client Certificate</SelectItem><SelectItem value="External Webhook">External Webhook</SelectItem><SelectItem value="No Auth">No Auth</SelectItem></SelectContent></Select></div><div><Label htmlFor="validationCAs">Validation CAs</Label><Button type="button" variant="outline" onClick={() => setIsValidationCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : validationCAs.length > 0 ? `Selected ${validationCAs.length} CA(s) - Click to modify` : "Select Validation CAs..."}</Button>{validationCAs.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{validationCAs.map(ca => <CaVisualizerCard key={ca.id} ca={ca} className="shadow-none border-border max-w-xs" allCryptoEngines={allCryptoEngines} />)}</div>}</div><div className="flex items-center space-x-2 pt-2"><Switch id="allowExpiredAuth" checked={allowExpiredAuth} onCheckedChange={setAllowExpiredAuth} /><Label htmlFor="allowExpiredAuth">Allow Authenticating Expired Certificates</Label></div><div><Label htmlFor="chainValidationLevel" className="flex items-center">Chain Validation Level<TooltipProvider><Tooltip><TooltipTrigger asChild><HelpCircle className="ml-1 h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p>-1 equals full chain validation.</p></TooltipContent></Tooltip></TooltipProvider></Label><Input id="chainValidationLevel" type="number" value={chainValidationLevel} onChange={(e) => setChainValidationLevel(parseInt(e.target.value))} className="mt-1" /></div></div></CardContent></Card>
