@@ -23,7 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from '@/components/ui/separator';
 import { TagInput } from '@/components/shared/TagInput';
-import { DeviceIconSelectorModal, getReactIconByName } from '@/components/shared/DeviceIconSelectorModal';
+import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 
@@ -779,12 +779,6 @@ export default function CreateRegistrationAuthorityPage() {
         onOpenChange={setIsDeviceIconModalOpen}
         onIconSelected={handleDeviceIconSelected}
         currentSelectedIconName={selectedDeviceIconName}
-        initialIconColor={selectedDeviceIconColor}
-        initialBgColor={selectedDeviceIconBgColor}
-        onColorsChange={({ iconColor, bgColor }) => {
-          setSelectedDeviceIconColor(iconColor);
-          setSelectedDeviceIconBgColor(bgColor);
-        }}
       />
 
     </div>
