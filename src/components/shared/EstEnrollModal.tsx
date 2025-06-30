@@ -189,17 +189,11 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                     {step === 2 && (
                          <div className="space-y-4">
                             <div>
-                                <Label>1. Generate Key & CSR</Label>
+                                <Label>Generate Key & CSR</Label>
                                 <p className="text-xs text-muted-foreground mb-1">
                                     Run the following command on your device to generate a private key (`device.key`) and a CSR (`device.csr`).
                                 </p>
                                 <CodeBlock content={opensslCombinedCommand}/>
-                            </div>
-                            <div>
-                                <Label>2. Proceed to Next Step</Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Once you have `device.key` and `device.csr` on your machine, click Next to generate the bootstrap certificate.
-                                </p>
                             </div>
                         </div>
                     )}
