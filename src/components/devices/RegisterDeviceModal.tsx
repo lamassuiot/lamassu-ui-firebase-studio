@@ -12,7 +12,7 @@ import { Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { TagInput } from '@/components/shared/TagInput';
-import { DeviceIconSelectorModal, getReactIconByName } from '@/components/shared/DeviceIconSelectorModal';
+import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { Separator } from '../ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
@@ -211,7 +211,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
     setIconBgColor(newBgColor);
   };
   
-  const SelectedIconComponent = getReactIconByName(iconName);
+  const SelectedIconComponent = getLucideIconByName(iconName);
 
   return (
     <>

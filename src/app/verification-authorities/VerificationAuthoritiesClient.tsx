@@ -233,7 +233,8 @@ export function VerificationAuthoritiesClient() { // Renamed component
                     variant="outline"
                     onClick={() => setIsCertificateSignerModalOpen(true)}
                     className="w-full md:w-2/3 lg:w-1/2 justify-start text-left font-normal"
-                    disabled={authLoading}
+                    // disabled={authLoading}
+                    disabled
                   >
                     {authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
                      selectedCertificateSignerDisplay ? `${selectedCertificateSignerDisplay.subject.substring(0,30)}... (SN: ${selectedCertificateSignerDisplay.serialNumber.substring(0,8)}...)` 
