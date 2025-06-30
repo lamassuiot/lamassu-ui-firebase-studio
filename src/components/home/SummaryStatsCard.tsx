@@ -27,10 +27,21 @@ const StatItem: React.FC<{
   icon: React.ElementType;
 }> = ({ value, label, href, isLoading, icon: Icon }) => {
   const router = useRouter();
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault(); // Prevent default action (like scrolling) for spacebar
+      router.push(href);
+    }
+  };
+
   return (
     <div
-      className="bg-primary/80 hover:bg-primary/90 dark:bg-primary/40 dark:hover:bg-primary/50 transition-colors cursor-pointer p-3 rounded-lg flex items-center space-x-4"
+      role="button"
+      tabIndex={0}
+      className="bg-primary/80 hover:bg-primary/90 dark:bg-primary/40 dark:hover:bg-primary/50 transition-colors cursor-pointer p-3 rounded-lg flex items-center space-x-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-primary"
       onClick={() => router.push(href)}
+      onKeyDown={handleKeyDown}
     >
       <div className="p-3 rounded-full bg-primary/90 dark:bg-primary/50">
         <Icon className="h-6 w-6 text-primary-foreground/80" />
@@ -51,7 +62,7 @@ const StatItem: React.FC<{
 export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({ stats, isLoading }) => {
 
   return (
-    <Card className="shadow-lg w-full bg-primary text-primary-foreground p-4 flex flex-col justify-between h-full">
+    <Card className="shadow-lg w-full bg-primary text-primary-foreground p-4 flex flex-col justify-between h-full space-y-3">
       <StatItem
         value={stats.certificates}
         label="Issued Certificates"
