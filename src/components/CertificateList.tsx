@@ -201,7 +201,7 @@ export function CertificateList({
 
   return (
     <div className={cn("w-full space-y-4", isLoading && "opacity-50 pointer-events-none")}>
-      <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>{/*
