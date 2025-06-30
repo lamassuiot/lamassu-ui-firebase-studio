@@ -175,7 +175,6 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   "CgSmartHomeRefrigerator": 'Refrigerator',
   "CgSmartHomeWashMachine": 'WashingMachine',
   "CgSmartphone": 'Smartphone',
-  "CgSmartphoneChip": 'Cpu',
   "CgSmartphoneRam": 'MemoryStick',
   "CgSmartphoneShake": 'SmartphoneNfc',
   "CgBatteryFull": 'BatteryFull',
