@@ -47,9 +47,9 @@ export const DurationInput: React.FC<DurationInputProps> = ({
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={inputId} className={cn(labelClassName, isInvalid && 'text-destructive')}>
+      {label && <Label htmlFor={inputId} className={cn(labelClassName, isInvalid && 'text-destructive')}>
         {label}
-      </Label>
+      </Label>}
       <Input
         id={inputId}
         value={value}

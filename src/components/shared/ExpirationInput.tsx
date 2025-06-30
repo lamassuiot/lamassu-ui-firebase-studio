@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
+import { DurationInput } from './DurationInput';
 
 export type ExpirationType = "Duration" | "Date" | "Indefinite";
 
@@ -63,8 +63,7 @@ export const ExpirationInput: React.FC<ExpirationInputProps> = ({
     onValueChange(newConfig);
   };
 
-  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDuration = e.target.value;
+  const handleDurationChange = (newDuration: string) => {
     setDuration(newDuration);
     if (currentType === "Duration") {
       onValueChange({ type: "Duration", durationValue: newDuration });
@@ -94,16 +93,14 @@ export const ExpirationInput: React.FC<ExpirationInputProps> = ({
         </Select>
 
         {currentType === "Duration" && (
-          <div>
-            <Input
-              id={`${idPrefix}-duration`}
-              type="text"
-              value={duration}
-              onChange={handleDurationChange}
-              placeholder="e.g., 10y, 365d, 2w"
-            />
-             <p className="text-xs text-muted-foreground mt-1">Valid units: y, w, d, h, m, s.</p>
-          </div>
+          <DurationInput
+            id={`${idPrefix}-duration`}
+            label=""
+            value={duration}
+            onChange={handleDurationChange}
+            placeholder="e.g., 10y, 365d, 2w"
+            description="Valid units: y, w, d, h, m, s."
+          />
         )}
         {currentType === "Date" && (
           <Popover>

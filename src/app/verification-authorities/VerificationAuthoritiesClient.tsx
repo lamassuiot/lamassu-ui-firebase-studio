@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ShieldCheck, Settings, PlusCircle, Loader2 } from "lucide-react";
@@ -16,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal'; 
 import { CertificateSelectorModal } from '@/components/shared/CertificateSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { DurationInput } from '@/components/shared/DurationInput';
 
 interface VAConfig {
   caId: string; 
@@ -202,28 +202,22 @@ export function VerificationAuthoritiesClient() { // Renamed component
                 <CardDescription>Define validation parameters for this CA.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-4">
-                <div>
-                  <Label htmlFor="va-refreshInterval">CRL Refresh Interval</Label>
-                  <Input 
-                    id="va-refreshInterval" 
-                    value={config.refreshInterval} 
-                    onChange={(e) => handleInputChange('refreshInterval', e.target.value)} 
-                    placeholder="e.g., 24h, 30m, 7d"
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">How often to check for new CRLs. Units: h, m, d.</p>
-                </div>
-                <div>
-                  <Label htmlFor="va-validity">CRL Max Validity / Cache Duration</Label>
-                  <Input 
-                    id="va-validity" 
-                    value={config.validity} 
-                    onChange={(e) => handleInputChange('validity', e.target.value)} 
-                    placeholder="e.g., 7d, 48h"
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Maximum time to consider a cached CRL valid. Units: h, m, d.</p>
-                </div>
+                <DurationInput
+                  id="va-refreshInterval"
+                  label="CRL Refresh Interval"
+                  value={config.refreshInterval}
+                  onChange={(value) => handleInputChange('refreshInterval', value)}
+                  placeholder="e.g., 24h, 30m, 7d"
+                  description="How often to check for new CRLs."
+                />
+                <DurationInput
+                  id="va-validity"
+                  label="CRL Max Validity / Cache Duration"
+                  value={config.validity}
+                  onChange={(value) => handleInputChange('validity', value)}
+                  placeholder="e.g., 7d, 48h"
+                  description="Maximum time to consider a cached CRL valid."
+                />
                 
                 <div className="space-y-1">
                   <Label htmlFor="va-crlSigner" className="block">CRL Signer</Label>

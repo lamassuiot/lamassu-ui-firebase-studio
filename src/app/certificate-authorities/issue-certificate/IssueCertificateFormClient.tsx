@@ -26,6 +26,7 @@ import {
 import * as asn1js from "asn1js";
 import { useAuth } from '@/contexts/AuthContext';
 import { TagInput } from '@/components/shared/TagInput';
+import { DurationInput } from '@/components/shared/DurationInput';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -524,7 +525,14 @@ export default function IssueCertificateFormClient() {
 
           {step === 3 && (
              <div className="space-y-6 mt-6">
-                <div className="space-y-1"><Label htmlFor="duration">Validity Duration</Label><Input id="duration" value={duration} onChange={e=>setDuration(e.target.value)} placeholder="e.g., 365d, 1y, 2w" /><p className="text-xs text-muted-foreground">Units: y, w, d, h, m, s.</p></div>
+                <DurationInput 
+                  id="duration" 
+                  label="Validity Duration" 
+                  value={duration} 
+                  onChange={setDuration} 
+                  placeholder="e.g., 365d, 1y, 2w"
+                  description="Units: y, w, d, h, m, s."
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2"><h4 className="font-medium">Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{KEY_USAGE_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`ku-${o.id}`} checked={keyUsages.includes(o.id)} onCheckedChange={(c)=>handleKeyUsageChange(o.id, !!c)}/><Label htmlFor={`ku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
                     <div className="space-y-2"><h4 className="font-medium">Extended Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{EKU_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`eku-${o.id}`} checked={extendedKeyUsages.includes(o.id)} onCheckedChange={(c)=>handleExtendedKeyUsageChange(o.id, !!c)}/><Label htmlFor={`eku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
