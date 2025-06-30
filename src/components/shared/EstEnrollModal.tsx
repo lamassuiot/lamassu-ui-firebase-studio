@@ -164,9 +164,9 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
       </div>
     );
     
-    const opensslCombinedCommand = `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out device.key && \\
-  openssl req -new -key device.key -out device.csr -subj "/CN=${deviceId || 'your_device_id'}"`;
-    
+    const opensslCombinedCommand = `openssl req -new -newkey rsa:2048 -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN==${deviceId}"
+cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
