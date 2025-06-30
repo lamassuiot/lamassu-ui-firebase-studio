@@ -155,43 +155,49 @@ export default function HomePage() {
 
   return (
     <div className="w-full space-y-8">
+      
+      {/* Row 1: CA Expiry Timeline */}
+      <div>
+        {anyTimelineLoading && !anyTimelineError ? (
+          <Card className="shadow-lg w-full bg-card">
+              <CardHeader>
+                  <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
+                  </div>
+              </CardContent>
+          </Card>
+        ) : anyTimelineError ? (
+            <Card className="shadow-lg w-full bg-card">
+              <CardHeader>
+                  <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Error Loading Timeline Data</AlertTitle>
+                      <AlertDescription>
+                          {anyTimelineError}
+                          <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80 focus:text-destructive">Try again?</Button>
+                      </AlertDescription>
+                  </Alert>
+              </CardContent>
+            </Card>
+        ) : (
+          <CaExpiryTimeline cas={allCAs} allCryptoEngines={allCryptoEngines} />
+        )}
+      </div>
+
+      {/* Row 2: Device Status & Summary */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
+        <div className="xl:col-span-2">
+            <DeviceStatusChartCard />
+        </div>
         <div className="xl:col-span-1">
           <SummaryStatsCard stats={summaryStats} isLoading={isLoadingStats || authLoading} />
-        </div>
-        <div className="xl:col-span-2 space-y-8">
-          <DeviceStatusChartCard />
-          {anyTimelineLoading && !anyTimelineError ? (
-            <Card className="shadow-lg w-full bg-card">
-                <CardHeader>
-                    <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
-                    </div>
-                </CardContent>
-            </Card>
-          ) : anyTimelineError ? (
-             <Card className="shadow-lg w-full bg-card">
-                <CardHeader>
-                    <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Error Loading Timeline Data</AlertTitle>
-                        <AlertDescription>
-                            {anyTimelineError}
-                            <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80 focus:text-destructive">Try again?</Button>
-                        </AlertDescription>
-                    </Alert>
-                </CardContent>
-            </Card>
-          ) : (
-            <CaExpiryTimeline cas={allCAs} allCryptoEngines={allCryptoEngines} />
-          )}
         </div>
       </div>
     </div>
