@@ -184,7 +184,7 @@ export function DeviceStatusChartCard() {
             </ResponsiveContainer>
             {totalDevices !== null && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-4xl font-bold text-primary-foreground">{totalDevices}</span>
+                    <span className="text-3xl font-bold text-primary-foreground">{totalDevices}</span>
                     <span className="text-sm text-primary-foreground/80">Total Devices</span>
                 </div>
             )}
