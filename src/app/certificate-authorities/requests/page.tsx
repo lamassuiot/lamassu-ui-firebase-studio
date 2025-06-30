@@ -253,10 +253,15 @@ export default function CaRequestsPage() {
     fetchRequests(bookmarkStack[currentPageIndex]);
   };
 
-  const handleViewCsr = (csrPemBase64: string) => {
+  const handleViewCsr = (csrObject: X509CertificateRequest) => {
+    if (!csrObject || typeof csrObject.pem !== 'string' || !csrObject.pem.trim()) {
+      setSelectedCsr("No CSR content available in the API response.");
+      setIsCsrModalOpen(true);
+      return;
+    }
+    
     try {
-      // The PEM from the API is base64 encoded.
-      const decodedCsr = window.atob(csrPemBase64);
+      const decodedCsr = window.atob(csrObject.pem);
       setSelectedCsr(decodedCsr);
     } catch (e) {
       console.error("Failed to decode CSR PEM:", e);
@@ -422,7 +427,7 @@ export default function CaRequestsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewCsr(req.csr.pem)}>
+                          <DropdownMenuItem onClick={() => handleViewCsr(req.csr)}>
                             <FileSignature className="mr-2 h-4 w-4" />
                             View CSR
                           </DropdownMenuItem>
