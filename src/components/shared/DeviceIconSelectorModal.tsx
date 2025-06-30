@@ -181,7 +181,7 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   "CgBatteryFull": 'BatteryFull',
   "GoRadioTower": 'TowerControl',
   "BiSolidCreditCardFront": 'CreditCard',
-  "BsSdCard": 'MemoryStick', // Updated: maps to MemoryStick
+  "BsSdCard": 'MemoryStick',
   "IoMdCar": 'Car',
   "AiOutlineIdcard": 'Badge',
   "GiElectric": 'Zap',
@@ -189,8 +189,6 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   "BsHouseGear": 'Settings2',
   "TbCrane": 'Construction',
   "MdOutlineElevator": 'ArrowUpDown',
-
-  // Handling previous mistake where an invalid icon name might have been saved
   'CgSmartphoneChip': 'Cpu',
 };
 
@@ -198,13 +196,11 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
 export const getLucideIconByName = (iconName: string | null): React.ElementType => {
     if (!iconName) return LucideIcons.HelpCircle;
 
-    // 1. Check for a direct match in the new Lucide icon list
     const directMatch = AVAILABLE_ICONS.find(icon => icon.name === iconName);
     if (directMatch) {
         return directMatch.IconComponent;
     }
 
-    // 2. Check for a mapping from an old react-icon name
     const mappedLucideName = REACT_ICONS_TO_LUCIDE_MAP[iconName];
     if (mappedLucideName) {
         const mappedMatch = AVAILABLE_ICONS.find(icon => icon.name === mappedLucideName);
@@ -213,7 +209,6 @@ export const getLucideIconByName = (iconName: string | null): React.ElementType 
         }
     }
     
-    // 3. Fallback to HelpCircle if no match is found
     return LucideIcons.HelpCircle;
 };
 
@@ -256,6 +251,34 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
   const handleSelect = (iconName: string) => {
     onIconSelected(iconName);
   };
+
+  const handleIconColorChange = React.useCallback(
+    (newIconColor: string) => {
+      if (onColorsChange) {
+        onColorsChange({ iconColor: newIconColor, bgColor: initialBgColor || '#e0e0e0' });
+      }
+    },
+    [initialBgColor, onColorsChange]
+  );
+
+  const handleBgColorChange = React.useCallback(
+    (newBgColor: string) => {
+      if (onColorsChange) {
+        onColorsChange({ iconColor: initialIconColor || '#888888', bgColor: newBgColor });
+      }
+    },
+    [initialIconColor, onColorsChange]
+  );
+
+  const handleInvert = React.useCallback(() => {
+    if (onColorsChange) {
+      onColorsChange({
+        iconColor: initialBgColor || '#e0e0e0',
+        bgColor: initialIconColor || '#888888',
+      });
+    }
+  }, [initialIconColor, initialBgColor, onColorsChange]);
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -304,10 +327,7 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => onColorsChange({
-                            iconColor: initialBgColor || '#e0e0e0',
-                            bgColor: initialIconColor || '#888888'
-                        })}
+                        onClick={handleInvert}
                     >
                         <LucideIcons.ArrowLeftRight className="mr-2 h-4 w-4" />
                         Invert
@@ -319,7 +339,7 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
                         <Label htmlFor="modal-icon-color" className="font-semibold">Icon Color</Label>
                         <ColorPalette
                           colors={ICON_PALETTE}
-                          onColorSelect={(color) => onColorsChange({ iconColor: color, bgColor: initialBgColor || '#e0e0e0' })}
+                          onColorSelect={handleIconColorChange}
                           title="Quick Select"
                         />
                         <div className="flex items-center gap-2 pt-2">
@@ -327,7 +347,7 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
                                 id="modal-icon-color"
                                 type="color"
                                 value={initialIconColor}
-                                onChange={(e) => onColorsChange({ iconColor: e.target.value, bgColor: initialBgColor || '#e0e0e0' })}
+                                onChange={(e) => handleIconColorChange(e.target.value)}
                                 className="w-12 h-10 p-1"
                                 aria-label="Advanced icon color picker"
                             />
@@ -339,7 +359,7 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
                         <Label htmlFor="modal-bg-color" className="font-semibold">Background Color</Label>
                          <ColorPalette
                           colors={BG_PALETTE}
-                          onColorSelect={(color) => onColorsChange({ iconColor: initialIconColor || '#888888', bgColor: color })}
+                          onColorSelect={handleBgColorChange}
                           title="Quick Select"
                         />
                          <div className="flex items-center gap-2 pt-2">
@@ -347,7 +367,7 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
                                 id="modal-bg-color"
                                 type="color"
                                 value={initialBgColor}
-                                onChange={(e) => onColorsChange({ iconColor: initialIconColor || '#888888', bgColor: e.target.value })}
+                                onChange={(e) => handleBgColorChange(e.target.value)}
                                 className="w-12 h-10 p-1"
                                 aria-label="Advanced background color picker"
                             />
