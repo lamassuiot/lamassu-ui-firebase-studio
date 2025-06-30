@@ -348,7 +348,6 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="Serial Number" value={certDetails.serialNumber} isMono />
             <DetailItem label="Valid From" value={format(parseISO(certDetails.validFrom), 'PPpp')} />
             <DetailItem label="Valid To" value={format(parseISO(certDetails.validTo), 'PPpp')} />
-            <DetailItem label="API Status" value={<Badge variant={certificateSpecific.statusBadgeVariant} className={cn(certificateSpecific.statusBadgeVariant !== 'outline' ? certificateSpecific.statusBadgeClass : '')}>{certificateSpecific.apiStatusText}</Badge>} />
           </AccordionContent>
         </AccordionItem>
 
