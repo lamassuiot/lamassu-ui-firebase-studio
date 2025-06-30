@@ -56,7 +56,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     const items = new DataSet(itemsData as any);
 
     const now = new Date();
-    
     const options = {
       stack: true, 
       width: '100%',
@@ -64,15 +63,13 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       margin: {
         item: 20
       },
-      start: subMonths(now, 3), 
+      start: subMonths(now, 1),
       end: addMonths(now, 6),
-      zoomMin: 1000 * 60 * 60 * 24 * 30, // 1 month
-      zoomMax: 1000 * 60 * 60 * 24 * 20, // 20 years
+      zoomMin: 1000 * 60 * 60 * 24 , // 1 ay
+      zoomMax: 1000 * 60 * 60 * 24 * 365 * 15, // 10 years
     };
 
     const timeline = new Timeline(timelineRef.current, items, options);
-    
-    timeline.addCustomTime(now, 'now-marker');
     
     timeline.on('select', properties => {
       if (properties.items.length > 0) {
@@ -81,6 +78,8 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       }
     });
     
+    timeline.addCustomTime(now, 'now-marker');
+
     return () => {
       timeline.destroy();
     };
@@ -98,10 +97,10 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         ))}
       </div>
 
-      <Card className="shadow-lg w-full bg-card text-card-foreground">
+      <Card className="shadow-lg w-full bg-primary text-primary-foreground">
           <CardHeader>
               <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-              <CardDescription className="text-muted-foreground">Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>
+              <CardDescription className="text-primary-foreground/80">Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>
           </CardHeader>
           <CardContent>
             {cas.length > 0 ? (
