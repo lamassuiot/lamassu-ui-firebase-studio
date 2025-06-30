@@ -555,28 +555,6 @@ export default function CreateOrEditRegistrationAuthorityPage() {
                     ) : "Select Device Icon..."}
                   </Button>
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <div>
-                        <Label htmlFor="deviceIconColor">Icon Color</Label>
-                        <Input 
-                            id="deviceIconColor" 
-                            type="color" 
-                            value={selectedDeviceIconColor} 
-                            onChange={(e) => setSelectedDeviceIconColor(e.target.value)} 
-                            className="w-full h-10 p-1"
-                        />
-                    </div>
-                    <div>
-                        <Label htmlFor="deviceIconBgColor">Background Color</Label>
-                        <Input 
-                            id="deviceIconBgColor" 
-                            type="color" 
-                            value={selectedDeviceIconBgColor} 
-                            onChange={(e) => setSelectedDeviceIconBgColor(e.target.value)}
-                            className="w-full h-10 p-1"
-                        />
-                    </div>
-                </div>
                 <p className="text-xs text-muted-foreground">Default icon and colors for devices registered through this RA.</p>
               </div>
             </CardContent></Card>
@@ -690,7 +668,15 @@ export default function CreateOrEditRegistrationAuthorityPage() {
       <CaSelectorModal isOpen={isValidationCaModalOpen} onOpenChange={setIsValidationCaModalOpen} title="Select Validation CAs" description="Choose CAs to validate client certificates." availableCAs={availableCAsForSelection} isLoadingCAs={isLoadingDependencies} errorCAs={errorDependencies} loadCAsAction={loadDependencies} onCaSelected={() => {}} isAuthLoading={authLoading} allCryptoEngines={allCryptoEngines}>{renderMultiSelectCaDialogContent(validationCAs, setValidationCAs, setIsValidationCaModalOpen)}</CaSelectorModal>
       <CaSelectorModal isOpen={isAdditionalValidationCaModalOpen} onOpenChange={setIsAdditionalValidationCaModalOpen} title="Select Additional Validation CAs" description="Choose CAs for re-enrollment validation." availableCAs={availableCAsForSelection} isLoadingCAs={isLoadingDependencies} errorCAs={errorDependencies} loadCAsAction={loadDependencies} onCaSelected={() => {}} isAuthLoading={authLoading} allCryptoEngines={allCryptoEngines}>{renderMultiSelectCaDialogContent(additionalValidationCAs, setAdditionalValidationCAs, setIsAdditionalValidationCaModalOpen)}</CaSelectorModal>
       <CaSelectorModal isOpen={isManagedCaModalOpen} onOpenChange={setIsManagedCaModalOpen} title="Select Managed CAs" description="Choose CAs for the CA certs endpoint." availableCAs={availableCAsForSelection} isLoadingCAs={isLoadingDependencies} errorCAs={errorDependencies} loadCAsAction={loadDependencies} onCaSelected={() => {}} isAuthLoading={authLoading} allCryptoEngines={allCryptoEngines}>{renderMultiSelectCaDialogContent(managedCAs, setManagedCAs, setIsManagedCaModalOpen)}</CaSelectorModal>
-      <DeviceIconSelectorModal isOpen={isDeviceIconModalOpen} onOpenChange={setIsDeviceIconModalOpen} onIconSelected={(name) => { setSelectedDeviceIconName(name); setIsDeviceIconModalOpen(false); }} currentSelectedIconName={selectedDeviceIconName} initialIconColor={selectedDeviceIconColor} initialBgColor={selectedDeviceIconBgColor} onColorsChange={({ iconColor, bgColor }) => { setSelectedDeviceIconColor(iconColor); setSelectedDeviceIconBgColor(bgColor); }} />
+      <DeviceIconSelectorModal
+        isOpen={isDeviceIconModalOpen}
+        onOpenChange={setIsDeviceIconModalOpen}
+        onIconSelected={(name) => { setSelectedDeviceIconName(name); }}
+        currentSelectedIconName={selectedDeviceIconName}
+        initialIconColor={selectedDeviceIconColor}
+        initialBgColor={selectedDeviceIconBgColor}
+        onColorsChange={({ iconColor, bgColor }) => { setSelectedDeviceIconColor(iconColor); setSelectedDeviceIconBgColor(bgColor); }}
+      />
     </div>
   );
 }

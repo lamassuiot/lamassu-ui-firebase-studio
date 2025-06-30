@@ -61,7 +61,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
 
   // Device profile state (defaults from RA, but editable)
   const [tags, setTags] = useState<string[]>([]);
-  const [iconName, setIconName] = useState<string>('CgSmartphoneChip');
+  const [iconName, setIconName] = useState<string>('Cpu');
   const [iconColor, setIconColor] = useState<string>('#888888');
   const [iconBgColor, setIconBgColor] = useState<string>('#e0e0e0');
 
@@ -78,7 +78,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
       setDeviceId(crypto.randomUUID());
       setSelectedRa(null);
       setTags([]);
-      setIconName('CgSmartphoneChip');
+      setIconName('Cpu');
       setIconColor('#888888');
       setIconBgColor('#e0e0e0');
     }
@@ -123,14 +123,14 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
     if (selectedRa) {
       const profile = selectedRa.settings.enrollment_settings.device_provisioning_profile;
       setTags(profile.tags || []);
-      setIconName(profile.icon || 'CgSmartphoneChip');
+      setIconName(profile.icon || 'Cpu');
       const [parsedIconColor, parsedBgColor] = (profile.icon_color || '#888888-#e0e0e0').split('-');
       setIconColor(parsedIconColor || '#888888');
       setIconBgColor(parsedBgColor || '#e0e0e0');
     } else {
       // Reset if RA is deselected
       setTags([]);
-      setIconName('CgSmartphoneChip');
+      setIconName('Cpu');
       setIconColor('#888888');
       setIconBgColor('#e0e0e0');
     }
@@ -203,7 +203,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
 
   const handleIconSelected = (name: string) => {
     setIconName(name);
-    setIsIconModalOpen(false);
+    // Don't close the modal on icon selection to allow color changes
   };
 
   const handleColorsChange = ({ iconColor: newIconColor, bgColor: newBgColor }: { iconColor: string; bgColor: string }) => {

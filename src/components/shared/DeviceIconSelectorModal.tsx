@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import * as LucideIcons from 'lucide-react';
+import { Label } from '../ui/label';
+import { Input } from '../ui/input';
 
 interface DeviceIconSelectorModalProps {
   isOpen: boolean;
@@ -174,7 +176,6 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   "CgSmartHomeRefrigerator": 'Refrigerator',
   "CgSmartHomeWashMachine": 'WashingMachine',
   "CgSmartphone": 'Smartphone',
-  "CgSmartphoneChip": 'Cpu',
   "CgSmartphoneRam": 'MemoryStick',
   "CgSmartphoneShake": 'SmartphoneNfc',
   "CgBatteryFull": 'BatteryFull',
@@ -222,11 +223,13 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
   onOpenChange,
   onIconSelected,
   currentSelectedIconName,
+  initialIconColor,
+  initialBgColor,
+  onColorsChange,
 }) => {
 
   const handleSelect = (iconName: string) => {
     onIconSelected(iconName);
-    onOpenChange(false); // Close modal on selection
   };
 
   return (
@@ -262,9 +265,34 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
           </ScrollArea>
         </div>
         
+        {onColorsChange && (
+            <div className="grid grid-cols-2 gap-4 pt-4 mt-2 border-t">
+                <div>
+                    <Label htmlFor="modal-icon-color">Icon Color</Label>
+                    <Input
+                        id="modal-icon-color"
+                        type="color"
+                        value={initialIconColor}
+                        onChange={(e) => onColorsChange({ iconColor: e.target.value, bgColor: initialBgColor || '#e0e0e0' })}
+                        className="w-full h-10 p-1"
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="modal-bg-color">Background Color</Label>
+                    <Input
+                        id="modal-bg-color"
+                        type="color"
+                        value={initialBgColor}
+                        onChange={(e) => onColorsChange({ iconColor: initialIconColor || '#888888', bgColor: e.target.value })}
+                        className="w-full h-10 p-1"
+                    />
+                </div>
+            </div>
+        )}
+
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">Cancel</Button>
+            <Button type="button" variant="outline">Close</Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>
