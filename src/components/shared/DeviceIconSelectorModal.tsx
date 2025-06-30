@@ -13,6 +13,9 @@ interface DeviceIconSelectorModalProps {
   onOpenChange: (isOpen: boolean) => void;
   onIconSelected: (iconName: string) => void;
   currentSelectedIconName?: string | null;
+  initialIconColor?: string;
+  initialBgColor?: string;
+  onColorsChange?: (colors: { iconColor: string; bgColor: string }) => void;
 }
 
 // Define a type for the structure of our icon list
@@ -120,28 +123,30 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
           <DialogDescription>Choose an icon that best represents the device type.</DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-grow my-4 border rounded-md">
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 p-4">
-            {AVAILABLE_ICONS.map(({ name, IconComponent }) => (
-              <Button
-                key={name}
-                variant={currentSelectedIconName === name ? "default" : "outline"}
-                className={cn(
-                  "flex flex-col items-center justify-center h-24 p-2 space-y-1 text-center",
-                  currentSelectedIconName === name && "ring-2 ring-primary ring-offset-2"
-                )}
-                onClick={() => handleSelect(name)}
-                title={name}
-              >
-                <IconComponent className={cn(
-                    "h-8 w-8 mb-1", 
-                    currentSelectedIconName === name ? "text-primary-foreground" : "text-primary"
-                )} />
-                <span className="text-xs truncate w-full">{name}</span>
-              </Button>
-            ))}
-          </div>
-        </ScrollArea>
+        <div className="flex-grow my-4 overflow-hidden border rounded-md">
+          <ScrollArea className="h-full">
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 p-4">
+              {AVAILABLE_ICONS.map(({ name, IconComponent }) => (
+                <Button
+                  key={name}
+                  variant={currentSelectedIconName === name ? "default" : "outline"}
+                  className={cn(
+                    "flex flex-col items-center justify-center h-24 p-2 space-y-1 text-center",
+                    currentSelectedIconName === name && "ring-2 ring-primary ring-offset-2"
+                  )}
+                  onClick={() => handleSelect(name)}
+                  title={name}
+                >
+                  <IconComponent className={cn(
+                      "h-8 w-8 mb-1", 
+                      currentSelectedIconName === name ? "text-primary-foreground" : "text-primary"
+                  )} />
+                  <span className="text-xs truncate w-full">{name}</span>
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
         
         <DialogFooter>
           <DialogClose asChild>
