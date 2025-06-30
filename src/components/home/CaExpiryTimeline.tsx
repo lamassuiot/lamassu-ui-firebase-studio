@@ -57,11 +57,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
 
     const now = new Date();
     
-    // Determine the min and max dates from all CAs to set the window
-    const allDates = cas.map(ca => parseISO(ca.expires));
-    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-
     const options = {
       stack: true, 
       width: '100%',
@@ -69,18 +64,14 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       margin: {
         item: 20
       },
-      start: subMonths(minDate, 1),
-      end: addMonths(maxDate, 1),
+      start: subMonths(now, 3), 
+      end: addMonths(now, 6),
       zoomMin: 1000 * 60 * 60 * 24 * 30, // 1 month
-      zoomMax: 1000 * 60 * 60 * 24 * 365 * 20, // 20 years
+      zoomMax: 1000 * 60 * 60 * 24 * 20, // 20 years
     };
 
     const timeline = new Timeline(timelineRef.current, items, options);
     
-    // Set the current time marker and focus on it if it's within the window
-    if (now >= minDate && now <= maxDate) {
-      timeline.setWindow(subMonths(now, 3), addMonths(now, 6));
-    }
     timeline.addCustomTime(now, 'now-marker');
     
     timeline.on('select', properties => {
