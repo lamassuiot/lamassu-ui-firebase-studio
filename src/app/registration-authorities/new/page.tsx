@@ -28,29 +28,36 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 
 // --- API and Form Types ---
+interface ApiRaOidcAuth {
+    client_id: string;
+    client_secret: string;
+    well_known_url: string;
+}
+interface ApiRaEstSettings {
+    auth_mode: string;
+    client_certificate_settings?: {
+        chain_level_validation: number;
+        validation_cas: string[];
+        allow_expired: boolean;
+    };
+    external_webhook_settings?: {
+        name: string;
+        url: string;
+        log_level: string;
+        auth_mode: string;
+        api_key_auth?: {
+            key: string;
+        };
+        oidc_auth?: ApiRaOidcAuth;
+    };
+}
 interface ApiRaSettings {
     enrollment_settings: {
         registration_mode: string;
         enrollment_ca: string;
         protocol: string;
         enable_replaceable_enrollment: boolean;
-        est_rfc7030_settings?: {
-            auth_mode: string;
-            client_certificate_settings?: {
-                chain_level_validation: number;
-                validation_cas: string[];
-                allow_expired: boolean;
-            };
-            external_webhook_settings?: {
-                name: string;
-                url: string;
-                log_level: string;
-                auth_mode: string;
-                api_key_auth?: {
-                    key: string;
-                };
-            };
-        };
+        est_rfc7030_settings?: ApiRaEstSettings;
         device_provisioning_profile: {
             icon: string;
             icon_color: string;
@@ -140,6 +147,12 @@ export default function CreateOrEditRegistrationAuthorityPage() {
   const [webhookLogLevel, setWebhookLogLevel] = useState('Info');
   const [webhookAuthMode, setWebhookAuthMode] = useState('No Auth');
   const [webhookApiKey, setWebhookApiKey] = useState('');
+  
+  // OIDC Webhook state
+  const [oidcClientId, setOidcClientId] = useState('');
+  const [oidcClientSecret, setOidcClientSecret] = useState('');
+  const [oidcWellKnownUrl, setOidcWellKnownUrl] = useState('');
+
 
   const [revokeOnReEnroll, setRevokeOnReEnroll] = useState(true);
   const [allowExpiredRenewal, setAllowExpiredRenewal] = useState(true);
@@ -262,6 +275,10 @@ export default function CreateOrEditRegistrationAuthorityPage() {
 
                 if (uiWebhookAuthMode === 'API Key' && webhookSettings.api_key_auth) {
                     setWebhookApiKey(webhookSettings.api_key_auth.key || '');
+                } else if (uiWebhookAuthMode === 'OIDC' && webhookSettings.oidc_auth) {
+                    setOidcClientId(webhookSettings.oidc_auth.client_id || '');
+                    setOidcClientSecret(webhookSettings.oidc_auth.client_secret || '');
+                    setOidcWellKnownUrl(webhookSettings.oidc_auth.well_known_url || '');
                 }
             }
         }
@@ -355,6 +372,12 @@ export default function CreateOrEditRegistrationAuthorityPage() {
         if (webhookAuthMode === 'API Key') {
             estSettings.external_webhook_settings.api_key_auth = {
                 key: webhookApiKey
+            };
+        } else if (webhookAuthMode === 'OIDC') {
+            estSettings.external_webhook_settings.oidc_auth = {
+                client_id: oidcClientId,
+                client_secret: oidcClientSecret,
+                well_known_url: oidcWellKnownUrl,
             };
         }
     }
@@ -611,6 +634,23 @@ export default function CreateOrEditRegistrationAuthorityPage() {
                         <div>
                             <Label htmlFor="webhookApiKey">API Key</Label>
                             <Input id="webhookApiKey" type="password" value={webhookApiKey} onChange={e => setWebhookApiKey(e.target.value)} placeholder="Enter API Key" className="mt-1"/>
+                        </div>
+                    )}
+                    {webhookAuthMode === 'OIDC' && (
+                        <div className="space-y-4 pt-2 border-t mt-4">
+                            <h5 className="font-medium text-sm text-muted-foreground pt-2">OIDC Settings</h5>
+                            <div>
+                                <Label htmlFor="oidcClientId">OIDC Client ID</Label>
+                                <Input id="oidcClientId" value={oidcClientId} onChange={e => setOidcClientId(e.target.value)} placeholder="Enter OIDC Client ID" className="mt-1"/>
+                            </div>
+                            <div>
+                                <Label htmlFor="oidcClientSecret">OIDC Client Secret</Label>
+                                <Input id="oidcClientSecret" type="password" value={oidcClientSecret} onChange={e => setOidcClientSecret(e.target.value)} placeholder="Enter OIDC Client Secret" className="mt-1"/>
+                            </div>
+                            <div>
+                                <Label htmlFor="oidcWellKnownUrl">OIDC .well-known URL</Label>
+                                <Input id="oidcWellKnownUrl" value={oidcWellKnownUrl} onChange={e => setOidcWellKnownUrl(e.target.value)} placeholder="https://your-issuer.com/.well-known/openid-configuration" className="mt-1"/>
+                            </div>
                         </div>
                     )}
                 </div>
