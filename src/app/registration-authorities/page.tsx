@@ -268,7 +268,7 @@ export default function RegistrationAuthoritiesPage() {
                                       <TerminalSquare className="mr-2 h-4 w-4" />
                                       <span>EST - Enroll: cURL Commands</span>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => alert(`Show EST CACerts for ${ra.name} (placeholder)`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/registration-authorities/cacerts?raId=${ra.id}`)}>
                                       <Landmark className="mr-2 h-4 w-4" />
                                       <span>EST - CACerts</span>
                                   </DropdownMenuItem>
