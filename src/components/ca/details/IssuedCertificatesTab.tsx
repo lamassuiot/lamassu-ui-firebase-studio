@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CertificateData } from '@/types/certificate';
-import { fetchIssuedCertificates, updateCertificateStatus } from '@/lib/issued-certificate-data';
+import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Search, RefreshCw, FilePlus2, ChevronLeft, ChevronRight, AlertCircle as AlertCircleIcon } from 'lucide-react';
@@ -192,47 +192,47 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
     return (
         <div className="space-y-4 py-4">
             <div className="flex flex-col sm:flex-row justify-between items-end gap-3 mb-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end w-full sm:w-auto flex-grow">
-                    <div className="relative col-span-1 md:col-span-2">
+                <div className="flex flex-wrap items-end gap-3 flex-grow w-full">
+                    <div className="flex-grow min-w-[200px]">
                         <Label htmlFor="issuedCertSearchTerm">Search</Label>
-                        <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                            id="issuedCertSearchTerm"
-                            type="text"
-                            placeholder="Filter by CN or Serial Number..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 mt-1"
-                            disabled={isLoading || authLoading}
-                        />
+                        <div className="relative mt-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            <Input
+                                id="issuedCertSearchTerm"
+                                type="text"
+                                placeholder="Filter by CN or Serial..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10"
+                                disabled={isLoading || authLoading}
+                            />
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-1 gap-2 w-full">
-                         <div className="col-span-1">
-                            <Label htmlFor="issuedCertSearchField">Search In</Label>
-                            <Select value={searchField} onValueChange={(value: 'commonName' | 'serialNumber') => setSearchField(value)} disabled={isLoading || authLoading}>
-                                <SelectTrigger id="issuedCertSearchField" className="w-full mt-1">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="commonName">Common Name</SelectItem>
-                                    <SelectItem value="serialNumber">Serial Number</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="col-span-1">
-                            <Label htmlFor="issuedCertStatusFilter">Status</Label>
-                            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ApiStatusFilterValue)} disabled={isLoading || authLoading}>
-                                <SelectTrigger id="issuedCertStatusFilter" className="w-full mt-1">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {statusOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="flex-grow xs:flex-grow-0 w-full xs:w-auto">
+                        <Label htmlFor="issuedCertSearchField">Search In</Label>
+                        <Select value={searchField} onValueChange={(value: 'commonName' | 'serialNumber') => setSearchField(value)} disabled={isLoading || authLoading}>
+                            <SelectTrigger id="issuedCertSearchField" className="w-full mt-1">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="commonName">Common Name</SelectItem>
+                                <SelectItem value="serialNumber">Serial Number</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="flex-grow xs:flex-grow-0 w-full xs:w-auto">
+                        <Label htmlFor="issuedCertStatusFilter">Status</Label>
+                        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ApiStatusFilterValue)} disabled={isLoading || authLoading}>
+                            <SelectTrigger id="issuedCertStatusFilter" className="w-full mt-1">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {statusOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
-                 <div className="flex space-x-2 mt-4 sm:mt-0">
+                 <div className="flex space-x-2 flex-shrink-0 self-end">
                     <Button onClick={handleRefresh} variant="outline" disabled={isLoading}>
                         <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
                     </Button>
@@ -266,6 +266,7 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
                         requestSort={requestSort}
                         isLoading={isLoading}
                         accessToken={user?.access_token}
+                        showIssuerColumn={false}
                     />
                     <div className="flex justify-between items-center mt-4">
                         <div className="flex items-center space-x-2">

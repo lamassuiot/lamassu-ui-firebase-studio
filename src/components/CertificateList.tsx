@@ -35,6 +35,7 @@ interface CertificateListProps {
   requestSort: (column: SortableCertColumn) => void;
   isLoading?: boolean;
   accessToken?: string | null;
+  showIssuerColumn?: boolean;
 }
 
 const getCommonName = (subjectOrIssuer: string): string => {
@@ -50,7 +51,8 @@ export function CertificateList({
   sortConfig,
   requestSort,
   isLoading,
-  accessToken
+  accessToken,
+  showIssuerColumn = true,
 }: CertificateListProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -205,7 +207,7 @@ export function CertificateList({
             <TableRow>{/*
           */}<SortableHeader column="commonName" title="Common Name" />{/*
           */}<SortableHeader column="serialNumber" title="Serial Number" className="hidden md:table-cell" />{/*
-          */}<TableHead className="hidden lg:table-cell">CA Issuer</TableHead>{/*
+          */}{showIssuerColumn && <TableHead className="hidden lg:table-cell">CA Issuer</TableHead>}{/*
           */}<SortableHeader column="validFrom" title="Valid From" />{/*
           */}<SortableHeader column="expires" title="Expires" />{/*
           */}<SortableHeader column="status" title="Status" />{/*
@@ -231,7 +233,7 @@ export function CertificateList({
                     </Button>
                   </TableCell>{/*
                   */}<TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[120px]">{cert.serialNumber}</TableCell>{/*
-                  */}<TableCell className="hidden lg:table-cell truncate max-w-[200px]">
+                  */}{showIssuerColumn && <TableCell className="hidden lg:table-cell truncate max-w-[200px]">
                     {issuerCa ? (
                       <Button
                         variant="link"
@@ -244,7 +246,7 @@ export function CertificateList({
                     ) : (
                       issuerDisplayName
                     )}
-                  </TableCell>{/*
+                  </TableCell>}{/*
                   */}<TableCell>{format(parseISO(cert.validFrom), 'MMM dd, yyyy')}</TableCell>{/*
                   */}<TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>{/*
                   */}<TableCell>
