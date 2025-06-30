@@ -485,7 +485,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
                             type="color" 
                             value={selectedDeviceIconColor} 
                             onChange={(e) => setSelectedDeviceIconColor(e.target.value)} 
-                            className="w-24 h-10 p-1"
+                            className="w-full h-10 p-1"
                         />
                     </div>
                     <div>
@@ -495,7 +495,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
                             type="color" 
                             value={selectedDeviceIconBgColor} 
                             onChange={(e) => setSelectedDeviceIconBgColor(e.target.value)}
-                            className="w-24 h-10 p-1"
+                            className="w-full h-10 p-1"
                         />
                     </div>
                 </div>

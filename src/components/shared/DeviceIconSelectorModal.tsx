@@ -123,7 +123,7 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
           <DialogDescription>Choose an icon that best represents the device type.</DialogDescription>
         </DialogHeader>
         
-        <div className="flex-grow my-4 overflow-hidden border rounded-md">
+        <div className="flex-grow my-4 overflow-hidden border rounded-md overflow-y-auto">
           <ScrollArea className="h-full">
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 p-4">
               {AVAILABLE_ICONS.map(({ name, IconComponent }) => (
