@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 
 // Define types based on the provided API response
 interface ApiRaDeviceProfile {
@@ -195,11 +196,22 @@ export default function RegistrationAuthoritiesPage() {
 
       {!isLoading && !error && ras.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ras.map(ra => (
+            {ras.map(ra => {
+                const profile = ra.settings.enrollment_settings.device_provisioning_profile;
+                const IconComponent = getLucideIconByName(profile.icon);
+                const [iconColor, bgColor] = (profile.icon_color || '#888888-#e0e0e0').split('-');
+
+                return (
                 <Card key={ra.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader>
                         <div className="flex items-center space-x-3">
-                            <Settings2 className="h-6 w-6 text-primary" />
+                            <div className="p-1.5 rounded-md inline-flex items-center justify-center" style={{ backgroundColor: bgColor }}>
+                                {IconComponent ? (
+                                    <IconComponent className="h-5 w-5" style={{ color: iconColor }} />
+                                ) : (
+                                    <Settings2 className="h-5 w-5 text-primary" />
+                                )}
+                            </div>
                             <CardTitle className="text-lg truncate" title={ra.name}>{ra.name}</CardTitle>
                         </div>
                         <CardDescription className="text-xs pt-1 truncate">
@@ -281,7 +293,7 @@ export default function RegistrationAuthoritiesPage() {
                       </div>
                     </CardFooter>
                 </Card>
-            ))}
+            )})}
         </div>
       )}
 
