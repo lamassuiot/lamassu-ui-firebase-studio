@@ -477,6 +477,28 @@ export default function CreateOrEditRegistrationAuthorityPage() {
                     ) : "Select Device Icon..."}
                   </Button>
                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div>
+                        <Label htmlFor="deviceIconColor">Icon Color</Label>
+                        <Input 
+                            id="deviceIconColor" 
+                            type="color" 
+                            value={selectedDeviceIconColor} 
+                            onChange={(e) => setSelectedDeviceIconColor(e.target.value)} 
+                            className="w-24 h-10 p-1"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="deviceIconBgColor">Background Color</Label>
+                        <Input 
+                            id="deviceIconBgColor" 
+                            type="color" 
+                            value={selectedDeviceIconBgColor} 
+                            onChange={(e) => setSelectedDeviceIconBgColor(e.target.value)}
+                            className="w-24 h-10 p-1"
+                        />
+                    </div>
+                </div>
                 <p className="text-xs text-muted-foreground">Default icon and colors for devices registered through this RA.</p>
               </div>
             </CardContent></Card>
