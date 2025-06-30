@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DeviceStatusChartCard } from '@/components/home/DeviceStatusChartCard';
 import { CaExpiryTimeline } from '@/components/home/CaExpiryTimeline';
+import { SummaryStatsCard } from '@/components/home/SummaryStatsCard';
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
+// Helper function from old page.tsx
 function flattenCAs(cas: CA[]): CA[] {
   const flatList: CA[] = [];
   function recurse(items: CA[]) {
@@ -27,12 +29,40 @@ function flattenCAs(cas: CA[]): CA[] {
   return flatList;
 }
 
+// Stats interfaces
+interface CaStatsResponse {
+  cas: { total: number };
+  certificates: { total: number };
+}
+interface TotalStatResponse {
+  total: number;
+}
+interface SummaryStats {
+  certificates: number | null;
+  cas: number | null;
+  ras: number | null;
+  devices: number | null;
+}
+
 export default function HomePage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  
+  // State for timeline
   const [allCAs, setAllCAs] = useState<CA[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
+  
+  // State for summary stats
+  const [summaryStats, setSummaryStats] = useState<SummaryStats>({
+    certificates: null,
+    cas: null,
+    ras: null,
+    devices: null,
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [errorStats, setErrorStats] = useState<string | null>(null);
 
+  // Engines are needed by both
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingEngines, setIsLoadingEngines] = useState(true);
   const [errorEngines, setErrorEngines] = useState<string | null>(null);
@@ -40,45 +70,77 @@ export default function HomePage() {
   const loadInitialData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading) {
-        setErrorCAs("User not authenticated. Cannot load CA data.");
-        setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
+        setErrorCAs("User not authenticated.");
+        setErrorEngines("User not authenticated.");
+        setErrorStats("User not authenticated.");
       }
       setIsLoadingCAs(false);
       setIsLoadingEngines(false);
+      setIsLoadingStats(false);
       return;
     }
 
     setIsLoadingCAs(true);
     setIsLoadingEngines(true);
+    setIsLoadingStats(true);
     setErrorCAs(null);
     setErrorEngines(null);
+    setErrorStats(null);
 
     try {
-      const [fetchedCAs, enginesResponse] = await Promise.all([
+      const [
+        fetchedCAs, 
+        enginesResponse,
+        caStatsResponse,
+        dmsStatsResponse,
+        devManagerStatsResponse,
+      ] = await Promise.all([
         fetchAndProcessCAs(user.access_token),
-        fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-          headers: { 'Authorization': `Bearer ${user.access_token}` },
-        })
+        fetch('https://lab.lamassu.io/api/ca/v1/engines', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetch('https://lab.lamassu.io/api/ca/v1/stats', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetch('https://lab.lamassu.io/api/dmsmanager/v1/stats', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetch('https://lab.lamassu.io/api/devmanager/v1/stats', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
       ]);
 
+      // Process CAs for timeline
       const flattenedCAs = flattenCAs(fetchedCAs);
       setAllCAs(flattenedCAs);
+      setIsLoadingCAs(false);
 
-      if (!enginesResponse.ok) {
-        throw new Error('Failed to fetch crypto engines');
-      }
-      const enginesData: ApiCryptoEngine[] = await enginesResponse.json();
-      setAllCryptoEngines(enginesData);
+      // Process engines
+      if (!enginesResponse.ok) throw new Error('Failed to fetch crypto engines');
+      setAllCryptoEngines(await enginesResponse.json());
+      setIsLoadingEngines(false);
+      
+      // Process stats for summary card
+      if (!caStatsResponse.ok) throw new Error('Failed to fetch CA stats');
+      if (!dmsStatsResponse.ok) throw new Error('Failed to fetch RA stats');
+      if (!devManagerStatsResponse.ok) throw new Error('Failed to fetch Device stats');
+
+      const caStats: CaStatsResponse = await caStatsResponse.json();
+      const dmsStats: TotalStatResponse = await dmsStatsResponse.json();
+      const devManagerStats: TotalStatResponse = await devManagerStatsResponse.json();
+
+      setSummaryStats({
+        certificates: caStats.certificates.total,
+        cas: caStats.cas.total,
+        ras: dmsStats.total,
+        devices: devManagerStats.total,
+      });
+      setIsLoadingStats(false);
 
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to load data.';
+      const errorMessage = err.message || 'Failed to load dashboard data.';
       setErrorCAs(errorMessage);
       setErrorEngines(errorMessage);
+      setErrorStats(errorMessage);
       setAllCAs([]);
       setAllCryptoEngines([]);
+      setSummaryStats({ certificates: null, cas: null, ras: null, devices: null });
     } finally {
       setIsLoadingCAs(false);
       setIsLoadingEngines(false);
+      setIsLoadingStats(false);
     }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
@@ -88,40 +150,41 @@ export default function HomePage() {
     }
   }, [loadInitialData, authLoading]);
   
-  const anyError = errorCAs || errorEngines;
-  const anyLoading = isLoadingCAs || isLoadingEngines || authLoading;
+  const anyTimelineError = errorCAs || errorEngines;
+  const anyTimelineLoading = isLoadingCAs || isLoadingEngines || authLoading;
 
   return (
     <div className="w-full space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-1">
-          <DeviceStatusChartCard />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
+        <div className="xl:col-span-1">
+          <SummaryStatsCard stats={summaryStats} isLoading={isLoadingStats || authLoading} />
         </div>
-        <div className="lg:col-span-2">
-          {anyLoading && !anyError ? (
-            <Card className="shadow-lg w-full bg-primary text-primary-foreground">
+        <div className="xl:col-span-2 space-y-8">
+          <DeviceStatusChartCard />
+          {anyTimelineLoading && !anyTimelineError ? (
+            <Card className="shadow-lg w-full bg-card">
                 <CardHeader>
                     <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
-                        <p className="ml-3 text-primary-foreground/80">Loading CA timeline data...</p>
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
                     </div>
                 </CardContent>
             </Card>
-          ) : anyError ? (
-             <Card className="shadow-lg w-full bg-primary text-primary-foreground">
+          ) : anyTimelineError ? (
+             <Card className="shadow-lg w-full bg-card">
                 <CardHeader>
                     <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Alert variant="destructive" className="bg-destructive/80 text-destructive-foreground">
+                    <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertTitle>Error Loading Timeline Data</AlertTitle>
-                        <AlertDescription className="text-destructive-foreground/90">
-                            {anyError}
-                            <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive-foreground hover:text-destructive-foreground/80 focus:text-destructive-foreground">Try again?</Button>
+                        <AlertDescription>
+                            {anyTimelineError}
+                            <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80 focus:text-destructive">Try again?</Button>
                         </AlertDescription>
                     </Alert>
                 </CardContent>

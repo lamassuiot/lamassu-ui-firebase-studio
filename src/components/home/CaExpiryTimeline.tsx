@@ -56,6 +56,12 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     const items = new DataSet(itemsData as any);
 
     const now = new Date();
+    
+    // Determine the min and max dates from all CAs to set the window
+    const allDates = cas.map(ca => parseISO(ca.expires));
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+
     const options = {
       stack: true, 
       width: '100%',
@@ -63,13 +69,19 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       margin: {
         item: 20
       },
-      start: subMonths(now, 1),
-      end: addMonths(now, 6),
-      zoomMin: 1000 * 60 * 60 * 24 , // 1 ay
-      zoomMax: 1000 * 60 * 60 * 24 * 365 * 15, // 10 years
+      start: subMonths(minDate, 1),
+      end: addMonths(maxDate, 1),
+      zoomMin: 1000 * 60 * 60 * 24 * 30, // 1 month
+      zoomMax: 1000 * 60 * 60 * 24 * 365 * 20, // 20 years
     };
 
     const timeline = new Timeline(timelineRef.current, items, options);
+    
+    // Set the current time marker and focus on it if it's within the window
+    if (now >= minDate && now <= maxDate) {
+      timeline.setWindow(subMonths(now, 3), addMonths(now, 6));
+    }
+    timeline.addCustomTime(now, 'now-marker');
     
     timeline.on('select', properties => {
       if (properties.items.length > 0) {
@@ -78,8 +90,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       }
     });
     
-    timeline.addCustomTime(now, 'now-marker');
-
     return () => {
       timeline.destroy();
     };
@@ -97,10 +107,10 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         ))}
       </div>
 
-      <Card className="shadow-lg w-full bg-primary text-primary-foreground">
+      <Card className="shadow-lg w-full bg-card text-card-foreground">
           <CardHeader>
               <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-              <CardDescription className="text-primary-foreground/80">Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>
+              <CardDescription className="text-muted-foreground">Visual timeline of Certificate Authority expiry dates. Click an item to view details.</CardDescription>
           </CardHeader>
           <CardContent>
             {cas.length > 0 ? (
