@@ -240,7 +240,7 @@ export default function RegistrationAuthoritiesPage() {
                     </CardContent>
                     <CardFooter className="border-t pt-4">
                       <div className="flex w-full justify-end items-center space-x-2">
-                          <Button variant="outline" size="sm" onClick={() => router.push(`/registration-authorities/${ra.id}/edit`)}>
+                          <Button variant="outline" size="sm" onClick={() => router.push(`/registration-authorities/new?raId=${ra.id}`)}>
                               <Edit className="mr-1.5 h-3.5 w-3.5" />
                               Edit
                           </Button>
