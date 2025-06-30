@@ -3,11 +3,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronLeft, ChevronRight, MoreVertical, Trash2 } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,24 @@ import { ViewCsrModal } from '@/components/ca/requests/ViewCsrModal';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 interface Subject {
   common_name: string;
@@ -90,6 +108,10 @@ export default function CaRequestsPage() {
   
   const [selectedCsr, setSelectedCsr] = useState<string | null>(null);
   const [isCsrModalOpen, setIsCsrModalOpen] = useState(false);
+  
+  // State for delete dialog
+  const [requestToDelete, setRequestToDelete] = useState<CACertificateRequest | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Debounce search term
   useEffect(() => {
@@ -230,6 +252,49 @@ export default function CaRequestsPage() {
     setSelectedCsr(csrPem);
     setIsCsrModalOpen(true);
   };
+  
+  const handleDeleteRequest = async () => {
+    if (!requestToDelete || !user?.access_token) {
+      toast({ title: "Error", description: "Request details or authentication missing.", variant: "destructive" });
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/requests/${requestToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${user.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to delete request. Status: ${response.status}`;
+        try {
+          errorJson = await response.json();
+          errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorMessage);
+      }
+
+      toast({
+        title: "Request Deleted",
+        description: `Request for "${requestToDelete.subject.common_name}" has been deleted.`,
+        variant: "default",
+      });
+      setRequestToDelete(null); // Close dialog by resetting state
+      handleRefresh(); // Refresh the list
+    } catch (error: any) {
+      toast({
+        title: "Deletion Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   if (authLoading && requests.length === 0) {
     return (
@@ -332,9 +397,32 @@ export default function CaRequestsPage() {
                     <TableCell className="hidden md:table-cell">{format(parseISO(req.creation_ts), 'MMM dd, yyyy HH:mm')}</TableCell>
                     <TableCell className="hidden sm:table-cell">{req.engine_id}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => handleViewCsr(req.csr.pem)}>
-                        View CSR
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">More actions for request {req.id}</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewCsr(req.csr.pem)}>
+                            <FileSignature className="mr-2 h-4 w-4" />
+                            View CSR
+                          </DropdownMenuItem>
+                          {req.status === 'PENDING' && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setRequestToDelete(req)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Request
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -377,7 +465,28 @@ export default function CaRequestsPage() {
         onOpenChange={setIsCsrModalOpen}
         csrPem={selectedCsr}
       />
+      
+      <AlertDialog open={!!requestToDelete} onOpenChange={(open) => !open && setRequestToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the CA request for "<strong>{requestToDelete?.subject.common_name}</strong>".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRequest}
+              className={buttonVariants({ variant: "destructive" })}
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-
