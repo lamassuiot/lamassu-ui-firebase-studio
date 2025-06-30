@@ -33,7 +33,7 @@ const creationModes = [
     title: 'Import External CA (with Private Key)',
     description: 'Import an existing CA certificate along with its private key. This CA will be fully managed by LamassuIoT.',
     icon: <UploadCloud className="h-8 w-8 text-primary" />,
-    isComingSoon: true,
+    isComingSoon: false,
   },
   {
     id: 'import-public',
