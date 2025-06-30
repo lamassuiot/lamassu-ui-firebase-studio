@@ -27,13 +27,13 @@ interface ChartData {
 }
 
 const statusConfig: { [key: string]: { label: string; color: string } } = {
-  ACTIVE: { label: 'Active', color: 'hsl(var(--chart-2))' }, // Green
-  NO_IDENTITY: { label: 'No Identity', color: 'hsl(var(--chart-1))' }, // Blue
-  DECOMMISSIONED: { label: 'Decommissioned', color: 'hsl(220 10% 70%)' }, // Gray
-  EXPIRING_SOON: { label: 'Expiring Soon', color: 'hsl(var(--chart-3))' }, // Orange
-  RENEWAL_PENDING: { label: 'Renewal Pending', color: 'hsl(48 96% 51%)' }, // Yellow
-  REVOKED: { label: 'Revoked', color: 'hsl(var(--chart-4))' }, // Red
-  EXPIRED: { label: 'Expired', color: 'hsl(var(--chart-5))' }, // Purple/Pink
+  ACTIVE: { label: 'Active', color: 'rgb(34, 197, 94)' },
+  NO_IDENTITY: { label: 'No Identity', color: '#3b82f6' },
+  DECOMMISSIONED: { label: 'Decommissioned', color: '#9ca3af' },
+  EXPIRING_SOON: { label: 'Expiring Soon', color: '#f97316' },
+  RENEWAL_PENDING: { label: 'Renewal Pending', color: '#eab308' },
+  REVOKED: { label: 'Revoked', color: '#ef4444' },
+  EXPIRED: { label: 'Expired', color: '#8b5cf6' },
 };
 
 
@@ -183,7 +183,7 @@ export function DeviceStatusChartCard() {
               </PieChart>
             </ResponsiveContainer>
             {totalDevices !== null && (
-                <div className="absolute top-0 left-0 right-0 bottom-8 flex flex-col items-center justify-center pointer-events-none">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-3xl font-bold text-primary-foreground">{totalDevices}</span>
                     <span className="text-sm text-primary-foreground/80">Total Devices</span>
                 </div>
