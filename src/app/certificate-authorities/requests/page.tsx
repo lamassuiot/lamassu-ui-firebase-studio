@@ -7,7 +7,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronLeft, ChevronRight, MoreVertical, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronLeft, ChevronRight, MoreVertical, Trash2, Layers } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 interface Subject {
@@ -112,6 +113,10 @@ export default function CaRequestsPage() {
   // State for delete dialog
   const [requestToDelete, setRequestToDelete] = useState<CACertificateRequest | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // State for raw data viewer
+  const [requestForRawView, setRequestForRawView] = useState<CACertificateRequest | null>(null);
+
 
   // Debounce search term
   useEffect(() => {
@@ -421,6 +426,10 @@ export default function CaRequestsPage() {
                             <FileSignature className="mr-2 h-4 w-4" />
                             View CSR
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
+                            <Layers className="mr-2 h-4 w-4" />
+                            View Raw API Data
+                          </DropdownMenuItem>
                           {req.status === 'PENDING' && (
                             <>
                               <DropdownMenuSeparator />
@@ -499,6 +508,27 @@ export default function CaRequestsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+       <AlertDialog open={!!requestForRawView} onOpenChange={(open) => !open && setRequestForRawView(null)}>
+        <AlertDialogContent className="max-w-2xl">
+            <AlertDialogHeader>
+                <AlertDialogTitle>Raw API Data for Request</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This is the complete, unmodified data object received from the API for debugging purposes.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="my-4">
+                <ScrollArea className="h-80 w-full rounded-md border bg-muted/30">
+                    <pre className="p-4 text-xs">
+                        {requestForRawView && JSON.stringify(requestForRawView, null, 2)}
+                    </pre>
+                </ScrollArea>
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Close</AlertDialogCancel>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </div>
   );
 }
