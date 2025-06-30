@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from '@/components/ui/label';
@@ -9,22 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { CertificateData } from '@/types/certificate';
-import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Search, RefreshCw, FilePlus2, ChevronLeft, ChevronRight, AlertCircle as AlertCircleIcon } from 'lucide-react';
-import { CertificateList } from '@/components/CertificateList'; // Import the reusable component
+import { CertificateList } from '@/components/CertificateList';
 import type { CA } from '@/lib/ca-data';
-import type { CertSortConfig, SortDirection, SortableCertColumn } from '@/app/certificates/page';
-
-const API_STATUS_VALUES_FOR_FILTER = {
-  ALL: 'ALL',
-  ACTIVE: 'ACTIVE',
-  EXPIRED: 'EXPIRED',
-  REVOKED: 'REVOKED',
-} as const;
-type ApiStatusFilterValue = typeof API_STATUS_VALUES_FOR_FILTER[keyof typeof API_STATUS_VALUES_FOR_FILTER];
+import { usePaginatedCertificateFetcher, type ApiStatusFilterValue } from '@/hooks/usePaginatedCertificateFetcher';
 
 interface IssuedCertificatesTabProps {
     caId: string;
@@ -35,146 +25,23 @@ interface IssuedCertificatesTabProps {
 export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ caId, caIsActive, allCAs }) => {
     const routerHook = useRouter();
     const { toast } = useToast();
-    const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+    const { user, isLoading: authLoading } = useAuth();
 
-    const [certificates, setCertificates] = useState<CertificateData[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // Pagination State
-    const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]); 
-    const [currentPageIndex, setCurrentPageIndex] = useState<number>(0); 
-    const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null); 
-
-    // Filtering & Sorting State
-    const [pageSize, setPageSize] = useState<string>('10');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-    const [searchField, setSearchField] = useState<'commonName' | 'serialNumber'>('commonName');
-    const [statusFilter, setStatusFilter] = useState<ApiStatusFilterValue>('ALL');
-    const [sortConfig, setSortConfig] = useState<CertSortConfig | null>({ column: 'expires', direction: 'desc' });
-
-    // Debounce search term
-    useEffect(() => {
-        const handler = setTimeout(() => {
-        setDebouncedSearchTerm(searchTerm);
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [searchTerm]);
-
-    // Reset pagination when filters or sorting change
-    useEffect(() => {
-        setCurrentPageIndex(0);
-        setBookmarkStack([null]);
-    }, [pageSize, debouncedSearchTerm, searchField, statusFilter, sortConfig]);
-
-    const loadCertificates = useCallback(async (bookmarkToFetch: string | null) => {
-        if (!caId || !isAuthenticated() || !user?.access_token) {
-            setIsLoading(false);
-            return;
-        }
-        
-        setIsLoading(true);
-        setError(null);
-        try {
-            const apiParams = new URLSearchParams();
-            if (sortConfig) {
-                let sortByApiField = '';
-                switch (sortConfig.column) {
-                    case 'commonName': sortByApiField = 'subject.common_name'; break;
-                    case 'serialNumber': sortByApiField = 'serial_number'; break;
-                    case 'expires': sortByApiField = 'valid_to'; break;
-                    case 'status': sortByApiField = 'status'; break;
-                    case 'validFrom': sortByApiField = 'valid_from'; break;
-                    default: sortByApiField = 'valid_from';
-                }
-                apiParams.append('sort_by', sortByApiField);
-                apiParams.append('sort_mode', sortConfig.direction);
-            } else {
-                apiParams.append('sort_by', 'valid_from');
-                apiParams.append('sort_mode', 'desc');
-            }
-
-            apiParams.append('page_size', pageSize);
-            if (bookmarkToFetch) apiParams.append('bookmark', bookmarkToFetch);
-
-            const filtersToApply: string[] = [];
-            if (statusFilter !== 'ALL') {
-                filtersToApply.push(`status[equal]${statusFilter}`);
-            }
-            if (debouncedSearchTerm.trim() !== '') {
-                if (searchField === 'commonName') {
-                    filtersToApply.push(`subject.common_name[contains]${debouncedSearchTerm.trim()}`);
-                } else if (searchField === 'serialNumber') {
-                    filtersToApply.push(`serial_number[contains]${debouncedSearchTerm.trim()}`);
-                }
-            }
-            filtersToApply.forEach(f => apiParams.append('filter', f));
-
-            const result = await fetchIssuedCertificates({
-                accessToken: user.access_token,
-                forCaId: caId,
-                apiQueryString: apiParams.toString(),
-            });
-            setCertificates(result.certificates);
-            setNextTokenFromApi(result.nextToken);
-
-        } catch (err: any) {
-            setError(err.message || 'Failed to load issued certificates.');
-            setCertificates([]);
-            setNextTokenFromApi(null);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [caId, user?.access_token, isAuthenticated, pageSize, sortConfig, debouncedSearchTerm, searchField, statusFilter]);
-
-    useEffect(() => {
-        if (!authLoading && isAuthenticated()) {
-            loadCertificates(bookmarkStack[currentPageIndex]);
-        } else if (!authLoading && !isAuthenticated()){
-            setIsLoading(false);
-            setError("User not authenticated.");
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [authLoading, isAuthenticated, currentPageIndex, bookmarkStack, loadCertificates]); 
-
-    const handleCertificateUpdated = (updatedCertificate: CertificateData) => {
-        setCertificates(prevCerts =>
-          prevCerts.map(cert => cert.id === updatedCertificate.id ? updatedCertificate : cert)
-        );
-    };
-
-    const handleRefresh = () => {
-        if (currentPageIndex < bookmarkStack.length) {
-            loadCertificates(bookmarkStack[currentPageIndex]);
-        }
-    };
-
-    const handleNextPage = () => {
-        if (isLoading) return;
-        const potentialNextPageIndex = currentPageIndex + 1;
-
-        if (potentialNextPageIndex < bookmarkStack.length) {
-            setCurrentPageIndex(potentialNextPageIndex);
-        } else if (nextTokenFromApi) {
-            const newStack = [...bookmarkStack, nextTokenFromApi];
-            setBookmarkStack(newStack);
-            setCurrentPageIndex(newStack.length - 1);
-        }
-    };
-
-    const handlePreviousPage = () => {
-        if (isLoading || currentPageIndex === 0) return;
-        setCurrentPageIndex(prev => prev - 1);
-    };
-
-    const requestSort = (column: SortableCertColumn) => {
-        let direction: SortDirection = 'asc';
-        if (sortConfig && sortConfig.column === column && sortConfig.direction === 'asc') {
-          direction = 'desc';
-        }
-        setSortConfig({ column, direction });
-    };
+    const {
+        certificates,
+        isLoading,
+        error,
+        pageSize, setPageSize,
+        searchTerm, setSearchTerm,
+        searchField, setSearchField,
+        statusFilter, setStatusFilter,
+        sortConfig, requestSort,
+        currentPageIndex,
+        nextTokenFromApi,
+        handleNextPage, handlePreviousPage,
+        refresh,
+        onCertificateUpdated
+      } = usePaginatedCertificateFetcher({ caId });
 
     const handleIssueNewCertificate = () => {
         if (caId) {
@@ -184,15 +51,17 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
         }
     };
 
-    const statusOptions = Object.entries(API_STATUS_VALUES_FOR_FILTER).map(([key, val]) => ({
-        label: val === 'ALL' ? 'All Statuses' : key.charAt(0) + key.slice(1).toLowerCase(),
-        value: val
-    }));
+    const statusOptions = [
+        { label: 'All Statuses', value: 'ALL' },
+        { label: 'Active', value: 'ACTIVE' },
+        { label: 'Expired', value: 'EXPIRED' },
+        { label: 'Revoked', value: 'REVOKED' },
+    ];
 
     return (
         <div className="space-y-4 py-4">
             <div className="flex justify-end space-x-2">
-                <Button onClick={handleRefresh} variant="outline" disabled={isLoading}>
+                <Button onClick={refresh} variant="outline" disabled={isLoading}>
                     <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
                 </Button>
                 <Button onClick={handleIssueNewCertificate} variant="default" disabled={!caIsActive}>
@@ -252,7 +121,7 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
                   <AlertTitle>Error Loading Certificates</AlertTitle>
                   <AlertDescription>
                     {error}
-                    <Button variant="link" onClick={handleRefresh} className="p-0 h-auto ml-1">Try again?</Button>
+                    <Button variant="link" onClick={refresh} className="p-0 h-auto ml-1">Try again?</Button>
                   </AlertDescription>
                 </Alert>
             ) : certificates.length > 0 ? (
@@ -260,7 +129,7 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
                     <CertificateList
                         certificates={certificates}
                         allCAs={allCAs}
-                        onCertificateUpdated={handleCertificateUpdated}
+                        onCertificateUpdated={onCertificateUpdated}
                         sortConfig={sortConfig}
                         requestSort={requestSort}
                         isLoading={isLoading}
@@ -282,18 +151,10 @@ export const IssuedCertificatesTab: React.FC<IssuedCertificatesTabProps> = ({ ca
                             </Select>
                         </div>
                         <div className="flex items-center space-x-2">
-                            <Button
-                                onClick={handlePreviousPage}
-                                disabled={isLoading || currentPageIndex === 0}
-                                variant="outline" size="sm"
-                            >
+                            <Button onClick={handlePreviousPage} disabled={isLoading || currentPageIndex === 0} variant="outline" size="sm">
                                 <ChevronLeft className="mr-1 h-4 w-4" /> Previous
                             </Button>
-                            <Button
-                                onClick={handleNextPage}
-                                disabled={isLoading || !nextTokenFromApi}
-                                variant="outline" size="sm"
-                            >
+                            <Button onClick={handleNextPage} disabled={isLoading || !nextTokenFromApi} variant="outline" size="sm">
                                 Next <ChevronRight className="ml-1 h-4 w-4" />
                             </Button>
                         </div>
