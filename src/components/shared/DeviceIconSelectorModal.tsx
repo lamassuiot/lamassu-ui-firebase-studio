@@ -104,11 +104,25 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'HelpCircle', IconComponent: LucideIcons.HelpCircle },
   { name: 'GitFork', IconComponent: LucideIcons.GitFork },
   { name: 'BarChart2', IconComponent: LucideIcons.BarChart2 },
+  // Adding icons based on new mapping request
+  { name: 'Bike', IconComponent: LucideIcons.Bike },
+  { name: 'PlugZap', IconComponent: LucideIcons.PlugZap },
+  { name: 'TrainFront', IconComponent: LucideIcons.TrainFront },
+  { name: 'Heater', IconComponent: LucideIcons.Heater },
+  { name: 'CookingPot', IconComponent: LucideIcons.CookingPot },
+  { name: 'WashingMachine', IconComponent: LucideIcons.WashingMachine },
+  { name: 'SmartphoneNfc', IconComponent: LucideIcons.SmartphoneNfc },
+  { name: 'CreditCard', IconComponent: LucideIcons.CreditCard },
+  { name: 'SdCard', IconComponent: LucideIcons.SdCard },
+  { name: 'Badge', IconComponent: LucideIcons.Badge },
+  { name: 'Construction', IconComponent: LucideIcons.Construction },
+  { name: 'ArrowUpDown', IconComponent: LucideIcons.ArrowUpDown },
 ];
 
 
 // Mapping from old react-icon names to new lucide-react names for backward compatibility
 const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
+  // Previous set of mappings
   'FaServer': 'Server',
   'FaLaptop': 'Laptop',
   'FaHdd': 'HardDrive',
@@ -142,6 +156,38 @@ const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
   'IoPower': 'Power',
   'IoHomeOutline': 'Home',
   'IoBarChartOutline': 'BarChart2',
+  
+  // New, more specific mappings based on provided list
+  "MdDeviceThermostat": 'Thermometer',
+  "MdOutlineElectricScooter": 'Bike',
+  "MdOutlineElectricRickshaw": 'Bike',
+  "MdOutlineElectricalServices": 'PlugZap',
+  "MdOutlineElectricMeter": 'Gauge',
+  "MdOutlineElectricBike": 'Bike',
+  "MdOutlineTrain": 'TrainFront',
+  "CgDatabase": 'Database',
+  "CgModem": 'Router',
+  "CgSmartHomeBoiler": 'Heater',
+  "CgSmartHomeCooker": 'CookingPot',
+  "CgSmartHomeHeat": 'Heater',
+  "CgSmartHomeLight": 'Lightbulb',
+  "CgSmartHomeRefrigerator": 'Refrigerator',
+  "CgSmartHomeWashMachine": 'WashingMachine',
+  "CgSmartphone": 'Smartphone',
+  "CgSmartphoneRam": 'MemoryStick',
+  "CgSmartphoneShake": 'SmartphoneNfc',
+  "CgBatteryFull": 'BatteryFull',
+  "GoRadioTower": 'TowerControl',
+  "BiSolidCreditCardFront": 'CreditCard',
+  "BsSdCard": 'SdCard',
+  "IoMdCar": 'Car',
+  "AiOutlineIdcard": 'Badge',
+  "GiElectric": 'Zap',
+  "BsHouse": 'Home',
+  "BsHouseGear": 'Settings2',
+  "TbCrane": 'Construction',
+  "MdOutlineElevator": 'ArrowUpDown',
+
   // Handling previous mistake where an invalid icon name might have been saved
   'CgSmartphoneChip': 'Cpu',
 };
