@@ -70,7 +70,13 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events }) => {
                 <TableCell>{event.eventCounter.toLocaleString()}</TableCell>
                 <TableCell>
                   {event.activeSubscriptions.length > 0 ? (
-                    <Badge variant="secondary">{event.activeSubscriptions.join(', ')}</Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {event.activeSubscriptions.map((sub, index) => (
+                        <Badge key={index} variant="secondary" className="font-normal">
+                          {sub}
+                        </Badge>
+                      ))}
+                    </div>
                   ) : (
                     <span className="text-muted-foreground">None</span>
                   )}

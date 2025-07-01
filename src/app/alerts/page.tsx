@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchLatestAlerts, type ApiAlertEvent } from '@/lib/alerts-api';
+import { fetchLatestAlerts, type ApiAlertEvent, fetchSystemSubscriptions } from '@/lib/alerts-api';
 import { AlertsTable } from '@/components/alerts/AlertsTable';
 
 // This is the structure the UI component expects.
@@ -15,21 +15,9 @@ export interface AlertEvent {
   type: string; // Will be mapped from event_types
   lastSeen: string; // Will be mapped from seen_at
   eventCounter: number; // Will be mapped from counter
-  activeSubscriptions: string[]; // Mocked as empty for now
+  activeSubscriptions: string[]; // This will be populated from the subscriptions API
   payload: object; // Will be mapped from event
 }
-
-// Data transformation function
-const transformApiAlertToUiAlert = (apiAlert: ApiAlertEvent): AlertEvent => {
-    return {
-        id: apiAlert.event_types,
-        type: apiAlert.event_types,
-        lastSeen: apiAlert.seen_at,
-        eventCounter: apiAlert.counter,
-        activeSubscriptions: [], // This field is not in the API response
-        payload: apiAlert.event,
-    };
-};
 
 export default function AlertsPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -37,7 +25,7 @@ export default function AlertsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchEvents = useCallback(async () => {
+  const loadAlertsData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
         if (!authLoading) setError("User not authenticated.");
         setIsLoading(false);
@@ -47,11 +35,32 @@ export default function AlertsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const apiEvents = await fetchLatestAlerts(user.access_token);
-      const uiEvents = apiEvents.map(transformApiAlertToUiAlert);
+      const [apiEvents, apiSubscriptions] = await Promise.all([
+        fetchLatestAlerts(user.access_token),
+        fetchSystemSubscriptions(user.access_token),
+      ]);
+
+      const subscriptionsMap = new Map<string, string[]>();
+      for (const sub of apiSubscriptions) {
+        if (!subscriptionsMap.has(sub.event_type)) {
+          subscriptionsMap.set(sub.event_type, []);
+        }
+        const subscriptionDisplay = `${sub.channel.type}: ${sub.channel.config.email}`;
+        subscriptionsMap.get(sub.event_type)?.push(subscriptionDisplay);
+      }
+
+      const uiEvents = apiEvents.map((apiAlert): AlertEvent => ({
+        id: apiAlert.event_types,
+        type: apiAlert.event_types,
+        lastSeen: apiAlert.seen_at,
+        eventCounter: apiAlert.counter,
+        activeSubscriptions: subscriptionsMap.get(apiAlert.event_types) || [],
+        payload: apiAlert.event,
+      }));
+
       setEvents(uiEvents);
     } catch (e: any) {
-      setError(e.message || "Failed to load alert events.");
+      setError(e.message || "Failed to load alert events or subscriptions.");
     } finally {
       setIsLoading(false);
     }
@@ -59,9 +68,9 @@ export default function AlertsPage() {
 
   useEffect(() => {
     if (!authLoading) {
-        fetchEvents();
+        loadAlertsData();
     }
-  }, [fetchEvents, authLoading]);
+  }, [loadAlertsData, authLoading]);
 
   if (authLoading) {
     return (
@@ -80,7 +89,7 @@ export default function AlertsPage() {
           <h1 className="text-2xl font-headline font-semibold">Alerts</h1>
         </div>
         <div className="flex items-center space-x-2">
-          <Button onClick={fetchEvents} variant="outline" disabled={isLoading}>
+          <Button onClick={loadAlertsData} variant="outline" disabled={isLoading}>
             <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
           </Button>
         </div>
@@ -100,7 +109,7 @@ export default function AlertsPage() {
           <AlertTitle>Error Loading Events</AlertTitle>
           <AlertDescription>
             {error}
-            <Button variant="link" onClick={fetchEvents} className="p-0 h-auto ml-1">Try again?</Button>
+            <Button variant="link" onClick={loadAlertsData} className="p-0 h-auto ml-1">Try again?</Button>
           </AlertDescription>
         </Alert>
       ) : events.length > 0 ? (
