@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from '@/contexts/AuthContext';
+import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 
 interface ApiKmsKey {
@@ -26,30 +28,9 @@ interface KmsKey {
   id: string;
   alias: string;
   keyTypeDisplay: string;
-  status: 'Enabled' | 'Disabled' | 'PendingDeletion';
-  description?: string;
   hasPrivateKey: boolean;
   cryptoEngineId?: string;
 }
-
-const StatusBadge: React.FC<{ status: KmsKey['status'] }> = ({ status }) => {
-  let badgeClass = "";
-  switch (status) {
-    case 'Enabled':
-      badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
-      break;
-    case 'Disabled':
-      badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
-      break;
-    case 'PendingDeletion':
-      badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
-      break;
-    default:
-      badgeClass = "bg-muted text-muted-foreground border-border";
-  }
-  return <Badge variant="outline" className={cn("text-xs", badgeClass)}>{status}</Badge>;
-};
-
 
 export default function KmsKeysPage() {
   const router = useRouter();
@@ -57,12 +38,13 @@ export default function KmsKeysPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
 
   const [keys, setKeys] = useState<KmsKey[]>([]);
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [keyToDelete, setKeyToDelete] = useState<KmsKey | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const fetchKeys = useCallback(async () => {
+  const loadData = useCallback(async () => {
     if (authLoading || !isAuthenticated() || !user?.access_token) {
         if (!authLoading && !isAuthenticated()) {
             setError("User not authenticated. Please log in.");
@@ -75,23 +57,35 @@ export default function KmsKeysPage() {
     setError(null);
     
     try {
-      const response = await fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', {
-        headers: { 'Authorization': `Bearer ${user.access_token}` },
-      });
+      const [keysResponse, enginesResponse] = await Promise.all([
+        fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetch('https://lab.lamassu.io/api/ca/v1/engines', { headers: { 'Authorization': `Bearer ${user.access_token}` } })
+      ]);
 
-      if (!response.ok) {
+      if (!keysResponse.ok) {
         let errorJson;
-        let errorMessage = `Failed to fetch KMS keys. HTTP error ${response.status}`;
+        let errorMessage = `Failed to fetch KMS keys. HTTP error ${keysResponse.status}`;
         try {
-          errorJson = await response.json();
+          errorJson = await keysResponse.json();
           errorMessage = `Failed to fetch keys: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
         } catch(e) { /* ignore */}
         throw new Error(errorMessage);
       }
+      if (!enginesResponse.ok) {
+        let errorJson;
+        let errorMessage = `Failed to fetch crypto engines. HTTP error ${enginesResponse.status}`;
+        try {
+          errorJson = await enginesResponse.json();
+          errorMessage = `Failed to fetch crypto engines: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+        } catch(e) { /* ignore */}
+        throw new Error(errorMessage);
+      }
       
-      const data: ApiKmsKey[] = await response.json();
+      const keysData: ApiKmsKey[] = await keysResponse.json();
+      const enginesData: ApiCryptoEngine[] = await enginesResponse.json();
+      setAllCryptoEngines(enginesData);
       
-      const transformedKeys: KmsKey[] = data.map((apiKey) => {
+      const transformedKeys: KmsKey[] = keysData.map((apiKey) => {
         const engineIdMatch = apiKey.id.match(/token-id=([^;]+)/);
         const engineId = engineIdMatch ? engineIdMatch[1] : undefined;
 
@@ -99,8 +93,6 @@ export default function KmsKeysPage() {
             id: apiKey.id,
             alias: apiKey.id,
             keyTypeDisplay: `${apiKey.algorithm} ${apiKey.size}`,
-            status: 'Enabled', // Default status as API doesn't provide it
-            description: engineId ? `Key managed by ${engineId} engine.` : 'Key managed by an unspecified engine.',
             hasPrivateKey: apiKey.id.includes('type=private'),
             cryptoEngineId: engineId
         };
@@ -108,16 +100,17 @@ export default function KmsKeysPage() {
 
       setKeys(transformedKeys);
     } catch (err: any) {
-      setError(err.message || "An unknown error occurred while fetching keys.");
+      setError(err.message || "An unknown error occurred while fetching data.");
       setKeys([]);
+      setAllCryptoEngines([]);
     } finally {
       setIsLoading(false);
     }
   }, [user?.access_token, authLoading, isAuthenticated]);
 
   useEffect(() => {
-    fetchKeys();
-  }, [fetchKeys]);
+    loadData();
+  }, [loadData]);
 
   const handleCreateNewKey = () => {
     router.push('/kms/keys/new');
@@ -162,7 +155,7 @@ export default function KmsKeysPage() {
           <h1 className="text-2xl font-headline font-semibold">Key Management Service - Asymmetric Keys</h1>
         </div>
         <div className="flex items-center space-x-2">
-          <Button onClick={fetchKeys} variant="outline" disabled={isLoading}>
+          <Button onClick={loadData} variant="outline" disabled={isLoading}>
             <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
           </Button>
           <Button onClick={handleCreateNewKey}>
@@ -177,8 +170,8 @@ export default function KmsKeysPage() {
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error Loading Keys</AlertTitle>
-          <AlertDescription>{error} <Button variant="link" onClick={fetchKeys} className="p-0 h-auto">Try again?</Button></AlertDescription>
+          <AlertTitle>Error Loading Data</AlertTitle>
+          <AlertDescription>{error} <Button variant="link" onClick={loadData} className="p-0 h-auto">Try again?</Button></AlertDescription>
         </Alert>
       )}
 
@@ -188,67 +181,69 @@ export default function KmsKeysPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Alias</TableHead>
-                <TableHead className="hidden md:table-cell">Key ID</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead><div className="flex items-center"><Cpu className="mr-1.5 h-4 w-4 text-muted-foreground"/>Crypto Engine</div></TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {keys.map((key) => (
-                <TableRow key={key.id}>
-                  <TableCell className="font-medium">
-                    <p className="truncate max-w-[180px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg" title={key.alias}>{key.alias}</p>
-                    {key.description && <p className="text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg" title={key.description}>{key.description}</p>}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs hidden md:table-cell" title={key.id}>{key.id.substring(0, 12)}...</TableCell>
-                  <TableCell>{key.keyTypeDisplay}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs font-normal bg-muted/40 border-muted-foreground/30">
-                        {key.cryptoEngineId || 'N/A'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell><StatusBadge status={key.status} /></TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                          <span className="sr-only">Key Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewDetails(key.id)}>
-                          <Eye className="mr-2 h-4 w-4" /> View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=generate-csr`)}
-                          disabled={!key.hasPrivateKey}
-                        >
-                          <FileSignature className="mr-2 h-4 w-4" /> Generate CSR
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=sign`)}
-                          disabled={!key.hasPrivateKey}
-                        >
-                          <PenTool className="mr-2 h-4 w-4" /> Sign
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=verify`)}>
-                          <ShieldCheck className="mr-2 h-4 w-4" /> Verify
-                        </DropdownMenuItem> 
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => confirmDeleteKey(key)}
-                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete Key
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {keys.map((key) => {
+                const engine = allCryptoEngines.find(e => e.id === key.cryptoEngineId);
+                return (
+                  <TableRow key={key.id}>
+                    <TableCell className="font-medium">
+                      <p className="truncate max-w-[250px] sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl" title={key.alias}>{key.alias}</p>
+                    </TableCell>
+                    <TableCell>{key.keyTypeDisplay}</TableCell>
+                    <TableCell>
+                      {engine ? (
+                        <CryptoEngineViewer engine={engine} />
+                      ) : (
+                        <Badge variant="outline" className="text-xs font-normal bg-muted/40 border-muted-foreground/30">
+                          {key.cryptoEngineId || 'N/A'}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Key Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewDetails(key.id)}>
+                            <Eye className="mr-2 h-4 w-4" /> View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=generate-csr`)}
+                            disabled={!key.hasPrivateKey}
+                          >
+                            <FileSignature className="mr-2 h-4 w-4" /> Generate CSR
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=sign`)}
+                            disabled={!key.hasPrivateKey}
+                          >
+                            <PenTool className="mr-2 h-4 w-4" /> Sign
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=verify`)}>
+                            <ShieldCheck className="mr-2 h-4 w-4" /> Verify
+                          </DropdownMenuItem> 
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => confirmDeleteKey(key)}
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Key
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>
