@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Info, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Info, LayoutGrid, List, Loader2, RefreshCw } from 'lucide-react';
 import { Accordion } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -10,6 +10,8 @@ import { AlertEventItem } from '@/components/alerts/AlertEventItem';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchLatestAlerts, type ApiAlertEvent } from '@/lib/alerts-api';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { AlertEventCard } from '@/components/alerts/AlertEventCard';
 
 // This is the structure the UI component expects.
 export interface AlertEvent {
@@ -38,6 +40,7 @@ export default function AlertsPage() {
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const fetchEvents = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -81,9 +84,19 @@ export default function AlertsPage() {
           <Info className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-headline font-semibold">Alerts</h1>
         </div>
-        <Button onClick={fetchEvents} variant="outline" disabled={isLoading}>
-          <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
-        </Button>
+        <div className="flex items-center space-x-2">
+          <ToggleGroup type="single" value={viewMode} onValueChange={(value) => { if (value) setViewMode(value as 'list' | 'grid')}} variant="outline">
+              <ToggleGroupItem value="list" aria-label="List view">
+                  <List className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="grid" aria-label="Grid view">
+                  <LayoutGrid className="h-4 w-4" />
+              </ToggleGroupItem>
+          </ToggleGroup>
+          <Button onClick={fetchEvents} variant="outline" disabled={isLoading}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
+          </Button>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         Monitor and get notified when operations are requested to the PKI.
@@ -104,11 +117,21 @@ export default function AlertsPage() {
           </AlertDescription>
         </Alert>
       ) : events.length > 0 ? (
-        <Accordion type="single" collapsible className="w-full space-y-2">
-          {events.map((event) => (
-            <AlertEventItem key={event.id} event={event} />
-          ))}
-        </Accordion>
+        <>
+          {viewMode === 'list' ? (
+            <Accordion type="single" collapsible className="w-full space-y-2">
+              {events.map((event) => (
+                <AlertEventItem key={event.id} event={event} />
+              ))}
+            </Accordion>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.map((event) => (
+                <AlertEventCard key={event.id} event={event} />
+              ))}
+            </div>
+          )}
+        </>
       ) : (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">No Events Found</h3>
