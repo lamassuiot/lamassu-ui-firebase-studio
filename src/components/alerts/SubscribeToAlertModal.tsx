@@ -23,6 +23,7 @@ import { Textarea } from '../ui/textarea';
 import { JSONPath } from 'jsonpath-plus';
 import { Validator } from 'jsonschema';
 import { Alert, AlertDescription as AlertDescUI } from '@/components/ui/alert';
+import { createSchema } from 'genson-js';
 
 
 interface SubscribeToAlertModalProps {
@@ -83,36 +84,6 @@ const filterOptions = [
     { value: 'JAVASCRIPT', label: 'Javascript' },
 ];
 
-const generateSchema = (obj: any): any => {
-    if (obj === null) return { type: 'null' };
-    const type = typeof obj;
-    if (type === 'string') return { type: 'string' };
-    if (type === 'number') return { type: 'number' };
-    if (type === 'boolean') return { type: 'boolean' };
-    if (Array.isArray(obj)) {
-        return {
-            type: 'array',
-            items: obj.length > 0 ? generateSchema(obj[0]) : {},
-        };
-    }
-    if (type === 'object') {
-        const properties: { [key: string]: any } = {};
-        const required: string[] = [];
-        for (const key in obj) {
-            if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                properties[key] = generateSchema(obj[key]);
-                required.push(key);
-            }
-        }
-        return {
-            type: 'object',
-            properties,
-            required,
-        };
-    }
-    return {};
-};
-
 
 export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   isOpen,
@@ -157,7 +128,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
       setFilterType('NONE');
       setFilterCondition('$.data');
       if (samplePayload) {
-          const generatedSchema = generateSchema(samplePayload);
+          const generatedSchema = createSchema(samplePayload);
           setJsonSchema(JSON.stringify(generatedSchema, null, 2));
       } else {
           setJsonSchema('{}');
