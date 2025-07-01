@@ -356,6 +356,10 @@ export default function CaRequestsPage() {
                         <span className="font-medium">{req.key_metadata.type} {req.key_metadata.bits}-bit</span>
                     </div>
                     <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Fingerprint</span>
+                        <span className="font-mono text-xs" title={req.fingerprint}>{req.fingerprint.substring(0, 16)}...</span>
+                    </div>
+                    <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Engine</span>
                         <Badge variant="outline">{req.engine_id}</Badge>
                     </div>
@@ -530,3 +534,5 @@ export default function CaRequestsPage() {
     </div>
   );
 }
+
+    
