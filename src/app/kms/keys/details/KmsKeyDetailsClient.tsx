@@ -20,6 +20,40 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DetailItem } from '@/components/shared/DetailItem';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
+import * as asn1js from 'asn1js';
+import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
+
+// --- Helper Functions ---
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+function formatAsPem(base64String: string, type: 'PUBLIC KEY' | 'CERTIFICATE REQUEST'): string {
+  const header = `-----BEGIN ${type}-----`;
+  const footer = `-----END ${type}-----`;
+  const body = base64String.match(/.{1,64}/g)?.join('\n') || '';
+  return `${header}\n${body}\n${footer}`;
+}
+
+const SIGNATURE_OID_MAP: Record<string, string> = {
+  "RSASSA_PSS_SHA_256": "1.2.840.113549.1.1.10",
+  "RSASSA_PSS_SHA_384": "1.2.840.113549.1.1.10",
+  "RSASSA_PSS_SHA_512": "1.2.840.113549.1.1.10",
+  "RSASSA_PKCS1_V1_5_SHA_256": "1.2.840.113549.1.1.11",
+  "RSASSA_PKCS1_V1_5_SHA_384": "1.2.840.113549.1.1.12",
+  "RSASSA_PKCS1_V1_5_SHA_512": "1.2.840.113549.1.1.13",
+  "ECDSA_SHA_256": "1.2.840.10045.4.3.2",
+  "ECDSA_SHA_384": "1.2.840.10045.4.3.3",
+  "ECDSA_SHA_512": "1.2.840.10045.4.3.4",
+  "ML-DSA-44": "1.3.6.1.4.1.2.267.7.4.4", // Example OID for Dilithium2
+  "ML-DSA-65": "1.3.6.1.4.1.2.267.7.6.5", // Example OID for Dilithium3
+  "ML-DSA-87": "1.3.6.1.4.1.2.267.7.8.7", // Example OID for Dilithium5
+};
 
 interface ApiKmsKey {
   id: string;
@@ -88,6 +122,7 @@ export default function KmsKeyDetailsClient() {
   const [csrCommonName, setCsrCommonName] = useState('');
   const [csrOrganization, setCsrOrganization] = useState('');
   const [generatedCsr, setGeneratedCsr] = useState('');
+  const [isGeneratingCsr, setIsGeneratingCsr] = useState(false);
 
   const fetchKeyData = useCallback(async () => {
     if (!keyId) {
@@ -125,9 +160,8 @@ export default function KmsKeyDetailsClient() {
       if (apiKey) {
         let pem = '';
         try {
-          // In-browser Base64 decoding
           const decodedKey = atob(apiKey.publicKey);
-          pem = `-----BEGIN PUBLIC KEY-----\n${decodedKey.match(/.{1,64}/g)?.join('\n') || ''}\n-----END PUBLIC KEY-----`;
+          pem = formatAsPem(decodedKey, 'PUBLIC KEY');
         } catch (e) {
           console.error("Failed to decode public key", e);
           pem = "Error: Could not decode or format public key.";
@@ -199,8 +233,8 @@ export default function KmsKeyDetailsClient() {
     try {
         const payload = {
             algorithm: signAlgorithm,
-            message: payloadToSign, // Assuming user provides Base64
-            message_type: signMessageType.toLowerCase(), // 'raw' or 'digest'
+            message: payloadToSign,
+            message_type: signMessageType.toLowerCase(),
         };
 
         const response = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyId)}/sign`, {
@@ -244,19 +278,73 @@ export default function KmsKeyDetailsClient() {
     toast({ title: "Mock Verify Result", description: `Signature is ${isValid ? 'VALID' : 'INVALID'} (mock).`, variant: isValid ? "default" : "destructive" });
   };
   
-  const handleGenerateCsr = () => {
-    if (!csrCommonName) {
-        toast({ title: "CSR Generation Error", description: "Common Name (CN) is required for CSR.", variant: "destructive" });
+  const handleGenerateCsr = async () => {
+    if (!csrCommonName.trim()) {
+        toast({ title: "CSR Generation Error", description: "Common Name (CN) is required.", variant: "destructive" });
         return;
     }
-    console.log("Mock CSR Generation:", { commonName: csrCommonName, organization: csrOrganization, keyId: keyDetails?.id });
-    const mockCsrContent = `-----BEGIN CERTIFICATE REQUEST-----\n`+
-                           `MIICvDCCAaQCAQAwdzELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWEx\\n`+
-                           `... (mock CSR content for ${csrCommonName}) ...\\n`+
-                           `MGFqLg==\\n`+
-                           `-----END CERTIFICATE REQUEST-----`;
-    setGeneratedCsr(mockCsrContent);
-    toast({ title: "Mock CSR Generated", description: "CSR content populated (mock)." });
+    if (!keyDetails?.publicKeyPem || !keyDetails.id || !user?.access_token) {
+        toast({ title: "CSR Generation Error", description: "Key details or authentication are missing.", variant: "destructive" });
+        return;
+    }
+    
+    setIsGeneratingCsr(true);
+    setGeneratedCsr('');
+
+    try {
+        const pkcs10 = new CertificationRequest();
+        
+        pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: csrCommonName.trim() }) }));
+        if(csrOrganization.trim()) {
+            pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.10", value: new asn1js.Utf8String({ value: csrOrganization.trim() })}));
+        }
+        
+        const publicKeyPemClean = keyDetails.publicKeyPem.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, "").replace(/\s+/g, "");
+        const publicKeyDer = Uint8Array.from(atob(publicKeyPemClean), c => c.charCodeAt(0)).buffer;
+        const publicKeyAsn1 = asn1js.fromBER(publicKeyDer);
+        pkcs10.subjectPublicKeyInfo = new PublicKeyInfo({ schema: publicKeyAsn1.result });
+        
+        const tbs = pkcs10.encodeTBS().toBER(false);
+        const tbsB64 = arrayBufferToBase64(tbs);
+
+        const kmsSignAlgorithm = keyDetails.algorithm === 'RSA' ? 'RSASSA_PKCS1_V1_5_SHA_256' : 
+                                 keyDetails.algorithm === 'ECDSA' ? 'ECDSA_SHA_256' :
+                                 'ML-DSA-65'; // Default for PQC
+
+        const signResponse = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyDetails.id)}/sign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.access_token}` },
+            body: JSON.stringify({
+                algorithm: kmsSignAlgorithm,
+                message: tbsB64,
+                message_type: "raw"
+            })
+        });
+
+        const signResult = await signResponse.json();
+        if (!signResponse.ok) throw new Error(signResult.err || signResult.message || 'Failed to sign CSR data via KMS.');
+        
+        const signatureBase64 = signResult.signature;
+        const signatureDer = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0)).buffer;
+
+        pkcs10.signatureValue = new asn1js.BitString({ valueHex: signatureDer });
+        const signatureAlgorithmOid = SIGNATURE_OID_MAP[kmsSignAlgorithm];
+        if (!signatureAlgorithmOid) throw new Error(`Could not find OID for algorithm ${kmsSignAlgorithm}`);
+        pkcs10.signatureAlgorithm = new AlgorithmIdentifier({ algorithmId: signatureAlgorithmOid, parameters: new asn1js.Null() });
+        
+        const finalCsrDer = pkcs10.toSchema().toBER(false);
+        const finalCsrPem = formatAsPem(arrayBufferToBase64(finalCsrDer), 'CERTIFICATE REQUEST');
+        
+        setGeneratedCsr(finalCsrPem);
+        toast({ title: "CSR Generated Successfully", description: "The CSR has been signed by the KMS key." });
+
+    } catch (error: any) {
+        console.error("CSR Generation Error:", error);
+        toast({ title: "CSR Generation Failed", description: error.message, variant: "destructive" });
+        setGeneratedCsr('');
+    } finally {
+        setIsGeneratingCsr(false);
+    }
   };
 
   if (isLoading || authLoading) {
@@ -475,7 +563,7 @@ export default function KmsKeyDetailsClient() {
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center"><FileSignature className="mr-2 h-5 w-5 text-primary"/>Generate Certificate Signing Request (CSR)</CardTitle>
-                    <CardDescription>Create a CSR using this key pair to request a certificate from a CA. (Mock functionality)</CardDescription>
+                    <CardDescription>Create a CSR using this key pair to request a certificate from a CA.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div>
@@ -486,7 +574,10 @@ export default function KmsKeyDetailsClient() {
                         <Label htmlFor="csrOrganization">Organization (O)</Label>
                         <Input id="csrOrganization" value={csrOrganization} onChange={e => setCsrOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" />
                      </div>
-                     <Button onClick={handleGenerateCsr} className="w-full sm:w-auto">Generate CSR</Button>
+                     <Button onClick={handleGenerateCsr} className="w-full sm:w-auto" disabled={isGeneratingCsr}>
+                        {isGeneratingCsr && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isGeneratingCsr ? 'Generating...' : 'Generate CSR'}
+                     </Button>
                      {generatedCsr && (
                         <div className="mt-4">
                             <Label htmlFor="generatedCsrPem">Generated CSR (PEM)</Label>
