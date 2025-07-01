@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers, Fingerprint } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers, Fingerprint, Download } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -227,6 +227,29 @@ export default function CaRequestsPage() {
     setIsCsrModalOpen(true);
   };
   
+  const handleDownloadCsr = (request: CACertificateRequest) => {
+    if (!request.csr) {
+        toast({ title: "Error", description: "No CSR data available for this request.", variant: "destructive" });
+        return;
+    }
+    try {
+        const pemContent = window.atob(request.csr);
+        const blob = new Blob([pemContent], { type: 'application/x-pem-file' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${request.subject.common_name || request.id}.csr`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast({ title: "CSR Downloaded", description: `The CSR for "${request.subject.common_name}" has started downloading.` });
+    } catch (error) {
+        toast({ title: "Download Failed", description: "Failed to decode or download the CSR.", variant: "destructive" });
+        console.error("CSR download error:", error);
+    }
+  };
+
   const handleDeleteRequest = async () => {
     if (!requestToDelete || !user?.access_token) {
       toast({ title: "Error", description: "Request details or authentication missing.", variant: "destructive" });
@@ -327,6 +350,10 @@ export default function CaRequestsPage() {
                             <DropdownMenuItem onClick={() => handleViewCsr(req)}>
                                 <FileSignature className="mr-2 h-4 w-4" />
                                 View CSR
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownloadCsr(req)}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download CSR
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
                                 <Layers className="mr-2 h-4 w-4" />
