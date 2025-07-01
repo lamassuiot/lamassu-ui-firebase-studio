@@ -29,12 +29,13 @@ import { useAuth } from '@/contexts/AuthContext';
 interface CertificateListProps {
   certificates: CertificateData[];
   allCAs: CA[];
-  onInspectCertificate: (certificate: CertificateData) => void;
+  onInspectCertificate?: (certificate: CertificateData) => void;
   onCertificateUpdated: (updatedCertificate: CertificateData) => void;
   sortConfig: CertSortConfig | null;
   requestSort: (column: SortableCertColumn) => void;
   isLoading?: boolean;
   accessToken?: string | null;
+  showIssuerColumn?: boolean;
 }
 
 const getCommonName = (subjectOrIssuer: string): string => {
@@ -50,7 +51,8 @@ export function CertificateList({
   sortConfig,
   requestSort,
   isLoading,
-  accessToken
+  accessToken,
+  showIssuerColumn = true,
 }: CertificateListProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -199,16 +201,16 @@ export function CertificateList({
 
   return (
     <div className={cn("w-full space-y-4", isLoading && "opacity-50 pointer-events-none")}>
-      <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>{/*
           */}<SortableHeader column="commonName" title="Common Name" />{/*
           */}<SortableHeader column="serialNumber" title="Serial Number" className="hidden md:table-cell" />{/*
-          */}<TableHead className="hidden lg:table-cell">CA Issuer</TableHead>{/*
+          */}{showIssuerColumn && <TableHead className="hidden lg:table-cell">CA Issuer</TableHead>}{/*
           */}<SortableHeader column="validFrom" title="Valid From" />{/*
           */}<SortableHeader column="expires" title="Expires" />{/*
-          */}<SortableHeader column="status" title="API Status" />{/*
+          */}<SortableHeader column="status" title="Status" />{/*
           */}<TableHead className="text-right">Actions</TableHead>{/*
         */}</TableRow>
           </TableHeader>
@@ -231,7 +233,7 @@ export function CertificateList({
                     </Button>
                   </TableCell>{/*
                   */}<TableCell className="hidden md:table-cell font-mono text-xs truncate max-w-[120px]">{cert.serialNumber}</TableCell>{/*
-                  */}<TableCell className="hidden lg:table-cell truncate max-w-[200px]">
+                  */}{showIssuerColumn && <TableCell className="hidden lg:table-cell truncate max-w-[200px]">
                     {issuerCa ? (
                       <Button
                         variant="link"
@@ -244,7 +246,7 @@ export function CertificateList({
                     ) : (
                       issuerDisplayName
                     )}
-                  </TableCell>{/*
+                  </TableCell>}{/*
                   */}<TableCell>{format(parseISO(cert.validFrom), 'MMM dd, yyyy')}</TableCell>{/*
                   */}<TableCell>{format(parseISO(cert.validTo), 'MMM dd, yyyy')}</TableCell>{/*
                   */}<TableCell>
@@ -263,9 +265,11 @@ export function CertificateList({
                                 <FileText className="mr-2 h-4 w-4" />
                                 <span>View Details</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
-                                <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
-                            </DropdownMenuItem>
+                            {onInspectCertificate && (
+                                <DropdownMenuItem onClick={() => onInspectCertificate(cert)}>
+                                    <Eye className="mr-2 h-4 w-4" /> Quick Inspect (Modal)
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleOpenOcspModal(cert, issuerCa)} disabled={!cert.ocspUrls || cert.ocspUrls.length === 0}>
                                 <ShieldCheck className="mr-2 h-4 w-4" /> OCSP Check

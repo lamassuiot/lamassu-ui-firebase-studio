@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import * as LucideIcons from 'lucide-react';
+import { Label } from '../ui/label';
+import { Input } from '../ui/input';
 
 interface DeviceIconSelectorModalProps {
   isOpen: boolean;
@@ -50,7 +52,7 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'Settings2', IconComponent: LucideIcons.Settings2 },
   { name: 'Power', IconComponent: LucideIcons.Power },
   { name: 'Plug', IconComponent: LucideIcons.Plug },
-  { name: 'Speaker', IconComponent: LucideIcons.Speaker },
+  { name: 'Volume2', IconComponent: LucideIcons.Volume2 },
   { name: 'Printer', IconComponent: LucideIcons.Printer },
   { name: 'Cloud', IconComponent: LucideIcons.Cloud },
   { name: 'Database', IconComponent: LucideIcons.Database },
@@ -90,17 +92,149 @@ const AVAILABLE_ICONS: IconDefinition[] = [
   { name: 'Trash2', IconComponent: LucideIcons.Trash2 },
   { name: 'UploadCloud', IconComponent: LucideIcons.UploadCloud },
   { name: 'User', IconComponent: LucideIcons.User },
-  { name: 'Volume2', IconComponent: LucideIcons.Volume2 },
   { name: 'Wallet', IconComponent: LucideIcons.Wallet },
   { name: 'Webhook', IconComponent: LucideIcons.Webhook },
   { name: 'Zap', IconComponent: LucideIcons.Zap },
+  // Adding icons needed for the mapping from react-icons
+  { name: 'Car', IconComponent: LucideIcons.Car },
+  { name: 'Truck', IconComponent: LucideIcons.Truck },
+  { name: 'Warehouse', IconComponent: LucideIcons.Warehouse },
+  { name: 'Factory', IconComponent: LucideIcons.Factory },
+  { name: 'Building2', IconComponent: LucideIcons.Building2 },
+  { name: 'TowerControl', IconComponent: LucideIcons.TowerControl },
+  { name: 'HelpCircle', IconComponent: LucideIcons.HelpCircle },
+  { name: 'GitFork', IconComponent: LucideIcons.GitFork },
+  { name: 'BarChart2', IconComponent: LucideIcons.BarChart2 },
+  // Adding icons based on new mapping request
+  { name: 'Bike', IconComponent: LucideIcons.Bike },
+  { name: 'PlugZap', IconComponent: LucideIcons.PlugZap },
+  { name: 'TrainFront', IconComponent: LucideIcons.TrainFront },
+  { name: 'Heater', IconComponent: LucideIcons.Heater },
+  { name: 'CookingPot', IconComponent: LucideIcons.CookingPot },
+  { name: 'WashingMachine', IconComponent: LucideIcons.WashingMachine },
+  { name: 'SmartphoneNfc', IconComponent: LucideIcons.SmartphoneNfc },
+  { name: 'CreditCard', IconComponent: LucideIcons.CreditCard },
+  { name: 'Refrigerator', IconComponent: LucideIcons.Refrigerator },
+  { name: 'Badge', IconComponent: LucideIcons.Badge },
+  { name: 'Construction', IconComponent: LucideIcons.Construction },
+  { name: 'ArrowUpDown', IconComponent: LucideIcons.ArrowUpDown },
 ];
 
-export const getLucideIconByName = (iconName: string | null): React.ElementType | null => {
-    if (!iconName) return null;
-    const foundIcon = AVAILABLE_ICONS.find(icon => icon.name === iconName);
-    return foundIcon ? foundIcon.IconComponent : LucideIcons.HelpCircle; // Fallback icon
+
+// Mapping from old react-icon names to new lucide-react names for backward compatibility
+const REACT_ICONS_TO_LUCIDE_MAP: { [key: string]: keyof typeof LucideIcons } = {
+  // Previous set of mappings
+  'FaServer': 'Server',
+  'FaLaptop': 'Laptop',
+  'FaHdd': 'HardDrive',
+  'FaWifi': 'Wifi',
+  'FaCloud': 'Cloud',
+  'FaDatabase': 'Database',
+  'FaKey': 'KeyRound',
+  'FaLock': 'Lock',
+  'FaCamera': 'Camera',
+  'FaVideo': 'Video',
+  'FaLightbulb': 'Lightbulb',
+  'FaThermometerHalf': 'Thermometer',
+  'FaFan': 'Fan',
+  'FaBatteryFull': 'BatteryFull',
+  'FaCar': 'Car',
+  'FaTruck': 'Truck',
+  'FaWarehouse': 'Warehouse',
+  'FaIndustry': 'Factory',
+  'FaCity': 'Building2',
+  'FaBroadcastTower': 'TowerControl',
+  'FaSatelliteDish': 'SatelliteDish',
+  'FaQuestionCircle': 'HelpCircle',
+  'FaPlug': 'Plug',
+  'FaPrint': 'Printer',
+  'FaVolumeUp': 'Volume2',
+  'IoPhonePortraitOutline': 'Smartphone',
+  'IoHardwareChipOutline': 'Cpu',
+  'IoGitNetworkOutline': 'GitFork',
+  'IoBluetooth': 'Bluetooth',
+  'IoSettingsOutline': 'Settings2',
+  'IoPower': 'Power',
+  'IoHomeOutline': 'Home',
+  'IoBarChartOutline': 'BarChart2',
+  
+  // New, more specific mappings based on provided list
+  "MdDeviceThermostat": 'Thermometer',
+  "MdOutlineElectricScooter": 'Bike',
+  "MdOutlineElectricRickshaw": 'Bike',
+  "MdOutlineElectricalServices": 'PlugZap',
+  "MdOutlineElectricMeter": 'Gauge',
+  "MdOutlineElectricBike": 'Bike',
+  "MdOutlineTrain": 'TrainFront',
+  "CgDatabase": 'Database',
+  "CgModem": 'Router',
+  "CgSmartHomeBoiler": 'Heater',
+  "CgSmartHomeCooker": 'CookingPot',
+  "CgSmartHomeHeat": 'Heater',
+  "CgSmartHomeLight": 'Lightbulb',
+  "CgSmartHomeRefrigerator": 'Refrigerator',
+  "CgSmartHomeWashMachine": 'WashingMachine',
+  "CgSmartphone": 'Smartphone',
+  "CgSmartphoneRam": 'MemoryStick',
+  "CgSmartphoneShake": 'SmartphoneNfc',
+  "CgBatteryFull": 'BatteryFull',
+  "GoRadioTower": 'TowerControl',
+  "BiSolidCreditCardFront": 'CreditCard',
+  "BsSdCard": 'MemoryStick',
+  "IoMdCar": 'Car',
+  "AiOutlineIdcard": 'Badge',
+  "GiElectric": 'Zap',
+  "BsHouse": 'Home',
+  "BsHouseGear": 'Settings2',
+  "TbCrane": 'Construction',
+  "MdOutlineElevator": 'ArrowUpDown',
+  'CgSmartphoneChip': 'Cpu',
 };
+
+
+export const getLucideIconByName = (iconName: string | null): React.ElementType => {
+    if (!iconName) return LucideIcons.HelpCircle;
+
+    const directMatch = AVAILABLE_ICONS.find(icon => icon.name === iconName);
+    if (directMatch) {
+        return directMatch.IconComponent;
+    }
+
+    const mappedLucideName = REACT_ICONS_TO_LUCIDE_MAP[iconName];
+    if (mappedLucideName) {
+        const mappedMatch = AVAILABLE_ICONS.find(icon => icon.name === mappedLucideName);
+        if (mappedMatch) {
+            return mappedMatch.IconComponent;
+        }
+    }
+    
+    return LucideIcons.HelpCircle;
+};
+
+const ICON_PALETTE = ['#0f67ff', '#334155', '#ef4444', '#22c55e', '#f97316', '#8b5cf6', '#14b8a6', '#ec4899', '#000000', '#4f46e5', '#e11d48', '#65a30d'];
+const BG_PALETTE = ['#F0F8FF', '#f1f5f9', '#fee2e2', '#dcfce7', '#ffedd5', '#ede9fe', '#ccfbf1', '#fce7f3', '#e5e7eb', '#e0e7ff', '#fef2f2', '#f7fee7'];
+
+const ColorPalette: React.FC<{
+  colors: string[];
+  onColorSelect: (color: string) => void;
+  title: string;
+}> = ({ colors, onColorSelect, title }) => (
+  <div>
+    <p className="text-xs text-muted-foreground mb-1.5">{title}</p>
+    <div className="flex flex-wrap gap-2">
+      {colors.map((color) => (
+        <button
+          key={color}
+          type="button"
+          className="h-6 w-6 rounded-full border shadow-inner"
+          style={{ backgroundColor: color }}
+          onClick={() => onColorSelect(color)}
+          aria-label={`Select color ${color}`}
+        />
+      ))}
+    </div>
+  </div>
+);
 
 
 export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = ({
@@ -108,12 +242,42 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
   onOpenChange,
   onIconSelected,
   currentSelectedIconName,
+  initialIconColor,
+  initialBgColor,
+  onColorsChange,
 }) => {
 
   const handleSelect = (iconName: string) => {
     onIconSelected(iconName);
-    onOpenChange(false); // Close modal on selection
   };
+
+  const handleIconColorChange = React.useCallback(
+    (newIconColor: string) => {
+      if (onColorsChange) {
+        onColorsChange({ iconColor: newIconColor, bgColor: initialBgColor || '#e0e0e0' });
+      }
+    },
+    [initialBgColor, onColorsChange]
+  );
+
+  const handleBgColorChange = React.useCallback(
+    (newBgColor: string) => {
+      if (onColorsChange) {
+        onColorsChange({ iconColor: initialIconColor || '#888888', bgColor: newBgColor });
+      }
+    },
+    [initialIconColor, onColorsChange]
+  );
+
+  const handleInvert = React.useCallback(() => {
+    if (onColorsChange) {
+      onColorsChange({
+        iconColor: initialBgColor || '#e0e0e0',
+        bgColor: initialIconColor || '#888888',
+      });
+    }
+  }, [initialIconColor, initialBgColor, onColorsChange]);
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -129,28 +293,93 @@ export const DeviceIconSelectorModal: React.FC<DeviceIconSelectorModalProps> = (
               {AVAILABLE_ICONS.map(({ name, IconComponent }) => (
                 <Button
                   key={name}
-                  variant={currentSelectedIconName === name ? "default" : "outline"}
+                  variant="outline"
                   className={cn(
-                    "flex flex-col items-center justify-center h-24 p-2 space-y-1 text-center",
+                    "flex flex-col items-center justify-center h-24 p-2 space-y-1 text-center transition-colors",
                     currentSelectedIconName === name && "ring-2 ring-primary ring-offset-2"
                   )}
                   onClick={() => handleSelect(name)}
                   title={name}
+                  style={{ backgroundColor: initialBgColor }}
                 >
-                  <IconComponent className={cn(
-                      "h-8 w-8 mb-1", 
-                      currentSelectedIconName === name ? "text-primary-foreground" : "text-primary"
-                  )} />
-                  <span className="text-xs truncate w-full">{name}</span>
+                  <IconComponent
+                    className="h-8 w-8 mb-1"
+                    style={{ color: initialIconColor }}
+                  />
+                  <span
+                    className="text-xs truncate w-full"
+                    style={{ color: initialIconColor }}
+                  >
+                    {name}
+                  </span>
                 </Button>
               ))}
             </div>
           </ScrollArea>
         </div>
         
+        {onColorsChange && (
+            <div className="pt-4 mt-2 border-t">
+                 <div className="flex justify-between items-center mb-3">
+                    <p className="text-sm font-medium">Customize Colors</p>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleInvert}
+                    >
+                        <LucideIcons.ArrowLeftRight className="mr-2 h-4 w-4" />
+                        Invert
+                    </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Icon Color Section */}
+                    <div className="space-y-2">
+                        <Label htmlFor="modal-icon-color" className="font-semibold">Icon Color</Label>
+                        <ColorPalette
+                          colors={ICON_PALETTE}
+                          onColorSelect={handleIconColorChange}
+                          title="Quick Select"
+                        />
+                        <div className="flex items-center gap-2 pt-2">
+                           <Input
+                                id="modal-icon-color"
+                                type="color"
+                                value={initialIconColor}
+                                onChange={(e) => handleIconColorChange(e.target.value)}
+                                className="w-12 h-10 p-1"
+                                aria-label="Advanced icon color picker"
+                            />
+                            <p className="text-xs text-muted-foreground">Or use the advanced color picker.</p>
+                        </div>
+                    </div>
+                    {/* Background Color Section */}
+                    <div className="space-y-2">
+                        <Label htmlFor="modal-bg-color" className="font-semibold">Background Color</Label>
+                         <ColorPalette
+                          colors={BG_PALETTE}
+                          onColorSelect={handleBgColorChange}
+                          title="Quick Select"
+                        />
+                         <div className="flex items-center gap-2 pt-2">
+                           <Input
+                                id="modal-bg-color"
+                                type="color"
+                                value={initialBgColor}
+                                onChange={(e) => handleBgColorChange(e.target.value)}
+                                className="w-12 h-10 p-1"
+                                aria-label="Advanced background color picker"
+                            />
+                            <p className="text-xs text-muted-foreground">Or use the advanced color picker.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">Cancel</Button>
+            <Button type="button" variant="outline">Close</Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>
