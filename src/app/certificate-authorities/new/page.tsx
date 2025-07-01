@@ -73,7 +73,7 @@ export default function CreateCaHubPage() {
 
   return (
     <div className="w-full space-y-8 mb-8">
-      <Button variant="outline" onClick={() => router.back()} className="mb-0">
+      <Button variant="outline" onClick={() => router.push('/certificate-authorities')} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
       </Button>
       <div className="text-center">
