@@ -29,6 +29,14 @@ const creationModes: CreationMode[] = [
     isComingSoon: false,
   },
   {
+    id: 'reuse-key',
+    href: '/certificate-authorities/new/reuse-key',
+    title: 'Create CA (Reuse Key)',
+    description: 'Provision a new Root or Intermediate CA using an existing key pair from your KMS.',
+    icon: <Repeat className="h-8 w-8 text-primary" />,
+    disabled: true,
+  },
+  {
     id: 'import-full',
     href: '/certificate-authorities/new/import-full',
     title: 'Import External CA (with Private Key)',
@@ -42,14 +50,6 @@ const creationModes: CreationMode[] = [
     title: 'Import Certificate Only (no Private Key)',
     description: "Import an existing CA certificate (public key only) for trust anchor or reference purposes. LamassuIoT will not be able to sign certificates with this CA.",
     icon: <FileText className="h-8 w-8 text-primary" />,
-  },
-  {
-    id: 'reuse-key',
-    href: '/certificate-authorities/new/reuse-key',
-    title: 'Create CA (Reuse Key)',
-    description: 'Provision a new Root or Intermediate CA using an existing key pair from your KMS.',
-    icon: <Repeat className="h-8 w-8 text-primary" />,
-    disabled: true,
   },
 ];
 
