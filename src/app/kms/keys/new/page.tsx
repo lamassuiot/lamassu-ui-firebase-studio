@@ -13,6 +13,7 @@ import { ArrowLeft, KeyRound, UploadCloud, FileText, ChevronRight, Settings, Plu
 import { useToast } from '@/hooks/use-toast';
 import { KEY_TYPE_OPTIONS_POST_QUANTUM, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS, MLDSA_SECURITY_LEVEL_OPTIONS } from '@/lib/key-spec-constants';
 import { useAuth } from '@/contexts/AuthContext';
+import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 
 const creationModes = [
   {
@@ -42,6 +43,7 @@ export default function CreateKmsKeyPage() {
   const [selectedMode, setSelectedMode] = useState<string | null>(null);
 
   // New Key Pair mode fields
+  const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined);
   const [keyType, setKeyType] = useState('RSA');
   const [rsaKeySize, setRsaKeySize] = useState('2048');
   const [ecdsaCurve, setEcdsaCurve] = useState('P-256');
@@ -106,6 +108,12 @@ export default function CreateKmsKeyPage() {
     setIsSubmitting(true);
 
     if (selectedMode === 'newKeyPair') {
+        if (!cryptoEngineId) {
+            toast({ title: "Validation Error", description: "Please select a Crypto Engine.", variant: "destructive" });
+            setIsSubmitting(false);
+            return;
+        }
+
         try {
             let size = '';
             if (keyType === 'RSA') {
@@ -117,6 +125,7 @@ export default function CreateKmsKeyPage() {
             }
 
             const payload = {
+                engine_id: cryptoEngineId,
                 algorithm: keyType,
                 size: size,
             };
@@ -254,6 +263,15 @@ export default function CreateKmsKeyPage() {
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground" />Key Generation Parameters</h3>
                 <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="cryptoEngine">Crypto Engine</Label>
+                    <CryptoEngineSelector
+                      value={cryptoEngineId}
+                      onValueChange={setCryptoEngineId}
+                      disabled={isSubmitting}
+                      className="mt-1"
+                    />
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="keyType">Key Type</Label>
