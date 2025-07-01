@@ -5,9 +5,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, Search, ChevronLeft, ChevronRight, MoreVertical, Trash2, Layers } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -34,6 +33,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 
 interface Subject {
@@ -97,7 +98,7 @@ export default function CaRequestsPage() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [searchField, setSearchField] = useState<'id' | 'subject'>('subject');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
-  const [pageSize, setPageSize] = useState('10');
+  const [pageSize, setPageSize] = useState('9');
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
@@ -201,34 +202,6 @@ export default function CaRequestsPage() {
     }
   }, [authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchRequests]);
 
-
-  const requestSort = (column: SortableColumn) => {
-    let direction: SortDirection = 'asc';
-    if (sortConfig && sortConfig.column === column && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ column, direction });
-  };
-  
-  const SortableTableHeader: React.FC<{ column: SortableColumn; title: string; className?: string }> = ({ column, title, className }) => {
-    const isSorted = sortConfig?.column === column;
-    let Icon = ChevronsUpDown;
-    if (isSorted) {
-      if (column === 'creation_ts') {
-        Icon = sortConfig?.direction === 'asc' ? ArrowUp01 : ArrowDown10;
-      } else {
-        Icon = sortConfig?.direction === 'asc' ? ArrowUpZA : ArrowDownAZ;
-      }
-    }
-    return (
-      <TableHead className={cn("cursor-pointer hover:bg-muted/50", className)} onClick={() => requestSort(column)}>
-        <div className="flex items-center gap-1">
-          {title} <Icon className={cn("h-4 w-4", isSorted ? "text-primary" : "text-muted-foreground/50")} />
-        </div>
-      </TableHead>
-    );
-  };
-
   const handleNextPage = () => {
     if (isLoading || !nextTokenFromApi) return;
     const potentialNextPageIndex = currentPageIndex + 1;
@@ -329,8 +302,8 @@ export default function CaRequestsPage() {
         View and manage pending and completed requests for new Certificate Authorities.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-        <div className="relative col-span-1 md:col-span-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+        <div className="relative col-span-1">
             <Label htmlFor="reqSearchTermInput">Search Term</Label>
             <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
@@ -343,7 +316,7 @@ export default function CaRequestsPage() {
                 disabled={isLoading || authLoading}
             />
         </div>
-        <div className="col-span-1 md:col-span-1">
+        <div className="col-span-1">
             <Label htmlFor="reqSearchFieldSelect">Search In</Label>
             <Select value={searchField} onValueChange={(value: 'id' | 'subject') => setSearchField(value)} disabled={isLoading || authLoading}>
                 <SelectTrigger id="reqSearchFieldSelect" className="w-full mt-1"><SelectValue /></SelectTrigger>
@@ -353,12 +326,32 @@ export default function CaRequestsPage() {
                 </SelectContent>
             </Select>
         </div>
-        <div className="col-span-1 md:col-span-1">
+        <div className="col-span-1">
             <Label htmlFor="reqStatusFilterSelect">Status</Label>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED')} disabled={isLoading || authLoading}>
                 <SelectTrigger id="reqStatusFilterSelect" className="w-full mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                     {statusOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                </SelectContent>
+            </Select>
+        </div>
+         <div className="col-span-1">
+            <Label htmlFor="reqSortSelect">Sort By</Label>
+            <Select
+                value={`${sortConfig?.column ?? 'creation_ts'}-${sortConfig?.direction ?? 'desc'}`}
+                onValueChange={(value) => {
+                const [column, direction] = value.split('-') as [SortableColumn, SortDirection];
+                setSortConfig({ column, direction });
+                }}
+                disabled={isLoading || authLoading}
+            >
+                <SelectTrigger id="reqSortSelect" className="w-full mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="creation_ts-desc">Newest First</SelectItem>
+                    <SelectItem value="creation_ts-asc">Oldest First</SelectItem>
+                    <SelectItem value="subject-asc">Subject (A-Z)</SelectItem>
+                    <SelectItem value="subject-desc">Subject (Z-A)</SelectItem>
+                    <SelectItem value="status-asc">Status</SelectItem>
                 </SelectContent>
             </Select>
         </div>
@@ -377,62 +370,70 @@ export default function CaRequestsPage() {
         </Alert>
       ) : requests.length > 0 ? (
         <>
-          <div className={cn("overflow-auto max-h-[60vh]", isLoading && "opacity-50")}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHeader column="subject" title="Subject" />
-                  <SortableTableHeader column="id" title="Request ID" />
-                  <SortableTableHeader column="status" title="Status" />
-                  <SortableTableHeader column="creation_ts" title="Created At" className="hidden md:table-cell" />
-                  <TableHead className="hidden sm:table-cell"><Cpu className="inline mr-1 h-4 w-4" />Engine</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map((req) => (
-                  <TableRow key={req.id}>
-                    <TableCell className="font-medium truncate max-w-xs">{req.subject.common_name}</TableCell>
-                    <TableCell className="font-mono text-xs">{req.id}</TableCell>
-                    <TableCell><StatusBadge status={req.status} /></TableCell>
-                    <TableCell className="hidden md:table-cell">{format(parseISO(req.creation_ts), 'MMM dd, yyyy HH:mm')}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{req.engine_id}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">More actions for request {req.id}</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewCsr(req)}>
-                            <FileSignature className="mr-2 h-4 w-4" />
-                            View CSR
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
-                            <Layers className="mr-2 h-4 w-4" />
-                            View Raw API Data
-                          </DropdownMenuItem>
-                          {req.status === 'PENDING' && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => setRequestToDelete(req)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Request
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4", isLoading && "opacity-50")}>
+             {requests.map((req) => (
+                <Card key={req.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                        <div className="flex justify-between items-start gap-2">
+                            <div className="flex-grow min-w-0">
+                                <CardTitle className="truncate text-lg" title={req.subject.common_name}>
+                                    {req.subject.common_name}
+                                </CardTitle>
+                                <CardDescription className="mt-1">
+                                    ID: <span className="font-mono text-xs">{req.id}</span>
+                                </CardDescription>
+                            </div>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                                    <MoreVertical className="h-4 w-4" />
+                                    <span className="sr-only">More actions for request {req.id}</span>
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewCsr(req)}>
+                                    <FileSignature className="mr-2 h-4 w-4" />
+                                    View CSR
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
+                                    <Layers className="mr-2 h-4 w-4" />
+                                    View Raw API Data
+                                </DropdownMenuItem>
+                                {req.status === 'PENDING' && (
+                                    <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        className="text-destructive focus:text-destructive"
+                                        onClick={() => setRequestToDelete(req)}
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete Request
+                                    </DropdownMenuItem>
+                                    </>
+                                )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-grow space-y-3 text-sm">
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Status</span>
+                            <StatusBadge status={req.status} />
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Key Type</span>
+                            <span className="font-medium">{req.key_metadata.type} {req.key_metadata.bits}-bit</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Engine</span>
+                            <Badge variant="outline">{req.engine_id}</Badge>
+                        </div>
+                    </CardContent>
+                    <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground">
+                        <span>Created: {format(parseISO(req.creation_ts), 'MMM dd, yyyy HH:mm')}</span>
+                    </CardFooter>
+                </Card>
+            ))}
           </div>
           <div className="flex justify-between items-center mt-4">
               <div className="flex items-center space-x-2">
@@ -440,9 +441,9 @@ export default function CaRequestsPage() {
                 <Select value={pageSize} onValueChange={setPageSize} disabled={isLoading || authLoading}>
                   <SelectTrigger id="pageSizeSelectReqList" className="w-[80px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="9">9</SelectItem>
+                    <SelectItem value="15">15</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
