@@ -290,7 +290,7 @@ export default function DevicesPage() {
             break;
           case 'createdAt':
             aValue = parseISO(a.createdAt).getTime();
-            bValue = b.createdAt.getTime();
+            bValue = parseISO(b.createdAt).getTime();
             break;
           default:
             return 0;
