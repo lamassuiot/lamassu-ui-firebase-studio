@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 // Dynamically import the client-side content for this page
 const VerificationAuthoritiesClient = dynamic(
-  () => import('./VerificationAuthoritiesClient').then(mod => mod.VerificationAuthoritiesClient),
+  () => import('@/components/shared/VerificationAuthoritiesClient').then(mod => mod.VerificationAuthoritiesClient),
   {
     // ssr: false, // Removed: Not allowed in Server Components
     loading: () => (
