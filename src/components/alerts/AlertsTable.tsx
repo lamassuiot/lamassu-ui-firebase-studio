@@ -40,12 +40,12 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onSubscription
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[10px]"></TableHead> {/* For expand icon */}
-            <TableHead className="w-[40%]">Event Type</TableHead>
-            <TableHead>Last Seen</TableHead>
-            <TableHead>Counter</TableHead>
-            <TableHead>Subscriptions</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="w-[10px]"></TableHead>{/* For expand icon */}
+            <TableHead className="w-[40%]">Event Type</TableHead>{/*
+            */}<TableHead>Last Seen</TableHead>{/*
+            */}<TableHead>Counter</TableHead>{/*
+            */}<TableHead>Subscriptions</TableHead>{/*
+            */}<TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -59,18 +59,18 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onSubscription
                         expandedRow === event.id && "rotate-180"
                       )}
                     />
-                </TableCell>
-                <TableCell className="font-medium">
+                </TableCell>{/*
+                */}<TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-primary" />
                     <span className="truncate">{event.type}</span>
                   </div>
-                </TableCell>
-                <TableCell>
+                </TableCell>{/*
+                */}<TableCell>
                   {formatDistanceToNow(new Date(event.lastSeen), { addSuffix: true })}
-                </TableCell>
-                <TableCell>{event.eventCounter.toLocaleString()}</TableCell>
-                <TableCell>
+                </TableCell>{/*
+                */}<TableCell>{event.eventCounter.toLocaleString()}</TableCell>{/*
+                */}<TableCell>
                   {event.activeSubscriptions.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {event.activeSubscriptions.map((sub) => (
@@ -90,8 +90,8 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onSubscription
                   ) : (
                     <span className="text-muted-foreground">None</span>
                   )}
-                </TableCell>
-                <TableCell className="text-right">
+                </TableCell>{/*
+                */}<TableCell className="text-right">
                   <Button
                     size="sm"
                     variant="outline"
