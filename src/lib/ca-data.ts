@@ -3,6 +3,7 @@
 // Define the CA data structure
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -414,4 +415,27 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
     }
   }
   return null;
+}
+
+export async function fetchCryptoEngines(accessToken: string): Promise<ApiCryptoEngine[]> {
+    const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to fetch crypto engines. HTTP error ${response.status}`;
+        try {
+            errorJson = await response.json();
+            if (errorJson && errorJson.err) {
+                errorMessage = `Failed to fetch crypto engines: ${errorJson.err}`;
+            } else if (errorJson && errorJson.message) {
+                errorMessage = `Failed to fetch crypto engines: ${errorJson.message}`;
+            }
+        } catch (e) {
+            console.error("Failed to parse error response as JSON for crypto engines:", e);
+        }
+        throw new Error(errorMessage);
+    }
+    const enginesData: ApiCryptoEngine[] = await response.json();
+    return enginesData;
 }

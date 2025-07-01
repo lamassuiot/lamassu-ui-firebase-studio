@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, fetchAndProcessCAs } from '@/lib/ca-data';
+import { findCaById, fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
@@ -124,11 +124,7 @@ export default function CertificateAuthorityDetailsClient() {
     setIsLoadingEngines(true);
     setErrorEngines(null);
     try {
-        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-            headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) throw new Error('Failed to fetch crypto engines');
-        const enginesData: ApiCryptoEngine[] = await response.json();
+        const enginesData = await fetchCryptoEngines(user.access_token);
         setAllCryptoEngines(enginesData);
     } catch (err: any) {
         setErrorEngines(err.message || 'Failed to load Crypto Engines.');

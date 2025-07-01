@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { fetchCryptoEngines } from '@/lib/ca-data';
 
 const keyTypes = [
   { value: 'RSA', label: 'RSA' },
@@ -71,11 +72,7 @@ export default function RequestCaCsrPage() {
     setIsLoadingEngines(true);
     setErrorEngines(null);
     try {
-        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-            headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) throw new Error('Failed to fetch crypto engines');
-        const enginesData: ApiCryptoEngine[] = await response.json();
+        const enginesData = await fetchCryptoEngines(user.access_token);
         setAllCryptoEngines(enginesData);
     } catch (err: any) {
         setErrorEngines(err.message || 'Failed to load Crypto Engines.');
