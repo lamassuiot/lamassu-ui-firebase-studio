@@ -13,10 +13,9 @@ import { Certificate as PkijsCertificate, BasicConstraints as PkijsBasicConstrai
 import * as asn1js from "asn1js";
 import { format as formatDate, parseISO } from 'date-fns';
 import { DetailItem } from '@/components/shared/DetailItem';
-import { Alert } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // --- Type Definitions ---
 interface Subject { common_name: string; }
@@ -61,48 +60,46 @@ export default function ApproveCaRequestPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [pendingRequests, setPendingRequests] = useState<CACertificateRequest[]>([]);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
-  const [errorRequests, setErrorRequests] = useState<string | null>(null);
+  const [request, setRequest] = useState<CACertificateRequest | null>(null);
+  const [isLoadingRequest, setIsLoadingRequest] = useState(true);
+  const [errorRequest, setErrorRequest] = useState<string | null>(null);
 
-  const [selectedRequestId, setSelectedRequestId] = useState<string | undefined>(undefined);
   const [certificatePem, setCertificatePem] = useState('');
   const [chainPem, setChainPem] = useState('');
   const [decodedCertInfo, setDecodedCertInfo] = useState<DecodedImportedCertInfo | null>(null);
 
-  const selectedRequest = pendingRequests.find(req => req.id === selectedRequestId);
-
-  const fetchPendingRequests = useCallback(async () => {
-    if (!isAuthenticated() || !user?.access_token) {
-        if (!authLoading) setErrorRequests("User not authenticated.");
-        setIsLoadingRequests(false);
+  const fetchRequestDetails = useCallback(async () => {
+    if (!requestIdFromUrl || !isAuthenticated() || !user?.access_token) {
+        if (!authLoading && !isAuthenticated()) setErrorRequest("User not authenticated.");
+        if (!requestIdFromUrl) setErrorRequest("Request ID not provided in URL.");
+        setIsLoadingRequest(false);
         return;
     }
-    setIsLoadingRequests(true);
-    setErrorRequests(null);
+    setIsLoadingRequest(true);
+    setErrorRequest(null);
     try {
-        const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas/requests?filter=status[equal]PENDING', {
+        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/requests?filter=id[equal]${requestIdFromUrl}`, {
             headers: { 'Authorization': `Bearer ${user.access_token}` },
         });
-        if (!response.ok) throw new Error("Failed to fetch pending CA requests.");
+        if (!response.ok) throw new Error("Failed to fetch CA request details.");
         const data = await response.json();
-        setPendingRequests(data.list || []);
+        const foundRequest = data.list && data.list[0];
+
+        if (foundRequest) {
+          setRequest(foundRequest);
+        } else {
+          throw new Error(`CA Request with ID "${requestIdFromUrl}" not found or is not pending.`);
+        }
     } catch (e: any) {
-        setErrorRequests(e.message || "An unknown error occurred.");
+        setErrorRequest(e.message || "An unknown error occurred.");
     } finally {
-        setIsLoadingRequests(false);
+        setIsLoadingRequest(false);
     }
-  }, [user?.access_token, isAuthenticated, authLoading]);
+  }, [requestIdFromUrl, user?.access_token, isAuthenticated, authLoading]);
   
   useEffect(() => {
-    fetchPendingRequests();
-  }, [fetchPendingRequests]);
-  
-  useEffect(() => {
-    if (requestIdFromUrl) {
-      setSelectedRequestId(requestIdFromUrl);
-    }
-  }, [requestIdFromUrl]);
+    fetchRequestDetails();
+  }, [fetchRequestDetails]);
 
   const parseCertificatePem = async (pem: string) => {
     if (!pem.trim()) { setDecodedCertInfo(null); return; }
@@ -133,8 +130,8 @@ export default function ApproveCaRequestPage() {
     event.preventDefault();
     setIsSubmitting(true);
 
-    if (!selectedRequestId) {
-        toast({ title: "Validation Error", description: "A pending request must be selected.", variant: "destructive" });
+    if (!requestIdFromUrl) {
+        toast({ title: "Validation Error", description: "The request ID is missing.", variant: "destructive" });
         setIsSubmitting(false);
         return;
     }
@@ -155,7 +152,7 @@ export default function ApproveCaRequestPage() {
     }
 
     const payload = {
-      request_id: selectedRequestId,
+      request_id: requestIdFromUrl,
       ca: window.btoa(certificatePem.replace(/\\n/g, '\n')),
       ca_chain: chainPem ? [window.btoa(chainPem.replace(/\\n/g, '\n'))] : [],
       ca_type: "MANAGED",
@@ -178,7 +175,7 @@ export default function ApproveCaRequestPage() {
             throw new Error(errorMessage);
         }
 
-        toast({ title: "Success!", description: `CA Request "${selectedRequestId}" approved successfully.` });
+        toast({ title: "Success!", description: `CA Request "${requestIdFromUrl}" approved successfully.` });
         router.push('/certificate-authorities');
     } catch (error: any) {
         toast({ title: "Approval Failed", description: error.message, variant: "destructive" });
@@ -187,10 +184,25 @@ export default function ApproveCaRequestPage() {
     }
   };
 
+  if (!requestIdFromUrl && !authLoading) {
+    return (
+        <div className="w-full space-y-4 p-4">
+            <Button variant="outline" onClick={() => router.push('/certificate-authorities/requests')} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Requests
+            </Button>
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Missing Request ID</AlertTitle>
+                <AlertDescription>No CA Request ID was provided in the URL. Please navigate from the requests list.</AlertDescription>
+            </Alert>
+        </div>
+    );
+  }
+
   return (
     <div className="w-full space-y-6 mb-8">
-      <Button variant="outline" onClick={() => router.push('/certificate-authorities/new')}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Creation Methods
+      <Button variant="outline" onClick={() => router.push('/certificate-authorities/requests')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Requests
       </Button>
 
       <Card>
@@ -202,45 +214,30 @@ export default function ApproveCaRequestPage() {
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Select a pending request and import the signed certificate to activate the new CA.
+            Import the signed certificate to activate the new CA for the selected request.
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-8">
             <section>
-              <h3 className="text-lg font-semibold mb-3 flex items-center"><FileSignature className="mr-2 h-5 w-5 text-muted-foreground" />Select Pending Request</h3>
-              <div className="space-y-4">
-                 <div>
-                  <Label htmlFor="request-select">Pending CA Request</Label>
-                  {isLoadingRequests || authLoading ? (
-                    <div className="flex items-center space-x-2 p-2 h-10 border rounded-md bg-muted/50 text-sm text-muted-foreground mt-1">
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><FileSignature className="mr-2 h-5 w-5 text-muted-foreground" />Selected Request Details</h3>
+               {isLoadingRequest || authLoading ? (
+                    <div className="flex items-center space-x-2 p-4 border rounded-md bg-muted/50 text-sm text-muted-foreground mt-1">
                         <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Loading requests...</span>
+                        <span>Loading request details...</span>
                     </div>
-                  ) : errorRequests ? (
-                    <Alert variant="destructive" className="mt-1">{errorRequests}</Alert>
-                  ) : (
-                    <Select value={selectedRequestId} onValueChange={setSelectedRequestId} disabled={pendingRequests.length === 0}>
-                        <SelectTrigger id="request-select" className="mt-1">
-                            <SelectValue placeholder={pendingRequests.length > 0 ? "Select a pending request..." : "No pending requests found"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {pendingRequests.map(req => (
-                                <SelectItem key={req.id} value={req.id}>{req.subject.common_name} ({req.id.substring(0,8)}...)</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                  )}
-                 </div>
-                 {selectedRequest && (
+                  ) : errorRequest ? (
+                    <Alert variant="destructive" className="mt-1">{errorRequest}</Alert>
+                  ) : request ? (
                     <Card className="bg-muted/30"><CardHeader><CardTitle className="text-md">Request Details</CardTitle></CardHeader><CardContent className="space-y-2 text-sm pt-4">
-                        <DetailItem label="Subject" value={selectedRequest.subject.common_name} isMono/>
-                        <DetailItem label="Request ID" value={selectedRequest.id} isMono/>
-                        <DetailItem label="Key Type" value={`${selectedRequest.key_metadata.type} ${selectedRequest.key_metadata.bits}-bit`} isMono/>
-                        <DetailItem label="Created" value={formatDate(parseISO(selectedRequest.creation_ts), "PPpp")} />
+                        <DetailItem label="Subject" value={request.subject.common_name} isMono/>
+                        <DetailItem label="Request ID" value={request.id} isMono/>
+                        <DetailItem label="Key Type" value={`${request.key_metadata.type} ${request.key_metadata.bits}-bit`} isMono/>
+                        <DetailItem label="Created" value={formatDate(parseISO(request.creation_ts), "PPpp")} />
                     </CardContent></Card>
+                 ) : (
+                    <Alert variant="warning" className="mt-1">Request not found.</Alert>
                  )}
-              </div>
             </section>
             
             <section>
@@ -269,7 +266,7 @@ export default function ApproveCaRequestPage() {
             </section>
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg" disabled={isSubmitting || !selectedRequestId || !certificatePem}>
+              <Button type="submit" size="lg" disabled={isSubmitting || isLoadingRequest || !request || !certificatePem}>
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
                 Import Certificate & Approve
               </Button>
