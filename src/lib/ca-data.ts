@@ -5,7 +5,7 @@ import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
-const caBaseUrl = 'https://lab.lamassu.io/api/ca/v1/cas';
+const caApiBaseUrl = 'https://lab.lamassu.io/api/ca/v1/';
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -347,7 +347,7 @@ function buildCaHierarchy(flatCaList: Omit<CA, 'children'>[]): CA[] {
 
 // Function to fetch, transform, and build hierarchy
 export async function fetchAndProcessCAs(accessToken: string, apiQueryString?: string): Promise<CA[]> {
-  const url = apiQueryString ? `${caBaseUrl}?${apiQueryString}` : caBaseUrl;
+  const url = apiQueryString ? `${caApiBaseUrl}cas?${apiQueryString}` : `${caApiBaseUrl}cas`;
 
   const response = await fetch(url, {
     headers: {
@@ -419,7 +419,7 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
 }
 
 export async function fetchCryptoEngines(accessToken: string): Promise<ApiCryptoEngine[]> {
-    const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
+    const response = await fetch(`${caApiBaseUrl}engines`, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     if (!response.ok) {
@@ -464,7 +464,7 @@ export interface CreateCaPayload {
 }
 
 export async function createCa(payload: CreateCaPayload, accessToken: string): Promise<void> {
-  const response = await fetch(caBaseUrl, {
+  const response = await fetch(`${caApiBaseUrl}cas`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
