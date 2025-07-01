@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -39,6 +40,20 @@ export const SubscriptionDetailsModal: React.FC<SubscriptionDetailsModalProps> =
   const handleDelete = () => {
       onDelete(subscription.id);
   }
+  
+  const getConditionContent = (conditionType: string, conditionValue: string): string => {
+    if (conditionType === 'JSON-SCHEMA') {
+        try {
+            // It's a schema, so it should be valid JSON. Let's prettify it.
+            return JSON.stringify(JSON.parse(conditionValue), null, 2);
+        } catch (e) {
+            // If it's not valid JSON for some reason, show the raw string.
+            return conditionValue;
+        }
+    }
+    // For other types like JAVASCRIPT or JSON-PATH, just show the raw string.
+    return conditionValue;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -67,7 +82,7 @@ export const SubscriptionDetailsModal: React.FC<SubscriptionDetailsModalProps> =
                         {subscription.conditions.map((cond, index) => (
                             <div key={index} className="space-y-2">
                                 <DetailItem label="Type" value={<Badge variant="outline">{cond.type}</Badge>} />
-                                <CodeBlock content={JSON.stringify(JSON.parse(cond.condition), null, 2)} title="Condition" />
+                                <CodeBlock content={getConditionContent(cond.type, cond.condition)} title="Condition" />
                             </div>
                         ))}
                     </>
