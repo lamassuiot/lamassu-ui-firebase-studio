@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -155,11 +154,11 @@ export default function HomePage() {
 
   return (
     <div className="w-full space-y-8">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        <div className="xl:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <div className="lg:col-span-1">
           <SummaryStatsCard stats={summaryStats} isLoading={isLoadingStats || authLoading} />
         </div>
-        <div className="xl:col-span-1">
+        <div className="lg:col-span-1">
           <DeviceStatusChartCard />
         </div>
       </div>
