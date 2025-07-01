@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,14 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, PlusCircle, Settings, Info, KeyRound, Loader2, FileSignature } from "lucide-react";
-import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
-import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
 const keyTypes = [
@@ -42,7 +39,6 @@ export default function RequestCaCsrPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined);
-  const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
   const [caId, setCaId] = useState('');
   const [caName, setCaName] = useState('');
 
@@ -54,12 +50,6 @@ export default function RequestCaCsrPage() {
   const [locality, setLocality] = useState('');
   const [organization, setOrganization] = useState('');
   const [organizationalUnit, setOrganizationalUnit] = useState('');
-
-  const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
-
-  const [availableParentCAs, setAvailableParentCAs] = useState<CA[]>([]);
-  const [isLoadingCAs, setIsLoadingCAs] = useState(false);
-  const [errorCAs, setErrorCAs] = useState<string | null>(null);
   
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingEngines, setIsLoadingEngines] = useState(false);
@@ -72,24 +62,10 @@ export default function RequestCaCsrPage() {
   const loadDependencies = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading) {
-        setErrorCAs("User not authenticated. Cannot load parent CAs.");
         setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
       }
-      setIsLoadingCAs(false);
       setIsLoadingEngines(false);
       return;
-    }
-    
-    setIsLoadingCAs(true);
-    setErrorCAs(null);
-    try {
-      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-      setAvailableParentCAs(fetchedCAs); 
-    } catch (err: any) {
-      setErrorCAs(err.message || 'Failed to load available parent CAs.');
-      setAvailableParentCAs([]);
-    } finally {
-      setIsLoadingCAs(false);
     }
 
     setIsLoadingEngines(true);
@@ -126,19 +102,6 @@ export default function RequestCaCsrPage() {
 
   const currentKeySizeOptions = keyType === 'RSA' ? rsaKeySizes : ecdsaKeySizes;
 
-  const handleParentCaSelectFromModal = (ca: CA) => {
-    if (ca.rawApiData?.certificate.type === 'EXTERNAL_PUBLIC' || ca.status !== 'active') {
-        toast({
-            title: "Invalid Parent CA",
-            description: `CA "${ca.name}" cannot be used as a parent as it's external-public or not active.`,
-            variant: "destructive"
-        });
-        return;
-    }
-    setSelectedParentCa(ca);
-    setIsParentCaModalOpen(false);
-  };
-
   const mapEcdsaCurveToBits = (curveName: string): number => {
     switch (curveName) {
       case 'P-256': return 256;
@@ -169,7 +132,7 @@ export default function RequestCaCsrPage() {
     }
 
     const payload = {
-      parent_id: selectedParentCa?.id || "",
+      parent_id: "",
       id: caId,
       engine_id: cryptoEngineId, 
       subject: {
@@ -235,7 +198,7 @@ export default function RequestCaCsrPage() {
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Submit a request for a new Root or Intermediate CA. A new key pair and CSR will be generated on the backend, awaiting approval.
+            Submit a request for a new CA. A new key pair and CSR will be generated on the backend, awaiting approval and issuance.
           </p>
         </CardHeader>
         <CardContent>
@@ -278,25 +241,6 @@ export default function RequestCaCsrPage() {
             <section>
               <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="parentCa">Parent CA (Optional)</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsParentCaModalOpen(true)}
-                    className="w-full justify-start text-left font-normal mt-1"
-                    id="parentCa"
-                    disabled={isLoadingCAs || authLoading}
-                  >
-                    {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
-                  </Button>
-                  {selectedParentCa && (
-                    <div className="mt-2">
-                      <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">If no parent is selected, this is a request for a self-signed Root CA. If a parent is selected, it's a request for an Intermediate CA to be signed by that parent.</p>
-                </div>
                 <div>
                   <Label htmlFor="caId">CA Request ID (generated)</Label>
                   <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
@@ -349,21 +293,6 @@ export default function RequestCaCsrPage() {
           </form>
         </CardContent>
       </Card>
-      
-      <CaSelectorModal
-        isOpen={isParentCaModalOpen}
-        onOpenChange={setIsParentCaModalOpen}
-        title="Select Parent Certificate Authority"
-        description="Choose an existing CA to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
-        availableCAs={availableParentCAs}
-        isLoadingCAs={isLoadingCAs}
-        errorCAs={errorCAs}
-        loadCAsAction={loadDependencies}
-        onCaSelected={handleParentCaSelectFromModal}
-        currentSelectedCaId={selectedParentCa?.id}
-        isAuthLoading={authLoading}
-        allCryptoEngines={allCryptoEngines}
-      />
     </div>
   );
 }
