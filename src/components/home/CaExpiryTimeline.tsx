@@ -151,7 +151,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       start: subMonths(now, 1),
       end: addMonths(toDate(sortedCAs[0].expires), 3),
       zoomMin: 1000 * 60 * 60 * 24, // 1 day
-      zoomMax: 1000 * 60 * 60 * 24 * 365 * 100, // 100 years
+      zoomMax: 1000 * 60 * 60 * 24 * 100, // 100 years
     };
 
     const timeline = new Timeline(timelineRef.current, items, options);
@@ -199,7 +199,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         ref={cardRef}
         className={cn(
           "shadow-lg w-full bg-primary text-primary-foreground",
-          isFullscreen && "h-screen flex flex-col"
+          isFullscreen && "fixed inset-0 z-50 flex flex-col"
         )}
       >
         <CardHeader className="flex flex-row items-start justify-between">
