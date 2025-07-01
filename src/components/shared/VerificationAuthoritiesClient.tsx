@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ShieldCheck, Settings, PlusCircle, Loader2, AlertTriangle as AlertTriangleIcon } from "lucide-react";
+import { ShieldCheck, Settings, PlusCircle, Loader2, AlertTriangle as AlertTriangleIcon, FileText } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
@@ -20,6 +20,8 @@ import { useToast } from '@/hooks/use-toast';
 import { VA_API_BASE_URL } from '@/lib/api-domains';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
+import { format, parseISO } from 'date-fns';
+import { DetailItem } from './DetailItem';
 
 interface VAConfig {
   caId: string; 
@@ -27,6 +29,12 @@ interface VAConfig {
   validity: string;        
   subjectKeyIDSigner: string | null; 
   regenerateOnRevoke: boolean;
+}
+
+interface LatestCrlInfo {
+  version: number;
+  valid_from: string;
+  valid_until: string;
 }
 
 const getDefaultVAConfig = (caId: string): VAConfig => ({
@@ -60,6 +68,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
   // New state for loading individual VA configs
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [errorConfig, setErrorConfig] = useState<string | null>(null);
+  const [latestCrl, setLatestCrl] = useState<LatestCrlInfo | null>(null);
 
 
   const loadData = useCallback(async () => {
@@ -112,12 +121,14 @@ export function VerificationAuthoritiesClient() { // Renamed component
     if (!selectedCaForConfig?.subjectKeyId || !isAuthenticated() || !user?.access_token) {
         setConfig(null);
         setSelectedCertificateSignerDisplay(null);
+        setLatestCrl(null);
         return;
     }
 
     setIsLoadingConfig(true);
     setErrorConfig(null);
     setSelectedCertificateSignerDisplay(null);
+    setLatestCrl(null);
 
     try {
         const response = await fetch(`${VA_API_BASE_URL}/roles/${selectedCaForConfig.subjectKeyId}`, {
@@ -126,6 +137,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
 
         if (response.status === 404) {
             setConfig(getDefaultVAConfig(selectedCaForConfig.id));
+            setLatestCrl(null);
             return;
         }
 
@@ -150,6 +162,10 @@ export function VerificationAuthoritiesClient() { // Renamed component
         };
         setConfig(newConfig);
 
+        if (data.latest_crl) {
+            setLatestCrl(data.latest_crl);
+        }
+
         if (newConfig.subjectKeyIDSigner) {
             const signerSki = newConfig.subjectKeyIDSigner;
             const { certificates } = await fetchIssuedCertificates({ 
@@ -170,6 +186,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
     } catch(e: any) {
         setErrorConfig(e.message || "An unknown error occurred.");
         setConfig(null);
+        setLatestCrl(null);
     } finally {
         setIsLoadingConfig(false);
     }
@@ -181,6 +198,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
     } else {
       setConfig(null);
       setSelectedCertificateSignerDisplay(null);
+      setLatestCrl(null);
     }
   }, [selectedCaForConfig, fetchVaConfig]);
 
@@ -378,7 +396,23 @@ export function VerificationAuthoritiesClient() { // Renamed component
                    <p className="text-xs text-muted-foreground mt-1">Certificate whose public key corresponds to the SubjectKeyIdentifier in generated CRLs.</p>
                 </div>
 
-                <div className="flex items-center space-x-2 pt-2">
+                <div>
+                    <h4 className="text-md font-medium text-muted-foreground mb-2 flex items-center">
+                        <FileText className="mr-2 h-5 w-5" />
+                        Latest Generated CRL
+                    </h4>
+                    {latestCrl ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 pl-2 border rounded-md p-3 bg-muted/20">
+                            <DetailItem label="Version" value={String(latestCrl.version)} className="py-1" />
+                            <DetailItem label="Valid From" value={format(parseISO(latestCrl.valid_from), 'PPpp')} className="py-1" />
+                            <DetailItem label="Valid Until" value={format(parseISO(latestCrl.valid_until), 'PPpp')} className="py-1" />
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground pl-2 italic">No CRL has been generated for this VA role yet.</p>
+                    )}
+                </div>
+
+                <div className="flex items-center space-x-2">
                   <Switch 
                     id="va-regenerateOnRevoke" 
                     checked={config.regenerateOnRevoke} 
