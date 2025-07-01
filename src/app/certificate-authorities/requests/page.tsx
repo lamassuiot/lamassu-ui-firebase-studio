@@ -364,7 +364,7 @@ export default function CaRequestsPage() {
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={() => router.push(`/certificate-authorities/new/approve-request?requestId=${req.id}`)}>
                                         <ShieldCheck className="mr-2 h-4 w-4" />
-                                        <span>Approve Request</span>
+                                        <span>Import CA Certificate</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                         className="text-destructive focus:text-destructive"

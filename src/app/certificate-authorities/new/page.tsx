@@ -38,7 +38,7 @@ const creationModes: CreationMode[] = [
   {
     id: 'approve-request',
     href: '/certificate-authorities/new/approve-request',
-    title: 'Approve CA Request (Import Certificate)',
+    title: 'Import Certificate (Approve Request)',
     description: 'Import a signed certificate to approve a pending CA request that was generated on the backend.',
     icon: <ShieldCheck className="h-8 w-8 text-primary" />,
   },

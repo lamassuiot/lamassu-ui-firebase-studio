@@ -198,7 +198,7 @@ export default function ApproveCaRequestPage() {
           <div className="flex items-center space-x-3">
             <ShieldCheck className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-headline font-semibold">
-              Approve CA Request
+              Import CA Certificate
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
@@ -271,7 +271,7 @@ export default function ApproveCaRequestPage() {
             <div className="flex justify-end pt-4">
               <Button type="submit" size="lg" disabled={isSubmitting || !selectedRequestId || !certificatePem}>
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-                Approve Request & Import CA
+                Import Certificate & Approve
               </Button>
             </div>
           </form>
