@@ -130,7 +130,6 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const pkiItems = [
     { href: '/certificates', label: 'Certificates', icon: FileText },
     { href: '/certificate-authorities', label: 'Certificate Authorities', icon: Landmark },
-    { href: '/certificate-authorities/requests', label: 'CA Requests', icon: FileSignature },
     { href: '/signing-profiles', label: 'Signing Profiles', icon: ScrollTextIcon },
     { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
     { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },

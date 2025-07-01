@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, List, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, PlusCircle } from "lucide-react";
+import { Landmark, List, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, PlusCircle, FileSignature } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import dynamic from 'next/dynamic';
@@ -184,6 +184,9 @@ export default function CertificateAuthoritiesPage() {
                    <span className="hidden sm:inline">Graph</span>
                 </ToggleGroupItem>
               </ToggleGroup>
+              <Button variant="outline" onClick={() => router.push('/certificate-authorities/requests')}>
+                <FileSignature className="mr-2 h-4 w-4" /> Manage CA Requests
+              </Button>
               <Button variant="default" onClick={handleCreateNewCAClick}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
               </Button>
