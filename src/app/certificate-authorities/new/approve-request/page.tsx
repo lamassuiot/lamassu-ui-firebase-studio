@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,8 +54,10 @@ function ab2hex(ab: ArrayBuffer) {
 
 export default function ApproveCaRequestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const requestIdFromUrl = searchParams.get('requestId');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -95,6 +97,12 @@ export default function ApproveCaRequestPage() {
   useEffect(() => {
     fetchPendingRequests();
   }, [fetchPendingRequests]);
+  
+  useEffect(() => {
+    if (requestIdFromUrl) {
+      setSelectedRequestId(requestIdFromUrl);
+    }
+  }, [requestIdFromUrl]);
 
   const parseCertificatePem = async (pem: string) => {
     if (!pem.trim()) { setDecodedCertInfo(null); return; }

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers, Fingerprint, Download, PlusCircle } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers, Fingerprint, Download, PlusCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -347,30 +347,34 @@ export default function CaRequestsPage() {
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewCsr(req)}>
-                                <FileSignature className="mr-2 h-4 w-4" />
-                                View CSR
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDownloadCsr(req)}>
-                                <Download className="mr-2 h-4 w-4" />
-                                Download CSR
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
-                                <Layers className="mr-2 h-4 w-4" />
-                                View Raw API Data
-                            </DropdownMenuItem>
-                            {req.status === 'PENDING' && (
-                                <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => setRequestToDelete(req)}
-                                >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete Request
+                                <DropdownMenuItem onClick={() => handleViewCsr(req)}>
+                                    <FileSignature className="mr-2 h-4 w-4" />
+                                    View CSR
                                 </DropdownMenuItem>
-                                </>
-                            )}
+                                <DropdownMenuItem onClick={() => handleDownloadCsr(req)}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Download CSR
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
+                                    <Layers className="mr-2 h-4 w-4" />
+                                    View Raw API Data
+                                </DropdownMenuItem>
+                                {req.status === 'PENDING' && (
+                                    <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => router.push(`/certificate-authorities/new/approve-request?requestId=${req.id}`)}>
+                                        <ShieldCheck className="mr-2 h-4 w-4" />
+                                        <span>Approve Request</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        className="text-destructive focus:text-destructive"
+                                        onClick={() => setRequestToDelete(req)}
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete Request
+                                    </DropdownMenuItem>
+                                    </>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                         </div>
@@ -561,5 +565,3 @@ export default function CaRequestsPage() {
     </div>
   );
 }
-
-    
