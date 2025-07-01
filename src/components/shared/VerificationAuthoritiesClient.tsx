@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ShieldCheck, Settings, PlusCircle, Loader2 } from "lucide-react";
+import { ShieldCheck, Settings, PlusCircle, Loader2, AlertTriangle as AlertTriangleIcon } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
@@ -18,6 +18,8 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { useToast } from '@/hooks/use-toast';
 import { VA_API_BASE_URL } from '@/lib/api-domains';
+import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
+import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 
 interface VAConfig {
   caId: string; 
@@ -53,8 +55,12 @@ export function VerificationAuthoritiesClient() { // Renamed component
   const [isLoadingEngines, setIsLoadingEngines] = useState(false);
   const [errorEngines, setErrorEngines] = useState<string | null>(null);
 
-
   const [selectedCertificateSignerDisplay, setSelectedCertificateSignerDisplay] = useState<CertificateData | null>(null);
+  
+  // New state for loading individual VA configs
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [errorConfig, setErrorConfig] = useState<string | null>(null);
+
 
   const loadData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -102,16 +108,81 @@ export function VerificationAuthoritiesClient() { // Renamed component
     }
   }, [loadData, authLoading]);
 
+  const fetchVaConfig = useCallback(async () => {
+    if (!selectedCaForConfig?.subjectKeyId || !isAuthenticated() || !user?.access_token) {
+        setConfig(null);
+        setSelectedCertificateSignerDisplay(null);
+        return;
+    }
+
+    setIsLoadingConfig(true);
+    setErrorConfig(null);
+    setSelectedCertificateSignerDisplay(null);
+
+    try {
+        const response = await fetch(`${VA_API_BASE_URL}/roles/${selectedCaForConfig.subjectKeyId}`, {
+             headers: { 'Authorization': `Bearer ${user.access_token}` },
+        });
+
+        if (response.status === 404) {
+            setConfig(getDefaultVAConfig(selectedCaForConfig.id));
+            return;
+        }
+
+        if (!response.ok) {
+             let errorJson;
+             let errorMessage = `Failed to fetch VA config. HTTP status ${response.status}`;
+             try {
+                errorJson = await response.json();
+                errorMessage = `Failed to fetch VA config: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+             } catch(e) {/* ignore */}
+             throw new Error(errorMessage);
+        }
+        
+        const data = await response.json();
+        
+        const newConfig: VAConfig = {
+            caId: selectedCaForConfig.id,
+            refreshInterval: data.crl_options.refresh_interval || '24h',
+            validity: data.crl_options.validity || '7d',
+            subjectKeyIDSigner: data.crl_options.subject_key_id_signer || null,
+            regenerateOnRevoke: data.crl_options.regenerate_on_revoke === true,
+        };
+        setConfig(newConfig);
+
+        if (newConfig.subjectKeyIDSigner) {
+            const signerSki = newConfig.subjectKeyIDSigner;
+            const { certificates } = await fetchIssuedCertificates({ 
+                accessToken: user.access_token, 
+                apiQueryString: `filter=subject_key_id[equal]${signerSki}&page_size=1` 
+            });
+            if (certificates.length > 0) {
+                setSelectedCertificateSignerDisplay(certificates[0]);
+            } else {
+                setSelectedCertificateSignerDisplay({
+                    id: signerSki,
+                    serialNumber: 'Unknown',
+                    subject: `Unknown Certificate (SKI: ${signerSki})`,
+                } as CertificateData);
+            }
+        }
+
+    } catch(e: any) {
+        setErrorConfig(e.message || "An unknown error occurred.");
+        setConfig(null);
+    } finally {
+        setIsLoadingConfig(false);
+    }
+  }, [selectedCaForConfig, isAuthenticated, user?.access_token]);
+
   useEffect(() => {
     if (selectedCaForConfig) {
-      console.log(`Fetching/loading VA config for CA: ${selectedCaForConfig.id}`);
-      setSelectedCertificateSignerDisplay(null); 
-      setConfig(getDefaultVAConfig(selectedCaForConfig.id));
+      fetchVaConfig();
     } else {
       setConfig(null);
       setSelectedCertificateSignerDisplay(null);
     }
-  }, [selectedCaForConfig]);
+  }, [selectedCaForConfig, fetchVaConfig]);
 
   const handleCaSelectedForConfiguration = (ca: CA) => {
     setSelectedCaForConfig(ca);
@@ -120,7 +191,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
 
   const handleCertificateSignerSelected = (certificate: CertificateData) => {
     if (config) {
-      setConfig({ ...config, subjectKeyIDSigner: certificate.serialNumber });
+      setConfig({ ...config, subjectKeyIDSigner: certificate.serialNumber }); // Storing SN, but API needs SKI
       setSelectedCertificateSignerDisplay(certificate);
     }
     setIsCertificateSignerModalOpen(false);
@@ -237,8 +308,23 @@ export function VerificationAuthoritiesClient() { // Renamed component
               <CaVisualizerCard ca={selectedCaForConfig} className="shadow-md border-primary max-w-md" allCryptoEngines={allCryptoEngines} />
             </div>
           )}
+          
+          {isLoadingConfig && selectedCaForConfig && (
+             <div className="flex items-center justify-center p-8 border rounded-lg bg-muted/30 mt-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-3 text-muted-foreground">Loading VA Configuration...</p>
+            </div>
+          )}
 
-          {config && selectedCaForConfig && (
+          {errorConfig && selectedCaForConfig && (
+            <Alert variant="destructive" className="mt-4">
+                <AlertTriangleIcon className="h-4 w-4" />
+                <AlertTitle>Error Loading Configuration</AlertTitle>
+                <AlertDescription>{errorConfig}</AlertDescription>
+            </Alert>
+          )}
+
+          {config && selectedCaForConfig && !isLoadingConfig && !errorConfig && (
             <Card className="border-primary/50 shadow-md mt-4"> 
               <CardHeader>
                 <CardTitle className="text-xl flex items-center">
@@ -285,7 +371,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
                         Selected: {selectedCertificateSignerDisplay.subject}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Serial: <span className="font-mono">{selectedCertificateSignerDisplay.serialNumber}</span>
+                        SN: <span className="font-mono">{selectedCertificateSignerDisplay.serialNumber}</span>
                       </p>
                     </div>
                   )}
