@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { fetchCryptoEngines } from '@/lib/ca-data';
 
 
 interface ApiKmsKey {
@@ -57,9 +58,9 @@ export default function KmsKeysPage() {
     setError(null);
     
     try {
-      const [keysResponse, enginesResponse] = await Promise.all([
+      const [keysResponse, enginesData] = await Promise.all([
         fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
-        fetch('https://lab.lamassu.io/api/ca/v1/engines', { headers: { 'Authorization': `Bearer ${user.access_token}` } })
+        fetchCryptoEngines(user.access_token)
       ]);
 
       if (!keysResponse.ok) {
@@ -71,18 +72,8 @@ export default function KmsKeysPage() {
         } catch(e) { /* ignore */}
         throw new Error(errorMessage);
       }
-      if (!enginesResponse.ok) {
-        let errorJson;
-        let errorMessage = `Failed to fetch crypto engines. HTTP error ${enginesResponse.status}`;
-        try {
-          errorJson = await enginesResponse.json();
-          errorMessage = `Failed to fetch crypto engines: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
-        } catch(e) { /* ignore */}
-        throw new Error(errorMessage);
-      }
       
       const keysData: ApiKmsKey[] = await keysResponse.json();
-      const enginesData: ApiCryptoEngine[] = await enginesResponse.json();
       setAllCryptoEngines(enginesData);
       
       const transformedKeys: KmsKey[] = keysData.map((apiKey) => {

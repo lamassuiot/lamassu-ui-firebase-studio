@@ -22,6 +22,7 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import * as asn1js from 'asn1js';
 import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
+import { fetchCryptoEngines } from '@/lib/ca-data';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -143,18 +144,16 @@ export default function KmsKeyDetailsClient() {
     setError(null);
 
     try {
-      const [keysResponse, enginesResponse] = await Promise.all([
+      const [keysResponse, allEnginesData] = await Promise.all([
         fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
-        fetch('https://lab.lamassu.io/api/ca/v1/engines', { headers: { 'Authorization': `Bearer ${user.access_token}` } })
+        fetchCryptoEngines(user.access_token)
       ]);
       
       if (!keysResponse.ok) throw new Error(`Failed to fetch keys. HTTP Status: ${keysResponse.status}`);
-      if (!enginesResponse.ok) throw new Error(`Failed to fetch engines. HTTP Status: ${enginesResponse.status}`);
       
-      const allKeys: ApiKmsKey[] = await keysResponse.json();
-      const allEnginesData: ApiCryptoEngine[] = await enginesResponse.json();
       setAllCryptoEngines(allEnginesData);
 
+      const allKeys: ApiKmsKey[] = await keysResponse.json();
       const apiKey = allKeys.find(k => k.id === keyId);
 
       if (apiKey) {
