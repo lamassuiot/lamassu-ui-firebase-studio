@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { DEV_MANAGER_API_BASE_URL } from '@/lib/api-domains';
 
 interface DeviceStats {
     total: number;
@@ -41,12 +41,12 @@ const renderLegend = (props: any) => {
     const { payload } = props;
   
     return (
-      <ul className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1 mt-4 text-primary-foreground">
+      <ul className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1 mt-4">
         {
           payload.map((entry: any, index: number) => (
             <li key={`item-${index}`} className="flex items-center space-x-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-xs">{entry.value}</span>
+              <span className="text-xs text-primary-foreground">{entry.value}</span>
             </li>
           ))
         }
@@ -73,7 +73,7 @@ export function DeviceStatusChartCard() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('https://lab.lamassu.io/api/devmanager/v1/stats', {
+        const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/stats`, {
           headers: { 'Authorization': `Bearer ${user.access_token}` },
         });
         if (!response.ok) {

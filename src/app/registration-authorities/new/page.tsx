@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -27,6 +26,7 @@ import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/share
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 import { DurationInput } from '@/components/shared/DurationInput';
+import { DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
 
 // --- API and Form Types ---
 interface ApiRaOidcAuth {
@@ -205,7 +205,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
     setIsLoadingRA(true);
     setErrorRA(null);
     try {
-        const response = await fetch(`https://lab.lamassu.io/api/dmsmanager/v1/dms/${raIdFromQuery}`, {
+        const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms/${raIdFromQuery}`, {
             headers: { 'Authorization': `Bearer ${user.access_token}` },
         });
         if (!response.ok) {
@@ -426,8 +426,8 @@ export default function CreateOrEditRegistrationAuthorityPage() {
     };
     
     const url = isEditMode
-        ? `https://lab.lamassu.io/api/dmsmanager/v1/dms/${raIdFromQuery}`
-        : 'https://lab.lamassu.io/api/dmsmanager/v1/dms';
+        ? `${DMS_MANAGER_API_BASE_URL}/dms/${raIdFromQuery}`
+        : `${DMS_MANAGER_API_BASE_URL}/dms`;
     const method = isEditMode ? 'PUT' : 'POST';
 
     try {

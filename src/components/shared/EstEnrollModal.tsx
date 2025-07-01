@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -17,6 +16,7 @@ import { DurationInput } from './DurationInput';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Alert } from '../ui/alert';
 import { CodeBlock } from './CodeBlock';
+import { EST_API_BASE_URL } from '@/lib/api-domains';
 
 // Re-defining RA type here to avoid complex imports, but ideally this would be shared
 interface ApiRaItem {
@@ -155,7 +155,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                             `  --key-type PEM --key device.key \\ \n`+
                             `  -H "Content-Type: application/pkcs10" \\ \n`+
                             `  --data-binary @device.csr \\ \n`+
-                            `  "https://lab.lamassu.io/api/dmsmanager/.well-known/est/${ra?.id}/simpleenroll"`;
+                            `  "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`;
             setEnrollCommand(command);
             setStep(5);
         }

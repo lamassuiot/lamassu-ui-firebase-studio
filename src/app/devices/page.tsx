@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -17,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
+import { DEV_MANAGER_API_BASE_URL } from '@/lib/api-domains';
 
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION' | 'DECOMMISSIONED';
 
@@ -178,7 +178,7 @@ export default function DevicesPage() {
     setIsLoadingApi(true);
     setApiError(null);
     try {
-      const baseUrl = 'https://lab.lamassu.io/api/devmanager/v1/devices';
+      const baseUrl = `${DEV_MANAGER_API_BASE_URL}/devices`;
       const params = new URLSearchParams({
         sort_by: 'creation_timestamp',
         sort_mode: 'desc',

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -15,6 +14,7 @@ import { TagInput } from '@/components/shared/TagInput';
 import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { Separator } from '../ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
 
 // Re-defining RA types here to avoid complex imports, but ideally these would be shared
 interface ApiRaDeviceProfile {
@@ -97,7 +97,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
     setIsLoadingRas(true);
     setErrorRas(null);
     try {
-      const response = await fetch('https://lab.lamassu.io/api/dmsmanager/v1/dms?page_size=100', {
+      const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms?page_size=100`, {
         headers: { 'Authorization': `Bearer ${user.access_token}` },
       });
       if (!response.ok) {
@@ -157,7 +157,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
         metadata: {},
       };
 
-      const response = await fetch('https://lab.lamassu.io/api/devmanager/v1/devices', {
+      const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

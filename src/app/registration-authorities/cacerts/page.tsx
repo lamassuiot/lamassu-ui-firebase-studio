@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -12,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
 import { CodeBlock } from '@/components/shared/CodeBlock';
+import { EST_API_BASE_URL } from '@/lib/api-domains';
 
 import * as asn1js from "asn1js";
 import { Certificate as PkijsCertificate, getCrypto, setEngine } from "pkijs";
@@ -96,7 +96,7 @@ export default function EstCaCertsPage() {
         setError(null);
         
         try {
-            const baseUrl = `https://lab.lamassu.io/api/dmsmanager/.well-known/est/${raId}/cacerts`;
+            const baseUrl = `${EST_API_BASE_URL}/${raId}/cacerts`;
 
             // Fetch PKCS7
             const pkcs7Response = await fetch(baseUrl, {
@@ -136,8 +136,8 @@ export default function EstCaCertsPage() {
         fetchData();
     }, [fetchData]);
 
-    const curlPkcs7 = `curl https://lab.lamassu.io/api/dmsmanager/.well-known/est/${raId}/cacerts \\ \n  -H "Accept: application/pkcs7-mime"`;
-    const curlPem = `curl https://lab.lamassu.io/api/dmsmanager/.well-known/est/${raId}/cacerts \\ \n  -H "Accept: application/x-pem-file"`;
+    const curlPkcs7 = `curl ${EST_API_BASE_URL}/${raId}/cacerts \\ \n  -H "Accept: application/pkcs7-mime"`;
+    const curlPem = `curl ${EST_API_BASE_URL}/${raId}/cacerts \\ \n  -H "Accept: application/x-pem-file"`;
 
     if (isLoading || authLoading) {
         return (

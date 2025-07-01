@@ -1,7 +1,7 @@
-
 import type { CertificateData } from '@/types/certificate';
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess } from "pkijs";
+import { CA_API_BASE_URL } from './api-domains';
 
 
 // API Response Structures for Issued Certificates
@@ -247,12 +247,9 @@ export async function fetchIssuedCertificates(
 ): Promise<{ certificates: CertificateData[]; nextToken: string | null }> {
   const { accessToken, apiQueryString, forCaId } = params;
   
-  let baseUrl = 'https://lab.lamassu.io/api/ca/v1/';
-  if (forCaId) {
-    baseUrl += `cas/${forCaId}/certificates`;
-  } else {
-    baseUrl += 'certificates';
-  }
+  const baseUrl = forCaId
+    ? `${CA_API_BASE_URL}/cas/${forCaId}/certificates`
+    : `${CA_API_BASE_URL}/certificates`;
   
   const finalQueryString = apiQueryString || 'sort_by=valid_from&sort_mode=desc&page_size=10';
 
@@ -314,7 +311,7 @@ export async function updateCertificateStatus({
     body.revocation_reason = reason;
   }
   
-  const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${serialNumber}/status`, {
+  const response = await fetch(`${CA_API_BASE_URL}/certificates/${serialNumber}/status`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -336,7 +333,7 @@ export async function updateCertificateStatus({
 }
 
 export async function updateCertificateMetadata(serialNumber: string, metadata: object, accessToken: string): Promise<void> {
-  const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${serialNumber}/metadata`, {
+  const response = await fetch(`${CA_API_BASE_URL}/certificates/${serialNumber}/metadata`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

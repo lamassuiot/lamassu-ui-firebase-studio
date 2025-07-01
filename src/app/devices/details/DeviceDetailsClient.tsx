@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -25,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
 import { DecommissionDeviceModal } from '@/components/shared/DecommissionDeviceModal';
+import { DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
 
 
 interface ApiDeviceIdentity {
@@ -145,7 +145,7 @@ export default function DeviceDetailsClient() {
       setIsLoadingDevice(true);
       setErrorDevice(null);
       try {
-        const response = await fetch(`https://lab.lamassu.io/api/devmanager/v1/devices/${deviceId}`, {
+        const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices/${deviceId}`, {
           headers: { 'Authorization': `Bearer ${user.access_token}` },
         });
         if (!response.ok) {
@@ -472,7 +472,7 @@ export default function DeviceDetailsClient() {
     }
     setIsAssigning(true);
     try {
-        const response = await fetch('https://lab.lamassu.io/api/dmsmanager/v1/dms/bind-identity', {
+        const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms/bind-identity`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -523,7 +523,7 @@ export default function DeviceDetailsClient() {
     }
     setIsDecommissioning(true);
     try {
-        const response = await fetch(`https://lab.lamassu.io/api/devmanager/v1/devices/${deviceId}/decommission`, {
+        const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices/${deviceId}/decommission`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${user.access_token}`

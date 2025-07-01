@@ -1,10 +1,8 @@
-
 // Define the CA data structure
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-
-const caApiBaseUrl = 'https://lab.lamassu.io/api/ca/v1/';
+import { CA_API_BASE_URL } from "./api-domains";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -346,7 +344,7 @@ function buildCaHierarchy(flatCaList: Omit<CA, 'children'>[]): CA[] {
 
 // Function to fetch, transform, and build hierarchy
 export async function fetchAndProcessCAs(accessToken: string, apiQueryString?: string): Promise<CA[]> {
-  const url = apiQueryString ? `${caApiBaseUrl}cas?${apiQueryString}` : `${caApiBaseUrl}cas`;
+  const url = apiQueryString ? `${CA_API_BASE_URL}/cas?${apiQueryString}` : `${CA_API_BASE_URL}/cas`;
 
   const response = await fetch(url, {
     headers: {
@@ -418,7 +416,7 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
 }
 
 export async function fetchCryptoEngines(accessToken: string): Promise<ApiCryptoEngine[]> {
-    const response = await fetch(`${caApiBaseUrl}engines`, {
+    const response = await fetch(`${CA_API_BASE_URL}/engines`, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     if (!response.ok) {
@@ -463,7 +461,7 @@ export interface CreateCaPayload {
 }
 
 export async function createCa(payload: CreateCaPayload, accessToken: string): Promise<void> {
-  const response = await fetch(`${caApiBaseUrl}cas`, {
+  const response = await fetch(`${CA_API_BASE_URL}/cas`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -506,7 +504,7 @@ export interface CreateCaRequestPayload {
 }
 
 export async function createCaRequest(payload: CreateCaRequestPayload, accessToken: string): Promise<void> {
-  const response = await fetch(`${caApiBaseUrl}cas/requests`, {
+  const response = await fetch(`${CA_API_BASE_URL}/cas/requests`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -542,7 +540,7 @@ export interface ImportCaPayload {
 }
 
 export async function importCa(payload: ImportCaPayload, accessToken: string): Promise<void> {
-  const response = await fetch(`${caApiBaseUrl}cas/import`, {
+  const response = await fetch(`${CA_API_BASE_URL}/cas/import`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -565,7 +563,7 @@ export async function importCa(payload: ImportCaPayload, accessToken: string): P
 }
 
 export async function updateCaMetadata(caId: string, metadata: object, accessToken: string): Promise<void> {
-  const response = await fetch(`${caApiBaseUrl}cas/${caId}/metadata`, {
+  const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/metadata`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -34,6 +33,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
 
 // Define types based on the provided API response
 interface ApiRaDeviceProfile {
@@ -96,7 +96,7 @@ export default function RegistrationAuthoritiesPage() {
     setError(null);
     try {
       const [raResponse, casData, enginesData] = await Promise.all([
-        fetch('https://lab.lamassu.io/api/dmsmanager/v1/dms?page_size=15', {
+        fetch(`${DMS_MANAGER_API_BASE_URL}/dms?page_size=15`, {
           headers: { 'Authorization': `Bearer ${user.access_token}` },
         }),
         fetchAndProcessCAs(user.access_token),
