@@ -10,6 +10,8 @@ import { fetchLatestAlerts, type ApiAlertEvent, fetchSystemSubscriptions, unsubs
 import { AlertsTable } from '@/components/alerts/AlertsTable';
 import { useToast } from '@/hooks/use-toast';
 import { SubscribeToAlertModal } from '@/components/alerts/SubscribeToAlertModal';
+import { SubscriptionDetailsModal } from '@/components/alerts/SubscriptionDetailsModal';
+
 
 // This is the structure the UI component expects.
 export interface AlertEvent {
@@ -24,6 +26,7 @@ export interface AlertEvent {
 export default function AlertsPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [events, setEvents] = useState<AlertEvent[]>([]);
+  const [allSubscriptions, setAllSubscriptions] = useState<ApiSubscription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -33,32 +36,36 @@ export default function AlertsPage() {
   const [eventTypeToSubscribe, setEventTypeToSubscribe] = useState<string | null>(null);
   const [samplePayloadToSubscribe, setSamplePayloadToSubscribe] = useState<object | null>(null);
 
-  const handleUnsubscribe = async (subscriptionId: string, eventType: string) => {
+  // New state for details modal
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<ApiSubscription | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+
+  const performUnsubscribe = async (subscriptionId: string) => {
     if (!user?.access_token) {
         toast({ title: 'Authentication Error', description: 'You must be logged in to unsubscribe.', variant: 'destructive' });
         return;
     }
+    
+    setIsDeleting(true);
 
     try {
         await unsubscribeFromAlert(subscriptionId, user.access_token);
         
-        // Optimistically update the UI before refetching
-        setEvents(currentEvents => {
-            return currentEvents.map(event => {
-                if (event.type === eventType) {
-                    return {
-                        ...event,
-                        activeSubscriptions: event.activeSubscriptions.filter(sub => sub.id !== subscriptionId)
-                    };
-                }
-                return event;
-            });
-        });
-
         toast({ title: 'Success', description: 'You have been unsubscribed from the alert.' });
+        
+        // Close modal if open
+        if (isDetailsModalOpen) {
+            setIsDetailsModalOpen(false);
+            setSelectedSubscription(null);
+        }
+        
         loadAlertsData(); // Re-sync with the server
     } catch (e: any) {
         toast({ title: 'Unsubscribe Failed', description: e.message, variant: 'destructive' });
+    } finally {
+        setIsDeleting(false);
     }
   };
   
@@ -76,6 +83,16 @@ export default function AlertsPage() {
     loadAlertsData(); // Refresh data to show new subscription
   }
 
+  const handleViewSubscriptionDetails = (subscriptionId: string) => {
+    const sub = allSubscriptions.find(s => s.id === subscriptionId);
+    if (sub) {
+      setSelectedSubscription(sub);
+      setIsDetailsModalOpen(true);
+    } else {
+      toast({ title: 'Error', description: 'Could not find subscription details.', variant: 'destructive'});
+    }
+  };
+
 
   const loadAlertsData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -91,6 +108,8 @@ export default function AlertsPage() {
         fetchLatestAlerts(user.access_token),
         fetchSystemSubscriptions(user.access_token),
       ]);
+      
+      setAllSubscriptions(apiSubscriptions);
 
       const subscriptionsMap = new Map<string, { id: string, display: string }[]>();
       for (const sub of apiSubscriptions) {
@@ -179,7 +198,11 @@ export default function AlertsPage() {
           </AlertDescription>
         </Alert>
       ) : events.length > 0 ? (
-        <AlertsTable events={events} onUnsubscribe={handleUnsubscribe} onSubscribe={handleOpenSubscribeModal} />
+        <AlertsTable 
+            events={events} 
+            onSubscriptionClick={handleViewSubscriptionDetails} 
+            onSubscribe={handleOpenSubscribeModal} 
+        />
       ) : (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">No Events Found</h3>
@@ -195,6 +218,13 @@ export default function AlertsPage() {
       eventType={eventTypeToSubscribe}
       samplePayload={samplePayloadToSubscribe}
       onSuccess={handleSubscriptionSuccess}
+    />
+    <SubscriptionDetailsModal
+        isOpen={isDetailsModalOpen}
+        onOpenChange={setIsDetailsModalOpen}
+        subscription={selectedSubscription}
+        onDelete={performUnsubscribe}
+        isDeleting={isDeleting}
     />
     </>
   );

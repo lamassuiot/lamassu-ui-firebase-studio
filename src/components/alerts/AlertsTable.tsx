@@ -9,21 +9,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import type { AlertEvent } from '@/app/alerts/page';
-import { Layers, ChevronDown, X } from 'lucide-react';
+import { Layers, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
 
 interface AlertsTableProps {
   events: AlertEvent[];
-  onUnsubscribe: (subscriptionId: string, eventType: string) => void;
+  onSubscriptionClick: (subscriptionId: string) => void;
   onSubscribe: (event: AlertEvent) => void;
 }
 
-export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe, onSubscribe }) => {
+export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onSubscriptionClick, onSubscribe }) => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const handleSubscribeClick = (e: React.MouseEvent, event: AlertEvent) => {
@@ -74,19 +74,17 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe,
                   {event.activeSubscriptions.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {event.activeSubscriptions.map((sub) => (
-                        <Badge key={sub.id} variant="secondary" className="font-normal pr-1.5" title={sub.display}>
-                          <span className="truncate max-w-[120px]">{sub.display}</span>
-                          <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onUnsubscribe(sub.id, event.type);
-                            }}
-                            className="ml-1.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                            aria-label={`Unsubscribe from ${sub.display}`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
+                        <button
+                          key={sub.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSubscriptionClick(sub.id);
+                          }}
+                          className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'h-auto px-2 py-0.5 font-normal')}
+                          title={`View details for ${sub.display}`}
+                        >
+                          <span className="truncate max-w-[150px]">{sub.display}</span>
+                        </button>
                       ))}
                     </div>
                   ) : (
