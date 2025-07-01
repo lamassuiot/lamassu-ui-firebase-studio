@@ -36,6 +36,24 @@ const statusConfig: { [key: string]: { label: string; color: string } } = {
   EXPIRED: { label: 'Expired', color: '#8b5cf6' },
 };
 
+// Custom Legend Component
+const renderLegend = (props: any) => {
+    const { payload } = props;
+  
+    return (
+      <ul className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1 mt-4 text-primary-foreground">
+        {
+          payload.map((entry: any, index: number) => (
+            <li key={`item-${index}`} className="flex items-center space-x-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="text-xs">{entry.value}</span>
+            </li>
+          ))
+        }
+      </ul>
+    );
+};
+
 
 export function DeviceStatusChartCard() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -171,15 +189,7 @@ export function DeviceStatusChartCard() {
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  verticalAlign="bottom"
-                  wrapperStyle={{ paddingTop: '20px', color: 'hsl(var(--primary-foreground))' }}
-                  formatter={(value) => (
-                    <span style={{ color: 'hsl(var(--primary-foreground))' }} className="text-xs">
-                      {value}
-                    </span>
-                  )}
-                />
+                <Legend content={renderLegend} verticalAlign="bottom" />
               </PieChart>
             </ResponsiveContainer>
             {totalDevices !== null && (
