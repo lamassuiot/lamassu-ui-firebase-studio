@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ShieldCheck, Settings, PlusCircle, Loader2, AlertTriangle as AlertTriangleIcon, FileText } from "lucide-react";
+import { ShieldCheck, Settings, PlusCircle, Loader2, AlertTriangle as AlertTriangleIcon, FileText, Download } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
@@ -45,6 +45,19 @@ const getDefaultVAConfig = (caId: string): VAConfig => ({
   regenerateOnRevoke: true,
 });
 
+const downloadFile = (data: ArrayBuffer, filename: string, mimeType: string) => {
+    const blob = new Blob([data], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
+
 export function VerificationAuthoritiesClient() { // Renamed component
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -69,6 +82,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [errorConfig, setErrorConfig] = useState<string | null>(null);
   const [latestCrl, setLatestCrl] = useState<LatestCrlInfo | null>(null);
+  const [isDownloadingCrl, setIsDownloadingCrl] = useState(false);
 
 
   const loadData = useCallback(async () => {
@@ -279,6 +293,32 @@ export function VerificationAuthoritiesClient() { // Renamed component
         setIsSubmitting(false);
     }
   };
+
+   const handleDownloadCrl = async () => {
+    if (!selectedCaForConfig?.subjectKeyId || !user?.access_token) {
+        toast({ title: "Download Error", description: "Cannot download CRL. Missing CA info or authentication.", variant: "destructive" });
+        return;
+    }
+    setIsDownloadingCrl(true);
+    try {
+        const response = await fetch(`${VA_API_BASE_URL}/roles/${selectedCaForConfig.subjectKeyId}/crl`, {
+             headers: { 
+                 'Authorization': `Bearer ${user.access_token}`,
+                 'Accept': 'application/pkix-crl',
+             },
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to download CRL. Server responded with status ${response.status}`);
+        }
+        const crlData = await response.arrayBuffer();
+        downloadFile(crlData, `${selectedCaForConfig.subjectKeyId}.crl`, 'application/pkix-crl');
+        toast({ title: "Success", description: "CRL download has started." });
+    } catch (e: any) {
+        toast({ title: "Download Failed", description: e.message, variant: "destructive" });
+    } finally {
+        setIsDownloadingCrl(false);
+    }
+  };
   
   return (
     <div className="space-y-6 w-full">
@@ -397,9 +437,17 @@ export function VerificationAuthoritiesClient() { // Renamed component
                 </div>
 
                 <div>
-                    <h4 className="text-md font-medium text-muted-foreground mb-2 flex items-center">
-                        <FileText className="mr-2 h-5 w-5" />
-                        Latest Generated CRL
+                    <h4 className="text-md font-medium text-muted-foreground mb-2 flex items-center justify-between">
+                        <span className="flex items-center">
+                            <FileText className="mr-2 h-5 w-5" />
+                            Latest Generated CRL
+                        </span>
+                        {latestCrl && (
+                            <Button variant="outline" size="sm" onClick={handleDownloadCrl} disabled={isDownloadingCrl}>
+                                {isDownloadingCrl ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4"/>}
+                                Download CRL
+                            </Button>
+                        )}
                     </h4>
                     {latestCrl ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 pl-2 border rounded-md p-3 bg-muted/20">
