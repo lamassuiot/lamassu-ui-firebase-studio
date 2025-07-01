@@ -356,16 +356,16 @@ export default function CaRequestsPage() {
                         <span className="font-medium">{req.key_metadata.type} {req.key_metadata.bits}-bit</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <Fingerprint className="h-4 w-4 text-muted-foreground" title="Fingerprint (SHA256)" />
-                        <span className="font-mono text-xs" title={req.fingerprint}>{req.fingerprint.substring(0, 16)}...</span>
-                    </div>
-                    <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Engine</span>
                         <Badge variant="outline">{req.engine_id}</Badge>
                     </div>
                 </CardContent>
-                <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground">
+                <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground flex justify-between items-center">
                     <span>Created: {format(parseISO(req.creation_ts), 'MMM dd, yyyy HH:mm')}</span>
+                    <div className="flex items-center gap-1.5" title={req.fingerprint}>
+                        <Fingerprint className="h-4 w-4 text-muted-foreground"/>
+                        <span className="font-mono">{req.fingerprint.substring(0, 12)}...</span>
+                    </div>
                 </CardFooter>
             </Card>
         ))}
