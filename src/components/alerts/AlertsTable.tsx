@@ -20,14 +20,15 @@ import { cn } from '@/lib/utils';
 interface AlertsTableProps {
   events: AlertEvent[];
   onUnsubscribe: (subscriptionId: string, eventType: string) => void;
+  onSubscribe: (eventType: string) => void;
 }
 
-export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe }) => {
+export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe, onSubscribe }) => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const handleSubscribeClick = (e: React.MouseEvent, eventType: string) => {
     e.stopPropagation();
-    alert(`Subscribing to ${eventType}`);
+    onSubscribe(eventType);
   };
 
   const toggleRow = (id: string) => {
@@ -73,8 +74,8 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe 
                   {event.activeSubscriptions.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {event.activeSubscriptions.map((sub) => (
-                        <Badge key={sub.id} variant="secondary" className="font-normal pr-1.5">
-                          {sub.display}
+                        <Badge key={sub.id} variant="secondary" className="font-normal pr-1.5" title={sub.display}>
+                          <span className="truncate max-w-[120px]">{sub.display}</span>
                           <button
                             onClick={(e) => {
                                 e.stopPropagation();

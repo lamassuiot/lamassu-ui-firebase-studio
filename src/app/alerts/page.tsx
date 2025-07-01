@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchLatestAlerts, type ApiAlertEvent, fetchSystemSubscriptions, unsubscribeFromAlert } from '@/lib/alerts-api';
 import { AlertsTable } from '@/components/alerts/AlertsTable';
 import { useToast } from '@/hooks/use-toast';
+import { SubscribeToAlertModal } from '@/components/alerts/SubscribeToAlertModal';
 
 // This is the structure the UI component expects.
 export interface AlertEvent {
@@ -27,6 +28,10 @@ export default function AlertsPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // State for the new subscription modal
+  const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
+  const [eventTypeToSubscribe, setEventTypeToSubscribe] = useState<string | null>(null);
+
   const handleUnsubscribe = async (subscriptionId: string, eventType: string) => {
     if (!user?.access_token) {
         toast({ title: 'Authentication Error', description: 'You must be logged in to unsubscribe.', variant: 'destructive' });
@@ -36,7 +41,7 @@ export default function AlertsPage() {
     try {
         await unsubscribeFromAlert(subscriptionId, user.access_token);
         
-        // Optimistically update the UI
+        // Optimistically update the UI before refetching
         setEvents(currentEvents => {
             return currentEvents.map(event => {
                 if (event.type === eventType) {
@@ -50,10 +55,23 @@ export default function AlertsPage() {
         });
 
         toast({ title: 'Success', description: 'You have been unsubscribed from the alert.' });
+        loadAlertsData(); // Re-sync with the server
     } catch (e: any) {
         toast({ title: 'Unsubscribe Failed', description: e.message, variant: 'destructive' });
     }
   };
+  
+  const handleOpenSubscribeModal = (eventType: string) => {
+    setEventTypeToSubscribe(eventType);
+    setIsSubscribeModalOpen(true);
+  };
+  
+  const handleSubscriptionSuccess = () => {
+    setIsSubscribeModalOpen(false);
+    setEventTypeToSubscribe(null);
+    toast({ title: "Success!", description: "You have been subscribed to the event." });
+    loadAlertsData(); // Refresh data to show new subscription
+  }
 
 
   const loadAlertsData = useCallback(async () => {
@@ -76,9 +94,17 @@ export default function AlertsPage() {
         if (!subscriptionsMap.has(sub.event_type)) {
           subscriptionsMap.set(sub.event_type, []);
         }
+        
+        let displayValue = sub.channel.type;
+        if(sub.channel.type === 'EMAIL' && sub.channel.config.email) {
+            displayValue = `${sub.channel.type}: ${sub.channel.config.email}`;
+        } else if (sub.channel.config.url) {
+             displayValue = `${sub.channel.type}: ${new URL(sub.channel.config.url).hostname}`;
+        }
+        
         const subscriptionDisplay = {
             id: sub.id,
-            display: `${sub.channel.type}: ${sub.channel.config.email}`,
+            display: displayValue,
         };
         subscriptionsMap.get(sub.event_type)?.push(subscriptionDisplay);
       }
@@ -116,6 +142,7 @@ export default function AlertsPage() {
   }
 
   return (
+    <>
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -147,7 +174,7 @@ export default function AlertsPage() {
           </AlertDescription>
         </Alert>
       ) : events.length > 0 ? (
-        <AlertsTable events={events} onUnsubscribe={handleUnsubscribe} />
+        <AlertsTable events={events} onUnsubscribe={handleUnsubscribe} onSubscribe={handleOpenSubscribeModal} />
       ) : (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">No Events Found</h3>
@@ -157,5 +184,12 @@ export default function AlertsPage() {
         </div>
       )}
     </div>
+    <SubscribeToAlertModal
+      isOpen={isSubscribeModalOpen}
+      onOpenChange={setIsSubscribeModalOpen}
+      eventType={eventTypeToSubscribe}
+      onSuccess={handleSubscriptionSuccess}
+    />
+    </>
   );
 }

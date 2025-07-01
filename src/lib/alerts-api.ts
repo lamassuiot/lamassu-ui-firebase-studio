@@ -29,10 +29,27 @@ export interface ApiSubscription {
         condition: string;
     }[];
     channel: {
-        type: 'EMAIL'; // Assuming only EMAIL for now
+        type: 'EMAIL' | 'WEBHOOK' | 'TEAMS_WEBHOOK'; // Expanded types
         name: string;
         config: {
-            email: string;
+            email?: string;
+            url?: string;
+        };
+    };
+}
+
+export interface SubscriptionPayload {
+    event_type: string;
+    conditions: {
+        type: string;
+        condition: string;
+    }[];
+    channel: {
+        type: 'EMAIL' | 'WEBHOOK' | 'TEAMS_WEBHOOK';
+        name: string;
+        config: {
+            email?: string;
+            url?: string;
         };
     };
 }
@@ -86,6 +103,27 @@ export async function fetchSystemSubscriptions(accessToken: string): Promise<Api
 
   const data: ApiSubscription[] = await response.json();
   return data;
+}
+
+export async function subscribeToAlert(payload: SubscriptionPayload, accessToken: string): Promise<void> {
+  const response = await fetch(`https://lab.lamassu.io/api/alerts/v1/user/_lms_system/subscriptions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to subscribe. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Subscription failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) { /* ignore json parse error */ }
+    throw new Error(errorMessage);
+  }
 }
 
 export async function unsubscribeFromAlert(subscriptionId: string, accessToken: string): Promise<void> {
