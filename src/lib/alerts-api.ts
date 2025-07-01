@@ -110,7 +110,7 @@ export async function fetchSystemSubscriptions(accessToken: string): Promise<Api
 }
 
 export async function subscribeToAlert(payload: SubscriptionPayload, accessToken: string): Promise<void> {
-  const response = await fetch(`https://lab.lamassu.io/api/alerts/v1/user/_lms_system/subscriptions`, {
+  const response = await fetch(`https://lab.lamassu.io/api/alerts/v1/user/_lms_system/subscribe`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
