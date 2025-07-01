@@ -28,7 +28,7 @@ import { TagInput } from '@/components/shared/TagInput';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
-import { CA_API_BASE_URL } from '@/lib/api-domains';
+import { signCertificate } from '@/lib/ca-data';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -307,16 +307,7 @@ export default function IssueCertificateFormClient() {
         }
       };
     
-      const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/certificates/sign`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.access_token}` },
-          body: JSON.stringify(payload)
-      });
-      const result = await response.json();
-      if (!response.ok) {
-          throw new Error(result.err || `Failed to issue certificate. Status: ${response.status}`);
-      }
-
+      const result = await signCertificate(caId!, payload, user!.access_token!);
       const issuedPem = result.certificate ? window.atob(result.certificate) : 'Error: Certificate not found in response.';
       setIssuedCertificate({ pem: issuedPem, serial: result.serial_number });
       setStep(3);
@@ -357,16 +348,7 @@ export default function IssueCertificateFormClient() {
     };
     
     try {
-        const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/certificates/sign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.access_token}` },
-            body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.err || `Failed to issue certificate. Status: ${response.status}`);
-        }
-
+        const result = await signCertificate(caId!, payload, user!.access_token!);
         const issuedPem = result.certificate ? window.atob(result.certificate) : 'Error: Certificate not found in response.';
         setIssuedCertificate({ pem: issuedPem, serial: result.serial_number });
         setStep(3);

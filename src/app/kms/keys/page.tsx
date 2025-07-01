@@ -16,8 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { fetchCryptoEngines } from '@/lib/ca-data';
-import { CA_API_BASE_URL } from '@/lib/api-domains';
+import { fetchCryptoEngines, fetchKmsKeys } from '@/lib/ca-data';
 
 
 interface ApiKmsKey {
@@ -60,22 +59,11 @@ export default function KmsKeysPage() {
     setError(null);
     
     try {
-      const [keysResponse, enginesData] = await Promise.all([
-        fetch(`${CA_API_BASE_URL}/kms/keys`, { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+      const [keysData, enginesData] = await Promise.all([
+        fetchKmsKeys(user.access_token),
         fetchCryptoEngines(user.access_token)
       ]);
-
-      if (!keysResponse.ok) {
-        let errorJson;
-        let errorMessage = `Failed to fetch KMS keys. HTTP error ${keysResponse.status}`;
-        try {
-          errorJson = await keysResponse.json();
-          errorMessage = `Failed to fetch keys: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
-        } catch(e) { /* ignore */}
-        throw new Error(errorMessage);
-      }
       
-      const keysData: ApiKmsKey[] = await keysResponse.json();
       setAllCryptoEngines(enginesData);
       
       const transformedKeys: KmsKey[] = keysData.map((apiKey) => {
