@@ -41,11 +41,6 @@ export default function CreateKmsKeyPage() {
   const { user } = useAuth();
   const [selectedMode, setSelectedMode] = useState<string | null>(null);
 
-  // Common fields
-  const [keyAlias, setKeyAlias] = useState('');
-  const [description, setDescription] = useState('');
-  const [tags, setTags] = useState(''); // Comma-separated
-
   // New Key Pair mode fields
   const [keyType, setKeyType] = useState('RSA');
   const [rsaKeySize, setRsaKeySize] = useState('2048');
@@ -60,12 +55,7 @@ export default function CreateKmsKeyPage() {
   // Import Public Key mode fields
   const [publicKeyPem, setPublicKeyPem] = useState('');
   
-  const [keyId, setKeyId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    setKeyId(`key-${crypto.randomUUID()}`);
-  }, [selectedMode]);
 
   const handleKeyTypeChange = (value: string) => {
     setKeyType(value);
@@ -107,10 +97,7 @@ export default function CreateKmsKeyPage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!keyAlias.trim()) {
-        toast({ title: "Validation Error", description: "Key Alias cannot be empty.", variant: "destructive"});
-        return;
-    }
+
     if (!user?.access_token) {
         toast({ title: "Authentication Error", description: "You must be logged in to create a key.", variant: "destructive" });
         return;
@@ -171,10 +158,10 @@ export default function CreateKmsKeyPage() {
         setIsSubmitting(false);
         return;
       }
-      console.log(`Mock Creating KMS Key (Mode: ${selectedMode}) with data:`, { keyAlias });
+      console.log(`Mock Creating KMS Key (Mode: ${selectedMode})`);
       toast({
         title: "KMS Key Import Mocked",
-        description: `Key import for "${keyAlias}" submitted. Check console.`,
+        description: `Key import submitted. Check console.`,
       });
       router.push('/kms/keys');
       setIsSubmitting(false);
@@ -185,10 +172,10 @@ export default function CreateKmsKeyPage() {
         setIsSubmitting(false);
         return;
       }
-      console.log(`Mock Creating KMS Key (Mode: ${selectedMode}) with data:`, { keyAlias });
+      console.log(`Mock Creating KMS Key (Mode: ${selectedMode})`);
       toast({
         title: "KMS Key Import Mocked",
-        description: `Public key import for "${keyAlias}" submitted. Check console.`,
+        description: `Public key import submitted. Check console.`,
       });
       router.push('/kms/keys');
       setIsSubmitting(false);
@@ -262,48 +249,6 @@ export default function CreateKmsKeyPage() {
         </div>
         <div className="p-6 pt-0">
           <form onSubmit={handleSubmit} className="space-y-8">
-            <section>
-              <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />Key Configuration</h3>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="keyId">Key ID (generated)</Label>
-                  <Input id="keyId" value={keyId} readOnly className="mt-1 bg-muted/50" />
-                </div>
-                <div>
-                  <Label htmlFor="keyAlias">Key Alias / Name</Label>
-                  <Input
-                    id="keyAlias"
-                    value={keyAlias}
-                    onChange={(e) => setKeyAlias(e.target.value)}
-                    placeholder="e.g., lamassu/prod/primary-signing-key"
-                    required
-                    className="mt-1"
-                  />
-                  {!keyAlias.trim() && <p className="text-xs text-destructive mt-1">Key Alias cannot be empty.</p>}
-                </div>
-                <div>
-                  <Label htmlFor="description">Description (Optional)</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Briefly describe the purpose or use of this key."
-                    rows={3}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="tags"><Tag className="inline mr-1 h-4 w-4 text-muted-foreground"/>Tags (Optional, comma-separated)</Label>
-                  <Input
-                    id="tags"
-                    value={tags}
-                    onChange={(e) => setTags(e.target.value)}
-                    placeholder="e.g., signing, production, EU_region"
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            </section>
             
             {selectedMode === 'newKeyPair' && (
               <section>
