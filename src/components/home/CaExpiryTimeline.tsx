@@ -43,7 +43,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     }
   };
   
-  const handleZoom = (range: '3m' | '1y' | '5y') => {
+  const handleZoom = (range: '3m' | '1y' | '5y' | '10y' | '25y' | '50y') => {
     if (!timelineInstance.current) return;
 
     const now = new Date();
@@ -59,8 +59,20 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         end = addMonths(now, 6);
         break;
       case '5y':
-        start = subMonths(now, 30); // 2.5 years is 30 months
+        start = subMonths(now, 30); // 2.5 years
         end = addMonths(now, 30);
+        break;
+      case '10y':
+        start = subMonths(now, 60); // 5 years
+        end = addMonths(now, 60);
+        break;
+      case '25y':
+        start = subMonths(now, 150); // 12.5 years
+        end = addMonths(now, 150);
+        break;
+      case '50y':
+        start = subMonths(now, 300); // 25 years
+        end = addMonths(now, 300);
         break;
     }
     
@@ -139,7 +151,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       start: subMonths(now, 1),
       end: addMonths(toDate(sortedCAs[0].expires), 3),
       zoomMin: 1000 * 60 * 60 * 24, // 1 day
-      zoomMax: 1000 * 60 * 60 * 24 * 365 * 15, // 10 years
+      zoomMax: 1000 * 60 * 60 * 24 * 365 * 100, // 100 years
     };
 
     const timeline = new Timeline(timelineRef.current, items, options);
@@ -202,6 +214,9 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
                 <Button size="sm" variant="ghost" onClick={() => handleZoom('3m')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">3m</Button>
                 <Button size="sm" variant="ghost" onClick={() => handleZoom('1y')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">1y</Button>
                 <Button size="sm" variant="ghost" onClick={() => handleZoom('5y')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">5y</Button>
+                <Button size="sm" variant="ghost" onClick={() => handleZoom('10y')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">10y</Button>
+                <Button size="sm" variant="ghost" onClick={() => handleZoom('25y')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">25y</Button>
+                <Button size="sm" variant="ghost" onClick={() => handleZoom('50y')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">50y</Button>
             </div>
             <Button variant="ghost" size="icon" onClick={handleFullscreenToggle} className="text-primary-foreground hover:bg-primary-foreground/20 focus-visible:ring-primary-foreground">
                 {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
