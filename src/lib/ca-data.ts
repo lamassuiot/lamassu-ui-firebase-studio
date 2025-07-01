@@ -410,7 +410,7 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
     // Ensure ca.name is used as it's the transformed common_name
     if (ca.name && ca.name.toLowerCase() === commonName.toLowerCase()) return ca;
     if (ca.children) {
-      const found = findCaByCommonName(commonName, ca.children);
+      const found = findCaByCommonName(commonName, cas.children);
       if (found) return found;
     }
   }
@@ -438,4 +438,49 @@ export async function fetchCryptoEngines(accessToken: string): Promise<ApiCrypto
     }
     const enginesData: ApiCryptoEngine[] = await response.json();
     return enginesData;
+}
+
+// NEW: Function to create a CA
+export interface CreateCaPayload {
+  parent_id: string | null;
+  id: string;
+  engine_id: string;
+  subject: {
+    country?: string;
+    state_province?: string;
+    locality?: string;
+    organization?: string;
+    organization_unit?: string;
+    common_name: string;
+  };
+  key_metadata: {
+    type: string;
+    bits: number;
+  };
+  ca_expiration: { type: string; duration?: string; time?: string };
+  issuance_expiration: { type: string; duration?: string; time?: string };
+  ca_type: "MANAGED";
+}
+
+export async function createCa(payload: CreateCaPayload, accessToken: string): Promise<void> {
+  const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to create CA. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Failed to create CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) {
+      console.error("Failed to parse error response as JSON for CA creation:", e);
+    }
+    throw new Error(errorMessage);
+  }
 }

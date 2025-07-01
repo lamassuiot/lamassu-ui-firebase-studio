@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -211,7 +211,7 @@ export default function CreateCaGeneratePage() {
       return;
     }
 
-    const payload = {
+    const payload: CreateCaPayload = {
       parent_id: caType === 'root' ? null : selectedParentCa?.id || null,
       id: caId,
       engine_id: cryptoEngineId, 
@@ -233,26 +233,7 @@ export default function CreateCaGeneratePage() {
     };
 
     try {
-      const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to create CA. Status: ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Failed to create CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-        } catch (e) {
-          console.error("Failed to parse error response as JSON for CA creation:", e);
-        }
-        throw new Error(errorMessage);
-      }
+      await createCa(payload, user.access_token);
 
       toast({ title: "CA Creation Successful", description: `CA "${caName}" has been created.`, variant: "default" });
       router.push('/certificate-authorities');
