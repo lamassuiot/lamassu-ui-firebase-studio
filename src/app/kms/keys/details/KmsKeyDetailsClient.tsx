@@ -21,6 +21,7 @@ import { DetailItem } from '@/components/shared/DetailItem';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import * as asn1js from 'asn1js';
+import * as pkijs from 'pkijs';
 import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
 import { fetchCryptoEngines } from '@/lib/ca-data';
 
@@ -60,15 +61,15 @@ interface ApiKmsKey {
   id: string;
   algorithm: string;
   size: string;
-  publicKey: string;
+  public_key: string;
 }
 
 interface KmsKeyDetailed {
   id: string;
   alias: string;
-  keyTypeDisplay: string; 
-  algorithm: 'RSA' | 'ECDSA' | 'ML-DSA' | 'Unknown'; 
-  keySize?: string | number; 
+  keyTypeDisplay: string;
+  algorithm: 'RSA' | 'ECDSA' | 'ML-DSA' | 'Unknown';
+  keySize?: string | number;
   status: 'Enabled' | 'Disabled' | 'PendingDeletion';
   hasPrivateKey: boolean;
   publicKeyPem?: string;
@@ -101,7 +102,7 @@ export default function KmsKeyDetailsClient() {
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const tabFromQuery = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<string>(tabFromQuery || 'overview');
 
@@ -133,11 +134,11 @@ export default function KmsKeyDetailsClient() {
     }
 
     if (authLoading || !isAuthenticated() || !user?.access_token) {
-        if (!authLoading && !isAuthenticated()) {
-            setError("User not authenticated. Please log in.");
-        }
-        setIsLoading(false);
-        return;
+      if (!authLoading && !isAuthenticated()) {
+        setError("User not authenticated. Please log in.");
+      }
+      setIsLoading(false);
+      return;
     }
 
     setIsLoading(true);
@@ -148,9 +149,9 @@ export default function KmsKeyDetailsClient() {
         fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
         fetchCryptoEngines(user.access_token)
       ]);
-      
+
       if (!keysResponse.ok) throw new Error(`Failed to fetch keys. HTTP Status: ${keysResponse.status}`);
-      
+
       setAllCryptoEngines(allEnginesData);
 
       const allKeys: ApiKmsKey[] = await keysResponse.json();
@@ -159,13 +160,13 @@ export default function KmsKeyDetailsClient() {
       if (apiKey) {
         let pem = '';
         try {
-          const decodedKey = atob(apiKey.publicKey);
-          pem = formatAsPem(decodedKey, 'PUBLIC KEY');
+          const decodedKey = atob(apiKey.public_key);
+          pem = decodedKey
         } catch (e) {
           console.error("Failed to decode public key", e);
           pem = "Error: Could not decode or format public key.";
         }
-        
+
         const engineIdMatch = apiKey.id.match(/token-id=([^;]+)/);
         const engineId = engineIdMatch ? engineIdMatch[1] : undefined;
 
@@ -192,7 +193,7 @@ export default function KmsKeyDetailsClient() {
           setVerifyAlgorithm('ECDSA_SHA_256');
         } else if (detailedKey.algorithm === 'ML-DSA') {
           const defaultMlDsaAlgo = detailedKey.keySize === 'ML-DSA-44' ? 'ML-DSA-44' :
-                                   detailedKey.keySize === 'ML-DSA-87' ? 'ML-DSA-87' : 'ML-DSA-65';
+            detailedKey.keySize === 'ML-DSA-87' ? 'ML-DSA-87' : 'ML-DSA-65';
           setSignAlgorithm(defaultMlDsaAlgo);
           setVerifyAlgorithm(defaultMlDsaAlgo);
         }
@@ -212,8 +213,8 @@ export default function KmsKeyDetailsClient() {
   }, [fetchKeyData]);
 
   useEffect(() => {
-     const currentTab = searchParams.get('tab');
-     setActiveTab(currentTab || 'overview');
+    const currentTab = searchParams.get('tab');
+    setActiveTab(currentTab || 'overview');
   }, [searchParams]);
 
   const handleSign = async () => {
@@ -221,49 +222,49 @@ export default function KmsKeyDetailsClient() {
       toast({ title: "Sign Error", description: "Payload to sign cannot be empty.", variant: "destructive" });
       return;
     }
-     if (!keyId || !user?.access_token) {
-        toast({ title: "Sign Error", description: "Key ID or user authentication is missing.", variant: "destructive" });
-        return;
+    if (!keyId || !user?.access_token) {
+      toast({ title: "Sign Error", description: "Key ID or user authentication is missing.", variant: "destructive" });
+      return;
     }
-    
+
     setIsSigning(true);
     setGeneratedSignature('');
-    
+
     try {
-        const payload = {
-            algorithm: signAlgorithm,
-            message: payloadToSign,
-            message_type: signMessageType.toLowerCase(),
-        };
+      const payload = {
+        algorithm: signAlgorithm,
+        message: payloadToSign,
+        message_type: signMessageType.toLowerCase(),
+      };
 
-        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyId)}/sign`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.access_token}`,
-            },
-            body: JSON.stringify(payload)
-        });
+      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyId)}/sign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.access_token}`,
+        },
+        body: JSON.stringify(payload)
+      });
 
-        const result = await response.json();
+      const result = await response.json();
 
-        if (!response.ok) {
-            throw new Error(result.err || result.message || `Signing failed with status ${response.status}`);
-        }
-        
-        if (!result.signature) {
-            throw new Error("Signature not found in the API response.");
-        }
+      if (!response.ok) {
+        throw new Error(result.err || result.message || `Signing failed with status ${response.status}`);
+      }
 
-        setGeneratedSignature(result.signature);
-        toast({ title: "Sign Success", description: "Data has been successfully signed." });
+      if (!result.signature) {
+        throw new Error("Signature not found in the API response.");
+      }
+
+      setGeneratedSignature(result.signature);
+      toast({ title: "Sign Success", description: "Data has been successfully signed." });
 
     } catch (error: any) {
-        console.error("Signing Error:", error);
-        toast({ title: "Sign Error", description: error.message, variant: "destructive" });
-        setGeneratedSignature('');
+      console.error("Signing Error:", error);
+      toast({ title: "Sign Error", description: error.message, variant: "destructive" });
+      setGeneratedSignature('');
     } finally {
-        setIsSigning(false);
+      setIsSigning(false);
     }
   };
 
@@ -273,77 +274,128 @@ export default function KmsKeyDetailsClient() {
       return;
     }
     console.log("Mock Verify:", { verifyAlgorithm, verifyMessageType, verifyPayloadEncoding, unsignedPayload, signatureToVerify });
-    const isValid = Math.random() > 0.3; 
+    const isValid = Math.random() > 0.3;
     toast({ title: "Mock Verify Result", description: `Signature is ${isValid ? 'VALID' : 'INVALID'} (mock).`, variant: isValid ? "default" : "destructive" });
   };
-  
+
+
+  function rawEcdsaSigToDer(rawSig) {
+    const half = rawSig.length / 2;
+    let r = rawSig.slice(0, half);
+    let s = rawSig.slice(half);
+
+    // Helper to trim leading zeros
+    function trimZeros(buf) {
+      let i = 0;
+      while (i < buf.length - 1 && buf[i] === 0) i++;
+      return buf.slice(i);
+    }
+
+    r = trimZeros(new Uint8Array(r));
+    s = trimZeros(new Uint8Array(s));
+
+    const rAsn1 = new asn1js.Integer({ valueHex: r.buffer });
+    const sAsn1 = new asn1js.Integer({ valueHex: s.buffer });
+
+    const sequence = new asn1js.Sequence({ value: [rAsn1, sAsn1] });
+    return sequence.toBER(false);
+  }
+
+
   const handleGenerateCsr = async () => {
     if (!csrCommonName.trim()) {
-        toast({ title: "CSR Generation Error", description: "Common Name (CN) is required.", variant: "destructive" });
-        return;
+      toast({ title: "CSR Generation Error", description: "Common Name (CN) is required.", variant: "destructive" });
+      return;
     }
     if (!keyDetails?.publicKeyPem || !keyDetails.id || !user?.access_token) {
-        toast({ title: "CSR Generation Error", description: "Key details or authentication are missing.", variant: "destructive" });
-        return;
+      toast({ title: "CSR Generation Error", description: "Key details or authentication are missing.", variant: "destructive" });
+      return;
     }
-    
+
     setIsGeneratingCsr(true);
     setGeneratedCsr('');
 
     try {
-        const pkcs10 = new CertificationRequest();
-        pkcs10.attributes = []; // Initialize attributes array
-        
-        pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: csrCommonName.trim() }) }));
-        if(csrOrganization.trim()) {
-            pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.10", value: new asn1js.Utf8String({ value: csrOrganization.trim() })}));
-        }
-        
-        const publicKeyPemClean = keyDetails.publicKeyPem.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, "").replace(/\s+/g, "");
-        const publicKeyDer = Uint8Array.from(atob(publicKeyPemClean), c => c.charCodeAt(0)).buffer;
-        const publicKeyAsn1 = asn1js.fromBER(publicKeyDer);
-        pkcs10.subjectPublicKeyInfo = new PublicKeyInfo({ schema: publicKeyAsn1.result });
-        
-        const tbs = pkcs10.encodeTBS().toBER(false);
-        const tbsB64 = arrayBufferToBase64(tbs);
+      const subject = new pkijs.RelativeDistinguishedNames({
+        typesAndValues: [
+          new pkijs.AttributeTypeAndValue({
+            type: "2.5.4.3", // Common Name (CN)
+            value: new asn1js.Utf8String({ value: csrCommonName.trim() }),
+          }),
+        ],
+      });
 
-        const kmsSignAlgorithm = keyDetails.algorithm === 'RSA' ? 'RSASSA_PSS_SHA_256' : 
-                                 keyDetails.algorithm === 'ECDSA' ? 'ECDSA_SHA_256' :
-                                 'ML-DSA-65'; // Default for PQC
+      const pkcs10 = new CertificationRequest({
+        version: 0,
+        subject,
+      });
 
-        const signResponse = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyDetails.id)}/sign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.access_token}` },
-            body: JSON.stringify({
-                algorithm: kmsSignAlgorithm,
-                message: tbsB64,
-                message_type: "raw"
-            })
-        });
+      pkcs10.attributes = []; // Initialize attributes array
 
-        const signResult = await signResponse.json();
-        if (!signResponse.ok) throw new Error(signResult.err || signResult.message || 'Failed to sign CSR data via KMS.');
-        
-        const signatureBase64 = signResult.signature;
-        const signatureDer = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0)).buffer;
+      const publicKeyPemClean = keyDetails.publicKeyPem.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, "").replace(/\s+/g, "");
+      const publicKeyDer = Uint8Array.from(atob(publicKeyPemClean), c => c.charCodeAt(0)).buffer;
 
-        pkcs10.signatureValue = new asn1js.BitString({ valueHex: signatureDer });
-        const signatureAlgorithmOid = SIGNATURE_OID_MAP[kmsSignAlgorithm];
-        if (!signatureAlgorithmOid) throw new Error(`Could not find OID for algorithm ${kmsSignAlgorithm}`);
-        pkcs10.signatureAlgorithm = new AlgorithmIdentifier({ algorithmId: signatureAlgorithmOid, parameters: new asn1js.Null() });
-        
-        const finalCsrDer = pkcs10.toSchema().toBER(false);
-        const finalCsrPem = formatAsPem(arrayBufferToBase64(finalCsrDer), 'CERTIFICATE REQUEST');
-        
-        setGeneratedCsr(finalCsrPem);
-        toast({ title: "CSR Generated Successfully", description: "The CSR has been signed by the KMS key." });
+      const pkijsCrypto = pkijs.getCrypto();
+      const publicKey = await pkijsCrypto?.importKey(
+        "spki",
+        publicKeyDer,
+        {
+          name: "ECDSA",
+          namedCurve: "P-256"
+        },
+        true,
+        ["verify"]
+      )
+
+      await pkcs10.subjectPublicKeyInfo.importKey(publicKey!);
+
+      pkcs10.signatureAlgorithm = new AlgorithmIdentifier({
+        algorithmId: "1.2.840.10045.4.3.2", // ECDSA with SHA-256
+      });
+
+      const tbs = pkcs10.encodeTBS().toBER(false);
+      pkcs10.tbs = tbs;
+
+      const tbsB64 = arrayBufferToBase64(tbs);
+
+      const kmsSignAlgorithm = 'ECDSA_SHA_256'
+      const signResponse = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyDetails.id)}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.access_token}` },
+        body: JSON.stringify({
+          algorithm: kmsSignAlgorithm,
+          message: tbsB64,
+          message_type: "raw"
+        })
+      });
+
+      const signResult = await signResponse.json();
+      if (!signResponse.ok) throw new Error(signResult.err || signResult.message || 'Failed to sign CSR data via KMS.');
+
+      // Fixed code
+      const signatureBase64 = signResult.signature;
+      const rawSignature = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0)).buffer;
+
+      // Convert raw ECDSA signature (r||s) to ASN.1 DER encoded format
+      const derEncodedSignature = rawEcdsaSigToDer(new Uint8Array(rawSignature));
+
+      pkcs10.signatureValue = new asn1js.BitString({ valueHex: derEncodedSignature });
+
+      const finalCsrDer = pkcs10.toSchema().toBER(false);
+      const finalCsrPem = formatAsPem(arrayBufferToBase64(finalCsrDer), 'CERTIFICATE REQUEST');
+
+      const ok = await pkcs10.verify();
+      console.log("CSR Verification Result:", ok);
+
+      setGeneratedCsr(finalCsrPem);
+      toast({ title: "CSR Generated Successfully", description: "The CSR has been signed by the KMS key." });
 
     } catch (error: any) {
-        console.error("CSR Generation Error:", error);
-        toast({ title: "CSR Generation Failed", description: error.message, variant: "destructive" });
-        setGeneratedCsr('');
+      console.error("CSR Generation Error:", error);
+      toast({ title: "CSR Generation Failed", description: error.message, variant: "destructive" });
+      setGeneratedCsr('');
     } finally {
-        setIsGeneratingCsr(false);
+      setIsGeneratingCsr(false);
     }
   };
 
@@ -382,13 +434,13 @@ export default function KmsKeyDetailsClient() {
       </div>
     );
   }
-  
+
   return (
     <div className="w-full space-y-6">
       <Button variant="outline" onClick={() => router.back()}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
-      
+
       <div className="w-full">
         <div className="p-6 border-b">
           <div className="flex flex-col sm:flex-row items-start justify-between gap-2">
@@ -423,10 +475,10 @@ export default function KmsKeyDetailsClient() {
                 <CardDescription>General information about this KMS key.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <DetailItem label="Key ID" value={keyDetails.id} isMono fullWidthValue/>
-                <DetailItem label="Alias" value={keyDetails.alias} isMono fullWidthValue/>
+                <DetailItem label="Key ID" value={keyDetails.id} isMono fullWidthValue />
+                <DetailItem label="Alias" value={keyDetails.alias} isMono fullWidthValue />
                 <DetailItem label="Status" value={<StatusBadge status={keyDetails.status} />} />
-                
+
                 {(() => {
                   const engine = allCryptoEngines.find(e => e.id === keyDetails.cryptoEngineId);
                   if (engine) {
@@ -455,137 +507,137 @@ export default function KmsKeyDetailsClient() {
 
           <TabsContent value="sign">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center"><PenTool className="mr-2 h-5 w-5 text-primary"/>Sign Data</CardTitle>
-                    <CardDescription>Perform cryptographic sign operations using this key.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <Label htmlFor="signAlgorithm">Algorithm</Label>
-                        <Select value={signAlgorithm} onValueChange={setSignAlgorithm} disabled={isSigning}>
-                            <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {signatureAlgorithms.map(algo => (
-                                    <SelectItem key={algo} value={algo} disabled={
-                                        (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                                        (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                                        (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                                    }>{algo}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label htmlFor="signMessageType">Message Type</Label>
-                         <Select value={signMessageType} onValueChange={setSignMessageType} disabled={isSigning}>
-                            <SelectTrigger id="signMessageType"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="RAW">Raw</SelectItem>
-                                <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label htmlFor="payloadToSign">Payload to Sign (Base64)</Label>
-                        <Textarea id="payloadToSign" value={payloadToSign} onChange={e => setPayloadToSign(e.target.value)} placeholder="Enter Base64 encoded data to be signed..." rows={4} disabled={isSigning}/>
-                    </div>
-                    <Button onClick={handleSign} className="w-full sm:w-auto" disabled={isSigning}>
-                      {isSigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {isSigning ? 'Signing...' : 'Sign'}
-                    </Button>
-                    {generatedSignature && (
-                        <div>
-                            <Label htmlFor="generatedSignature">Generated Signature (Base64)</Label>
-                            <Textarea id="generatedSignature" value={generatedSignature} readOnly rows={3} className="font-mono bg-muted/50"/>
-                        </div>
-                    )}
-                </CardContent>
+              <CardHeader>
+                <CardTitle className="flex items-center"><PenTool className="mr-2 h-5 w-5 text-primary" />Sign Data</CardTitle>
+                <CardDescription>Perform cryptographic sign operations using this key.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="signAlgorithm">Algorithm</Label>
+                  <Select value={signAlgorithm} onValueChange={setSignAlgorithm} disabled={isSigning}>
+                    <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {signatureAlgorithms.map(algo => (
+                        <SelectItem key={algo} value={algo} disabled={
+                          (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                          (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                          (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                        }>{algo}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="signMessageType">Message Type</Label>
+                  <Select value={signMessageType} onValueChange={setSignMessageType} disabled={isSigning}>
+                    <SelectTrigger id="signMessageType"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RAW">Raw</SelectItem>
+                      <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="payloadToSign">Payload to Sign (Base64)</Label>
+                  <Textarea id="payloadToSign" value={payloadToSign} onChange={e => setPayloadToSign(e.target.value)} placeholder="Enter Base64 encoded data to be signed..." rows={4} disabled={isSigning} />
+                </div>
+                <Button onClick={handleSign} className="w-full sm:w-auto" disabled={isSigning}>
+                  {isSigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSigning ? 'Signing...' : 'Sign'}
+                </Button>
+                {generatedSignature && (
+                  <div>
+                    <Label htmlFor="generatedSignature">Generated Signature (Base64)</Label>
+                    <Textarea id="generatedSignature" value={generatedSignature} readOnly rows={3} className="font-mono bg-muted/50" />
+                  </div>
+                )}
+              </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="verify">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center"><ShieldCheck className="mr-2 h-5 w-5 text-primary"/>Verify Signature</CardTitle>
-                    <CardDescription>Perform cryptographic verify operations using this key's public component. (Mock functionality)</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <Label htmlFor="verifyAlgorithm">Algorithm</Label>
-                        <Select value={verifyAlgorithm} onValueChange={setVerifyAlgorithm}>
-                            <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {signatureAlgorithms.map(algo => (
-                                     <SelectItem key={algo} value={algo} disabled={
-                                        (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                                        (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                                        (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                                    }>{algo}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label htmlFor="verifyMessageType">Message Type</Label>
-                        <Select value={verifyMessageType} onValueChange={setVerifyMessageType}>
-                            <SelectTrigger id="verifyMessageType"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="RAW">Raw</SelectItem>
-                                <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                       <Label htmlFor="verifyPayloadEncoding">Unsigned Payload Encoding Format</Label>
-                       <Select value={verifyPayloadEncoding} onValueChange={setVerifyPayloadEncoding}>
-                            <SelectTrigger id="verifyPayloadEncoding"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="PLAIN_TEXT">Plain Text</SelectItem>
-                                <SelectItem value="BASE64">Base64</SelectItem>
-                                <SelectItem value="HEX">Hexadecimal</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label htmlFor="unsignedPayload">Unsigned Payload</Label>
-                        <Textarea id="unsignedPayload" value={unsignedPayload} onChange={e => setUnsignedPayload(e.target.value)} placeholder="Enter the original unsigned data..." rows={3}/>
-                    </div>
-                    <div>
-                        <Label htmlFor="signatureToVerify">Signature (Base64)</Label>
-                        <Textarea id="signatureToVerify" value={signatureToVerify} onChange={e => setSignatureToVerify(e.target.value)} placeholder="Enter the signature to verify..." rows={3} className="font-mono"/>
-                    </div>
-                    <Button onClick={handleVerify} className="w-full sm:w-auto">Verify</Button>
-                </CardContent>
+              <CardHeader>
+                <CardTitle className="flex items-center"><ShieldCheck className="mr-2 h-5 w-5 text-primary" />Verify Signature</CardTitle>
+                <CardDescription>Perform cryptographic verify operations using this key's public component. (Mock functionality)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="verifyAlgorithm">Algorithm</Label>
+                  <Select value={verifyAlgorithm} onValueChange={setVerifyAlgorithm}>
+                    <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {signatureAlgorithms.map(algo => (
+                        <SelectItem key={algo} value={algo} disabled={
+                          (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                          (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                          (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                        }>{algo}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="verifyMessageType">Message Type</Label>
+                  <Select value={verifyMessageType} onValueChange={setVerifyMessageType}>
+                    <SelectTrigger id="verifyMessageType"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RAW">Raw</SelectItem>
+                      <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="verifyPayloadEncoding">Unsigned Payload Encoding Format</Label>
+                  <Select value={verifyPayloadEncoding} onValueChange={setVerifyPayloadEncoding}>
+                    <SelectTrigger id="verifyPayloadEncoding"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PLAIN_TEXT">Plain Text</SelectItem>
+                      <SelectItem value="BASE64">Base64</SelectItem>
+                      <SelectItem value="HEX">Hexadecimal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="unsignedPayload">Unsigned Payload</Label>
+                  <Textarea id="unsignedPayload" value={unsignedPayload} onChange={e => setUnsignedPayload(e.target.value)} placeholder="Enter the original unsigned data..." rows={3} />
+                </div>
+                <div>
+                  <Label htmlFor="signatureToVerify">Signature (Base64)</Label>
+                  <Textarea id="signatureToVerify" value={signatureToVerify} onChange={e => setSignatureToVerify(e.target.value)} placeholder="Enter the signature to verify..." rows={3} className="font-mono" />
+                </div>
+                <Button onClick={handleVerify} className="w-full sm:w-auto">Verify</Button>
+              </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="generate-csr">
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center"><FileSignature className="mr-2 h-5 w-5 text-primary"/>Generate Certificate Signing Request (CSR)</CardTitle>
-                    <CardDescription>Create a CSR using this key pair to request a certificate from a CA.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     <div>
-                        <Label htmlFor="csrCommonName">Common Name (CN)</Label>
-                        <Input id="csrCommonName" value={csrCommonName} onChange={e => setCsrCommonName(e.target.value)} placeholder="e.g., mydevice.example.com" required />
-                     </div>
-                     <div>
-                        <Label htmlFor="csrOrganization">Organization (O)</Label>
-                        <Input id="csrOrganization" value={csrOrganization} onChange={e => setCsrOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" />
-                     </div>
-                     <Button onClick={handleGenerateCsr} className="w-full sm:w-auto" disabled={isGeneratingCsr}>
-                        {isGeneratingCsr && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isGeneratingCsr ? 'Generating...' : 'Generate CSR'}
-                     </Button>
-                     {generatedCsr && (
-                        <div className="mt-4">
-                            <Label htmlFor="generatedCsrPem">Generated CSR (PEM)</Label>
-                            <Textarea id="generatedCsrPem" value={generatedCsr} readOnly rows={10} className="font-mono bg-muted/50"/>
-                        </div>
-                     )}
-                </CardContent>
-             </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center"><FileSignature className="mr-2 h-5 w-5 text-primary" />Generate Certificate Signing Request (CSR)</CardTitle>
+                <CardDescription>Create a CSR using this key pair to request a certificate from a CA.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="csrCommonName">Common Name (CN)</Label>
+                  <Input id="csrCommonName" value={csrCommonName} onChange={e => setCsrCommonName(e.target.value)} placeholder="e.g., mydevice.example.com" required />
+                </div>
+                <div>
+                  <Label htmlFor="csrOrganization">Organization (O)</Label>
+                  <Input id="csrOrganization" value={csrOrganization} onChange={e => setCsrOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" />
+                </div>
+                <Button onClick={handleGenerateCsr} className="w-full sm:w-auto" disabled={isGeneratingCsr}>
+                  {isGeneratingCsr && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isGeneratingCsr ? 'Generating...' : 'Generate CSR'}
+                </Button>
+                {generatedCsr && (
+                  <div className="mt-4">
+                    <Label htmlFor="generatedCsrPem">Generated CSR (PEM)</Label>
+                    <Textarea id="generatedCsrPem" value={generatedCsr} readOnly rows={10} className="font-mono bg-muted/50" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
