@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -58,10 +59,10 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
   }
 
   return (
-    <div className={cn('space-y-1', className)}>
-      {title && <Label className="text-sm font-semibold">{title}</Label>}
+    <div className={cn('space-y-1.5', className)}>
+      {title && <Label className="text-sm font-semibold text-muted-foreground">{title}</Label>}
       <div className="relative group">
-        <ScrollArea className="h-64 w-full rounded-md border bg-muted/30">
+        <ScrollArea className="h-64 w-full rounded-md border bg-background">
           <pre className="text-xs whitespace-pre-wrap break-all font-mono p-4">
             <code>{content}</code>
           </pre>

@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "fix": "next lint --fix",
+    "fix": "next fix",
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package"
   },
@@ -47,6 +47,9 @@
     "dotenv": "^16.5.0",
     "firebase": "^11.8.1",
     "genkit": "^1.8.0",
+    "genson-js": "^0.0.8",
+    "jsonpath-plus": "^10.3.0",
+    "jsonschema": "^1.4.0",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.475.0",
     "next": "15.3.3",
