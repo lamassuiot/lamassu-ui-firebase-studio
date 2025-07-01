@@ -8,7 +8,7 @@ import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
 import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, Search, PlusCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchAndProcessCAs, type CA } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines, type CA } from '@/lib/ca-data';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -99,11 +99,7 @@ export default function CertificatesPage() {
     // Fetch Crypto Engines
     if (allCryptoEngines.length === 0) {
         try {
-            const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-                headers: { 'Authorization': `Bearer ${user.access_token}` },
-            });
-            if (!response.ok) throw new Error('Failed to fetch crypto engines');
-            const enginesData: ApiCryptoEngine[] = await response.json();
+            const enginesData = await fetchCryptoEngines(user.access_token);
             setAllCryptoEngines(enginesData);
         } catch (err: any) {
             setErrorCryptoEngines(err.message || 'Failed to load Crypto Engines.');

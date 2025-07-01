@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide, Edit } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, findCaById } from '@/lib/ca-data';
+import { fetchAndProcessCAs, findCaById, fetchCryptoEngines } from '@/lib/ca-data';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { cn } from '@/lib/utils';
@@ -187,15 +187,11 @@ export default function CreateOrEditRegistrationAuthorityPage() {
     setIsLoadingDependencies(true);
     setErrorDependencies(null);
     try {
-        const [cas, enginesResponse] = await Promise.all([
+        const [cas, enginesData] = await Promise.all([
             fetchAndProcessCAs(user.access_token),
-            fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-                headers: { 'Authorization': `Bearer ${user.access_token}` },
-            })
+            fetchCryptoEngines(user.access_token)
         ]);
         setAvailableCAsForSelection(cas);
-        if (!enginesResponse.ok) throw new Error('Failed to fetch crypto engines.');
-        const enginesData = await enginesResponse.json();
         setAllCryptoEngines(enginesData);
     } catch (err: any) {
         setErrorDependencies(err.message || 'Failed to load dependencies');
@@ -638,8 +634,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
             </div></CardContent></Card>
             <Separator className="my-6"/>
             <h3 className={cn(sectionHeadingStyle)}><PackageCheck className="mr-2 h-5 w-5 text-muted-foreground"/>Re-Enrollment Settings</h3>
-            <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4">
-              <div className="space-y-4">
+            <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4">
                 <div className="flex items-center space-x-2"><Switch id="revokeOnReEnroll" checked={revokeOnReEnroll} onCheckedChange={setRevokeOnReEnroll} /><Label htmlFor="revokeOnReEnroll">Revoke On Re-Enroll</Label></div>
                 <div className="flex items-center space-x-2"><Switch id="allowExpiredRenewal" checked={allowExpiredRenewal} onCheckedChange={setAllowExpiredRenewal} /><Label htmlFor="allowExpiredRenewal">Allow Expired Renewal</Label></div>
                 <DurationInput id="allowedRenewalDelta" label="Allowed Renewal Delta" value={allowedRenewalDelta} onChange={setAllowedRenewalDelta} placeholder="e.g., 100d" description="Max time after expiry a cert can be renewed."/>

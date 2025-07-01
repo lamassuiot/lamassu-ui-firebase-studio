@@ -6,7 +6,7 @@ import { DeviceStatusChartCard } from '@/components/home/DeviceStatusChartCard';
 import { CaExpiryTimeline } from '@/components/home/CaExpiryTimeline';
 import { SummaryStatsCard } from '@/components/home/SummaryStatsCard';
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -90,13 +90,13 @@ export default function HomePage() {
     try {
       const [
         fetchedCAs,
-        enginesResponse,
+        enginesData,
         caStatsResponse,
         dmsStatsResponse,
         devManagerStatsResponse,
       ] = await Promise.all([
         fetchAndProcessCAs(user.access_token),
-        fetch('https://lab.lamassu.io/api/ca/v1/engines', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetchCryptoEngines(user.access_token),
         fetch('https://lab.lamassu.io/api/ca/v1/stats', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
         fetch('https://lab.lamassu.io/api/dmsmanager/v1/stats', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
         fetch('https://lab.lamassu.io/api/devmanager/v1/stats', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
@@ -108,8 +108,7 @@ export default function HomePage() {
       setIsLoadingCAs(false);
 
       // Process engines
-      if (!enginesResponse.ok) throw new Error('Failed to fetch crypto engines');
-      setAllCryptoEngines(await enginesResponse.json());
+      setAllCryptoEngines(enginesData);
       setIsLoadingEngines(false);
 
       // Process stats for summary card

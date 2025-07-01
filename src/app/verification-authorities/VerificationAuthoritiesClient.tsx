@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ShieldCheck, Settings, PlusCircle, Loader2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -82,11 +82,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
     setIsLoadingEngines(true);
     setErrorEngines(null);
     try {
-        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-            headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) throw new Error('Failed to fetch crypto engines');
-        const enginesData: ApiCryptoEngine[] = await response.json();
+        const enginesData = await fetchCryptoEngines(user.access_token);
         setAllCryptoEngines(enginesData);
     } catch (err: any) {
         setErrorEngines(err.message || 'Failed to load Crypto Engines.');

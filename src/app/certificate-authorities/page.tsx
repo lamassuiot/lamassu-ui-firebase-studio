@@ -4,9 +4,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, List, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, PlusCircle } from "lucide-react";
+import { Landmark, List, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, PlusCircle, FileSignature } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import dynamic from 'next/dynamic';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuth } from '@/contexts/AuthContext';
@@ -93,26 +93,7 @@ export default function CertificateAuthoritiesPage() {
     }
 
     try {
-      const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-        headers: { 'Authorization': `Bearer ${user.access_token}` },
-      });
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to fetch crypto engines. HTTP error ${response.status}`;
-        try {
-          errorJson = await response.json();
-          if (errorJson && errorJson.err) {
-            errorMessage = `Failed to fetch crypto engines: ${errorJson.err}`;
-          } else if (errorJson && errorJson.message) {
-            errorMessage = `Failed to fetch crypto engines: ${errorJson.message}`;
-          }
-        } catch (e) {
-          // Response was not JSON or JSON parsing failed
-          console.error("Failed to parse error response as JSON for crypto engines:", e);
-        }
-        throw new Error(errorMessage);
-      }
-      const enginesData: ApiCryptoEngine[] = await response.json();
+      const enginesData = await fetchCryptoEngines(user.access_token);
       setAllCryptoEngines(enginesData);
     } catch (err: any) {
       setErrorCryptoEngines(err.message || 'Failed to load Crypto Engines.');
@@ -184,6 +165,9 @@ export default function CertificateAuthoritiesPage() {
                    <span className="hidden sm:inline">Graph</span>
                 </ToggleGroupItem>
               </ToggleGroup>
+              <Button variant="outline" onClick={() => router.push('/certificate-authorities/requests')}>
+                <FileSignature className="mr-2 h-4 w-4" /> Manage CA Requests
+              </Button>
               <Button variant="default" onClick={handleCreateNewCAClick}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New CA
               </Button>

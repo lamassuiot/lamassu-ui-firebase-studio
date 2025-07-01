@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
 import { fetchIssuedCertificates, updateCertificateStatus } from '@/lib/issued-certificate-data';
-import { fetchAndProcessCAs, findCaById } from '@/lib/ca-data';
+import { fetchAndProcessCAs, findCaById, fetchCryptoEngines } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
@@ -62,9 +62,9 @@ export default function CertificateDetailsClient() { // Renamed component
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   
   const [isLoadingCert, setIsLoadingCert] = useState(true);
-  const [isLoadingAllCAs, setIsLoadingAllCAs] = useState(true);
+  const [isLoadingDependencies, setIsLoadingDependencies] = useState(true);
   const [errorCert, setErrorCert] = useState<string | null>(null);
-  const [errorAllCAs, setErrorAllCAs] = useState<string | null>(null);
+  const [errorDependencies, setErrorDependencies] = useState<string | null>(null);
   
   const [isRevocationModalOpen, setIsRevocationModalOpen] = useState(false);
   const [certificateToRevoke, setCertificateToRevoke] = useState<CertificateData | null>(null);
@@ -139,43 +139,33 @@ export default function CertificateDetailsClient() { // Renamed component
       }
     };
 
-    const loadAllCAsForChain = async () => {
+    const loadDependencies = async () => {
         if (!isAuthenticated() || !user?.access_token) {
             if (!authLoading && !isAuthenticated()){
-                setErrorAllCAs("User not authenticated for CA list.");
+                setErrorDependencies("User not authenticated for dependencies.");
             }
-            setIsLoadingAllCAs(false);
+            setIsLoadingDependencies(false);
             return;
         }
-        setIsLoadingAllCAs(true);
-        setErrorAllCAs(null);
+        setIsLoadingDependencies(true);
+        setErrorDependencies(null);
         try {
-            const fetchedCAs = await fetchAndProcessCAs(user.access_token);
+            const [fetchedCAs, enginesData] = await Promise.all([
+                fetchAndProcessCAs(user.access_token),
+                fetchCryptoEngines(user.access_token),
+            ]);
             setAllCAs(fetchedCAs);
+            setAllCryptoEngines(enginesData);
         } catch (err: any) {
-            setErrorAllCAs(err.message || 'Failed to load CA list for chain building.');
+            setErrorDependencies(err.message || 'Failed to load CA list and engines for chain building.');
         } finally {
-            setIsLoadingAllCAs(false);
-        }
-    };
-
-    const loadAllEngines = async () => {
-        if (!isAuthenticated() || !user?.access_token) return;
-        try {
-            const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-                headers: { 'Authorization': `Bearer ${user.access_token}` },
-            });
-            if (!response.ok) throw new Error('Failed to fetch crypto engines');
-            setAllCryptoEngines(await response.json());
-        } catch (err: any) {
-            console.error(err.message || 'Failed to load engines for AKI modal.');
+            setIsLoadingDependencies(false);
         }
     };
     
     if (!authLoading) {
         loadCertificate();
-        loadAllCAsForChain();
-        loadAllEngines();
+        loadDependencies();
     }
 
   }, [certificateId, user?.access_token, isAuthenticated, authLoading]);
@@ -262,20 +252,20 @@ export default function CertificateDetailsClient() { // Renamed component
   };
 
 
-  if (authLoading || isLoadingCert || isLoadingAllCAs) {
+  if (authLoading || isLoadingCert || isLoadingDependencies) {
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
         <Loader2 className="h-12 w-12 text-primary animate-spin" />
         <p className="text-muted-foreground">
           {authLoading ? "Authenticating..." : 
            isLoadingCert ? "Loading certificate details..." : 
-           "Loading CA data for chain..."}
+           "Loading CA data..."}
         </p>
       </div>
     );
   }
 
-  if (errorCert || errorAllCAs) {
+  if (errorCert || errorDependencies) {
     return (
       <div className="w-full space-y-4 p-4">
          <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
@@ -285,7 +275,7 @@ export default function CertificateDetailsClient() { // Renamed component
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
           {errorCert && <AlertDescription>Certificate Error: {errorCert}</AlertDescription>}
-          {errorAllCAs && <AlertDescription>CA List Error: {errorAllCAs}</AlertDescription>}
+          {errorDependencies && <AlertDescription>Dependencies Error: {errorDependencies}</AlertDescription>}
         </Alert>
       </div>
     );

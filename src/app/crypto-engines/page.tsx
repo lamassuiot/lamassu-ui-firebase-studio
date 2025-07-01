@@ -15,6 +15,7 @@ import AWSKMSLogo from "@/components/shared/CryptoEngineIcons/AWS-KMS.png";
 import AWSSMLogo from "@/components/shared/CryptoEngineIcons/AWS-SM.png";
 import PKCS11Logo from "@/components/shared/CryptoEngineIcons/PKCS11.png";
 import VaultLogo from "@/components/shared/CryptoEngineIcons/HASHICORP-VAULT.png";
+import { fetchCryptoEngines } from '@/lib/ca-data';
 
 
 // Helper to format supported key types for display
@@ -89,28 +90,7 @@ export default function CryptoEnginesPage() {
     setIsLoadingEngines(true);
     setErrorEngines(null);
     try {
-      const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-        headers: {
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-      });
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to fetch crypto engines. HTTP error ${response.status}`;
-        try {
-          errorJson = await response.json();
-          if (errorJson && errorJson.err) {
-            errorMessage = `Failed to fetch crypto engines: ${errorJson.err}`;
-          } else if (errorJson && errorJson.message) {
-            errorMessage = `Failed to fetch crypto engines: ${errorJson.message}`;
-          }
-        } catch (e) {
-          // Response was not JSON or JSON parsing failed
-          console.error("Failed to parse error response as JSON for crypto engines:", e);
-        }
-        throw new Error(errorMessage);
-      }
-      const data: ApiCryptoEngine[] = await response.json();
+      const data = await fetchCryptoEngines(user.access_token);
       setEngines(data);
     } catch (err: any) {
       setErrorEngines(err.message || 'An unknown error occurred.');
@@ -226,4 +206,3 @@ export default function CryptoEnginesPage() {
     </div>
   );
 }
-

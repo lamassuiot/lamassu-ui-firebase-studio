@@ -1,8 +1,10 @@
 
-
 // Define the CA data structure
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
+
+const caApiBaseUrl = 'https://lab.lamassu.io/api/ca/v1/';
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -344,8 +346,7 @@ function buildCaHierarchy(flatCaList: Omit<CA, 'children'>[]): CA[] {
 
 // Function to fetch, transform, and build hierarchy
 export async function fetchAndProcessCAs(accessToken: string, apiQueryString?: string): Promise<CA[]> {
-  const baseUrl = 'https://lab.lamassu.io/api/ca/v1/cas';
-  const url = apiQueryString ? `${baseUrl}?${apiQueryString}` : baseUrl;
+  const url = apiQueryString ? `${caApiBaseUrl}cas?${apiQueryString}` : `${caApiBaseUrl}cas`;
 
   const response = await fetch(url, {
     headers: {
@@ -409,9 +410,156 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
     // Ensure ca.name is used as it's the transformed common_name
     if (ca.name && ca.name.toLowerCase() === commonName.toLowerCase()) return ca;
     if (ca.children) {
-      const found = findCaByCommonName(commonName, ca.children);
+      const found = findCaByCommonName(commonName, cas.children);
       if (found) return found;
     }
   }
   return null;
+}
+
+export async function fetchCryptoEngines(accessToken: string): Promise<ApiCryptoEngine[]> {
+    const response = await fetch(`${caApiBaseUrl}engines`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to fetch crypto engines. HTTP error ${response.status}`;
+        try {
+            errorJson = await response.json();
+            if (errorJson && errorJson.err) {
+                errorMessage = `Failed to fetch crypto engines: ${errorJson.err}`;
+            } else if (errorJson && errorJson.message) {
+                errorMessage = `Failed to fetch crypto engines: ${errorJson.message}`;
+            }
+        } catch (e) {
+            console.error("Failed to parse error response as JSON for crypto engines:", e);
+        }
+        throw new Error(errorMessage);
+    }
+    const enginesData: ApiCryptoEngine[] = await response.json();
+    return enginesData;
+}
+
+// Function to create a CA
+export interface CreateCaPayload {
+  parent_id: string | null;
+  id: string;
+  engine_id: string;
+  subject: {
+    country?: string;
+    state_province?: string;
+    locality?: string;
+    organization?: string;
+    organization_unit?: string;
+    common_name: string;
+  };
+  key_metadata: {
+    type: string;
+    bits: number;
+  };
+  ca_expiration: { type: string; duration?: string; time?: string };
+  issuance_expiration: { type: string; duration?: string; time?: string };
+  ca_type: "MANAGED";
+}
+
+export async function createCa(payload: CreateCaPayload, accessToken: string): Promise<void> {
+  const response = await fetch(`${caApiBaseUrl}cas`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to create CA. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Failed to create CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) {
+      console.error("Failed to parse error response as JSON for CA creation:", e);
+    }
+    throw new Error(errorMessage);
+  }
+}
+
+// Function and type for creating a CA Request
+export interface CreateCaRequestPayload {
+  parent_id: string;
+  id: string;
+  engine_id: string;
+  subject: {
+    country?: string;
+    state_province?: string;
+    locality?: string;
+    organization?: string;
+    organization_unit?: string;
+    common_name: string;
+  };
+  key_metadata: {
+    type: string;
+    bits: number;
+  };
+  metadata: Record<string, any>;
+}
+
+export async function createCaRequest(payload: CreateCaRequestPayload, accessToken: string): Promise<void> {
+  const response = await fetch(`${caApiBaseUrl}cas/requests`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to create CA request. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Failed to create CA request: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) {
+      console.error("Failed to parse error response as JSON for CA request creation:", e);
+    }
+    throw new Error(errorMessage);
+  }
+}
+
+// Function and type for importing a CA
+export interface ImportCaPayload {
+  request_id?: string;
+  id?: string;
+  engine_id?: string;
+  private_key?: string; // base64 encoded
+  ca: string; // base64 encoded
+  ca_chain?: string[]; // array of base64 encoded certs
+  ca_type: "MANAGED" | "IMPORTED" | "EXTERNAL_PUBLIC";
+  issuance_expiration?: { type: string; duration?: string; time?: string };
+  parent_id?: string;
+}
+
+export async function importCa(payload: ImportCaPayload, accessToken: string): Promise<void> {
+  const response = await fetch(`${caApiBaseUrl}cas/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to import CA. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Failed to import CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) {
+      // Ignore if response is not JSON
+    }
+    throw new Error(errorMessage);
+  }
 }

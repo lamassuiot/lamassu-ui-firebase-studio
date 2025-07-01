@@ -9,6 +9,7 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { fetchCryptoEngines } from '@/lib/ca-data';
 
 interface CryptoEngineSelectorProps {
   value: string | undefined; // Allow undefined for initial state
@@ -35,28 +36,7 @@ export const CryptoEngineSelector: React.FC<CryptoEngineSelectorProps> = ({ valu
     setIsLoadingEngines(true);
     setErrorEngines(null);
     try {
-      const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-        headers: {
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-      });
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to fetch crypto engines. HTTP error ${response.status}`;
-        try {
-          errorJson = await response.json();
-          if (errorJson && errorJson.err) {
-            errorMessage = `Failed to fetch crypto engines: ${errorJson.err}`;
-          } else if (errorJson && errorJson.message) {
-            errorMessage = `Failed to fetch crypto engines: ${errorJson.message}`;
-          }
-        } catch (e) {
-          // Response was not JSON or JSON parsing failed
-          console.error("Failed to parse error response as JSON for crypto engines (selector):", e);
-        }
-        throw new Error(errorMessage);
-      }
-      const data: ApiCryptoEngine[] = await response.json();
+      const data = await fetchCryptoEngines(user.access_token);
       setEngines(data);
       // If there's a default engine and no value is set, select the default
       if (!value && data.length > 0) {

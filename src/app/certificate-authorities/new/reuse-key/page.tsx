@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, Repeat, Loader2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -73,11 +73,7 @@ export default function CreateCaReuseKeyPage() {
 
     // This mode doesn't select an engine, but other components need the list
     try {
-        const response = await fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-            headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) throw new Error('Failed to fetch crypto engines');
-        const enginesData: ApiCryptoEngine[] = await response.json();
+        const enginesData = await fetchCryptoEngines(user.access_token);
         setAllCryptoEngines(enginesData);
     } catch (err: any) {
         setAllCryptoEngines([]);

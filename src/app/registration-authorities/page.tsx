@@ -29,7 +29,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
@@ -95,14 +95,12 @@ export default function RegistrationAuthoritiesPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [raResponse, casData, enginesResponse] = await Promise.all([
+      const [raResponse, casData, enginesData] = await Promise.all([
         fetch('https://lab.lamassu.io/api/dmsmanager/v1/dms?page_size=15', {
           headers: { 'Authorization': `Bearer ${user.access_token}` },
         }),
         fetchAndProcessCAs(user.access_token),
-        fetch('https://lab.lamassu.io/api/ca/v1/engines', {
-          headers: { 'Authorization': `Bearer ${user.access_token}` },
-        })
+        fetchCryptoEngines(user.access_token),
       ]);
 
       if (!raResponse.ok) {
@@ -118,11 +116,6 @@ export default function RegistrationAuthoritiesPage() {
       setRas(raData.list || []);
 
       setAllCAs(casData);
-
-      if (!enginesResponse.ok) {
-        throw new Error('Failed to fetch crypto engines');
-      }
-      const enginesData: ApiCryptoEngine[] = await enginesResponse.json();
       setAllCryptoEngines(enginesData);
 
     } catch (err: any) {
