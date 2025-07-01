@@ -87,3 +87,26 @@ export async function fetchSystemSubscriptions(accessToken: string): Promise<Api
   const data: ApiSubscription[] = await response.json();
   return data;
 }
+
+export async function unsubscribeFromAlert(subscriptionId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`https://lab.lamassu.io/api/alerts/v1/user/_lms_system/unsubscribe/${subscriptionId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to unsubscribe. HTTP error ${response.status}`;
+    try {
+      errorJson = await response.json();
+      if (errorJson && errorJson.message) {
+        errorMessage = `Failed to unsubscribe: ${errorJson.message}`;
+      }
+    } catch (e) {
+      // Ignore parsing error
+    }
+    throw new Error(errorMessage);
+  }
+}

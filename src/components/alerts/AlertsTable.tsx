@@ -13,15 +13,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import type { AlertEvent } from '@/app/alerts/page';
-import { Layers, ChevronDown } from 'lucide-react';
+import { Layers, ChevronDown, X } from 'lucide-react';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 import { cn } from '@/lib/utils';
 
 interface AlertsTableProps {
   events: AlertEvent[];
+  onUnsubscribe: (subscriptionId: string, eventType: string) => void;
 }
 
-export const AlertsTable: React.FC<AlertsTableProps> = ({ events }) => {
+export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe }) => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const handleSubscribeClick = (e: React.MouseEvent, eventType: string) => {
@@ -71,9 +72,19 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events }) => {
                 <TableCell>
                   {event.activeSubscriptions.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
-                      {event.activeSubscriptions.map((sub, index) => (
-                        <Badge key={index} variant="secondary" className="font-normal">
-                          {sub}
+                      {event.activeSubscriptions.map((sub) => (
+                        <Badge key={sub.id} variant="secondary" className="font-normal pr-1.5">
+                          {sub.display}
+                          <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onUnsubscribe(sub.id, event.type);
+                            }}
+                            className="ml-1.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                            aria-label={`Unsubscribe from ${sub.display}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
                         </Badge>
                       ))}
                     </div>

@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchLatestAlerts, type ApiAlertEvent, fetchSystemSubscriptions } from '@/lib/alerts-api';
+import { fetchLatestAlerts, type ApiAlertEvent, fetchSystemSubscriptions, unsubscribeFromAlert } from '@/lib/alerts-api';
 import { AlertsTable } from '@/components/alerts/AlertsTable';
+import { useToast } from '@/hooks/use-toast';
 
 // This is the structure the UI component expects.
 export interface AlertEvent {
@@ -15,7 +16,7 @@ export interface AlertEvent {
   type: string; // Will be mapped from event_types
   lastSeen: string; // Will be mapped from seen_at
   eventCounter: number; // Will be mapped from counter
-  activeSubscriptions: string[]; // This will be populated from the subscriptions API
+  activeSubscriptions: { id: string, display: string }[]; // Updated to include subscription ID
   payload: object; // Will be mapped from event
 }
 
@@ -24,6 +25,36 @@ export default function AlertsPage() {
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const handleUnsubscribe = async (subscriptionId: string, eventType: string) => {
+    if (!user?.access_token) {
+        toast({ title: 'Authentication Error', description: 'You must be logged in to unsubscribe.', variant: 'destructive' });
+        return;
+    }
+
+    try {
+        await unsubscribeFromAlert(subscriptionId, user.access_token);
+        
+        // Optimistically update the UI
+        setEvents(currentEvents => {
+            return currentEvents.map(event => {
+                if (event.type === eventType) {
+                    return {
+                        ...event,
+                        activeSubscriptions: event.activeSubscriptions.filter(sub => sub.id !== subscriptionId)
+                    };
+                }
+                return event;
+            });
+        });
+
+        toast({ title: 'Success', description: 'You have been unsubscribed from the alert.' });
+    } catch (e: any) {
+        toast({ title: 'Unsubscribe Failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
 
   const loadAlertsData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -40,12 +71,15 @@ export default function AlertsPage() {
         fetchSystemSubscriptions(user.access_token),
       ]);
 
-      const subscriptionsMap = new Map<string, string[]>();
+      const subscriptionsMap = new Map<string, { id: string, display: string }[]>();
       for (const sub of apiSubscriptions) {
         if (!subscriptionsMap.has(sub.event_type)) {
           subscriptionsMap.set(sub.event_type, []);
         }
-        const subscriptionDisplay = `${sub.channel.type}: ${sub.channel.config.email}`;
+        const subscriptionDisplay = {
+            id: sub.id,
+            display: `${sub.channel.type}: ${sub.channel.config.email}`,
+        };
         subscriptionsMap.get(sub.event_type)?.push(subscriptionDisplay);
       }
 
@@ -113,7 +147,7 @@ export default function AlertsPage() {
           </AlertDescription>
         </Alert>
       ) : events.length > 0 ? (
-        <AlertsTable events={events} />
+        <AlertsTable events={events} onUnsubscribe={handleUnsubscribe} />
       ) : (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">No Events Found</h3>
