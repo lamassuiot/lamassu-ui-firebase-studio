@@ -526,6 +526,54 @@ export async function createCaRequest(payload: CreateCaRequestPayload, accessTok
   }
 }
 
+export interface CACertificateRequest {
+    id: string;
+    key_id: string;
+    metadata: Record<string, any>;
+    subject: { common_name: string };
+    creation_ts: string;
+    engine_id: string;
+    key_metadata: { type: string; bits: number };
+    status: 'PENDING' | 'ISSUED';
+    fingerprint: string;
+    csr: string; // Base64 encoded PEM
+}
+
+export async function fetchCaRequests(params: URLSearchParams, accessToken: string): Promise<{ list: CACertificateRequest[]; next: string | null }> {
+  const response = await fetch(`${CA_API_BASE_URL}/cas/requests?${params.toString()}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to fetch CA requests. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Failed to fetch requests: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) { /* ignore */ }
+    throw new Error(errorMessage);
+  }
+  
+  return response.json();
+}
+
+export async function deleteCaRequest(requestId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`${CA_API_BASE_URL}/cas/requests/${requestId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to delete request. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) { /* ignore */ }
+    throw new Error(errorMessage);
+  }
+}
+
 // Function and type for importing a CA
 export interface ImportCaPayload {
   request_id?: string;
