@@ -134,23 +134,23 @@ export function DeviceStatusChartCard() {
   };
 
   return (
-    <Card className="shadow-lg w-full bg-primary text-primary-foreground max-w-lg">
+    <Card className="shadow-lg w-full bg-primary text-primary-foreground">
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Device Status Overview</CardTitle>
         <CardDescription className="text-primary-foreground/80">A summary of all managed devices by their current status.</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading || authLoading ? (
-          <div className="h-[300px] flex flex-col items-center justify-center">
+          <div className="h-[250px] flex flex-col items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary-foreground/80" />
             <p className="mt-2 text-sm text-primary-foreground/70">Loading chart data...</p>
           </div>
         ) : error ? (
-          <div className="h-[300px] flex flex-col items-center justify-center text-center">
+          <div className="h-[250px] flex flex-col items-center justify-center text-center">
             <p className="text-destructive-foreground/80 bg-destructive/30 p-3 rounded-md">Error: {error}</p>
           </div>
         ) : chartData && chartData.length > 0 ? (
-          <div className="relative" style={{ width: '100%', height: 300 }}>
+          <div className="relative" style={{ width: '100%', height: 250 }}>
             <ResponsiveContainer>
               <PieChart>
                 <Pie
@@ -190,7 +190,7 @@ export function DeviceStatusChartCard() {
             )}
           </div>
         ) : (
-             <div className="h-[300px] flex flex-col items-center justify-center text-center">
+             <div className="h-[250px] flex flex-col items-center justify-center text-center">
                 <p className="text-primary-foreground/80">No device data available to display.</p>
              </div>
         )}
