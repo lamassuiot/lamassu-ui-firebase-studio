@@ -29,13 +29,6 @@ const creationModes: CreationMode[] = [
     isComingSoon: false,
   },
   {
-    id: 'approve-request',
-    href: '/certificate-authorities/new/approve-request',
-    title: 'Import Certificate (Approve Request)',
-    description: 'Import a signed certificate to approve a pending CA request that was generated on the backend.',
-    icon: <ShieldCheck className="h-8 w-8 text-primary" />,
-  },
-  {
     id: 'import-full',
     href: '/certificate-authorities/new/import-full',
     title: 'Import External CA (with Private Key)',
