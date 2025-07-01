@@ -46,12 +46,12 @@ interface SummaryStats {
 
 export default function HomePage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  
+
   // State for timeline
   const [allCAs, setAllCAs] = useState<CA[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(true);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
-  
+
   // State for summary stats
   const [summaryStats, setSummaryStats] = useState<SummaryStats>({
     certificates: null,
@@ -89,7 +89,7 @@ export default function HomePage() {
 
     try {
       const [
-        fetchedCAs, 
+        fetchedCAs,
         enginesResponse,
         caStatsResponse,
         dmsStatsResponse,
@@ -111,7 +111,7 @@ export default function HomePage() {
       if (!enginesResponse.ok) throw new Error('Failed to fetch crypto engines');
       setAllCryptoEngines(await enginesResponse.json());
       setIsLoadingEngines(false);
-      
+
       // Process stats for summary card
       if (!caStatsResponse.ok) throw new Error('Failed to fetch CA stats');
       if (!dmsStatsResponse.ok) throw new Error('Failed to fetch RA stats');
@@ -149,56 +149,52 @@ export default function HomePage() {
       loadInitialData();
     }
   }, [loadInitialData, authLoading]);
-  
+
   const anyTimelineError = errorCAs || errorEngines;
   const anyTimelineLoading = isLoadingCAs || isLoadingEngines || authLoading;
 
   return (
     <div className="w-full space-y-8">
-      
-      {/* Row 1: CA Expiry Timeline */}
-      <div>
-        {anyTimelineLoading && !anyTimelineError ? (
-          <Card className="shadow-lg w-full bg-card">
-              <CardHeader>
-                  <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
-                  </div>
-              </CardContent>
-          </Card>
-        ) : anyTimelineError ? (
-            <Card className="shadow-lg w-full bg-card">
-              <CardHeader>
-                  <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Error Loading Timeline Data</AlertTitle>
-                      <AlertDescription>
-                          {anyTimelineError}
-                          <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80 focus:text-destructive">Try again?</Button>
-                      </AlertDescription>
-                  </Alert>
-              </CardContent>
-            </Card>
-        ) : (
-          <CaExpiryTimeline cas={allCAs} allCryptoEngines={allCryptoEngines} />
-        )}
-      </div>
-
-      {/* Row 2: Summary and Device Status */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div className="xl:col-span-1">
           <SummaryStatsCard stats={summaryStats} isLoading={isLoadingStats || authLoading} />
         </div>
         <div className="xl:col-span-2">
-            <DeviceStatusChartCard />
+          <DeviceStatusChartCard />
         </div>
+      </div>
+      <div>
+        {anyTimelineLoading && !anyTimelineError ? (
+          <Card className="shadow-lg w-full bg-card">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : anyTimelineError ? (
+          <Card className="shadow-lg w-full bg-card">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error Loading Timeline Data</AlertTitle>
+                <AlertDescription>
+                  {anyTimelineError}
+                  <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80 focus:text-destructive">Try again?</Button>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        ) : (
+          <CaExpiryTimeline cas={allCAs} allCryptoEngines={allCryptoEngines} />
+        )}
       </div>
     </div>
   );
