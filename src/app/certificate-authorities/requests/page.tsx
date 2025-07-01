@@ -287,6 +287,96 @@ export default function CaRequestsPage() {
     { label: 'Rejected', value: 'REJECTED' },
   ];
 
+  const content = (
+    <>
+      {isLoading && requests.length === 0 ? (
+        <div className="flex items-center justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-2">Loading requests...</p>
+        </div>
+      ) : error ? (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error Loading Requests</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : requests.length > 0 ? (
+        <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6", isLoading && "opacity-50")}>
+            {requests.map((req) => (
+            <Card key={req.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader>
+                    <div className="flex justify-between items-start gap-2">
+                        <div className="flex-grow min-w-0">
+                            <CardTitle className="truncate text-lg" title={req.subject.common_name}>
+                                {req.subject.common_name}
+                            </CardTitle>
+                            <CardDescription className="mt-1">
+                                ID: <span className="font-mono text-xs">{req.id}</span>
+                            </CardDescription>
+                        </div>
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                                <MoreVertical className="h-4 w-4" />
+                                <span className="sr-only">More actions for request {req.id}</span>
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewCsr(req)}>
+                                <FileSignature className="mr-2 h-4 w-4" />
+                                View CSR
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
+                                <Layers className="mr-2 h-4 w-4" />
+                                View Raw API Data
+                            </DropdownMenuItem>
+                            {req.status === 'PENDING' && (
+                                <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => setRequestToDelete(req)}
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Request
+                                </DropdownMenuItem>
+                                </>
+                            )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex-grow space-y-3 text-sm">
+                    <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Status</span>
+                        <StatusBadge status={req.status} />
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Key Type</span>
+                        <span className="font-medium">{req.key_metadata.type} {req.key_metadata.bits}-bit</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Engine</span>
+                        <Badge variant="outline">{req.engine_id}</Badge>
+                    </div>
+                </CardContent>
+                <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground">
+                    <span>Created: {format(parseISO(req.creation_ts), 'MMM dd, yyyy HH:mm')}</span>
+                </CardFooter>
+            </Card>
+        ))}
+        </div>
+      ) : (
+        <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
+          <h3 className="text-lg font-semibold text-muted-foreground">{hasActiveFilters ? "No Requests Found" : "No CA Requests Found"}</h3>
+          <p className="text-sm text-muted-foreground">
+            {hasActiveFilters ? "Try adjusting your filters." : "There are no pending or historical Certificate Authority requests."}
+          </p>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
@@ -356,85 +446,16 @@ export default function CaRequestsPage() {
             </Select>
         </div>
       </div>
+      
+      {requests.length > 0 ? (
+          <ScrollArea className="h-[calc(100vh-450px)] w-full rounded-md border p-4">
+            {content}
+          </ScrollArea>
+      ) : (
+          content
+      )}
 
-      {isLoading && requests.length === 0 ? (
-        <div className="flex items-center justify-center p-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Loading requests...</p>
-        </div>
-      ) : error ? (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error Loading Requests</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : requests.length > 0 ? (
-        <>
-          <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4", isLoading && "opacity-50")}>
-             {requests.map((req) => (
-                <Card key={req.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                        <div className="flex justify-between items-start gap-2">
-                            <div className="flex-grow min-w-0">
-                                <CardTitle className="truncate text-lg" title={req.subject.common_name}>
-                                    {req.subject.common_name}
-                                </CardTitle>
-                                <CardDescription className="mt-1">
-                                    ID: <span className="font-mono text-xs">{req.id}</span>
-                                </CardDescription>
-                            </div>
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                                    <MoreVertical className="h-4 w-4" />
-                                    <span className="sr-only">More actions for request {req.id}</span>
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewCsr(req)}>
-                                    <FileSignature className="mr-2 h-4 w-4" />
-                                    View CSR
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
-                                    <Layers className="mr-2 h-4 w-4" />
-                                    View Raw API Data
-                                </DropdownMenuItem>
-                                {req.status === 'PENDING' && (
-                                    <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        className="text-destructive focus:text-destructive"
-                                        onClick={() => setRequestToDelete(req)}
-                                    >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete Request
-                                    </DropdownMenuItem>
-                                    </>
-                                )}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex-grow space-y-3 text-sm">
-                        <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Status</span>
-                            <StatusBadge status={req.status} />
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Key Type</span>
-                            <span className="font-medium">{req.key_metadata.type} {req.key_metadata.bits}-bit</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Engine</span>
-                            <Badge variant="outline">{req.engine_id}</Badge>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground">
-                        <span>Created: {format(parseISO(req.creation_ts), 'MMM dd, yyyy HH:mm')}</span>
-                    </CardFooter>
-                </Card>
-            ))}
-          </div>
+      {requests.length > 0 && (
           <div className="flex justify-between items-center mt-4">
               <div className="flex items-center space-x-2">
                 <Label htmlFor="pageSizeSelectReqList" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
@@ -456,14 +477,6 @@ export default function CaRequestsPage() {
                   </Button>
               </div>
           </div>
-        </>
-      ) : (
-        <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-          <h3 className="text-lg font-semibold text-muted-foreground">{hasActiveFilters ? "No Requests Found" : "No CA Requests Found"}</h3>
-          <p className="text-sm text-muted-foreground">
-            {hasActiveFilters ? "Try adjusting your filters." : "There are no pending or historical Certificate Authority requests."}
-          </p>
-        </div>
       )}
 
       <ViewCsrModal
