@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, KeyRound, UploadCloud, FileText, ChevronRight, Settings, PlusCircle, FileKey, Tag } from "lucide-react";
+import { ArrowLeft, KeyRound, UploadCloud, FileText, ChevronRight, Settings, PlusCircle, FileKey, Tag, Loader2 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { KEY_TYPE_OPTIONS_POST_QUANTUM, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS, MLDSA_SECURITY_LEVEL_OPTIONS } from '@/lib/key-spec-constants';
+import { useAuth } from '@/contexts/AuthContext';
 
 const creationModes = [
   {
@@ -37,6 +38,7 @@ const creationModes = [
 export default function CreateKmsKeyPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedMode, setSelectedMode] = useState<string | null>(null);
 
   // Common fields
@@ -50,20 +52,20 @@ export default function CreateKmsKeyPage() {
   const [ecdsaCurve, setEcdsaCurve] = useState('P-256');
   const [mlDsaSecurityLevel, setMlDsaSecurityLevel] = useState('ML-DSA-65');
 
-
   // Import Key Pair mode fields
   const [privateKeyPem, setPrivateKeyPem] = useState('');
-  const [publicKeyPemForImport, setPublicKeyPemForImport] = useState(''); // Optional, can be derived
+  const [publicKeyPemForImport, setPublicKeyPemForImport] = useState('');
   const [passphrase, setPassphrase] = useState('');
 
   // Import Public Key mode fields
   const [publicKeyPem, setPublicKeyPem] = useState('');
   
   const [keyId, setKeyId] = useState('');
-   useEffect(() => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
     setKeyId(`key-${crypto.randomUUID()}`);
   }, [selectedMode]);
-
 
   const handleKeyTypeChange = (value: string) => {
     setKeyType(value);
@@ -103,64 +105,94 @@ export default function CreateKmsKeyPage() {
     else if (keyType === 'ML-DSA') setMlDsaSecurityLevel(value);
   };
 
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!keyAlias.trim()) {
         toast({ title: "Validation Error", description: "Key Alias cannot be empty.", variant: "destructive"});
         return;
     }
+    if (!user?.access_token) {
+        toast({ title: "Authentication Error", description: "You must be logged in to create a key.", variant: "destructive" });
+        return;
+    }
 
-    let formData: any = {
-      creationMode: selectedMode,
-      keyId,
-      keyAlias,
-      description,
-      tags: tags.split(',').map(t => t.trim()).filter(t => t),
-    };
+    setIsSubmitting(true);
 
     if (selectedMode === 'newKeyPair') {
-      let keySpecValue = '';
-      if (keyType === 'RSA') keySpecValue = rsaKeySize;
-      else if (keyType === 'ECDSA') keySpecValue = ecdsaCurve;
-      else if (keyType === 'ML-DSA') keySpecValue = mlDsaSecurityLevel;
-      
-      formData = {
-        ...formData,
-        keyType,
-        keySpec: keySpecValue,
-      };
+        try {
+            let size = '';
+            if (keyType === 'RSA') {
+                size = rsaKeySize;
+            } else if (keyType === 'ECDSA') {
+                size = ecdsaCurve.replace('P-', '');
+            } else if (keyType === 'ML-DSA') {
+                size = mlDsaSecurityLevel.replace('ML-DSA-', '');
+            }
+
+            const payload = {
+                algorithm: keyType,
+                size: size,
+            };
+
+            const response = await fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.access_token}`,
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                let errorJson;
+                let errorMessage = `Failed to create key. Status: ${response.status}`;
+                try {
+                    errorJson = await response.json();
+                    errorMessage = `Key creation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+                } catch (e) { /* ignore json parse error */ }
+                throw new Error(errorMessage);
+            }
+
+            toast({
+                title: "Key Pair Created",
+                description: `Key pair of type ${keyType} has been successfully created.`,
+            });
+            router.push('/kms/keys');
+
+        } catch (error: any) {
+            toast({ title: "Creation Failed", description: error.message, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+
     } else if (selectedMode === 'importKeyPair') {
       if (!privateKeyPem.trim()) {
         toast({ title: "Validation Error", description: "Private Key (PEM) is required for import.", variant: "destructive"});
+        setIsSubmitting(false);
         return;
       }
-      formData = {
-        ...formData,
-        privateKeyPem,
-        publicKeyPemForImport: publicKeyPemForImport.trim() || undefined,
-        passphrase: passphrase || undefined,
-      };
+      console.log(`Mock Creating KMS Key (Mode: ${selectedMode}) with data:`, { keyAlias });
+      toast({
+        title: "KMS Key Import Mocked",
+        description: `Key import for "${keyAlias}" submitted. Check console.`,
+      });
+      router.push('/kms/keys');
+      setIsSubmitting(false);
+
     } else if (selectedMode === 'importPublicKey') {
       if (!publicKeyPem.trim()) {
         toast({ title: "Validation Error", description: "Public Key (PEM) is required for import.", variant: "destructive"});
+        setIsSubmitting(false);
         return;
       }
-      formData = { ...formData, publicKeyPem };
+      console.log(`Mock Creating KMS Key (Mode: ${selectedMode}) with data:`, { keyAlias });
+      toast({
+        title: "KMS Key Import Mocked",
+        description: `Public key import for "${keyAlias}" submitted. Check console.`,
+      });
+      router.push('/kms/keys');
+      setIsSubmitting(false);
     }
-
-    console.log(`Creating KMS Key (Mode: ${selectedMode}) with data:`, formData);
-    toast({
-      title: "KMS Key Creation Mocked",
-      description: `Key "${keyAlias}" submitted via ${selectedModeDetails?.title}. Details in console.`,
-    });
-    // Reset common fields
-    setKeyAlias('');
-    setDescription('');
-    setTags('');
-    // Optionally reset mode-specific fields or navigate
-    // setSelectedMode(null); 
-    router.push('/kms/keys');
   };
 
   const selectedModeDetails = creationModes.find(m => m.id === selectedMode);
@@ -367,8 +399,8 @@ export default function CreateKmsKeyPage() {
             )}
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg">
-                <PlusCircle className="mr-2 h-5 w-5" /> 
+              <Button type="submit" size="lg" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
                 {selectedMode === 'newKeyPair' ? 'Create Key Pair' : 
                  selectedMode === 'importKeyPair' ? 'Import Key Pair' :
                  'Import Public Key'}
