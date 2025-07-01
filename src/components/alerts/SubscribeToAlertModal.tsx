@@ -472,26 +472,54 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                                : filterType === 'JSON-SCHEMA' ? jsonSchema
                                : filterCondition;
         return (
-            <div className="space-y-3 text-sm p-4 border rounded-md bg-muted/50">
-                <h4 className="font-semibold">Confirm Subscription</h4>
-                <p><strong>Event Type:</strong> <span className="font-mono text-xs">{eventType}</span></p>
-                <p><strong>Channel:</strong> {channelOptions.find(o => o.value === channelType)?.label}</p>
-                {channelType === 'EMAIL' && <p><strong>Email:</strong> {email}</p>}
-                {channelType === 'WEBHOOK' && (
-                    <>
-                        <p><strong>Name:</strong> {webhookName}</p>
-                        <p><strong>Method:</strong> {webhookMethod}</p>
-                        <p><strong>URL:</strong> <span className="truncate">{webhookUrl}</span></p>
-                    </>
-                )}
-                {channelType === 'TEAMS_WEBHOOK' && (
-                    <>
-                        <p><strong>Name:</strong> {teamsName}</p>
-                        <p><strong>URL:</strong> <span className="truncate">{webhookUrl}</span></p>
-                    </>
-                )}
-                <p><strong>Condition Type:</strong> {filterOptions.find(o => o.value === filterType)?.label}</p>
-                {filterType !== 'NONE' && <p><strong>Condition:</strong> {currentCondition}</p>}
+            <div className="space-y-4 text-sm">
+                <h4 className="font-semibold mb-2">Confirm Subscription</h4>
+                
+                <div className="space-y-3 p-3 border rounded-md bg-muted/50">
+                    <div className="flex justify-between items-start">
+                        <span className="text-muted-foreground">Event Type:</span>
+                        <span className="font-mono text-xs text-right">{eventType}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                        <span className="text-muted-foreground">Channel:</span>
+                        <span className="text-right">{channelOptions.find(o => o.value === channelType)?.label}</span>
+                    </div>
+                    {channelType === 'EMAIL' && <div className="flex justify-between"><span className="text-muted-foreground">Email:</span><span>{email}</span></div>}
+                    {channelType === 'WEBHOOK' && (
+                        <>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Name:</span><span>{webhookName}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Method:</span><span>{webhookMethod}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">URL:</span><span className="truncate ml-4 text-right">{webhookUrl}</span></div>
+                        </>
+                    )}
+                    {channelType === 'TEAMS_WEBHOOK' && (
+                         <>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Name:</span><span>{teamsName}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">URL:</span><span className="truncate ml-4 text-right">{webhookUrl}</span></div>
+                        </>
+                    )}
+                </div>
+                
+                <div className="space-y-2 p-3 border rounded-md bg-muted/50">
+                     <div className="flex justify-between items-start">
+                        <span className="text-muted-foreground">Condition Type:</span>
+                        <span>{filterOptions.find(o => o.value === filterType)?.label}</span>
+                    </div>
+                     {filterType !== 'NONE' && (
+                        <div className="space-y-1">
+                            <Label className="text-muted-foreground">Condition:</Label>
+                            {(filterType === 'JSON-SCHEMA' || filterType === 'JAVASCRIPT') ? (
+                                <Textarea 
+                                    value={currentCondition} 
+                                    readOnly 
+                                    className="font-mono text-xs h-28 bg-background"
+                                />
+                            ) : (
+                                <p className="font-mono text-xs p-2 bg-background rounded-md border">{currentCondition}</p>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         );
       default:
