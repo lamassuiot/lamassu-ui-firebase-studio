@@ -1,17 +1,16 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { DataSet } from "vis-data/esnext";
 import { Timeline } from "vis-timeline/esnext";
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
-import { addDays, addMonths, isPast, parseISO, subDays, subMonths, toDate } from 'date-fns';
+import { addMonths, isPast, parseISO, subMonths } from 'date-fns';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { createRoot } from 'react-dom/client';
 import { Button } from '@/components/ui/button';
 import { Maximize, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,13 +26,47 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
   const cardRef = useRef<HTMLDivElement>(null);
   const hiddenItemsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const timelineInstance = useRef<Timeline | null>(null);
-  const [renderedCount, setRenderedCount] = useState(0);
+  
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isReadyForTimeline, setIsReadyForTimeline] = useState(false);
   const router = useRouter();
+  
+  const hiddenItemElements = useMemo(() => {
+    // This memoized component will re-render only when `cas` or `allCryptoEngines` changes.
+    // It populates the hiddenItemsRef with the rendered DOM nodes.
+    return (
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', zIndex: -1 }}>
+        {cas.map(ca => (
+          <div
+            key={`vis-item-for-${ca.id}`}
+            ref={el => {
+              if (el) {
+                hiddenItemsRef.current.set(ca.id, el);
+              } else {
+                hiddenItemsRef.current.delete(ca.id);
+              }
+            }}
+          >
+            <CaVisualizerCard ca={ca} allCryptoEngines={allCryptoEngines} />
+          </div>
+        ))}
+      </div>
+    );
+  }, [cas, allCryptoEngines]);
+
+  // This effect runs after every render to check if our refs are ready.
+  // It's lightweight and safer than the previous `setRenderedCount` approach.
+  useEffect(() => {
+    if (cas.length > 0 && hiddenItemsRef.current.size === cas.length) {
+      if (!isReadyForTimeline) setIsReadyForTimeline(true);
+    } else {
+      if (isReadyForTimeline) setIsReadyForTimeline(false);
+    }
+  });
+
 
   const handleFullscreenToggle = () => {
     if (!cardRef.current) return;
-
     if (!document.fullscreenElement) {
       cardRef.current.requestFullscreen().catch(err => {
         alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
@@ -45,37 +78,16 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
   
   const handleZoom = (range: '3m' | '1y' | '5y' | '10y' | '25y' | '50y') => {
     if (!timelineInstance.current) return;
-
     const now = new Date();
     let start: Date, end: Date;
-
     switch (range) {
-      case '3m':
-        start = subDays(now, 45);
-        end = addDays(now, 45);
-        break;
-      case '1y':
-        start = subMonths(now, 6);
-        end = addMonths(now, 6);
-        break;
-      case '5y':
-        start = subMonths(now, 30); // 2.5 years
-        end = addMonths(now, 30);
-        break;
-      case '10y':
-        start = subMonths(now, 60); // 5 years
-        end = addMonths(now, 60);
-        break;
-      case '25y':
-        start = subMonths(now, 150); // 12.5 years
-        end = addMonths(now, 150);
-        break;
-      case '50y':
-        start = subMonths(now, 300); // 25 years
-        end = addMonths(now, 300);
-        break;
+      case '3m': start = subMonths(now, 1); end = addMonths(now, 2); break;
+      case '1y': start = subMonths(now, 6); end = addMonths(now, 6); break;
+      case '5y': start = subMonths(now, 30); end = addMonths(now, 30); break;
+      case '10y': start = subMonths(now, 60); end = addMonths(now, 60); break;
+      case '25y': start = subMonths(now, 150); end = addMonths(now, 150); break;
+      case '50y': start = subMonths(now, 300); end = addMonths(now, 300); break;
     }
-    
     timelineInstance.current.setWindow(start, end, { animation: true });
   };
 
@@ -83,130 +95,77 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
-
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
 
   useEffect(() => {
-    if (timelineInstance.current) {
-      timelineInstance.current.redraw();
-    }
+    setTimeout(() => {
+      if (timelineInstance.current) {
+        timelineInstance.current.redraw();
+        timelineInstance.current.fit();
+      }
+    }, 50); // Small delay to allow layout to settle
   }, [isFullscreen]);
 
 
   useEffect(() => {
-    if (!timelineRef.current || cas.length === 0 || renderedCount < cas.length) {
-      return;
-    }
-
-    if (timelineInstance.current) {
-      timelineInstance.current.destroy();
-      timelineInstance.current = null;
-    }
-
-    const sortedCAs = [...cas].sort((a, b) => {
-      const dateA = parseISO(a.expires);
-      const dateB = parseISO(b.expires);
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    const itemsData = sortedCAs.map(ca => {
-      const expiryDate = parseISO(ca.expires);
-      const isEventExpired = isPast(expiryDate);
-      let className = 'item-active';
-
-      if (ca.status === 'revoked') {
-        className = 'item-revoked';
-      } else if (isEventExpired) {
-        className = 'item-expired';
-      }
-
-      const contentElement = hiddenItemsRef.current.get(ca.id);
-      if (!contentElement) {
-        console.warn(`Could not find pre-rendered element for CA ${ca.id}`);
-        return null;
-      }
-
-      return {
-        id: ca.id,
-        content: contentElement,
-        start: expiryDate,
-        className,
+    if (timelineRef.current) {
+      const options = {
+        stack: false, // Changed for better layout
+        width: '100%',
+        height: '100%',
+        margin: { item: { vertical: 10, horizontal: 5 }, axis: 20 },
+        start: subMonths(new Date(), 1),
+        end: addMonths(new Date(), 3),
+        zoomMin: 1000 * 60 * 60 * 24,
+        zoomMax: 1000 * 60 * 60 * 24 * 365 * 50,
       };
-    }).filter(Boolean);
-
-    if (itemsData.length === 0) return;
-
-    const items = new DataSet(itemsData as any);
-    const now = new Date();
-    const options = {
-      stack: true,
-      width: '100%',
-      height: '100%',
-      margin: { item: 20 },
-      start: subMonths(now, 1),
-      end: addMonths(toDate(sortedCAs[0].expires), 3),
-      zoomMin: 1000 * 60 * 60 * 24, // 1 day
-      zoomMax: 1000 * 60 * 60 * 24 * 100, // 100 years
-    };
-
-    const timeline = new Timeline(timelineRef.current, items, options);
-    timelineInstance.current = timeline;
-
-    timeline.on('select', properties => {
-      if (properties.items.length > 0) {
-        const caId = properties.items[0];
-        router.push(`/certificate-authorities/details?caId=${caId}`);
-      }
-    });
-
-    timeline.addCustomTime(now, 'now-marker');
-
+      
+      timelineInstance.current = new Timeline(timelineRef.current, new DataSet(), options);
+      timelineInstance.current.addCustomTime(new Date(), 'now-marker');
+      timelineInstance.current.on('select', properties => {
+        if (properties.items.length > 0) router.push(`/certificate-authorities/details?caId=${properties.items[0]}`);
+      });
+    }
     return () => {
-      if (timelineInstance.current) {
-        timelineInstance.current.destroy();
-        timelineInstance.current = null;
-        console.log("Destroyed existing timeline");
-      }
+      timelineInstance.current?.destroy();
     };
-  }, [cas, renderedCount, router]);
+  }, [router]);
+
+
+  useEffect(() => {
+    if (isReadyForTimeline && timelineInstance.current) {
+      const sortedCAs = [...cas].sort((a, b) => parseISO(a.expires).getTime() - parseISO(b.expires).getTime());
+      
+      const itemsData = sortedCAs.map(ca => {
+        const expiryDate = parseISO(ca.expires);
+        const isEventExpired = isPast(expiryDate);
+        let className = isEventExpired ? 'item-expired' : 'item-active';
+        if (ca.status === 'revoked') className = 'item-revoked';
+
+        const contentElement = hiddenItemsRef.current.get(ca.id);
+        if (!contentElement) return null;
+        
+        return { id: ca.id, content: contentElement, start: expiryDate, className };
+      }).filter(Boolean);
+
+      timelineInstance.current.setItems(new DataSet(itemsData as any));
+      timelineInstance.current.fit();
+    }
+  }, [isReadyForTimeline, cas, allCryptoEngines, router]);
 
   return (
     <>
-      {/* Hidden container for pre-rendering item content */}
-      <div style={{ display: 'none' }}>
-        {cas.map(ca => (
-          <div
-            key={`vis-item-for-${ca.id}`}
-            ref={el => {
-              if (el && !hiddenItemsRef.current.has(ca.id)) {
-                hiddenItemsRef.current.set(ca.id, el);
-                setRenderedCount(prev => prev + 1);
-              }
-            }}
-            id={`vis-item-content-${ca.id}`}
-          >
-            <CaVisualizerCard ca={ca} allCryptoEngines={allCryptoEngines} />
-          </div>
-        ))}
-      </div>
-
-      <Card
-        ref={cardRef}
-        className={cn(
-          "shadow-lg w-full bg-primary text-primary-foreground",
-          isFullscreen && "fixed inset-0 z-50 flex flex-col"
-        )}
-      >
+      {hiddenItemElements}
+      <Card ref={cardRef} className={cn("shadow-lg w-full bg-primary text-primary-foreground", isFullscreen && "fixed inset-0 z-50 flex flex-col")}>
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
             <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              Visual timeline of Certificate Authority expiry dates. Click an item to view details. Zoom in/out using mouse wheel or pinch gestures.
+              Visual timeline of Certificate Authority expiry dates. Click an item to view details.
             </CardDescription>
           </div>
            <div className="flex items-center space-x-2">
@@ -225,13 +184,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
           </div>
         </CardHeader>
         <CardContent className={cn(isFullscreen && "flex-grow")}>
-          {cas.length > 0 ? (
-            <div ref={timelineRef} className={cn("w-full", isFullscreen ? "h-full" : "h-[300px]")} />
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary-foreground/70">
-              No CA data available to display in timeline.
-            </div>
-          )}
+          <div ref={timelineRef} className={cn("w-full", isFullscreen ? "h-full" : "h-[300px]")} />
         </CardContent>
       </Card>
     </>
