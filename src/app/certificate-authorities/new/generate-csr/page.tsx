@@ -41,7 +41,6 @@ export default function RequestCaCsrPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [caType, setCaType] = useState('root');
   const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined);
   const [selectedParentCa, setSelectedParentCa] = useState<CA | null>(null);
   const [caId, setCaId] = useState('');
@@ -116,11 +115,6 @@ export default function RequestCaCsrPage() {
     }
   }, [loadDependencies, authLoading]);
 
-  const handleCaTypeChange = (value: string) => {
-    setCaType(value);
-    setSelectedParentCa(null);
-  };
-
   const handleKeyTypeChange = (value: string) => {
     setKeyType(value);
     if (value === 'RSA') {
@@ -175,7 +169,7 @@ export default function RequestCaCsrPage() {
     }
 
     const payload = {
-      parent_id: caType === 'root' ? "" : selectedParentCa?.id || "",
+      parent_id: selectedParentCa?.id || "",
       id: caId,
       engine_id: cryptoEngineId, 
       subject: {
@@ -285,43 +279,24 @@ export default function RequestCaCsrPage() {
               <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground" />CA Settings</h3>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="caType">CA Type</Label>
-                  <Select value={caType} onValueChange={handleCaTypeChange}>
-                    <SelectTrigger id="caType"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="root">Root CA</SelectItem>
-                      <SelectItem value="intermediate">Intermediate CA</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="parentCa">Parent CA (Optional)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsParentCaModalOpen(true)}
+                    className="w-full justify-start text-left font-normal mt-1"
+                    id="parentCa"
+                    disabled={isLoadingCAs || authLoading}
+                  >
+                    {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
+                  </Button>
+                  {selectedParentCa && (
+                    <div className="mt-2">
+                      <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">If no parent is selected, this is a request for a self-signed Root CA. If a parent is selected, it's a request for an Intermediate CA to be signed by that parent.</p>
                 </div>
-                {caType === 'intermediate' && (
-                  <div>
-                    <Label htmlFor="parentCa">Parent CA (Optional)</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsParentCaModalOpen(true)}
-                      className="w-full justify-start text-left font-normal mt-1"
-                      id="parentCa"
-                      disabled={isLoadingCAs || authLoading}
-                    >
-                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
-                    </Button>
-                    {selectedParentCa && (
-                      <div className="mt-2">
-                        <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">Select a parent CA to indicate the intended issuer. This is optional for the CSR request.</p>
-                  </div>
-                )}
-                {caType === 'root' && (
-                  <div>
-                    <Label htmlFor="issuerName">Issuer</Label>
-                    <Input id="issuerName" value="Self-signed" disabled className="mt-1 bg-muted/50" />
-                    <p className="text-xs text-muted-foreground mt-1">Root CAs are self-signed.</p>
-                  </div>
-                )}
                 <div>
                   <Label htmlFor="caId">CA Request ID (generated)</Label>
                   <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
