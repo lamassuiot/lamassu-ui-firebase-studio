@@ -38,7 +38,7 @@ export function usePaginatedCertificateFetcher({ caId = null, initialPageSize = 
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [searchField, setSearchField] = useState<'commonName' | 'serialNumber'>('commonName');
   const [statusFilter, setStatusFilter] = useState<ApiStatusFilterValue>('ALL');
-  const [sortConfig, setSortConfig] = useState<CertSortConfig | null>({ column: 'expires', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<CertSortConfig | null>({ column: 'validFrom', direction: 'desc' });
 
   // Debounce search term
   useEffect(() => {
