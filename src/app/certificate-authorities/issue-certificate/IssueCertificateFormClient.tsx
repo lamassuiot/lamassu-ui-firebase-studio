@@ -135,11 +135,12 @@ export default function IssueCertificateFormClient() {
   const { toast } = useToast();
   const { user } = useAuth();
   const caId = searchParams.get('caId');
+  const prefilledCn = searchParams.get('prefill_cn');
   const [step, setStep] = useState(1);
 
   // Step 1 State
   const [issuanceMode, setIssuanceMode] = useState<'generate' | 'upload'>('generate');
-  const [commonName, setCommonName] = useState('');
+  const [commonName, setCommonName] = useState(prefilledCn || '');
   const [organization, setOrganization] = useState('');
   const [organizationalUnit, setOrganizationalUnit] = useState('');
   const [country, setCountry] = useState('');
@@ -407,7 +408,22 @@ export default function IssueCertificateFormClient() {
                 <h3 className="font-medium text-lg border-t pt-4">Certificate Subject {issuanceMode === 'upload' && '(from CSR)'}</h3>
                 {issuanceMode === 'generate' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1"><Label htmlFor="commonName">Common Name (CN)</Label><Input id="commonName" value={commonName || ''} onChange={e => setCommonName(e.target.value)} required /></div>
+                    <div className="space-y-1">
+                      <Label htmlFor="commonName">Common Name (CN)</Label>
+                      <Input
+                        id="commonName"
+                        value={commonName || ''}
+                        onChange={e => setCommonName(e.target.value)}
+                        required
+                        readOnly={!!prefilledCn}
+                        className={cn(!!prefilledCn && 'bg-muted/50')}
+                      />
+                      {!!prefilledCn && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Common Name pre-filled from device ID and cannot be changed.
+                        </p>
+                      )}
+                    </div>
                     <div className="space-y-1"><Label htmlFor="organization">Organization (O)</Label><Input id="organization" value={organization || ''} onChange={e => setOrganization(e.target.value)} /></div>
                     <div className="space-y-1 md:col-span-2"><Label htmlFor="dnsSans">DNS Names (SAN)</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="Add DNS names..."/></div>
                   </div>
