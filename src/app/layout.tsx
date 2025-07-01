@@ -1,4 +1,3 @@
-
 'use client';
 
 import './globals.css';
@@ -279,7 +278,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
 
                 </SidebarMenu>
               </SidebarContent>
-              <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
+              <SidebarFooter className="p-2 pb-4 mt-auto border-t border-sidebar-border">
                 <CustomSidebarToggle />
                 <div className="w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                     <ThemeToggle />
