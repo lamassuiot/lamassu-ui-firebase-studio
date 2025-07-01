@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -86,6 +87,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   const [channelType, setChannelType] = useState<'EMAIL' | 'TEAMS_WEBHOOK' | 'WEBHOOK'>('EMAIL');
   const [email, setEmail] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [teamsName, setTeamsName] = useState('');
 
   // Step 2 State
   const [jsonPathCondition, setJsonPathCondition] = useState('$.data');
@@ -97,6 +99,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
       setChannelType('EMAIL');
       setEmail(user?.profile.email || '');
       setWebhookUrl('');
+      setTeamsName('');
       setJsonPathCondition('$.data');
     }
   }, [isOpen, user]);
@@ -107,8 +110,12 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
             toast({ title: 'Validation Error', description: 'Email address is required.', variant: 'destructive' });
             return;
         }
-        if(channelType !== 'EMAIL' && !webhookUrl.trim()) {
+        if(channelType === 'WEBHOOK' && !webhookUrl.trim()) {
             toast({ title: 'Validation Error', description: 'Webhook URL is required.', variant: 'destructive' });
+            return;
+        }
+        if(channelType === 'TEAMS_WEBHOOK' && (!webhookUrl.trim() || !teamsName.trim())) {
+            toast({ title: 'Validation Error', description: 'Name and Webhook URL are required for Teams.', variant: 'destructive' });
             return;
         }
     }
@@ -132,12 +139,17 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
             config = { url: webhookUrl };
         }
 
+        let channelName = `${channelType.toLowerCase()}-subscription-for-${eventType}`;
+        if (channelType === 'TEAMS_WEBHOOK' && teamsName.trim()) {
+            channelName = teamsName.trim();
+        }
+
         const payload: SubscriptionPayload = {
             event_type: eventType,
             conditions: jsonPathCondition ? [{ type: 'JSON-PATH', condition: jsonPathCondition }] : [],
             channel: {
                 type: channelType,
-                name: `${channelType.toLowerCase()}-subscription-for-${eventType}`,
+                name: channelName,
                 config: config,
             }
         };
@@ -182,10 +194,22 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                         <Input id="email-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your.email@example.com" />
                     </div>
                 )}
-                {(channelType === 'WEBHOOK' || channelType === 'TEAMS_WEBHOOK') && (
+                {channelType === 'WEBHOOK' && (
                      <div>
                         <Label htmlFor="webhook-url-input">Webhook URL</Label>
                         <Input id="webhook-url-input" type="url" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://your-webhook-url.com" />
+                    </div>
+                )}
+                {channelType === 'TEAMS_WEBHOOK' && (
+                     <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="teams-name-input">Name</Label>
+                            <Input id="teams-name-input" type="text" value={teamsName} onChange={e => setTeamsName(e.target.value)} placeholder="e.g., Critical Alerts Team" />
+                        </div>
+                        <div>
+                            <Label htmlFor="webhook-url-input-teams">Incoming Microsoft Teams Webhook URL</Label>
+                            <Input id="webhook-url-input-teams" type="url" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://your-tenant.webhook.office.com/..." />
+                        </div>
                     </div>
                 )}
             </div>
@@ -207,7 +231,13 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                 <p><strong>Event Type:</strong> <span className="font-mono text-xs">{eventType}</span></p>
                 <p><strong>Channel:</strong> {channelOptions.find(o => o.value === channelType)?.label}</p>
                 {channelType === 'EMAIL' && <p><strong>Email:</strong> {email}</p>}
-                {channelType !== 'EMAIL' && <p><strong>URL:</strong> <span className="truncate">{webhookUrl}</span></p>}
+                {channelType === 'WEBHOOK' && <p><strong>URL:</strong> <span className="truncate">{webhookUrl}</span></p>}
+                {channelType === 'TEAMS_WEBHOOK' && (
+                    <>
+                        <p><strong>Name:</strong> {teamsName}</p>
+                        <p><strong>URL:</strong> <span className="truncate">{webhookUrl}</span></p>
+                    </>
+                )}
                 <p><strong>Condition:</strong> {jsonPathCondition || "None"}</p>
             </div>
         );
