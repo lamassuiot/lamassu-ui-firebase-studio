@@ -301,7 +301,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
     }
     setIsDownloadingCrl(true);
     try {
-        const response = await fetch(`${VA_API_BASE_URL}/roles/${selectedCaForConfig.subjectKeyId}/crl`, {
+        const response = await fetch(`${VA_API_BASE_URL}/crl/${selectedCaForConfig.subjectKeyId}`, {
              headers: { 
                  'Authorization': `Bearer ${user.access_token}`,
                  'Accept': 'application/pkix-crl',
