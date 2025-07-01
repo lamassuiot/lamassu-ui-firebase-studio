@@ -314,6 +314,8 @@ export default function CaRequestsPage() {
                                 ID: <span className="font-mono text-xs">{req.id}</span>
                             </CardDescription>
                         </div>
+                        <div className="flex items-center gap-2">
+                            <StatusBadge status={req.status} />
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
@@ -344,13 +346,10 @@ export default function CaRequestsPage() {
                             )}
                             </DropdownMenuContent>
                         </DropdownMenu>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-3 text-sm">
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status</span>
-                        <StatusBadge status={req.status} />
-                    </div>
                     <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Key Type</span>
                         <span className="font-medium">{req.key_metadata.type} {req.key_metadata.bits}-bit</span>
@@ -451,15 +450,11 @@ export default function CaRequestsPage() {
         </div>
       </div>
       
-      {requests.length > 0 ? (
-          <ScrollArea className="h-[calc(100vh-450px)] w-full rounded-md border p-4">
-            {content}
-          </ScrollArea>
-      ) : (
-          content
-      )}
+      <ScrollArea className="h-[calc(100vh-450px)] w-full">
+        <div className="pr-4">{content}</div>
+      </ScrollArea>
 
-      {requests.length > 0 && (
+      {(requests.length > 0 || hasActiveFilters) && (
           <div className="flex justify-between items-center mt-4">
               <div className="flex items-center space-x-2">
                 <Label htmlFor="pageSizeSelectReqList" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
@@ -534,3 +529,5 @@ export default function CaRequestsPage() {
     </div>
   );
 }
+
+    
