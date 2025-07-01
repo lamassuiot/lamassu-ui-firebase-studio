@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2, FileSignature } from "lucide-react";
+import { ArrowLeft, PlusCircle, Settings, Info, KeyRound, Loader2, FileSignature } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -15,8 +14,6 @@ import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
-import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
-import { formatISO } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
@@ -36,8 +33,6 @@ const ecdsaKeySizes = [
   { value: 'P-384', label: 'P-384' },
   { value: 'P-521', label: 'P-521' },
 ];
-
-const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 
 export default function RequestCaCsrPage() {
   const router = useRouter();
@@ -60,9 +55,6 @@ export default function RequestCaCsrPage() {
   const [locality, setLocality] = useState('');
   const [organization, setOrganization] = useState('');
   const [organizationalUnit, setOrganizationalUnit] = useState('');
-
-  const [caExpiration, setCaExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '10y' });
-  const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
 
   const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
 
@@ -127,13 +119,6 @@ export default function RequestCaCsrPage() {
   const handleCaTypeChange = (value: string) => {
     setCaType(value);
     setSelectedParentCa(null);
-    if (value === 'root') {
-      setCaExpiration({ type: 'Duration', durationValue: '10y' });
-      setIssuanceExpiration({ type: 'Duration', durationValue: '1y' });
-    } else {
-      setCaExpiration({ type: 'Duration', durationValue: '5y' });
-      setIssuanceExpiration({ type: 'Duration', durationValue: '90d' });
-    }
   };
 
   const handleKeyTypeChange = (value: string) => {
@@ -169,28 +154,10 @@ export default function RequestCaCsrPage() {
     }
   };
   
-  const formatExpirationForApi = (config: ExpirationConfig): { type: string; duration?: string; time?: string } => {
-    if (config.type === "Duration") {
-      return { type: "Duration", duration: config.durationValue };
-    }
-    if (config.type === "Date" && config.dateValue) {
-      return { type: "Date", time: formatISO(config.dateValue) };
-    }
-    if (config.type === "Indefinite") {
-      return { type: "Date", time: INDEFINITE_DATE_API_VALUE };
-    }
-    return { type: "Duration", duration: "1y" }; 
-  };
-  
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
 
-    if (caType === 'intermediate' && !selectedParentCa) {
-      toast({ title: "Validation Error", description: "Please select a Parent CA for intermediate CAs.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
-    }
     if (!caName.trim()) {
       toast({ title: "Validation Error", description: "CA Name (Common Name) cannot be empty.", variant: "destructive" });
       setIsSubmitting(false);
@@ -223,8 +190,6 @@ export default function RequestCaCsrPage() {
         type: keyType,
         bits: keyType === 'RSA' ? parseInt(keySize) : mapEcdsaCurveToBits(keySize),
       },
-      ca_expiration: formatExpirationForApi(caExpiration),
-      issuance_expiration: formatExpirationForApi(issuanceExpiration),
       metadata: {},
     };
 
@@ -263,8 +228,8 @@ export default function RequestCaCsrPage() {
 
   return (
     <div className="w-full space-y-6 mb-8">
-      <Button variant="outline" onClick={() => router.push('/certificate-authorities/new')}>
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Creation Methods
+      <Button variant="outline" onClick={() => router.push('/certificate-authorities/requests')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Requests
       </Button>
 
       <Card>
@@ -331,7 +296,7 @@ export default function RequestCaCsrPage() {
                 </div>
                 {caType === 'intermediate' && (
                   <div>
-                    <Label htmlFor="parentCa">Parent CA</Label>
+                    <Label htmlFor="parentCa">Parent CA (Optional)</Label>
                     <Button
                       type="button"
                       variant="outline"
@@ -347,7 +312,7 @@ export default function RequestCaCsrPage() {
                         <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/>
                       </div>
                     )}
-                    {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected for intermediate CAs.</p>}
+                    <p className="text-xs text-muted-foreground mt-1">Select a parent CA to indicate the intended issuer. This is optional for the CSR request.</p>
                   </div>
                 )}
                 {caType === 'root' && (
@@ -397,14 +362,6 @@ export default function RequestCaCsrPage() {
                   <Input id="organizationalUnit" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)} placeholder="e.g., Secure Devices Division" className="mt-1" />
                 </div>
                 <p className="text-xs text-muted-foreground">The "CA Name" entered in CA Settings will be used as the Common Name (CN) for the subject.</p>
-              </div>
-            </section>
-            
-            <section>
-              <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ExpirationInput idPrefix="ca-exp" label="CA Certificate Expiration" value={caExpiration} onValueChange={setCaExpiration} />
-                <ExpirationInput idPrefix="issuance-exp" label="Default End-Entity Certificate Issuance Expiration" value={issuanceExpiration} onValueChange={setIssuanceExpiration} />
               </div>
             </section>
 
