@@ -9,85 +9,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { KeyRound, PlusCircle, MoreVertical, Eye, FileSignature, PenTool, ShieldCheck, Trash2, AlertTriangle, Cpu, Loader2, RefreshCw } from "lucide-react";
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAuth } from '@/contexts/AuthContext';
 
+
+interface ApiKmsKey {
+  id: string;
+  algorithm: string;
+  size: string;
+  publicKey: string;
+}
 
 interface KmsKey {
   id: string;
   alias: string;
   keyTypeDisplay: string;
   status: 'Enabled' | 'Disabled' | 'PendingDeletion';
-  creationDate: string; // ISO Date string
   description?: string;
-  hasPrivateKey?: boolean;
-  cryptoEngineId?: string; 
+  hasPrivateKey: boolean;
+  cryptoEngineId?: string;
 }
-
-const mockKmsKeysData: KmsKey[] = [
-  {
-    id: 'key-1234abcd-12ab-34cd-56ef-1234567890ab',
-    alias: 'pkcs11:token-id=filesystem-1;id=414b4944;type=private',
-    keyTypeDisplay: 'RSA 4096',
-    status: 'Enabled',
-    creationDate: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Primary signing key for the LamassuIoT Global Root CA G1, referenced via PKCS11 URI.',
-    hasPrivateKey: true,
-    cryptoEngineId: 'PKCS11_Engine_fs1',
-  },
-  {
-    id: 'key-5678efgh-56ef-78gh-90ij-5678901234cd',
-    alias: 'lamassu/dev/intermediate-ca-key',
-    keyTypeDisplay: 'ECC P-384',
-    status: 'Enabled',
-    creationDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Signing key for the Development Intermediate CA.',
-    hasPrivateKey: true,
-    cryptoEngineId: 'GOLANG_Crypto',
-  },
-  {
-    id: 'key-pq-dilithium2-aes',
-    alias: 'lamassu/prod/firmware-signing-mldsa65',
-    keyTypeDisplay: 'ML-DSA-65',
-    status: 'Enabled',
-    creationDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Post-quantum signature key for critical firmware (ML-DSA Level 3).',
-    hasPrivateKey: true,
-    cryptoEngineId: 'MLDSA_HSM_v1',
-  },
-  {
-    id: 'key-9012ijkl-90ij-12kl-34mn-9012345678ef',
-    alias: 'lamassu/archive/old-codesigning-key',
-    keyTypeDisplay: 'RSA 2048',
-    status: 'Disabled',
-    creationDate: new Date(Date.now() - 700 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Archived code signing key, no longer in active use.',
-    hasPrivateKey: true,
-    cryptoEngineId: 'GOLANG_Crypto',
-  },
-  {
-    id: 'key-3456mnop-34mn-56op-78qr-3456789012gh',
-    alias: 'lamassu/staging/service-encryption-key',
-    keyTypeDisplay: 'RSA 3072',
-    status: 'PendingDeletion',
-    creationDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Encryption key for staging services, scheduled for deletion.',
-    hasPrivateKey: true,
-    cryptoEngineId: 'AWSKMS',
-  },
-  {
-    id: 'key-public-only-sample',
-    alias: 'lamassu/external/partner-verification-key',
-    keyTypeDisplay: 'RSA 2048',
-    status: 'Enabled',
-    creationDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Public key of an external partner for signature verification.',
-    hasPrivateKey: false,
-    cryptoEngineId: 'N/A (Public Key)',
-  },
-];
 
 const StatusBadge: React.FC<{ status: KmsKey['status'] }> = ({ status }) => {
   let badgeClass = "";
@@ -111,6 +54,8 @@ const StatusBadge: React.FC<{ status: KmsKey['status'] }> = ({ status }) => {
 export default function KmsKeysPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+
   const [keys, setKeys] = useState<KmsKey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,18 +63,57 @@ export default function KmsKeysPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const fetchKeys = useCallback(async () => {
+    if (authLoading || !isAuthenticated() || !user?.access_token) {
+        if (!authLoading && !isAuthenticated()) {
+            setError("User not authenticated. Please log in.");
+        }
+        setIsLoading(false);
+        return;
+    }
+
     setIsLoading(true);
     setError(null);
-    await new Promise(resolve => setTimeout(resolve, 700));
+    
     try {
-      setKeys(mockKmsKeysData); 
+      const response = await fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', {
+        headers: { 'Authorization': `Bearer ${user.access_token}` },
+      });
+
+      if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to fetch KMS keys. HTTP error ${response.status}`;
+        try {
+          errorJson = await response.json();
+          errorMessage = `Failed to fetch keys: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+        } catch(e) { /* ignore */}
+        throw new Error(errorMessage);
+      }
+      
+      const data: ApiKmsKey[] = await response.json();
+      
+      const transformedKeys: KmsKey[] = data.map((apiKey) => {
+        const idParts = apiKey.id.split(':');
+        const engineId = idParts.length > 0 ? idParts[0] : 'Unknown';
+
+        return {
+            id: apiKey.id,
+            alias: apiKey.id,
+            keyTypeDisplay: `${apiKey.algorithm} ${apiKey.size}`,
+            status: 'Enabled', // Default status as API doesn't provide it
+            description: `Key managed by ${engineId} engine.`, // Generate a default description
+            hasPrivateKey: apiKey.id.includes('type=private'),
+            cryptoEngineId: engineId
+        };
+      });
+
+      setKeys(transformedKeys);
     } catch (err: any) {
       setError(err.message || "An unknown error occurred while fetching keys.");
       setKeys([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.access_token, authLoading, isAuthenticated]);
 
   useEffect(() => {
     fetchKeys();
@@ -149,7 +133,7 @@ export default function KmsKeysPage() {
       setKeys(prevKeys => prevKeys.filter(k => k.id !== keyToDelete.id));
       toast({
         title: "Key Deleted (Mock)",
-        description: `Key "${keyToDelete.alias}" has been removed from the list.`,
+        description: `Key "${keyToDelete.alias}" has been removed from the list. This is a mock action.`,
       });
     }
     setIsDeleteDialogOpen(false);
@@ -157,10 +141,10 @@ export default function KmsKeysPage() {
   };
 
   const handleViewDetails = (keyIdValue: string) => {
-    router.push(`/kms/keys/details?keyId=${keyIdValue}`); // Updated navigation
+    router.push(`/kms/keys/details?keyId=${keyIdValue}`);
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -187,7 +171,7 @@ export default function KmsKeysPage() {
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        Manage asymmetric keys stored in the Key Management Service. These keys are used for signing, verification, encryption, and decryption.
+        Manage asymmetric keys stored in the Key Management Service. These keys are used for signing, verification, and other cryptographic operations.
       </p>
       
       {error && (
@@ -208,7 +192,6 @@ export default function KmsKeysPage() {
                 <TableHead>Type</TableHead>
                 <TableHead><div className="flex items-center"><Cpu className="mr-1.5 h-4 w-4 text-muted-foreground"/>Crypto Engine</div></TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="hidden sm:table-cell">Creation Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -227,7 +210,6 @@ export default function KmsKeysPage() {
                     </Badge>
                   </TableCell>
                   <TableCell><StatusBadge status={key.status} /></TableCell>
-                  <TableCell className="hidden sm:table-cell">{format(new Date(key.creationDate), 'MMM dd, yyyy')}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -241,18 +223,18 @@ export default function KmsKeysPage() {
                           <Eye className="mr-2 h-4 w-4" /> View Details
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=generate-csr`)} // Updated navigation
+                          onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=generate-csr`)}
                           disabled={!key.hasPrivateKey}
                         >
                           <FileSignature className="mr-2 h-4 w-4" /> Generate CSR
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=sign`)} // Updated navigation
+                          onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=sign`)}
                           disabled={!key.hasPrivateKey}
                         >
                           <PenTool className="mr-2 h-4 w-4" /> Sign
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=verify`)}> {/* Updated navigation */}
+                        <DropdownMenuItem onClick={() => router.push(`/kms/keys/details?keyId=${key.id}&tab=verify`)}>
                           <ShieldCheck className="mr-2 h-4 w-4" /> Verify
                         </DropdownMenuItem> 
                         <DropdownMenuSeparator />
@@ -294,7 +276,7 @@ export default function KmsKeysPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setKeyToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteKey} className={buttonVariants({ variant: "destructive" })}>
+            <AlertDialogAction onClick={handleDeleteKey} className={cn(buttonVariants({ variant: "destructive" }))}>
               Delete Key
             </AlertDialogAction>
           </AlertDialogFooter>

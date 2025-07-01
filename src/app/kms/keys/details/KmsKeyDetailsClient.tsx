@@ -1,26 +1,31 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation'; // Changed from useParams
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, KeyRound, Info, FileText, ShieldCheck, FileSignature, Loader2, AlertTriangle, PenTool } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
-import { DetailItem } from '@/components/shared/DetailItem';
 import { KmsPublicKeyPemTabContent } from '@/components/kms/details/KmsPublicKeyPemTabContent';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuth } from '@/contexts/AuthContext';
+import { DetailItem } from '@/components/shared/DetailItem';
 
-// Mock data structure for a detailed KMS key
+interface ApiKmsKey {
+  id: string;
+  algorithm: string;
+  size: string;
+  publicKey: string;
+}
+
 interface KmsKeyDetailed {
   id: string;
   alias: string;
@@ -28,78 +33,9 @@ interface KmsKeyDetailed {
   algorithm: 'RSA' | 'ECDSA' | 'ML-DSA' | 'Unknown'; 
   keySize?: string | number; 
   status: 'Enabled' | 'Disabled' | 'PendingDeletion';
-  creationDate: string; 
-  description?: string;
   hasPrivateKey: boolean;
   publicKeyPem?: string;
-  purpose?: string[]; 
-  origin?: 'GENERATED' | 'IMPORTED_FULL' | 'IMPORTED_PUBLIC_ONLY';
 }
-
-// Mock fetch function
-const fetchMockKmsKeyDetails = async (keyIdToFetch: string): Promise<KmsKeyDetailed | null> => {
-  await new Promise(resolve => setTimeout(resolve, 500)); 
-
-  const mockKeys: KmsKeyDetailed[] = [
-    {
-      id: 'key-1234abcd-12ab-34cd-56ef-1234567890ab',
-      alias: 'pkcs11:token-id=filesystem-1;id=414b4944;type=private',
-      keyTypeDisplay: 'RSA 4096 bit',
-      algorithm: 'RSA',
-      keySize: 4096,
-      status: 'Enabled',
-      creationDate: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString(),
-      description: 'Primary signing key for the LamassuIoT Global Root CA G1, referenced via PKCS11 URI.',
-      hasPrivateKey: true,
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0yZ9o2U88eLMDc8X\\nU1jV9qZ1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q\\n0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z\\n1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2\\nAd1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2Q0w9Z1xZ2Ad1X2Y3x8Z2QIDAQAB\\n-----END PUBLIC KEY-----`,
-      purpose: ['SIGN_VERIFY', 'KEY_CERT_SIGN'],
-      origin: 'IMPORTED_FULL',
-    },
-    {
-      id: 'key-5678efgh-56ef-78gh-90ij-5678901234cd',
-      alias: 'lamassu/dev/intermediate-ca-key',
-      keyTypeDisplay: 'ECDSA P-384',
-      algorithm: 'ECDSA',
-      keySize: 'P-384',
-      status: 'Enabled',
-      creationDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
-      description: 'Signing key for the Development Intermediate CA.',
-      hasPrivateKey: true,
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEAjP8hK1wG2J4v3hZ7YQ8k8j5X4v7yW1\\nN0zXv1X6n8k2VzP7wS5Z3sW2n0cX9jV8k4R6wQ7jXyZ5dY9nU2oW8sB0rP6sF3qK\\nB6dJ9gY7wP5k3R2nN1qX0xXw==\\n-----END PUBLIC KEY-----`,
-      purpose: ['SIGN_VERIFY'],
-      origin: 'GENERATED',
-    },
-     {
-      id: 'key-pq-dilithium2-aes',
-      alias: 'lamassu/prod/firmware-signing-mldsa65',
-      keyTypeDisplay: 'ML-DSA-65',
-      algorithm: 'ML-DSA',
-      keySize: 'ML-DSA-65', 
-      status: 'Enabled',
-      creationDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-      description: 'Post-quantum signature key for critical firmware (ML-DSA Level 3).',
-      hasPrivateKey: true,
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMLDSA PUBLIC KEY DATA (mocked for ML-DSA-65)\\n-----END PUBLIC KEY-----`,
-      purpose: ['SIGN_VERIFY'],
-      origin: 'GENERATED',
-    },
-    {
-      id: 'key-public-only-sample',
-      alias: 'lamassu/external/partner-verification-key',
-      keyTypeDisplay: 'RSA 2048 bit',
-      algorithm: 'RSA',
-      keySize: 2048,
-      status: 'Enabled',
-      creationDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-      description: 'Public key of an external partner for signature verification.',
-      hasPrivateKey: false,
-      publicKeyPem: `-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA... (another public key) ...\\nAQAB\\n-----END PUBLIC KEY-----`,
-      purpose: ['VERIFY_ONLY'],
-      origin: 'IMPORTED_PUBLIC_ONLY',
-    }
-  ];
-  return mockKeys.find(key => key.id === keyIdToFetch) || null;
-};
 
 const signatureAlgorithms = [
   'RSASSA_PSS_SHA_256', 'RSASSA_PSS_SHA_384', 'RSASSA_PSS_SHA_512',
@@ -107,7 +43,6 @@ const signatureAlgorithms = [
   'ECDSA_SHA_256', 'ECDSA_SHA_384', 'ECDSA_SHA_512',
   'ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87'
 ];
-
 
 const StatusBadge: React.FC<{ status: KmsKeyDetailed['status'] }> = ({ status }) => {
   let badgeClass = "bg-muted text-muted-foreground border-border";
@@ -117,11 +52,12 @@ const StatusBadge: React.FC<{ status: KmsKeyDetailed['status'] }> = ({ status })
   return <Badge variant="outline" className={cn("text-xs", badgeClass)}>{status}</Badge>;
 };
 
-export default function KmsKeyDetailsClient() { // Renamed component
-  const searchParams = useSearchParams(); // Changed from useParams
+export default function KmsKeyDetailsClient() {
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
-  const keyId = searchParams.get('keyId'); // Get keyId from query params
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const keyId = searchParams.get('keyId');
 
   const [keyDetails, setKeyDetails] = useState<KmsKeyDetailed | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -149,48 +85,88 @@ export default function KmsKeyDetailsClient() { // Renamed component
   const [csrOrganization, setCsrOrganization] = useState('');
   const [generatedCsr, setGeneratedCsr] = useState('');
 
+  const fetchKeyData = useCallback(async () => {
+    if (!keyId) {
+      setError("Key ID is missing from URL.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (authLoading || !isAuthenticated() || !user?.access_token) {
+        if (!authLoading && !isAuthenticated()) {
+            setError("User not authenticated. Please log in.");
+        }
+        setIsLoading(false);
+        return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', {
+        headers: { 'Authorization': `Bearer ${user.access_token}` },
+      });
+      if (!response.ok) throw new Error(`Failed to fetch keys. HTTP Status: ${response.status}`);
+      const allKeys: ApiKmsKey[] = await response.json();
+      const apiKey = allKeys.find(k => k.id === keyId);
+
+      if (apiKey) {
+        let pem = '';
+        try {
+          // In-browser Base64 decoding
+          const decodedKey = atob(apiKey.publicKey);
+          pem = `-----BEGIN PUBLIC KEY-----\n${decodedKey.match(/.{1,64}/g)?.join('\n') || ''}\n-----END PUBLIC KEY-----`;
+        } catch (e) {
+          console.error("Failed to decode public key", e);
+          pem = "Error: Could not decode or format public key.";
+        }
+
+        const algorithm = apiKey.algorithm.toUpperCase() as KmsKeyDetailed['algorithm'];
+        const detailedKey: KmsKeyDetailed = {
+          id: apiKey.id,
+          alias: apiKey.id,
+          keyTypeDisplay: `${apiKey.algorithm} ${apiKey.size}`,
+          algorithm: ['RSA', 'ECDSA', 'ML-DSA'].includes(algorithm) ? algorithm : 'Unknown',
+          keySize: apiKey.size,
+          status: 'Enabled', // Default as API doesn't provide it
+          hasPrivateKey: apiKey.id.includes('type=private'),
+          publicKeyPem: pem,
+        };
+        setKeyDetails(detailedKey);
+        setCsrCommonName(detailedKey.alias || '');
+
+        if (detailedKey.algorithm === 'RSA') {
+          setSignAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
+          setVerifyAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
+        } else if (detailedKey.algorithm === 'ECDSA') {
+          setSignAlgorithm('ECDSA_SHA_256');
+          setVerifyAlgorithm('ECDSA_SHA_256');
+        } else if (detailedKey.algorithm === 'ML-DSA') {
+          const defaultMlDsaAlgo = detailedKey.keySize === 'ML-DSA-44' ? 'ML-DSA-44' :
+                                   detailedKey.keySize === 'ML-DSA-87' ? 'ML-DSA-87' : 'ML-DSA-65';
+          setSignAlgorithm(defaultMlDsaAlgo);
+          setVerifyAlgorithm(defaultMlDsaAlgo);
+        }
+
+      } else {
+        setError(`KMS Key with ID "${keyId}" not found.`);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load key details.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [keyId, authLoading, isAuthenticated, user?.access_token]);
 
   useEffect(() => {
-    if (keyId) {
-      setIsLoading(true);
-      setError(null);
-      fetchMockKmsKeyDetails(keyId)
-        .then(data => {
-          if (data) {
-            setKeyDetails(data);
-            setCsrCommonName(data.alias || ''); 
+    fetchKeyData();
+  }, [fetchKeyData]);
 
-            if (data.algorithm === 'RSA') {
-                setSignAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
-                setVerifyAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
-            } else if (data.algorithm === 'ECDSA') {
-                setSignAlgorithm('ECDSA_SHA_256');
-                setVerifyAlgorithm('ECDSA_SHA_256');
-            } else if (data.algorithm === 'ML-DSA') {
-                const defaultMlDsaAlgo = data.keySize === 'ML-DSA-44' ? 'ML-DSA-44' :
-                                         data.keySize === 'ML-DSA-87' ? 'ML-DSA-87' : 'ML-DSA-65';
-                setSignAlgorithm(defaultMlDsaAlgo);
-                setVerifyAlgorithm(defaultMlDsaAlgo);
-            }
-
-          } else {
-            setError(`KMS Key with ID "${keyId}" not found.`);
-          }
-        })
-        .catch(err => {
-          setError(err.message || 'Failed to load key details.');
-          console.error(err);
-        })
-        .finally(() => setIsLoading(false));
-    } else {
-        setError("Key ID is missing from URL.");
-        setIsLoading(false);
-    }
-     // Set active tab from query param if present, otherwise default to 'overview'
+  useEffect(() => {
      const currentTab = searchParams.get('tab');
      setActiveTab(currentTab || 'overview');
-
-  }, [keyId, searchParams]); // Add searchParams to dependency array for tab sync
+  }, [searchParams]);
 
   const handleSign = () => {
     if (!payloadToSign) {
@@ -218,11 +194,8 @@ export default function KmsKeyDetailsClient() { // Renamed component
         return;
     }
     console.log("Mock CSR Generation:", { commonName: csrCommonName, organization: csrOrganization, keyId: keyDetails?.id });
-    const mockCsrContent = `-----BEGIN CERTIFICATE REQUEST-----\\n`+
+    const mockCsrContent = `-----BEGIN CERTIFICATE REQUEST-----\n`+
                            `MIICvDCCAaQCAQAwdzELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWEx\\n`+
-                           `FjAUBgNVBAcMDU1vdW50YWluIFZpZXcxDTALBgNVBAoMBEdvb2dsZTEPMA0GA1UE\\n`+
-                           `CwwGSW50ZXJuZXQxEjAQBgNVBAMMCSoubGFtYXNzdS5pbzCCASIwDQYJKoZIhvcN\\n`+
-                           `AQEBBQADggEPADCCAQoCggEBANEvb0FbEDkRkYFuM4Q0QfLpFkfpGpySnJzYwhuT\\n`+
                            `... (mock CSR content for ${csrCommonName}) ...\\n`+
                            `MGFqLg==\\n`+
                            `-----END CERTIFICATE REQUEST-----`;
@@ -230,7 +203,7 @@ export default function KmsKeyDetailsClient() { // Renamed component
     toast({ title: "Mock CSR Generated", description: "CSR content populated (mock)." });
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
         <Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -306,23 +279,12 @@ export default function KmsKeyDetailsClient() { // Renamed component
                 <CardDescription>General information about this KMS key.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <DetailItem label="Key ID" value={keyDetails.id} isMono />
-                <DetailItem label="Alias" value={keyDetails.alias} />
+                <DetailItem label="Key ID" value={keyDetails.id} isMono fullWidthValue/>
+                <DetailItem label="Alias" value={keyDetails.alias} isMono fullWidthValue/>
                 <DetailItem label="Status" value={<StatusBadge status={keyDetails.status} />} />
-                <DetailItem label="Creation Date" value={format(parseISO(keyDetails.creationDate), 'PPpp')} />
-                {keyDetails.description && <DetailItem label="Description" value={keyDetails.description} />}
-                <Separator />
                 <DetailItem label="Key Type" value={keyDetails.algorithm} />
                 <DetailItem label="Specification" value={keyDetails.keyTypeDisplay} />
-                <DetailItem label="Origin" value={keyDetails.origin || 'Unknown'} />
                 <DetailItem label="Private Key Accessible" value={keyDetails.hasPrivateKey ? "Yes" : "No (Public Key Only)"} />
-                {keyDetails.purpose && keyDetails.purpose.length > 0 && (
-                  <DetailItem label="Purposes" value={
-                    <div className="flex flex-wrap gap-1">
-                      {keyDetails.purpose.map(p => <Badge key={p} variant="secondary">{p.replace(/_/g, ' ').toLowerCase()}</Badge>)}
-                    </div>
-                  } />
-                )}
               </CardContent>
             </Card>
           </TabsContent>
