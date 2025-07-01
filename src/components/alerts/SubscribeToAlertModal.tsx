@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -20,6 +21,7 @@ import { subscribeToAlert, type SubscriptionPayload } from '@/lib/alerts-api';
 import { cn } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
 import { JSONPath } from 'jsonpath-plus';
+import { Validator } from 'jsonschema';
 import { Alert, AlertDescription as AlertDescUI } from '@/components/ui/alert';
 
 
@@ -105,6 +107,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   // Step 2 State
   const [filterType, setFilterType] = useState<string>('NONE');
   const [filterCondition, setFilterCondition] = useState('$.data');
+  const [jsonSchema, setJsonSchema] = useState('{}');
   const [jsFunction, setJsFunction] = useState('function (event) {\n  return true;\n}');
   const [evaluationResult, setEvaluationResult] = useState<{ match: boolean; message: string; error?: boolean } | null>(null);
   const [inputEvent, setInputEvent] = useState('');
@@ -122,6 +125,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
       setWebhookMethod('POST');
       setFilterType('NONE');
       setFilterCondition('$.data');
+      setJsonSchema('{}');
       setJsFunction('function (event) {\n  return true;\n}');
       setInputEvent(samplePayload ? JSON.stringify(samplePayload, null, 2) : '');
     }
@@ -167,8 +171,23 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                 } catch (e: any) {
                     setEvaluationResult({ match: false, message: `Evaluation error: ${e.message}`, error: true });
                 }
-            } else {
-                setEvaluationResult(null); // No evaluation for JSON-SCHEMA or NONE yet
+            } else if (filterType === 'JSON-SCHEMA') {
+                try {
+                    const schema = JSON.parse(jsonSchema);
+                    const validator = new Validator();
+                    const result = validator.validate(jsonPayload, schema);
+                    if (result.valid) {
+                        setEvaluationResult({ match: true, message: 'The event conforms to the schema.' });
+                    } else {
+                        const errorMessages = result.errors.map(e => `${e.property} ${e.message}`).join('; ');
+                        setEvaluationResult({ match: false, message: `Schema validation failed: ${errorMessages}`, error: true });
+                    }
+                } catch (e: any) {
+                     setEvaluationResult({ match: false, message: `Invalid JSON Schema: ${e.message}`, error: true });
+                }
+            }
+             else {
+                setEvaluationResult(null); // No evaluation for other types yet
             }
 
         } catch (e: any) {
@@ -181,7 +200,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
     };
     
     evaluate();
-  }, [filterCondition, jsFunction, filterType, inputEvent]);
+  }, [filterCondition, jsFunction, filterType, inputEvent, jsonSchema]);
 
   const handleNext = () => {
     if(step === 1) {
@@ -231,7 +250,9 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
             channelName = webhookName.trim();
         }
 
-        const currentCondition = filterType === 'JAVASCRIPT' ? jsFunction : filterCondition;
+        const currentCondition = filterType === 'JAVASCRIPT' ? jsFunction 
+                               : filterType === 'JSON-SCHEMA' ? jsonSchema
+                               : filterCondition;
 
         const payload: SubscriptionPayload = {
             event_type: eventType,
@@ -347,7 +368,13 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                         <Textarea id="filter-condition-js" value={jsFunction} onChange={e => setJsFunction(e.target.value)} rows={5} className="font-mono"/>
                     </div>
                 )}
-                {(filterType === 'JSON-PATH' || filterType === 'JAVASCRIPT') && (
+                {filterType === 'JSON-SCHEMA' && (
+                    <div>
+                        <Label htmlFor="filter-condition-jsonschema">JSON Schema</Label>
+                        <Textarea id="filter-condition-jsonschema" value={jsonSchema} onChange={e => setJsonSchema(e.target.value)} rows={5} className="font-mono"/>
+                    </div>
+                )}
+                {(filterType !== 'NONE') && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                         <div className="space-y-1.5">
                             <Label htmlFor="input-event">Input Event</Label>
@@ -385,7 +412,9 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
             </div>
         );
       case 3:
-        const currentCondition = filterType === 'JAVASCRIPT' ? jsFunction : filterCondition;
+        const currentCondition = filterType === 'JAVASCRIPT' ? jsFunction 
+                               : filterType === 'JSON-SCHEMA' ? jsonSchema
+                               : filterCondition;
         return (
             <div className="space-y-3 text-sm p-4 border rounded-md bg-muted/50">
                 <h4 className="font-semibold">Confirm Subscription</h4>
