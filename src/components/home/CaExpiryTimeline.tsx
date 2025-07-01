@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { DataSet } from "vis-data/esnext";
 import { Timeline } from "vis-timeline/esnext";
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
-import { addMonths, isPast, parseISO, subMonths } from 'date-fns';
+import { addMonths, isPast, parseISO, subMonths, toDate } from 'date-fns';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
@@ -25,6 +25,12 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     if (!timelineRef.current || cas.length === 0) {
       return;
     }
+
+  const sortedCAs = [...cas].sort((a, b) => {
+      const dateA = parseISO(a.expires);
+      const dateB = parseISO(b.expires);
+      return dateA.getTime() - dateB.getTime();
+    });
 
     const itemsData = cas.map(ca => {
       const expiryDate = parseISO(ca.expires);
@@ -54,7 +60,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     if (itemsData.length === 0) return;
 
     const items = new DataSet(itemsData as any);
-
     const now = new Date();
     const options = {
       stack: true, 
@@ -64,8 +69,8 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         item: 20
       },
       start: subMonths(now, 1),
-      end: addMonths(now, 6),
-      zoomMin: 1000 * 60 * 60 * 24 , // 1 ay
+      end: addMonths(toDate(sortedCAs[0].expires), 3),
+      zoomMin: 1000 * 60 * 60 * 24 , // 1 day
       zoomMax: 1000 * 60 * 60 * 24 * 365 * 15, // 10 years
     };
 
@@ -84,7 +89,6 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       timeline.destroy();
     };
   }, [cas, router, allCryptoEngines]);
-
 
   return (
     <>
