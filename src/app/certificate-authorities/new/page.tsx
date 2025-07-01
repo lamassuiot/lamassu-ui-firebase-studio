@@ -23,7 +23,7 @@ const creationModes: CreationMode[] = [
   {
     id: 'generate',
     href: '/certificate-authorities/new/generate',
-    title: 'Create New CA (Direct)',
+    title: 'Create New CA (new Key Pair)',
     description: 'Provision a new Root or Intermediate CA directly. The CA will be active immediately upon creation.',
     icon: <KeyRound className="h-8 w-8 text-primary" />,
     isComingSoon: false,
