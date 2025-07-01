@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, KeyRound, UploadCloud, FileText, ChevronRight, Settings, PlusCircle, FileKey, Tag } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
+import { KEY_TYPE_OPTIONS_POST_QUANTUM, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS, MLDSA_SECURITY_LEVEL_OPTIONS } from '@/lib/key-spec-constants';
 
 const creationModes = [
   {
@@ -31,30 +32,6 @@ const creationModes = [
     description: 'Import an existing public key for verification or trust purposes. The private key will not be managed.',
     icon: <FileText className="h-8 w-8 text-primary" />,
   },
-];
-
-const keyTypes = [
-  { value: 'RSA', label: 'RSA' },
-  { value: 'ECDSA', label: 'ECDSA' },
-  { value: 'ML-DSA', label: 'ML-DSA (Post-Quantum)' },
-];
-
-const rsaKeySizes = [
-  { value: '2048', label: '2048 bit' },
-  { value: '3072', label: '3072 bit' },
-  { value: '4096', label: '4096 bit' },
-];
-
-const ecdsaKeyCurves = [
-  { value: 'P-256', label: 'P-256 (NIST P-256, secp256r1)' },
-  { value: 'P-384', label: 'P-384 (NIST P-384, secp384r1)' },
-  { value: 'P-521', label: 'P-521 (NIST P-521, secp521r1)' },
-];
-
-const mlDsaSecurityLevels = [
-  { value: 'ML-DSA-44', label: 'ML-DSA-44 (Security Level 1 - ~AES-128)' },
-  { value: 'ML-DSA-65', label: 'ML-DSA-65 (Security Level 3 - ~AES-192)' },
-  { value: 'ML-DSA-87', label: 'ML-DSA-87 (Security Level 5 - ~AES-256)' },
 ];
 
 export default function CreateKmsKeyPage() {
@@ -100,9 +77,9 @@ export default function CreateKmsKeyPage() {
   };
 
   const currentKeySpecOptions = (() => {
-    if (keyType === 'RSA') return rsaKeySizes;
-    if (keyType === 'ECDSA') return ecdsaKeyCurves;
-    if (keyType === 'ML-DSA') return mlDsaSecurityLevels;
+    if (keyType === 'RSA') return RSA_KEY_SIZE_OPTIONS;
+    if (keyType === 'ECDSA') return ECDSA_CURVE_OPTIONS;
+    if (keyType === 'ML-DSA') return MLDSA_SECURITY_LEVEL_OPTIONS;
     return [];
   })();
 
@@ -306,7 +283,7 @@ export default function CreateKmsKeyPage() {
                       <Select value={keyType} onValueChange={handleKeyTypeChange}>
                         <SelectTrigger id="keyType" className="mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
+                          {KEY_TYPE_OPTIONS_POST_QUANTUM.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

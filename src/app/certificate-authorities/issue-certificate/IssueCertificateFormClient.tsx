@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { TagInput } from '@/components/shared/TagInput';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
+import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -66,10 +67,6 @@ function ipToBuffer(ip: string): ArrayBuffer | null {
   }
   return null;
 }
-
-const availableAlgorithms = [{ value: 'RSA', label: 'RSA' }, { value: 'ECDSA', label: 'ECDSA' }];
-const rsaKeySizes = [{ value: '2048', label: '2048-bit' }, { value: '3072', label: '3072-bit' }, { value: '4096', label: '4096-bit' }];
-const ecdsaCurves = [{ value: 'P-256', label: 'P-256 (secp256r1)' }, { value: 'P-384', label: 'P-384 (secp384r1)' }, { value: 'P-521', label: 'P-521 (secp521r1)' }];
 
 const KEY_USAGE_OPTIONS = [
     { id: "DigitalSignature", label: "Digital Signature" },
@@ -419,7 +416,7 @@ export default function IssueCertificateFormClient() {
                      <div className="space-y-1"><Label htmlFor="csrFile">Upload CSR File</Label><Input id="csrFile" type="file" accept=".csr,.pem" onChange={handleCsrFileUpload}/></div>
                      <div className="space-y-1"><Label htmlFor="csrPemTextarea">Or Paste CSR (PEM)</Label><Textarea id="csrPemTextarea" value={csrPem} onChange={e=>setCsrPem(e.target.value)} rows={8} className="font-mono"/></div>
                      {decodedCsrInfo && (
-                        <Card className="bg-muted/30"><CardHeader><CardTitle className="text-md">Decoded CSR Information</CardTitle></CardHeader><CardContent className="space-y-2 text-sm">{decodedCsrInfo.error ? <Alert variant="destructive">{decodedCsrInfo.error}</Alert> : <>
+                        <Card className="bg-muted/30"><CardHeader><CardTitle className="text-md">Decoded CSR Information</CardTitle></CardHeader><CardContent className="space-y-2 text-sm pt-4">{decodedCsrInfo.error ? <Alert variant="destructive">{decodedCsrInfo.error}</Alert> : <>
                             <DetailItem label="Subject" value={decodedCsrInfo.subject} isMono />
                             <DetailItem label="Public Key" value={decodedCsrInfo.publicKeyInfo} isMono />
                             {decodedCsrInfo.sans && decodedCsrInfo.sans.length > 0 && <DetailItem label="SANs" value={<div className="flex flex-wrap gap-1">{decodedCsrInfo.sans.map((san, i)=><Badge key={i} variant="secondary">{san}</Badge>)}</div>}/>}
@@ -434,11 +431,11 @@ export default function IssueCertificateFormClient() {
                     <>
                     <h3 className="font-medium text-lg border-t pt-4">Key Generation Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1"><Label htmlFor="keyAlgorithm">Algorithm</Label><Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{availableAlgorithms.map(a=><SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent></Select></div>
+                        <div className="space-y-1"><Label htmlFor="keyAlgorithm">Algorithm</Label><Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{KEY_TYPE_OPTIONS.map(a=><SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent></Select></div>
                         {selectedAlgorithm === 'RSA' ? (
-                           <div className="space-y-1"><Label htmlFor="rsaKeySize">RSA Key Size</Label><Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{rsaKeySizes.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
+                           <div className="space-y-1"><Label htmlFor="rsaKeySize">RSA Key Size</Label><Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{RSA_KEY_SIZE_OPTIONS.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
                         ) : (
-                           <div className="space-y-1"><Label htmlFor="ecdsaCurve">ECDSA Curve</Label><Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ecdsaCurves.map(c=><SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
+                           <div className="space-y-1"><Label htmlFor="ecdsaCurve">ECDSA Curve</Label><Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ECDSA_CURVE_OPTIONS.map(c=><SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
                         )}
                     </div>
                     </>

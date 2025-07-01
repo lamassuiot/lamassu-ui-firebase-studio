@@ -14,23 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchCryptoEngines } from '@/lib/ca-data';
-
-const keyTypes = [
-  { value: 'RSA', label: 'RSA' },
-  { value: 'ECDSA', label: 'ECDSA' },
-];
-
-const rsaKeySizes = [
-  { value: '2048', label: '2048 bit' },
-  { value: '3072', label: '3072 bit' },
-  { value: '4096', label: '4096 bit' },
-];
-
-const ecdsaKeySizes = [ 
-  { value: 'P-256', label: 'P-256' },
-  { value: 'P-384', label: 'P-384' },
-  { value: 'P-521', label: 'P-521' },
-];
+import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 
 export default function RequestCaCsrPage() {
   const router = useRouter();
@@ -97,7 +81,7 @@ export default function RequestCaCsrPage() {
     }
   };
 
-  const currentKeySizeOptions = keyType === 'RSA' ? rsaKeySizes : ecdsaKeySizes;
+  const currentKeySizeOptions = keyType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
 
   const mapEcdsaCurveToBits = (curveName: string): number => {
     switch (curveName) {
@@ -218,7 +202,7 @@ export default function RequestCaCsrPage() {
                     <Select value={keyType} onValueChange={handleKeyTypeChange}>
                       <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
+                        {KEY_TYPE_OPTIONS.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

@@ -19,23 +19,7 @@ import { ExpirationInput, type ExpirationConfig } from '@/components/shared/Expi
 import { formatISO } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-
-const keyTypes = [
-  { value: 'RSA', label: 'RSA' },
-  { value: 'ECDSA', label: 'ECDSA' },
-];
-
-const rsaKeySizes = [
-  { value: '2048', label: '2048 bit' },
-  { value: '3072', label: '3072 bit' },
-  { value: '4096', label: '4096 bit' },
-];
-
-const ecdsaKeySizes = [ 
-  { value: 'P-256', label: 'P-256' },
-  { value: 'P-384', label: 'P-384' },
-  { value: 'P-521', label: 'P-521' },
-];
+import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 
@@ -141,7 +125,7 @@ export default function CreateCaGeneratePage() {
     }
   };
 
-  const currentKeySizeOptions = keyType === 'RSA' ? rsaKeySizes : ecdsaKeySizes;
+  const currentKeySizeOptions = keyType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
 
   const handleParentCaSelectFromModal = (ca: CA) => {
     if (ca.rawApiData?.certificate.type === 'EXTERNAL_PUBLIC' || ca.status !== 'active') {
@@ -284,7 +268,7 @@ export default function CreateCaGeneratePage() {
                     <Select value={keyType} onValueChange={handleKeyTypeChange}>
                       <SelectTrigger id="keyType"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {keyTypes.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
+                        {KEY_TYPE_OPTIONS.map(kt => <SelectItem key={kt.value} value={kt.value}>{kt.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
