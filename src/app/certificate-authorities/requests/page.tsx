@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers, Fingerprint, Download } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers, Fingerprint, Download, PlusCircle } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -414,9 +414,14 @@ export default function CaRequestsPage() {
           <FileSignature className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-headline font-semibold">Certificate Authority Requests</h1>
         </div>
-        <Button onClick={handleRefresh} variant="outline" disabled={isLoading}>
-          <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
-        </Button>
+        <div className="flex items-center space-x-2">
+            <Button onClick={handleRefresh} variant="outline" disabled={isLoading}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
+            </Button>
+            <Button onClick={() => router.push('/certificate-authorities/new/generate-csr')}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Create Request
+            </Button>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         View and manage pending and completed requests for new Certificate Authorities.
