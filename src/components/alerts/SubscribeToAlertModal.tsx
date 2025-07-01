@@ -22,6 +22,7 @@ import { Textarea } from '../ui/textarea';
 import { JSONPath } from 'jsonpath-plus';
 import { Alert, AlertDescription as AlertDescUI } from '@/components/ui/alert';
 
+
 interface SubscribeToAlertModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
@@ -102,8 +103,9 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   const [webhookMethod, setWebhookMethod] = useState<'POST' | 'PUT'>('POST');
 
   // Step 2 State
-  const [filterType, setFilterType] = useState<string>('JSON-PATH');
+  const [filterType, setFilterType] = useState<string>('NONE');
   const [filterCondition, setFilterCondition] = useState('$.data');
+  const [jsFunction, setJsFunction] = useState('function (event) {\n  return true;\n}');
   const [evaluationResult, setEvaluationResult] = useState<{ match: boolean; message: string; error?: boolean } | null>(null);
   const [inputEvent, setInputEvent] = useState('');
 
@@ -118,41 +120,68 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
       setTeamsName('');
       setWebhookName('');
       setWebhookMethod('POST');
-      setFilterType('JSON-PATH');
+      setFilterType('NONE');
       setFilterCondition('$.data');
+      setJsFunction('function (event) {\n  return true;\n}');
       setInputEvent(samplePayload ? JSON.stringify(samplePayload, null, 2) : '');
     }
   }, [isOpen, user, samplePayload]);
 
   useEffect(() => {
-    if (filterType !== 'JSON-PATH' || !inputEvent) {
-      setEvaluationResult(null);
-      return;
-    }
+    const evaluate = async () => {
+        if (filterType === 'NONE' || !inputEvent) {
+            setEvaluationResult(null);
+            return;
+        }
 
-    try {
-      const jsonPayload = JSON.parse(inputEvent);
-      
-      if (!filterCondition.trim() || !filterCondition.startsWith('$')) {
-        setEvaluationResult({ match: false, message: 'Invalid JSONPath expression. Must start with "$".', error: true });
-        return;
-      }
+        try {
+            const jsonPayload = JSON.parse(inputEvent);
 
-      const result = JSONPath({ path: filterCondition, json: jsonPayload });
+            if (filterType === 'JSON-PATH') {
+                if (!filterCondition.trim() || !filterCondition.startsWith('$')) {
+                    setEvaluationResult({ match: false, message: 'Invalid JSONPath expression. Must start with "$".', error: true });
+                    return;
+                }
+                const result = JSONPath({ path: filterCondition, json: jsonPayload });
+                if (result.length > 0) {
+                    setEvaluationResult({ match: true, message: 'The filter matches this Cloud Event' });
+                } else {
+                    setEvaluationResult({ match: false, message: 'The filter does not match this Cloud Event' });
+                }
+            } else if (filterType === 'JAVASCRIPT') {
+                try {
+                    // Using Function constructor is safer than eval, but not a true sandbox.
+                    // It doesn't have access to local scope but can access globals.
+                    const userFunc = new Function('event', `return (${jsFunction})(event)`);
+                    const result = userFunc(jsonPayload);
+                    
+                    if (typeof result === 'boolean') {
+                        if (result) {
+                            setEvaluationResult({ match: true, message: 'The filter matches this Cloud Event' });
+                        } else {
+                            setEvaluationResult({ match: false, message: 'The filter does not match this Cloud Event' });
+                        }
+                    } else {
+                        setEvaluationResult({ match: false, message: `Function returned type '${typeof result}', but a boolean was expected.`, error: true });
+                    }
+                } catch (e: any) {
+                    setEvaluationResult({ match: false, message: `Evaluation error: ${e.message}`, error: true });
+                }
+            } else {
+                setEvaluationResult(null); // No evaluation for JSON-SCHEMA or NONE yet
+            }
 
-      if (result.length > 0) {
-        setEvaluationResult({ match: true, message: 'The filter matches this Cloud Event' });
-      } else {
-        setEvaluationResult({ match: false, message: 'The filter does not match this Cloud Event' });
-      }
-    } catch (e: any) {
-      if (e instanceof SyntaxError) { // For JSON.parse errors
-        setEvaluationResult({ match: false, message: 'The Input Event is not valid JSON.', error: true });
-      } else { // For JSONPath errors
-        setEvaluationResult({ match: false, message: e.message, error: true });
-      }
-    }
-  }, [filterCondition, filterType, inputEvent]);
+        } catch (e: any) {
+            if (e instanceof SyntaxError) {
+                setEvaluationResult({ match: false, message: 'The Input Event is not valid JSON.', error: true });
+            } else {
+                setEvaluationResult({ match: false, message: e.message, error: true });
+            }
+        }
+    };
+    
+    evaluate();
+  }, [filterCondition, jsFunction, filterType, inputEvent]);
 
   const handleNext = () => {
     if(step === 1) {
@@ -202,9 +231,11 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
             channelName = webhookName.trim();
         }
 
+        const currentCondition = filterType === 'JAVASCRIPT' ? jsFunction : filterCondition;
+
         const payload: SubscriptionPayload = {
             event_type: eventType,
-            conditions: filterType !== 'NONE' && filterCondition.trim() ? [{ type: filterType, condition: filterCondition.trim() }] : [],
+            conditions: filterType !== 'NONE' && currentCondition.trim() ? [{ type: filterType, condition: currentCondition.trim() }] : [],
             channel: {
                 type: channelType,
                 name: channelName,
@@ -304,13 +335,19 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                         </SelectContent>
                     </Select>
                 </div>
-                {filterType !== 'NONE' && (
+                {filterType === 'JSON-PATH' && (
                     <div>
-                        <Label htmlFor="filter-condition">{filterOptions.find(o => o.value === filterType)?.label} Expression</Label>
-                        <Input id="filter-condition" value={filterCondition} onChange={e => setFilterCondition(e.target.value)} placeholder={`Enter ${filterOptions.find(o => o.value === filterType)?.label} expression...`} />
+                        <Label htmlFor="filter-condition-jsonpath">JSONPath Expression</Label>
+                        <Input id="filter-condition-jsonpath" value={filterCondition} onChange={e => setFilterCondition(e.target.value)} placeholder={`Enter JSONPath expression...`} />
                     </div>
                 )}
-                {filterType === 'JSON-PATH' && (
+                {filterType === 'JAVASCRIPT' && (
+                    <div>
+                        <Label htmlFor="filter-condition-js">Javascript Function</Label>
+                        <Textarea id="filter-condition-js" value={jsFunction} onChange={e => setJsFunction(e.target.value)} rows={5} className="font-mono"/>
+                    </div>
+                )}
+                {(filterType === 'JSON-PATH' || filterType === 'JAVASCRIPT') && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                         <div className="space-y-1.5">
                             <Label htmlFor="input-event">Input Event</Label>
@@ -348,6 +385,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
             </div>
         );
       case 3:
+        const currentCondition = filterType === 'JAVASCRIPT' ? jsFunction : filterCondition;
         return (
             <div className="space-y-3 text-sm p-4 border rounded-md bg-muted/50">
                 <h4 className="font-semibold">Confirm Subscription</h4>
@@ -368,7 +406,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                     </>
                 )}
                 <p><strong>Condition Type:</strong> {filterOptions.find(o => o.value === filterType)?.label}</p>
-                {filterType !== 'NONE' && <p><strong>Condition:</strong> {filterCondition}</p>}
+                {filterType !== 'NONE' && <p><strong>Condition:</strong> {currentCondition}</p>}
             </div>
         );
       default:
