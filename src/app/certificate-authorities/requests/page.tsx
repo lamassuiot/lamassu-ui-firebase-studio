@@ -377,7 +377,7 @@ export default function CaRequestsPage() {
         </Alert>
       ) : requests.length > 0 ? (
         <>
-          <div className="overflow-x-auto">
+          <div className={cn("overflow-auto max-h-[60vh]", isLoading && "opacity-50")}>
             <Table>
               <TableHeader>
                 <TableRow>
