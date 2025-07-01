@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { DataSet } from "vis-data/esnext";
 import { Timeline } from "vis-timeline/esnext";
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
-import { addMonths, isPast, parseISO, subMonths, toDate } from 'date-fns';
+import { addDays, addMonths, isPast, parseISO, subDays, subMonths, toDate } from 'date-fns';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { createRoot } from 'react-dom/client';
@@ -41,6 +41,30 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     } else {
       document.exitFullscreen();
     }
+  };
+  
+  const handleZoom = (range: '3m' | '1y' | '5y') => {
+    if (!timelineInstance.current) return;
+
+    const now = new Date();
+    let start: Date, end: Date;
+
+    switch (range) {
+      case '3m':
+        start = subDays(now, 45);
+        end = addDays(now, 45);
+        break;
+      case '1y':
+        start = subMonths(now, 6);
+        end = addMonths(now, 6);
+        break;
+      case '5y':
+        start = subMonths(now, 30); // 2.5 years is 30 months
+        end = addMonths(now, 30);
+        break;
+    }
+    
+    timelineInstance.current.setWindow(start, end, { animation: true });
   };
 
   useEffect(() => {
@@ -173,10 +197,17 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
               Visual timeline of Certificate Authority expiry dates. Click an item to view details. Zoom in/out using mouse wheel or pinch gestures.
             </CardDescription>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleFullscreenToggle} className="text-primary-foreground hover:bg-primary-foreground/20 focus-visible:ring-primary-foreground">
-            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-            <span className="sr-only">Toggle Fullscreen</span>
-          </Button>
+           <div className="flex items-center space-x-2">
+            <div className="hidden sm:flex items-center space-x-1 rounded-md bg-primary-foreground/10 p-1">
+                <Button size="sm" variant="ghost" onClick={() => handleZoom('3m')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">3m</Button>
+                <Button size="sm" variant="ghost" onClick={() => handleZoom('1y')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">1y</Button>
+                <Button size="sm" variant="ghost" onClick={() => handleZoom('5y')} className="h-7 px-2 text-xs text-primary-foreground/80 hover:bg-primary-foreground/20 hover:text-primary-foreground">5y</Button>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleFullscreenToggle} className="text-primary-foreground hover:bg-primary-foreground/20 focus-visible:ring-primary-foreground">
+                {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                <span className="sr-only">Toggle Fullscreen</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className={cn(isFullscreen && "flex-grow")}>
           {cas.length > 0 ? (
