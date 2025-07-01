@@ -95,7 +95,7 @@ export const ViewCsrModal: React.FC<ViewCsrModalProps> = ({ isOpen, onOpenChange
   const [copied, setCopied] = useState(false);
   const [decodedInfo, setDecodedInfo] = useState<DecodedCsrInfo | null>(null);
 
-  const csrPem = request?.csr?.pem ? window.atob(request.csr.pem) : null;
+  const csrPem = request?.csr ? window.atob(request.csr) : null;
   const fingerprint = request?.fingerprint;
 
   const parseCsr = useCallback(async (pem: string) => {

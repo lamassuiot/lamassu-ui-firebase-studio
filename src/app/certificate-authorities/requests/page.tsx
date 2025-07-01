@@ -45,10 +45,6 @@ interface KeyMetadata {
     bits: number;
 }
 
-interface X509CertificateRequest {
-    pem: string;
-}
-
 export interface CACertificateRequest {
     id: string;
     key_id: string;
@@ -59,7 +55,7 @@ export interface CACertificateRequest {
     key_metadata: KeyMetadata;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     fingerprint: string;
-    csr: X509CertificateRequest;
+    csr: string; // Base64 encoded PEM
 }
 
 type SortableColumn = 'id' | 'subject' | 'status' | 'creation_ts';

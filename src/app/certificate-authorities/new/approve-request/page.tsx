@@ -21,7 +21,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 // --- Type Definitions ---
 interface Subject { common_name: string; }
 interface KeyMetadata { type: string; bits: number; }
-interface X509CertificateRequest { pem: string; }
 interface CACertificateRequest {
     id: string;
     key_id: string;
@@ -32,7 +31,7 @@ interface CACertificateRequest {
     key_metadata: KeyMetadata;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     fingerprint: string;
-    csr: X509CertificateRequest;
+    csr: string; // Base64 encoded PEM
 }
 interface DecodedImportedCertInfo {
   subject?: string;
