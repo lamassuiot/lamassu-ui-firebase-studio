@@ -3,10 +3,11 @@
 
 import React from 'react';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 import { format, formatDistanceToNow } from 'date-fns';
 import type { AlertEvent } from '@/app/alerts/page';
+import { cn } from '@/lib/utils';
 
 interface AlertEventItemProps {
   event: AlertEvent;
@@ -14,6 +15,11 @@ interface AlertEventItemProps {
 
 export const AlertEventItem: React.FC<AlertEventItemProps> = ({ event }) => {
     const lastSeenDate = new Date(event.lastSeen);
+
+    const handleSubscribeClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+        e.stopPropagation();
+        alert(`Subscribing to ${event.type}`);
+    };
 
     return (
         <AccordionItem value={event.id} className="border rounded-lg mb-2 overflow-hidden bg-card">
@@ -38,9 +44,15 @@ export const AlertEventItem: React.FC<AlertEventItemProps> = ({ event }) => {
                         </div>
                     </div>
                     <div className="flex justify-end">
-                        <Button size="sm" onClick={(e) => { e.stopPropagation(); alert(`Subscribing to ${event.type}`)}}>
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            className={cn(buttonVariants({ size: 'sm' }))}
+                            onClick={handleSubscribeClick}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSubscribeClick(e) }}
+                        >
                             Subscribe
-                        </Button>
+                        </div>
                     </div>
                 </div>
             </AccordionTrigger>
