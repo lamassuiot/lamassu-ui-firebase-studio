@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import type { CACertificateRequest } from '@/app/certificate-authorities/requests/page';
 
 // --- PKI.js Helper Functions ---
 const OID_MAP: Record<string, string> = {
@@ -86,13 +87,16 @@ interface DecodedCsrInfo {
 interface ViewCsrModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  csrPem: string | null;
+  request: CACertificateRequest | null;
 }
 
-export const ViewCsrModal: React.FC<ViewCsrModalProps> = ({ isOpen, onOpenChange, csrPem }) => {
+export const ViewCsrModal: React.FC<ViewCsrModalProps> = ({ isOpen, onOpenChange, request }) => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [decodedInfo, setDecodedInfo] = useState<DecodedCsrInfo | null>(null);
+
+  const csrPem = request?.csr?.pem ? window.atob(request.csr.pem) : null;
+  const fingerprint = request?.fingerprint;
 
   const parseCsr = useCallback(async (pem: string) => {
     try {
@@ -165,6 +169,7 @@ export const ViewCsrModal: React.FC<ViewCsrModalProps> = ({ isOpen, onOpenChange
                       <>
                         <DetailItem label="Subject" value={decodedInfo.subject} isMono />
                         <DetailItem label="Public Key" value={decodedInfo.publicKeyInfo} isMono />
+                        <DetailItem label="Fingerprint (SHA256)" value={fingerprint} isMono />
                         {decodedInfo.sans && decodedInfo.sans.length > 0 && <DetailItem label="SANs" value={<div className="flex flex-wrap gap-1">{decodedInfo.sans.map((san, i)=><Badge key={i} variant="secondary">{san}</Badge>)}</div>}/>}
                         {decodedInfo.basicConstraints && <DetailItem label="Basic Constraints" value={decodedInfo.basicConstraints} isMono />}
                       </>

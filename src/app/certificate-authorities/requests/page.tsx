@@ -49,7 +49,7 @@ interface X509CertificateRequest {
     pem: string;
 }
 
-interface CACertificateRequest {
+export interface CACertificateRequest {
     id: string;
     key_id: string;
     metadata: Record<string, any>;
@@ -107,7 +107,7 @@ export default function CaRequestsPage() {
   const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig | null>({ column: 'creation_ts', direction: 'desc' });
   
-  const [selectedCsr, setSelectedCsr] = useState<string | null>(null);
+  const [selectedRequestForCsrView, setSelectedRequestForCsrView] = useState<CACertificateRequest | null>(null);
   const [isCsrModalOpen, setIsCsrModalOpen] = useState(false);
   
   // State for delete dialog
@@ -253,25 +253,8 @@ export default function CaRequestsPage() {
     fetchRequests(bookmarkStack[currentPageIndex]);
   };
 
-  const handleViewCsr = (csrObject: X509CertificateRequest) => {
-    if (!csrObject || typeof csrObject !== 'string' || !csrObject.trim()) {
-      setSelectedCsr("No CSR content available in the API response.");
-      setIsCsrModalOpen(true);
-      return;
-    }
-    
-    try {
-      const decodedCsr = window.atob(csrObject);
-      setSelectedCsr(decodedCsr);
-    } catch (e) {
-      console.error("Failed to decode CSR PEM:", e);
-      setSelectedCsr("Error decoding CSR content. The data might not be valid base64.");
-      toast({
-        title: "Display Error",
-        description: "Could not decode the CSR content.",
-        variant: "destructive"
-      });
-    }
+  const handleViewCsr = (request: CACertificateRequest) => {
+    setSelectedRequestForCsrView(request);
     setIsCsrModalOpen(true);
   };
   
@@ -427,7 +410,7 @@ export default function CaRequestsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewCsr(req.csr)}>
+                          <DropdownMenuItem onClick={() => handleViewCsr(req)}>
                             <FileSignature className="mr-2 h-4 w-4" />
                             View CSR
                           </DropdownMenuItem>
@@ -489,7 +472,7 @@ export default function CaRequestsPage() {
       <ViewCsrModal
         isOpen={isCsrModalOpen}
         onOpenChange={setIsCsrModalOpen}
-        csrPem={selectedCsr}
+        request={selectedRequestForCsrView}
       />
       
       <AlertDialog open={!!requestToDelete} onOpenChange={(open) => !open && setRequestToDelete(null)}>
