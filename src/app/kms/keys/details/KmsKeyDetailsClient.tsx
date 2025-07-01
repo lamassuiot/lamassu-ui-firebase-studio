@@ -71,9 +71,9 @@ export default function KmsKeyDetailsClient() {
   const [activeTab, setActiveTab] = useState<string>(tabFromQuery || 'overview');
 
   // State for Sign Tab
+  const [isSigning, setIsSigning] = useState(false);
   const [signAlgorithm, setSignAlgorithm] = useState(signatureAlgorithms[3]);
   const [signMessageType, setSignMessageType] = useState('RAW');
-  const [signPayloadEncoding, setSignPayloadEncoding] = useState('PLAIN_TEXT');
   const [payloadToSign, setPayloadToSign] = useState('');
   const [generatedSignature, setGeneratedSignature] = useState('');
 
@@ -183,14 +183,55 @@ export default function KmsKeyDetailsClient() {
      setActiveTab(currentTab || 'overview');
   }, [searchParams]);
 
-  const handleSign = () => {
+  const handleSign = async () => {
     if (!payloadToSign) {
       toast({ title: "Sign Error", description: "Payload to sign cannot be empty.", variant: "destructive" });
       return;
     }
-    console.log("Mock Sign:", { signAlgorithm, signMessageType, signPayloadEncoding, payloadToSign });
-    setGeneratedSignature(`mock-sig-${Date.now()}-${payloadToSign.substring(0,10)}`);
-    toast({ title: "Mock Sign Success", description: "Signature generated (mock)." });
+     if (!keyId || !user?.access_token) {
+        toast({ title: "Sign Error", description: "Key ID or user authentication is missing.", variant: "destructive" });
+        return;
+    }
+    
+    setIsSigning(true);
+    setGeneratedSignature('');
+    
+    try {
+        const payload = {
+            algorithm: signAlgorithm,
+            message: payloadToSign, // Assuming user provides Base64
+            message_type: signMessageType.toLowerCase(), // 'raw' or 'digest'
+        };
+
+        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyId)}/sign`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token}`,
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.err || result.message || `Signing failed with status ${response.status}`);
+        }
+        
+        if (!result.signature) {
+            throw new Error("Signature not found in the API response.");
+        }
+
+        setGeneratedSignature(result.signature);
+        toast({ title: "Sign Success", description: "Data has been successfully signed." });
+
+    } catch (error: any) {
+        console.error("Signing Error:", error);
+        toast({ title: "Sign Error", description: error.message, variant: "destructive" });
+        setGeneratedSignature('');
+    } finally {
+        setIsSigning(false);
+    }
   };
 
   const handleVerify = () => {
@@ -328,12 +369,12 @@ export default function KmsKeyDetailsClient() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center"><PenTool className="mr-2 h-5 w-5 text-primary"/>Sign Data</CardTitle>
-                    <CardDescription>Perform cryptographic sign operations using this key. (Mock functionality)</CardDescription>
+                    <CardDescription>Perform cryptographic sign operations using this key.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div>
                         <Label htmlFor="signAlgorithm">Algorithm</Label>
-                        <Select value={signAlgorithm} onValueChange={setSignAlgorithm}>
+                        <Select value={signAlgorithm} onValueChange={setSignAlgorithm} disabled={isSigning}>
                             <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {signatureAlgorithms.map(algo => (
@@ -348,7 +389,7 @@ export default function KmsKeyDetailsClient() {
                     </div>
                     <div>
                         <Label htmlFor="signMessageType">Message Type</Label>
-                         <Select value={signMessageType} onValueChange={setSignMessageType}>
+                         <Select value={signMessageType} onValueChange={setSignMessageType} disabled={isSigning}>
                             <SelectTrigger id="signMessageType"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="RAW">Raw</SelectItem>
@@ -357,21 +398,13 @@ export default function KmsKeyDetailsClient() {
                         </Select>
                     </div>
                     <div>
-                        <Label htmlFor="signPayloadEncoding">Payload Encoding Format</Label>
-                        <Select value={signPayloadEncoding} onValueChange={setSignPayloadEncoding}>
-                            <SelectTrigger id="signPayloadEncoding"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="PLAIN_TEXT">Plain Text</SelectItem>
-                                <SelectItem value="BASE64">Base64</SelectItem>
-                                <SelectItem value="HEX">Hexadecimal</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <Label htmlFor="payloadToSign">Payload to Sign (Base64)</Label>
+                        <Textarea id="payloadToSign" value={payloadToSign} onChange={e => setPayloadToSign(e.target.value)} placeholder="Enter Base64 encoded data to be signed..." rows={4} disabled={isSigning}/>
                     </div>
-                    <div>
-                        <Label htmlFor="payloadToSign">Payload to Sign</Label>
-                        <Textarea id="payloadToSign" value={payloadToSign} onChange={e => setPayloadToSign(e.target.value)} placeholder="Enter data to be signed..." rows={4} />
-                    </div>
-                    <Button onClick={handleSign} className="w-full sm:w-auto">Sign</Button>
+                    <Button onClick={handleSign} className="w-full sm:w-auto" disabled={isSigning}>
+                      {isSigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {isSigning ? 'Signing...' : 'Sign'}
+                    </Button>
                     {generatedSignature && (
                         <div>
                             <Label htmlFor="generatedSignature">Generated Signature (Base64)</Label>
