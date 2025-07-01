@@ -43,8 +43,6 @@ export const CryptoEngineSelector: React.FC<CryptoEngineSelectorProps> = ({ valu
         const defaultEngine = data.find(e => e.default);
         if (defaultEngine) {
           onValueChange(defaultEngine.id);
-        } else {
-           onValueChange(data[0].id); // Or select the first one if no default
         }
       }
 
