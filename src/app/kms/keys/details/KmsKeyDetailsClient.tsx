@@ -307,7 +307,7 @@ export default function KmsKeyDetailsClient() {
         const tbs = pkcs10.encodeTBS().toBER(false);
         const tbsB64 = arrayBufferToBase64(tbs);
 
-        const kmsSignAlgorithm = keyDetails.algorithm === 'RSA' ? 'RSASSA_PKCS1_V1_5_SHA_256' : 
+        const kmsSignAlgorithm = keyDetails.algorithm === 'RSA' ? 'RSASSA_PSS_SHA_256' : 
                                  keyDetails.algorithm === 'ECDSA' ? 'ECDSA_SHA_256' :
                                  'ML-DSA-65'; // Default for PQC
 
