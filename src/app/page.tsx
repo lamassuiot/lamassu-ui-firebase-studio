@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -159,7 +160,9 @@ export default function HomePage() {
           <SummaryStatsCard stats={summaryStats} isLoading={isLoadingStats || authLoading} />
         </div>
         <div className="lg:col-span-1">
-          <DeviceStatusChartCard />
+          <div className="max-w-lg">
+            <DeviceStatusChartCard />
+          </div>
         </div>
       </div>
       <div>
