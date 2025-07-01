@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ShieldCheck, Settings, PlusCircle, Loader2, AlertTriangle as AlertTriangleIcon, FileText, Download } from "lucide-react";
+import { ShieldCheck, Settings, PlusCircle, Loader2, AlertTriangle as AlertTriangleIcon, FileText, Download, RefreshCw } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
@@ -22,6 +22,7 @@ import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { format, parseISO } from 'date-fns';
 import { DetailItem } from './DetailItem';
+import { cn } from '@/lib/utils';
 
 interface VAConfig {
   caId: string;
@@ -382,11 +383,19 @@ export function VerificationAuthoritiesClient() { // Renamed component
           {config && selectedCaForConfig && !isLoadingConfig && !errorConfig && (
             <Card className="border-primary/50 shadow-md mt-4">
               <CardHeader>
-                <CardTitle className="text-xl flex items-center">
-                  <Settings className="mr-2 h-6 w-6 text-primary" />
-                  VA Settings for: <span className="font-semibold ml-1">{selectedCaForConfig.name}</span>
-                </CardTitle>
-                <CardDescription>Define validation parameters for this CA.</CardDescription>
+                <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                        <CardTitle className="text-xl flex items-center">
+                            <Settings className="mr-2 h-6 w-6 text-primary" />
+                            VA Settings for: <span className="font-semibold ml-1">{selectedCaForConfig.name}</span>
+                        </CardTitle>
+                        <CardDescription>Define validation parameters for this CA.</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={fetchVaConfig} disabled={isLoadingConfig}>
+                        <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingConfig && "animate-spin")} />
+                        Refresh Config
+                    </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6 pt-4">
                 <DurationInput
