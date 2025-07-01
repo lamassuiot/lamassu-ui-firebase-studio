@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -11,6 +12,10 @@ import { addMonths, isPast, parseISO, subMonths, toDate } from 'date-fns';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { createRoot } from 'react-dom/client';
+import { Button } from '@/components/ui/button';
+import { Maximize, Minimize } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
 
 interface CaExpiryTimelineProps {
   cas: CA[];
@@ -19,10 +24,43 @@ interface CaExpiryTimelineProps {
 
 export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryptoEngines }) => {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const hiddenItemsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const timelineInstance = useRef<Timeline | null>(null);
   const [renderedCount, setRenderedCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const router = useRouter();
+
+  const handleFullscreenToggle = () => {
+    if (!cardRef.current) return;
+
+    if (!document.fullscreenElement) {
+      cardRef.current.requestFullscreen().catch(err => {
+        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (timelineInstance.current) {
+      timelineInstance.current.redraw();
+    }
+  }, [isFullscreen]);
+
 
   useEffect(() => {
     if (!timelineRef.current || cas.length === 0 || renderedCount < cas.length) {
@@ -72,7 +110,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
     const options = {
       stack: true,
       width: '100%',
-      height: '300px',
+      height: '100%',
       margin: { item: 20 },
       start: subMonths(now, 1),
       end: addMonths(toDate(sortedCAs[0].expires), 3),
@@ -99,7 +137,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         console.log("Destroyed existing timeline");
       }
     };
-  }, [cas, renderedCount]);
+  }, [cas, renderedCount, router]);
 
   return (
     <>
@@ -121,18 +159,30 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
         ))}
       </div>
 
-      <Card className="shadow-lg w-full bg-primary text-primary-foreground">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
-          <CardDescription className="text-primary-foreground/80">
-            Visual timeline of Certificate Authority expiry dates. Click an item to view details. Zoom in/out using mouse wheel or pinch gestures.
-          </CardDescription>
+      <Card
+        ref={cardRef}
+        className={cn(
+          "shadow-lg w-full bg-primary text-primary-foreground",
+          isFullscreen && "h-screen flex flex-col"
+        )}
+      >
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div>
+            <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Visual timeline of Certificate Authority expiry dates. Click an item to view details. Zoom in/out using mouse wheel or pinch gestures.
+            </CardDescription>
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleFullscreenToggle} className="text-primary-foreground hover:bg-primary-foreground/20 focus-visible:ring-primary-foreground">
+            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+            <span className="sr-only">Toggle Fullscreen</span>
+          </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className={cn(isFullscreen && "flex-grow")}>
           {cas.length > 0 ? (
-            <div ref={timelineRef} />
+            <div ref={timelineRef} className={cn("w-full", isFullscreen ? "h-full" : "h-[300px]")} />
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+            <div className="h-[300px] flex items-center justify-center text-primary-foreground/70">
               No CA data available to display in timeline.
             </div>
           )}
