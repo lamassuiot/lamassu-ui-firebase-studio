@@ -20,7 +20,7 @@ export interface ApiAlertEvent {
 }
 
 export async function fetchLatestAlerts(accessToken: string): Promise<ApiAlertEvent[]> {
-  const response = await fetch('https://lab.lamassu.io/alerts/v1/events/latest', {
+  const response = await fetch('https://lab.lamassu.io/api/alerts/v1/events/latest', {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
     },
