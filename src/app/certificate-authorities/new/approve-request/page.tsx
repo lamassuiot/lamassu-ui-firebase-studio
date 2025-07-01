@@ -6,16 +6,17 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, PlusCircle, ShieldCheck, Loader2, AlertTriangle, FileSignature } from "lucide-react";
+import { ArrowLeft, PlusCircle, ShieldCheck, Loader2, AlertTriangle, FileSignature, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Certificate as PkijsCertificate, BasicConstraints as PkijsBasicConstraints } from "pkijs";
 import * as asn1js from "asn1js";
-import { format as formatDate, parseISO } from 'date-fns';
+import { format as formatDate, parseISO, formatISO } from 'date-fns';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 
 // --- Type Definitions ---
 interface Subject { common_name: string; }
@@ -51,6 +52,8 @@ function ab2hex(ab: ArrayBuffer) {
   return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
+
 export default function ApproveCaRequestPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,6 +70,7 @@ export default function ApproveCaRequestPage() {
   const [certificatePem, setCertificatePem] = useState('');
   const [chainPem, setChainPem] = useState('');
   const [decodedCertInfo, setDecodedCertInfo] = useState<DecodedImportedCertInfo | null>(null);
+  const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
 
   const fetchRequestDetails = useCallback(async () => {
     if (!requestIdFromUrl || !isAuthenticated() || !user?.access_token) {
@@ -126,6 +130,19 @@ export default function ApproveCaRequestPage() {
     }
   };
 
+  const formatExpirationForApi = (config: ExpirationConfig): { type: string; duration?: string; time?: string } => {
+    if (config.type === "Duration") {
+      return { type: "Duration", duration: config.durationValue };
+    }
+    if (config.type === "Date" && config.dateValue) {
+      return { type: "Date", time: formatISO(config.dateValue) };
+    }
+    if (config.type === "Indefinite") {
+      return { type: "Date", time: INDEFINITE_DATE_API_VALUE };
+    }
+    return { type: "Duration", duration: "1y" }; // Fallback
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -145,7 +162,13 @@ export default function ApproveCaRequestPage() {
       setIsSubmitting(false);
       return;
     }
-     if (!user?.access_token) {
+    if ((issuanceExpiration.type === "Duration" && !issuanceExpiration.durationValue?.trim()) ||
+        (issuanceExpiration.type === "Date" && !issuanceExpiration.dateValue)) {
+      toast({ title: "Validation Error", description: "Please provide a valid expiration setting.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+    if (!user?.access_token) {
         toast({ title: "Authentication Error", description: "User not authenticated.", variant: "destructive" });
         setIsSubmitting(false);
         return;
@@ -156,6 +179,7 @@ export default function ApproveCaRequestPage() {
       ca: window.btoa(certificatePem.replace(/\\n/g, '\n')),
       ca_chain: chainPem ? [window.btoa(chainPem.replace(/\\n/g, '\n'))] : [],
       ca_type: "MANAGED",
+      issuance_expiration: formatExpirationForApi(issuanceExpiration),
     };
     
     try {
@@ -263,6 +287,18 @@ export default function ApproveCaRequestPage() {
                         <Textarea id="chainPem" value={chainPem} onChange={(e) => setChainPem(e.target.value)} placeholder="Paste intermediate CA certificates if needed..." rows={4} className="mt-1 font-mono"/>
                     </div>
                 </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ExpirationInput 
+                    idPrefix="issuance-exp" 
+                    label="Default End-Entity Certificate Issuance Expiration" 
+                    value={issuanceExpiration} 
+                    onValueChange={setIssuanceExpiration} 
+                />
+              </div>
             </section>
 
             <div className="flex justify-end pt-4">
