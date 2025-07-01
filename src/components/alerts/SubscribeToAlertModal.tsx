@@ -36,7 +36,7 @@ interface SubscribeToAlertModalProps {
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
   const steps = ["Channels", "Filters", "Confirmation"];
   return (
-    <div className="flex items-center space-x-4 mb-8">
+    <div className="flex items-center space-x-2 sm:space-x-4 mb-6 sm:mb-8">
       {steps.map((label, index) => {
         const stepNumber = index + 1;
         const isCompleted = stepNumber < currentStep;
@@ -45,7 +45,7 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
           <React.Fragment key={stepNumber}>
             <div className="flex flex-col items-center space-y-1">
               <div className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center font-bold transition-colors",
+                "h-8 w-8 rounded-full flex items-center justify-center font-bold transition-colors text-xs sm:text-sm",
                 isCompleted ? "bg-primary text-primary-foreground" :
                 isActive ? "bg-primary/20 border-2 border-primary text-primary" :
                 "bg-muted border-2 border-border text-muted-foreground"
@@ -83,41 +83,35 @@ const filterOptions = [
     { value: 'JAVASCRIPT', label: 'Javascript' },
 ];
 
-// Self-contained schema generator to avoid external dependencies.
-function generateSchema(obj: any): object {
-    if (obj === null || typeof obj !== 'object') {
-        if (typeof obj === 'string') return { type: 'string' };
-        if (typeof obj === 'number') return { type: 'number' };
-        if (typeof obj === 'boolean') return { type: 'boolean' };
-        return {};
-    }
-
+const generateSchema = (obj: any): any => {
+    if (obj === null) return { type: 'null' };
+    const type = typeof obj;
+    if (type === 'string') return { type: 'string' };
+    if (type === 'number') return { type: 'number' };
+    if (type === 'boolean') return { type: 'boolean' };
     if (Array.isArray(obj)) {
-        const schema: { type: 'array', items?: object } = { type: 'array' };
-        if (obj.length > 0) {
-            schema.items = generateSchema(obj[0]);
+        return {
+            type: 'array',
+            items: obj.length > 0 ? generateSchema(obj[0]) : {},
+        };
+    }
+    if (type === 'object') {
+        const properties: { [key: string]: any } = {};
+        const required: string[] = [];
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                properties[key] = generateSchema(obj[key]);
+                required.push(key);
+            }
         }
-        return schema;
+        return {
+            type: 'object',
+            properties,
+            required,
+        };
     }
-
-    const schema: { type: 'object', properties: Record<string, object>, required?: string[] } = {
-        type: 'object',
-        properties: {},
-    };
-
-    const requiredFields = Object.keys(obj);
-    if (requiredFields.length > 0) {
-        schema.required = requiredFields;
-    }
-
-    for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-            schema.properties[key] = generateSchema(obj[key]);
-        }
-    }
-
-    return schema;
-}
+    return {};
+};
 
 
 export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
@@ -515,7 +509,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
+      <DialogContent className="sm:max-w-2xl lg:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Subscribe to event</DialogTitle>
           <DialogDescription>
