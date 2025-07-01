@@ -35,6 +35,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 
 interface Subject {
@@ -165,7 +166,7 @@ export default function CaRequestsPage() {
       }
       filtersToApply.forEach(f => params.append('filter', f));
       
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/requests?${params.toString()}`, {
+      const response = await fetch(`${CA_API_BASE_URL}/cas/requests?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${user.access_token}` },
       });
 
@@ -254,7 +255,7 @@ export default function CaRequestsPage() {
     }
     setIsDeleting(true);
     try {
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/requests/${requestToDelete.id}`, {
+      const response = await fetch(`${CA_API_BASE_URL}/cas/requests/${requestToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${user.access_token}`,

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -16,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchCryptoEngines } from '@/lib/ca-data';
+import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 
 interface ApiKmsKey {
@@ -59,7 +61,7 @@ export default function KmsKeysPage() {
     
     try {
       const [keysResponse, enginesData] = await Promise.all([
-        fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetch(`${CA_API_BASE_URL}/kms/keys`, { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
         fetchCryptoEngines(user.access_token)
       ]);
 

@@ -27,6 +27,7 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CaStatsDisplay } from '@/components/ca/details/CaStatsDisplay';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import { IssuedCertificatesTab } from '@/components/ca/details/IssuedCertificatesTab';
+import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 
 interface CaStats {
@@ -138,7 +139,7 @@ export default function CertificateAuthorityDetailsClient() {
     setIsLoadingStats(true);
     setErrorStats(null);
     try {
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/stats/${caId}`, {
+      const response = await fetch(`${CA_API_BASE_URL}/stats/${caId}`, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
       });
       if (!response.ok) {
@@ -203,7 +204,7 @@ export default function CertificateAuthorityDetailsClient() {
     setIsRevocationModalOpen(false); // Close modal immediately
 
     try {
-        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caToRevoke.id}/status`, {
+        const response = await fetch(`${CA_API_BASE_URL}/cas/${caToRevoke.id}/status`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -262,7 +263,7 @@ export default function CertificateAuthorityDetailsClient() {
     setIsDeleteModalOpen(false); // Close modal immediately
 
     try {
-        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caToDelete.id}`, {
+        const response = await fetch(`${CA_API_BASE_URL}/cas/${caToDelete.id}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${user.access_token}`,

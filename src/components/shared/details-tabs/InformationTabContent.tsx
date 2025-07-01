@@ -21,6 +21,7 @@ import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import { ExpirationInput, type ExpirationConfig } from '../ExpirationInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 
 interface CaStats {
@@ -151,7 +152,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
 
     setIsSubmitting(true);
     try {
-        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caDetails.id}/issuance-expiration`, {
+        const response = await fetch(`${CA_API_BASE_URL}/cas/${caDetails.id}/issuance-expiration`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

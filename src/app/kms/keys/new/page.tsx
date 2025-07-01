@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -14,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { KEY_TYPE_OPTIONS_POST_QUANTUM, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS, MLDSA_SECURITY_LEVEL_OPTIONS } from '@/lib/key-spec-constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
+import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 const creationModes = [
   {
@@ -130,7 +132,7 @@ export default function CreateKmsKeyPage() {
                 size: size,
             };
 
-            const response = await fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', {
+            const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

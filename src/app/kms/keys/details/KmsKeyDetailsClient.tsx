@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -24,6 +25,7 @@ import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
 import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
 import { fetchCryptoEngines } from '@/lib/ca-data';
+import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -146,7 +148,7 @@ export default function KmsKeyDetailsClient() {
 
     try {
       const [keysResponse, allEnginesData] = await Promise.all([
-        fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetch(`${CA_API_BASE_URL}/kms/keys`, { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
         fetchCryptoEngines(user.access_token)
       ]);
 
@@ -237,7 +239,7 @@ export default function KmsKeyDetailsClient() {
         message_type: signMessageType.toLowerCase(),
       };
 
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyId)}/sign`, {
+      const response = await fetch(`${CA_API_BASE_URL}/kms/keys/${encodeURIComponent(keyId)}/sign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -279,13 +281,13 @@ export default function KmsKeyDetailsClient() {
   };
 
 
-  function rawEcdsaSigToDer(rawSig) {
+  function rawEcdsaSigToDer(rawSig: Uint8Array) {
     const half = rawSig.length / 2;
     let r = rawSig.slice(0, half);
     let s = rawSig.slice(half);
 
     // Helper to trim leading zeros
-    function trimZeros(buf) {
+    function trimZeros(buf: Uint8Array) {
       let i = 0;
       while (i < buf.length - 1 && buf[i] === 0) i++;
       return buf.slice(i);
@@ -359,7 +361,7 @@ export default function KmsKeyDetailsClient() {
       const tbsB64 = arrayBufferToBase64(tbs);
 
       const kmsSignAlgorithm = 'ECDSA_SHA_256'
-      const signResponse = await fetch(`https://lab.lamassu.io/api/ca/v1/kms/keys/${encodeURIComponent(keyDetails.id)}/sign`, {
+      const signResponse = await fetch(`${CA_API_BASE_URL}/kms/keys/${encodeURIComponent(keyDetails.id)}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.access_token}` },
         body: JSON.stringify({
@@ -374,10 +376,10 @@ export default function KmsKeyDetailsClient() {
 
       // Fixed code
       const signatureBase64 = signResult.signature;
-      const rawSignature = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0)).buffer;
+      const rawSignature = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0));
 
       // Convert raw ECDSA signature (r||s) to ASN.1 DER encoded format
-      const derEncodedSignature = rawEcdsaSigToDer(new Uint8Array(rawSignature));
+      const derEncodedSignature = rawEcdsaSigToDer(rawSignature);
 
       pkcs10.signatureValue = new asn1js.BitString({ valueHex: derEncodedSignature });
 

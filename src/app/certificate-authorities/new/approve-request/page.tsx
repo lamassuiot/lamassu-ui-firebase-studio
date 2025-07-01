@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 import { importCa, type ImportCaPayload } from '@/lib/ca-data';
+import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 // --- Type Definitions ---
 interface Subject { common_name: string; }
@@ -83,7 +84,7 @@ export default function ApproveCaRequestPage() {
     setIsLoadingRequest(true);
     setErrorRequest(null);
     try {
-        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/requests?filter=id[equal]${requestIdFromUrl}`, {
+        const response = await fetch(`${CA_API_BASE_URL}/cas/requests?filter=id[equal]${requestIdFromUrl}`, {
             headers: { 'Authorization': `Bearer ${user.access_token}` },
         });
         if (!response.ok) throw new Error("Failed to fetch CA request details.");

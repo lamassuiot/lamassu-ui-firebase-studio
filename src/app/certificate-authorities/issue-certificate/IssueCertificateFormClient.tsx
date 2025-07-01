@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -27,6 +28,7 @@ import { TagInput } from '@/components/shared/TagInput';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
+import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -305,7 +307,7 @@ export default function IssueCertificateFormClient() {
         }
       };
     
-      const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caId}/certificates/sign`, {
+      const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/certificates/sign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.access_token}` },
           body: JSON.stringify(payload)
@@ -355,7 +357,7 @@ export default function IssueCertificateFormClient() {
     };
     
     try {
-        const response = await fetch(`https://lab.lamassu.io/api/ca/v1/cas/${caId}/certificates/sign`, {
+        const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/certificates/sign`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user?.access_token}` },
             body: JSON.stringify(payload)
