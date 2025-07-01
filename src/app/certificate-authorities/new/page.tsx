@@ -29,13 +29,6 @@ const creationModes: CreationMode[] = [
     isComingSoon: false,
   },
   {
-    id: 'generate-csr',
-    href: '/certificate-authorities/new/generate-csr',
-    title: 'Request New CA (Server-side Key)',
-    description: 'Generate a key pair and CSR on the backend. This request must be approved and signed by an administrator.',
-    icon: <FileSignature className="h-8 w-8 text-primary" />,
-  },
-  {
     id: 'approve-request',
     href: '/certificate-authorities/new/approve-request',
     title: 'Import Certificate (Approve Request)',
