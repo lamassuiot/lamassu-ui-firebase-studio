@@ -773,3 +773,39 @@ export async function createKmsKey(payload: any, accessToken: string): Promise<v
         throw new Error(errorMessage);
     }
 }
+
+export async function updateCaIssuanceExpiration(caId: string, payload: any, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/issuance-expiration`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to update issuance expiration. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore json parse error */ }
+        throw new Error(errorMessage);
+    }
+}
+
+export interface CaStatsSummaryResponse {
+  cas: { total: number };
+  certificates: { total: number };
+}
+
+export async function fetchCaStatsSummary(accessToken: string): Promise<CaStatsSummaryResponse> {
+    const response = await fetch(`${CA_API_BASE_URL}/stats`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch CA stats');
+    }
+    return response.json();
+}

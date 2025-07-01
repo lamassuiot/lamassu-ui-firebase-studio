@@ -5,14 +5,14 @@ import { DeviceStatusChartCard } from '@/components/home/DeviceStatusChartCard';
 import { CaExpiryTimeline } from '@/components/home/CaExpiryTimeline';
 import { SummaryStatsCard } from '@/components/home/SummaryStatsCard';
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines, fetchCaStatsSummary, type CaStatsSummaryResponse } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertTriangle, RefreshCw, HomeIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { ALERTS_API_BASE_URL, CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
+import { DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
 import { cn } from '@/lib/utils';
 
 // Helper function from old page.tsx
@@ -31,10 +31,6 @@ function flattenCAs(cas: CA[]): CA[] {
 }
 
 // Stats interfaces
-interface CaStatsResponse {
-  cas: { total: number };
-  certificates: { total: number };
-}
 interface TotalStatResponse {
   total: number;
 }
@@ -92,13 +88,13 @@ export default function HomePage() {
       const [
         fetchedCAs,
         enginesData,
-        caStatsResponse,
+        caStats,
         dmsStatsResponse,
         devManagerStatsResponse,
       ] = await Promise.all([
         fetchAndProcessCAs(user.access_token),
         fetchCryptoEngines(user.access_token),
-        fetch(`${CA_API_BASE_URL}/stats`, { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetchCaStatsSummary(user.access_token),
         fetch(`${DMS_MANAGER_API_BASE_URL}/stats`, { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
         fetch(`${DEV_MANAGER_API_BASE_URL}/stats`, { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
       ]);
@@ -113,11 +109,9 @@ export default function HomePage() {
       setIsLoadingEngines(false);
 
       // Process stats for summary card
-      if (!caStatsResponse.ok) throw new Error('Failed to fetch CA stats');
       if (!dmsStatsResponse.ok) throw new Error('Failed to fetch RA stats');
       if (!devManagerStatsResponse.ok) throw new Error('Failed to fetch Device stats');
-
-      const caStats: CaStatsResponse = await caStatsResponse.json();
+      
       const dmsStats: TotalStatResponse = await dmsStatsResponse.json();
       const devManagerStats: TotalStatResponse = await devManagerStatsResponse.json();
 
