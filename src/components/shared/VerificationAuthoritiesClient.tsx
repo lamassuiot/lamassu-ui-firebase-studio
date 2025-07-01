@@ -147,14 +147,17 @@ export function VerificationAuthoritiesClient() { // Renamed component
     setIsSubmitting(true);
     try {
         const payload = {
-            refresh_interval: config.refreshInterval,
-            validity: config.validity,
-            signer_subject_key_id: selectedCertificateSignerDisplay?.rawApiData?.subject_key_id || null,
-            regenerate_on_revoke: config.regenerateOnRevoke,
+            ca_ski: selectedCaForConfig.subjectKeyId,
+            crl_options: {
+                refresh_interval: config.refreshInterval,
+                validity: config.validity,
+                subject_key_id_signer: selectedCertificateSignerDisplay?.rawApiData?.subject_key_id || null,
+                regenerate_on_revoke: config.regenerateOnRevoke,
+            },
         };
 
         const response = await fetch(`${VA_API_BASE_URL}/roles/${selectedCaForConfig.subjectKeyId}`, {
-            method: 'POST',
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${user.access_token}`,
