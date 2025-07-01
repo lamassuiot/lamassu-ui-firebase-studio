@@ -6,12 +6,12 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, ArrowLeft, Copy, Check, FileText, Info } from 'lucide-react';
+import { Loader2, AlertTriangle, ArrowLeft, FileText, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
+import { CodeBlock } from '@/components/shared/CodeBlock';
 
 import * as asn1js from "asn1js";
 import { Certificate as PkijsCertificate, getCrypto, setEngine } from "pkijs";
@@ -37,42 +37,6 @@ function formatPkijsSubject(subject: any): string {
 function ab2hex(ab: ArrayBuffer) {
   return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-
-
-const CodeBlock: React.FC<{ content: string }> = ({ content }) => {
-    const { toast } = useToast();
-    const [copied, setCopied] = useState(false);
-    
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(content);
-            setCopied(true);
-            toast({ title: "Copied to clipboard!" });
-            setTimeout(() => setCopied(false), 2000);
-        } catch (err) {
-            toast({ title: "Copy failed", variant: "destructive" });
-        }
-    };
-
-    return (
-        <div className="relative">
-            <ScrollArea className="h-96 w-full rounded-md border bg-muted/30 p-4">
-                <pre className="text-xs whitespace-pre-wrap break-all font-mono">
-                    <code>{content}</code>
-                </pre>
-            </ScrollArea>
-            <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 h-7 w-7"
-                onClick={handleCopy}
-            >
-                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </Button>
-        </div>
-    );
-};
-
 
 export default function EstCaCertsPage() {
     const router = useRouter();

@@ -7,16 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, Check, Copy, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Check, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
 import { findCaById } from '@/lib/ca-data';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { DurationInput } from './DurationInput';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Alert } from '../ui/alert';
+import { CodeBlock } from './CodeBlock';
 
 // Re-defining RA type here to avoid complex imports, but ideally this would be shared
 interface ApiRaItem {
@@ -165,26 +165,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         setStep(prev => prev > 1 ? prev - 1 : 1);
     };
 
-    const handleCopy = async (text: string, fieldName: string) => {
-        try {
-            await navigator.clipboard.writeText(text);
-            toast({ title: "Copied!", description: `${fieldName} copied to clipboard.` });
-        } catch (err) {
-            toast({ title: "Copy Failed", variant: "destructive" });
-        }
-    }
-    
-    const CodeBlock = ({ content }: { content: string }) => (
-      <div className="relative">
-        <pre className="text-xs bg-muted p-3 rounded-md font-mono overflow-x-auto whitespace-pre-wrap break-all">
-          <code>{content}</code>
-        </pre>
-        <Button variant="ghost" size="icon" className="absolute top-1.5 right-1.5 h-7 w-7" onClick={() => handleCopy(content, "Command")}>
-            <Copy className="h-4 w-4"/>
-        </Button>
-      </div>
-    );
-    
     const opensslCombinedCommand = `openssl req -new -newkey rsa:2048 -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN==${deviceId}"
 cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
 
@@ -254,12 +234,7 @@ cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CER
                         <div className="space-y-4">
                             <div>
                                 <Label>Enrollment Command</Label>
-                                <div className="relative">
-                                    <Textarea value={enrollCommand} readOnly rows={5} className="font-mono bg-muted/50 mt-1 pr-12"/>
-                                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => handleCopy(enrollCommand, "Command")}>
-                                        <Copy className="h-4 w-4"/>
-                                    </Button>
-                                </div>
+                                <CodeBlock content={enrollCommand} />
                             </div>
                             <p className="text-sm text-muted-foreground">
                                Note: This command assumes you have saved the bootstrap certificate as `bootstrap.cert` and the key and CSR files (`device.key`, `device.csr`) are in the same directory.
