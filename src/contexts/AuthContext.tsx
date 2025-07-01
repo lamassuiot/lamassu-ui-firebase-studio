@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
 import { User, UserManager, WebStorageStateStore, Log } from 'oidc-client-ts';
 import { useRouter } from 'next/navigation';
 
@@ -140,9 +140,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const isAuthenticated = () => {
+  const isAuthenticated = useCallback(() => {
     return !!user && !user.expired;
-  };
+  }, [user]);
   
   // This check is mostly for client-side robustness, server won't hit this for rendering page content.
   if (!userManagerInstance && typeof window !== 'undefined') {
