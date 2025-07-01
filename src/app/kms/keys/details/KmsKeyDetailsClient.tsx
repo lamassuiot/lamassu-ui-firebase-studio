@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { DetailItem } from '@/components/shared/DetailItem';
+import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 
 interface ApiKmsKey {
   id: string;
@@ -35,6 +37,7 @@ interface KmsKeyDetailed {
   status: 'Enabled' | 'Disabled' | 'PendingDeletion';
   hasPrivateKey: boolean;
   publicKeyPem?: string;
+  cryptoEngineId?: string;
 }
 
 const signatureAlgorithms = [
@@ -60,6 +63,7 @@ export default function KmsKeyDetailsClient() {
   const keyId = searchParams.get('keyId');
 
   const [keyDetails, setKeyDetails] = useState<KmsKeyDetailed | null>(null);
+  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -104,11 +108,18 @@ export default function KmsKeyDetailsClient() {
     setError(null);
 
     try {
-      const response = await fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', {
-        headers: { 'Authorization': `Bearer ${user.access_token}` },
-      });
-      if (!response.ok) throw new Error(`Failed to fetch keys. HTTP Status: ${response.status}`);
-      const allKeys: ApiKmsKey[] = await response.json();
+      const [keysResponse, enginesResponse] = await Promise.all([
+        fetch('https://lab.lamassu.io/api/ca/v1/kms/keys', { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+        fetch('https://lab.lamassu.io/api/ca/v1/engines', { headers: { 'Authorization': `Bearer ${user.access_token}` } })
+      ]);
+      
+      if (!keysResponse.ok) throw new Error(`Failed to fetch keys. HTTP Status: ${keysResponse.status}`);
+      if (!enginesResponse.ok) throw new Error(`Failed to fetch engines. HTTP Status: ${enginesResponse.status}`);
+      
+      const allKeys: ApiKmsKey[] = await keysResponse.json();
+      const allEnginesData: ApiCryptoEngine[] = await enginesResponse.json();
+      setAllCryptoEngines(allEnginesData);
+
       const apiKey = allKeys.find(k => k.id === keyId);
 
       if (apiKey) {
@@ -121,6 +132,9 @@ export default function KmsKeyDetailsClient() {
           console.error("Failed to decode public key", e);
           pem = "Error: Could not decode or format public key.";
         }
+        
+        const engineIdMatch = apiKey.id.match(/token-id=([^;]+)/);
+        const engineId = engineIdMatch ? engineIdMatch[1] : undefined;
 
         const algorithm = apiKey.algorithm.toUpperCase() as KmsKeyDetailed['algorithm'];
         const detailedKey: KmsKeyDetailed = {
@@ -132,6 +146,7 @@ export default function KmsKeyDetailsClient() {
           status: 'Enabled', // Default as API doesn't provide it
           hasPrivateKey: apiKey.id.includes('type=private'),
           publicKeyPem: pem,
+          cryptoEngineId: engineId,
         };
         setKeyDetails(detailedKey);
         setCsrCommonName(detailedKey.alias || '');
@@ -282,6 +297,18 @@ export default function KmsKeyDetailsClient() {
                 <DetailItem label="Key ID" value={keyDetails.id} isMono fullWidthValue/>
                 <DetailItem label="Alias" value={keyDetails.alias} isMono fullWidthValue/>
                 <DetailItem label="Status" value={<StatusBadge status={keyDetails.status} />} />
+                
+                {(() => {
+                  const engine = allCryptoEngines.find(e => e.id === keyDetails.cryptoEngineId);
+                  if (engine) {
+                    return <DetailItem label="Crypto Engine" value={<CryptoEngineViewer engine={engine} />} />;
+                  }
+                  if (keyDetails.cryptoEngineId) {
+                    return <DetailItem label="Crypto Engine ID" value={<Badge variant="secondary">{keyDetails.cryptoEngineId}</Badge>} />;
+                  }
+                  return null;
+                })()}
+
                 <DetailItem label="Key Type" value={keyDetails.algorithm} />
                 <DetailItem label="Specification" value={keyDetails.keyTypeDisplay} />
                 <DetailItem label="Private Key Accessible" value={keyDetails.hasPrivateKey ? "Yes" : "No (Public Key Only)"} />

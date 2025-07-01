@@ -92,15 +92,15 @@ export default function KmsKeysPage() {
       const data: ApiKmsKey[] = await response.json();
       
       const transformedKeys: KmsKey[] = data.map((apiKey) => {
-        const idParts = apiKey.id.split(':');
-        const engineId = idParts.length > 0 ? idParts[0] : 'Unknown';
+        const engineIdMatch = apiKey.id.match(/token-id=([^;]+)/);
+        const engineId = engineIdMatch ? engineIdMatch[1] : undefined;
 
         return {
             id: apiKey.id,
             alias: apiKey.id,
             keyTypeDisplay: `${apiKey.algorithm} ${apiKey.size}`,
             status: 'Enabled', // Default status as API doesn't provide it
-            description: `Key managed by ${engineId} engine.`, // Generate a default description
+            description: engineId ? `Key managed by ${engineId} engine.` : 'Key managed by an unspecified engine.',
             hasPrivateKey: apiKey.id.includes('type=private'),
             cryptoEngineId: engineId
         };
