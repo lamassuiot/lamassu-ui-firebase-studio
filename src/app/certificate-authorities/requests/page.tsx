@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers, Fingerprint } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -356,7 +356,7 @@ export default function CaRequestsPage() {
                         <span className="font-medium">{req.key_metadata.type} {req.key_metadata.bits}-bit</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Fingerprint</span>
+                        <Fingerprint className="h-4 w-4 text-muted-foreground" title="Fingerprint (SHA256)" />
                         <span className="font-mono text-xs" title={req.fingerprint}>{req.fingerprint.substring(0, 16)}...</span>
                     </div>
                     <div className="flex justify-between items-center">
@@ -534,5 +534,3 @@ export default function CaRequestsPage() {
     </div>
   );
 }
-
-    
