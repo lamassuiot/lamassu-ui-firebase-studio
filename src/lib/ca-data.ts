@@ -709,7 +709,7 @@ export async function fetchCaRequestById(requestId: string, accessToken: string)
     });
     if (!response.ok) throw new Error("Failed to fetch CA request details.");
     const data = await response.json();
-    const foundRequest = data.list && data.list[0];
+    const foundRequest = data.list?.[0];
     if (foundRequest) {
         return foundRequest;
     }
