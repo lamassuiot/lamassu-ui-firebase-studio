@@ -281,11 +281,8 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               </SidebarContent>
               <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
                 <CustomSidebarToggle />
-                <div className="group-data-[collapsible=icon]:hidden w-full">
-                  <ThemeToggle />
-                </div>
-                <div className="hidden group-data-[collapsible=icon]:flex justify-center w-full">
-                  <ThemeToggle />
+                <div className="w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+                    <ThemeToggle />
                 </div>
               </SidebarFooter>
             </Sidebar>
@@ -370,7 +367,12 @@ export default function RootLayout({
 }
 
 function CustomSidebarToggle() {
-  const { open, toggleSidebar } = useSidebar();
+  const { open, toggleSidebar, isMobile } = useSidebar();
+  
+  if (isMobile) {
+    return null;
+  }
+
   return (
     <SidebarMenuButton
       onClick={toggleSidebar}
