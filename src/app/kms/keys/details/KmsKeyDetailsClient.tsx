@@ -293,6 +293,7 @@ export default function KmsKeyDetailsClient() {
 
     try {
         const pkcs10 = new CertificationRequest();
+        pkcs10.attributes = []; // Initialize attributes array
         
         pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: csrCommonName.trim() }) }));
         if(csrOrganization.trim()) {
