@@ -334,3 +334,23 @@ export async function updateCertificateStatus({
     throw new Error(`Failed to ${actionText} certificate: ${errorBody} (Status: ${response.status})`);
   }
 }
+
+export async function updateCertificateMetadata(serialNumber: string, metadata: object, accessToken: string): Promise<void> {
+  const response = await fetch(`https://lab.lamassu.io/api/ca/v1/certificates/${serialNumber}/metadata`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(metadata),
+  });
+
+  if (!response.ok) {
+    let errorBody = 'Request failed.';
+    try {
+      const errJson = await response.json();
+      errorBody = errJson.err || errJson.message || errorBody;
+    } catch (e) { /* Ignore */ }
+    throw new Error(`Failed to update certificate metadata: ${errorBody} (Status: ${response.status})`);
+  }
+}

@@ -563,3 +563,23 @@ export async function importCa(payload: ImportCaPayload, accessToken: string): P
     throw new Error(errorMessage);
   }
 }
+
+export async function updateCaMetadata(caId: string, metadata: object, accessToken: string): Promise<void> {
+  const response = await fetch(`${caApiBaseUrl}cas/${caId}/metadata`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(metadata),
+  });
+
+  if (!response.ok) {
+    let errorBody = 'Request failed.';
+    try {
+      const errJson = await response.json();
+      errorBody = errJson.err || errJson.message || errorBody;
+    } catch (e) { /* Ignore */ }
+    throw new Error(`Failed to update CA metadata: ${errorBody} (Status: ${response.status})`);
+  }
+}

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
+import { findCaById, fetchAndProcessCAs, fetchCryptoEngines, updateCaMetadata } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
@@ -303,6 +304,13 @@ export default function CertificateAuthorityDetailsClient() {
       setIsCrlModalOpen(true);
     }
   };
+  
+  const handleUpdateCaMetadata = async (id: string, metadata: object) => {
+    if (!user?.access_token) {
+        throw new Error("User not authenticated.");
+    }
+    await updateCaMetadata(id, metadata, user.access_token);
+  };
 
   if (authLoading || isLoadingCAs || isLoadingEngines) {
     return (
@@ -462,6 +470,10 @@ export default function CertificateAuthorityDetailsClient() {
               itemName={caDetails.name}
               tabTitle="CA Metadata"
               toast={toast}
+              isEditable={true}
+              itemId={caDetails.id}
+              onSave={handleUpdateCaMetadata}
+              onUpdateSuccess={loadInitialData}
             />
           </TabsContent>
 
@@ -479,6 +491,7 @@ export default function CertificateAuthorityDetailsClient() {
               itemName={caDetails.name}
               tabTitle="Raw API Data (Debug)"
               toast={toast}
+              isEditable={false}
             />
           </TabsContent>
         </Tabs>

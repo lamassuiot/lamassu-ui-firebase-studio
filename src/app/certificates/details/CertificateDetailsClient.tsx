@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
-import { fetchIssuedCertificates, updateCertificateStatus } from '@/lib/issued-certificate-data';
+import { fetchIssuedCertificates, updateCertificateStatus, updateCertificateMetadata } from '@/lib/issued-certificate-data';
 import { fetchAndProcessCAs, findCaById, fetchCryptoEngines } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -102,43 +102,43 @@ export default function CertificateDetailsClient() { // Renamed component
   }, [certificateDetails, allCAs]);
 
 
-  useEffect(() => {
-    const loadCertificate = async () => {
-      if (!certificateId) {
-        setErrorCert("Certificate ID is missing from URL.");
-        setIsLoadingCert(false);
-        return;
+  const loadCertificate = useCallback(async () => {
+    if (!certificateId) {
+      setErrorCert("Certificate ID is missing from URL.");
+      setIsLoadingCert(false);
+      return;
+    }
+    if (!isAuthenticated() || !user?.access_token) {
+      if (!authLoading && !isAuthenticated()){
+            setErrorCert("User not authenticated.");
       }
-      if (!isAuthenticated() || !user?.access_token) {
-        if (!authLoading && !isAuthenticated()){
-             setErrorCert("User not authenticated.");
-        }
-        setIsLoadingCert(false);
-        return;
+      setIsLoadingCert(false);
+      return;
+    }
+    setIsLoadingCert(true);
+    setErrorCert(null);
+    try {
+      // For simplicity, fetching a larger list to find the cert.
+      // In a real app, you might have an endpoint like /api/certificates/:serialNumber
+      const { certificates: certList } = await fetchIssuedCertificates({ 
+          accessToken: user.access_token, 
+          apiQueryString: `filter=serial_number[equal]${certificateId}&page_size=1` // More efficient filter
+      });
+      const foundCert = certList.length > 0 ? certList[0] : null; // Assuming serial is unique enough
+      
+      if (foundCert) {
+        setCertificateDetails(foundCert);
+      } else {
+        setErrorCert(`Certificate with Serial Number "${certificateId}" not found.`);
       }
-      setIsLoadingCert(true);
-      setErrorCert(null);
-      try {
-        // For simplicity, fetching a larger list to find the cert.
-        // In a real app, you might have an endpoint like /api/certificates/:serialNumber
-        const { certificates: certList } = await fetchIssuedCertificates({ 
-            accessToken: user.access_token, 
-            apiQueryString: `filter=serial_number[equal]${certificateId}&page_size=1` // More efficient filter
-        });
-        const foundCert = certList.length > 0 ? certList[0] : null; // Assuming serial is unique enough
-        
-        if (foundCert) {
-          setCertificateDetails(foundCert);
-        } else {
-          setErrorCert(`Certificate with Serial Number "${certificateId}" not found.`);
-        }
-      } catch (err: any) {
-        setErrorCert(err.message || 'Failed to load certificate details.');
-      } finally {
-        setIsLoadingCert(false);
-      }
-    };
+    } catch (err: any) {
+      setErrorCert(err.message || 'Failed to load certificate details.');
+    } finally {
+      setIsLoadingCert(false);
+    }
+  }, [certificateId, user?.access_token, isAuthenticated, authLoading]);
 
+  useEffect(() => {
     const loadDependencies = async () => {
         if (!isAuthenticated() || !user?.access_token) {
             if (!authLoading && !isAuthenticated()){
@@ -168,7 +168,7 @@ export default function CertificateDetailsClient() { // Renamed component
         loadDependencies();
     }
 
-  }, [certificateId, user?.access_token, isAuthenticated, authLoading]);
+  }, [certificateId, user?.access_token, isAuthenticated, authLoading, loadCertificate]);
 
   const handleOpenRevokeModal = () => {
     if (certificateDetails) {
@@ -250,7 +250,13 @@ export default function CertificateDetailsClient() { // Renamed component
     setAkiToSearch(aki);
     setIsAkiModalOpen(true);
   };
-
+  
+  const handleUpdateCertMetadata = async (serialNumber: string, metadata: object) => {
+    if (!user?.access_token) {
+        throw new Error("User not authenticated.");
+    }
+    await updateCertificateMetadata(serialNumber, metadata, user.access_token);
+  };
 
   if (authLoading || isLoadingCert || isLoadingDependencies) {
     return (
@@ -359,6 +365,7 @@ export default function CertificateDetailsClient() { // Renamed component
           <TabsList className="mb-6">
             <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Details</TabsTrigger>
             <TabsTrigger value="pem"><Code2 className="mr-2 h-4 w-4 sm:hidden md:inline-block" />PEM Data</TabsTrigger>
+            <TabsTrigger value="metadata"><Layers className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Metadata</TabsTrigger>
             <TabsTrigger value="raw_api"><Layers className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Raw API Data</TabsTrigger>
           </TabsList>
 
@@ -387,12 +394,26 @@ export default function CertificateDetailsClient() { // Renamed component
             />
           </TabsContent>
 
+          <TabsContent value="metadata">
+            <MetadataTabContent
+              rawJsonData={certificateDetails.rawApiData?.metadata}
+              itemName={certificateDetails.subject || certificateDetails.serialNumber}
+              tabTitle="Certificate Metadata"
+              toast={toast}
+              isEditable={true}
+              itemId={certificateDetails.serialNumber}
+              onSave={handleUpdateCertMetadata}
+              onUpdateSuccess={loadCertificate}
+            />
+          </TabsContent>
+
           <TabsContent value="raw_api">
             <MetadataTabContent
               rawJsonData={certificateDetails.rawApiData}
               itemName={certificateDetails.subject || certificateDetails.serialNumber}
               tabTitle="Raw API Data"
               toast={toast}
+              isEditable={false}
             />
           </TabsContent>
         </Tabs>
