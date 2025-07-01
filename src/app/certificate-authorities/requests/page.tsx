@@ -254,14 +254,14 @@ export default function CaRequestsPage() {
   };
 
   const handleViewCsr = (csrObject: X509CertificateRequest) => {
-    if (!csrObject || typeof csrObject.pem !== 'string' || !csrObject.pem.trim()) {
+    if (!csrObject || typeof csrObject !== 'string' || !csrObject.trim()) {
       setSelectedCsr("No CSR content available in the API response.");
       setIsCsrModalOpen(true);
       return;
     }
     
     try {
-      const decodedCsr = window.atob(csrObject.pem);
+      const decodedCsr = window.atob(csrObject);
       setSelectedCsr(decodedCsr);
     } catch (e) {
       console.error("Failed to decode CSR PEM:", e);
