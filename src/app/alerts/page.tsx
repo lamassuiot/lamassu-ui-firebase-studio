@@ -31,6 +31,7 @@ export default function AlertsPage() {
   // State for the new subscription modal
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
   const [eventTypeToSubscribe, setEventTypeToSubscribe] = useState<string | null>(null);
+  const [samplePayloadToSubscribe, setSamplePayloadToSubscribe] = useState<object | null>(null);
 
   const handleUnsubscribe = async (subscriptionId: string, eventType: string) => {
     if (!user?.access_token) {
@@ -61,14 +62,16 @@ export default function AlertsPage() {
     }
   };
   
-  const handleOpenSubscribeModal = (eventType: string) => {
-    setEventTypeToSubscribe(eventType);
+  const handleOpenSubscribeModal = (event: AlertEvent) => {
+    setEventTypeToSubscribe(event.type);
+    setSamplePayloadToSubscribe(event.payload);
     setIsSubscribeModalOpen(true);
   };
   
   const handleSubscriptionSuccess = () => {
     setIsSubscribeModalOpen(false);
     setEventTypeToSubscribe(null);
+    setSamplePayloadToSubscribe(null);
     toast({ title: "Success!", description: "You have been subscribed to the event." });
     loadAlertsData(); // Refresh data to show new subscription
   }
@@ -190,6 +193,7 @@ export default function AlertsPage() {
       isOpen={isSubscribeModalOpen}
       onOpenChange={setIsSubscribeModalOpen}
       eventType={eventTypeToSubscribe}
+      samplePayload={samplePayloadToSubscribe}
       onSuccess={handleSubscriptionSuccess}
     />
     </>

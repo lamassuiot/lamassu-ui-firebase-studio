@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -16,15 +15,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Mail, Users, Webhook, Check, ArrowLeft } from 'lucide-react';
+import { Loader2, Mail, Users, Webhook, Check, ArrowLeft, Info, AlertTriangle } from 'lucide-react';
 import { subscribeToAlert, type SubscriptionPayload } from '@/lib/alerts-api';
 import { cn } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
+import { JSONPath } from 'jsonpath-plus';
+import { Alert, AlertDescription as AlertDescUI } from '@/components/ui/alert';
 
 interface SubscribeToAlertModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   eventType: string | null;
+  samplePayload: object | null;
   onSuccess: () => void;
 }
 
@@ -82,6 +84,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   isOpen,
   onOpenChange,
   eventType,
+  samplePayload,
   onSuccess,
 }) => {
   const { user } = useAuth();
@@ -101,6 +104,8 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   // Step 2 State
   const [filterType, setFilterType] = useState<string>('JSON-PATH');
   const [filterCondition, setFilterCondition] = useState('$.data');
+  const [evaluationResult, setEvaluationResult] = useState<{ match: boolean; message: string; error?: boolean } | null>(null);
+  const [inputEvent, setInputEvent] = useState('');
 
 
   useEffect(() => {
@@ -115,8 +120,39 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
       setWebhookMethod('POST');
       setFilterType('JSON-PATH');
       setFilterCondition('$.data');
+      setInputEvent(samplePayload ? JSON.stringify(samplePayload, null, 2) : '');
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, samplePayload]);
+
+  useEffect(() => {
+    if (filterType !== 'JSON-PATH' || !inputEvent) {
+      setEvaluationResult(null);
+      return;
+    }
+
+    try {
+      const jsonPayload = JSON.parse(inputEvent);
+      
+      if (!filterCondition.trim() || !filterCondition.startsWith('$')) {
+        setEvaluationResult({ match: false, message: 'Invalid JSONPath expression. Must start with "$".', error: true });
+        return;
+      }
+
+      const result = JSONPath({ path: filterCondition, json: jsonPayload });
+
+      if (result.length > 0) {
+        setEvaluationResult({ match: true, message: 'The filter matches this Cloud Event' });
+      } else {
+        setEvaluationResult({ match: false, message: 'The filter does not match this Cloud Event' });
+      }
+    } catch (e: any) {
+      if (e instanceof SyntaxError) { // For JSON.parse errors
+        setEvaluationResult({ match: false, message: 'The Input Event is not valid JSON.', error: true });
+      } else { // For JSONPath errors
+        setEvaluationResult({ match: false, message: e.message, error: true });
+      }
+    }
+  }, [filterCondition, filterType, inputEvent]);
 
   const handleNext = () => {
     if(step === 1) {
@@ -270,8 +306,43 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                 </div>
                 {filterType !== 'NONE' && (
                     <div>
-                        <Label htmlFor="filter-condition">Condition</Label>
-                        <Textarea id="filter-condition" value={filterCondition} onChange={e => setFilterCondition(e.target.value)} placeholder={`Enter ${filterOptions.find(o => o.value === filterType)?.label} expression...`} rows={4}/>
+                        <Label htmlFor="filter-condition">{filterOptions.find(o => o.value === filterType)?.label} Expression</Label>
+                        <Input id="filter-condition" value={filterCondition} onChange={e => setFilterCondition(e.target.value)} placeholder={`Enter ${filterOptions.find(o => o.value === filterType)?.label} expression...`} />
+                    </div>
+                )}
+                {filterType === 'JSON-PATH' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="input-event">Input Event</Label>
+                             <Textarea 
+                                id="input-event"
+                                value={inputEvent}
+                                onChange={(e) => setInputEvent(e.target.value)}
+                                className="font-mono text-xs h-64"
+                                placeholder="Enter a valid JSON object..."
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Evaluation Result</Label>
+                            {evaluationResult ? (
+                                <Alert variant={evaluationResult.error ? 'destructive' : 'default'} className={cn(
+                                    !evaluationResult.error && evaluationResult.match && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700",
+                                    !evaluationResult.error && !evaluationResult.match && "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700"
+                                )}>
+                                    <div className="flex items-center">
+                                       {evaluationResult.error ? <AlertTriangle className="h-4 w-4 text-destructive" /> : 
+                                        evaluationResult.match ? <Check className="h-4 w-4 text-green-600 dark:text-green-400" /> : 
+                                        <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                       }
+                                       <AlertDescUI className="ml-2">{evaluationResult.message}</AlertDescUI>
+                                    </div>
+                                </Alert>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-sm text-muted-foreground p-4 border rounded-md bg-muted/30">
+                                    Awaiting evaluation...
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -307,7 +378,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Subscribe to event</DialogTitle>
           <DialogDescription>
@@ -317,7 +388,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
 
         <div className="py-4">
             <Stepper currentStep={step} />
-            <div className="min-h-[150px]">
+            <div className="min-h-[200px]">
                 {renderStepContent()}
             </div>
         </div>

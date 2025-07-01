@@ -14,21 +14,21 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import type { AlertEvent } from '@/app/alerts/page';
 import { Layers, ChevronDown, X } from 'lucide-react';
-import { CodeBlock } from '@/components/shared/CodeBlock';
 import { cn } from '@/lib/utils';
+import { Textarea } from '../ui/textarea';
 
 interface AlertsTableProps {
   events: AlertEvent[];
   onUnsubscribe: (subscriptionId: string, eventType: string) => void;
-  onSubscribe: (eventType: string) => void;
+  onSubscribe: (event: AlertEvent) => void;
 }
 
 export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe, onSubscribe }) => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  const handleSubscribeClick = (e: React.MouseEvent, eventType: string) => {
+  const handleSubscribeClick = (e: React.MouseEvent, event: AlertEvent) => {
     e.stopPropagation();
-    onSubscribe(eventType);
+    onSubscribe(event);
   };
 
   const toggleRow = (id: string) => {
@@ -97,7 +97,7 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe,
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={(e) => handleSubscribeClick(e, event.type)}
+                    onClick={(e) => handleSubscribeClick(e, event)}
                   >
                     Subscribe
                   </Button>
@@ -107,7 +107,7 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onUnsubscribe,
                 <TableRow>
                   <TableCell colSpan={6} className="p-0">
                     <div className="p-4 bg-muted/50">
-                        <CodeBlock content={JSON.stringify(event.payload, null, 2)} title="Latest Event Payload" />
+                        <Textarea value={JSON.stringify(event.payload, null, 2)} readOnly className="font-mono text-xs h-64 bg-background" />
                     </div>
                   </TableCell>
                 </TableRow>
