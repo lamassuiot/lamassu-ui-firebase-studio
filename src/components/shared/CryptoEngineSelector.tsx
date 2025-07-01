@@ -40,7 +40,7 @@ export const CryptoEngineSelector: React.FC<CryptoEngineSelectorProps> = ({ valu
       setEngines(data);
       // If there's a default engine and no value is set, select the default
       if (!value && data.length > 0) {
-        const defaultEngine = data.find(e => e.default);
+        const defaultEngine = data.find(e => e.default && e.id);
         if (defaultEngine) {
           onValueChange(defaultEngine.id);
         }
@@ -60,6 +60,7 @@ export const CryptoEngineSelector: React.FC<CryptoEngineSelectorProps> = ({ valu
   }, [fetchEngines]);
 
   const selectedEngine = engines.find(e => e.id === value);
+  const validEngines = engines.filter(e => e.id && e.id.trim() !== '');
 
   if (isLoadingEngines || authLoading) {
     return (
@@ -85,7 +86,7 @@ export const CryptoEngineSelector: React.FC<CryptoEngineSelectorProps> = ({ valu
     );
   }
 
-  if (engines.length === 0) {
+  if (validEngines.length === 0) {
     return (
       <div className={cn("p-2 h-10 border rounded-md text-sm text-muted-foreground bg-muted/50 flex items-center justify-center", className)}>
         No crypto engines available.
@@ -94,12 +95,12 @@ export const CryptoEngineSelector: React.FC<CryptoEngineSelectorProps> = ({ valu
   }
 
   return (
-    <Select value={value} onValueChange={onValueChange} disabled={disabled || engines.length === 0}>
+    <Select value={value} onValueChange={onValueChange} disabled={disabled || validEngines.length === 0}>
       <SelectTrigger className={cn("w-full h-auto min-h-10 py-1", className)}>
         {selectedEngine ? <CryptoEngineViewer engine={selectedEngine} /> : <span className="text-muted-foreground">Select a crypto engine...</span>}
       </SelectTrigger>
       <SelectContent>
-        {engines.map(engine => (
+        {validEngines.map(engine => (
           <SelectItem key={engine.id} value={engine.id}>
             <CryptoEngineViewer engine={engine} />
           </SelectItem>
