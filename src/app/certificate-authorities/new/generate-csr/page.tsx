@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { fetchCryptoEngines } from '@/lib/ca-data';
+import { fetchCryptoEngines, createCaRequest, type CreateCaRequestPayload } from '@/lib/ca-data';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 
 export default function RequestCaCsrPage() {
@@ -112,7 +112,7 @@ export default function RequestCaCsrPage() {
       return;
     }
 
-    const payload = {
+    const payload: CreateCaRequestPayload = {
       parent_id: "",
       id: caId,
       engine_id: cryptoEngineId, 
@@ -132,26 +132,7 @@ export default function RequestCaCsrPage() {
     };
 
     try {
-      const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas/requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to create CA request. Status: ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Failed to create CA request: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-        } catch (e) {
-          console.error("Failed to parse error response as JSON for CA request:", e);
-        }
-        throw new Error(errorMessage);
-      }
+      await createCaRequest(payload, user.access_token);
 
       toast({ title: "CA Request Successful", description: `Request for CA "${caName}" has been submitted.`, variant: "default" });
       router.push('/certificate-authorities/requests');

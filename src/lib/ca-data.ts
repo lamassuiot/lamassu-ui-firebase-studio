@@ -1,5 +1,4 @@
 
-
 // Define the CA data structure
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
@@ -441,7 +440,7 @@ export async function fetchCryptoEngines(accessToken: string): Promise<ApiCrypto
     return enginesData;
 }
 
-// NEW: Function to create a CA
+// Function to create a CA
 export interface CreateCaPayload {
   parent_id: string | null;
   id: string;
@@ -481,6 +480,49 @@ export async function createCa(payload: CreateCaPayload, accessToken: string): P
       errorMessage = `Failed to create CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
     } catch (e) {
       console.error("Failed to parse error response as JSON for CA creation:", e);
+    }
+    throw new Error(errorMessage);
+  }
+}
+
+// NEW: Function and type for creating a CA Request
+export interface CreateCaRequestPayload {
+  parent_id: string;
+  id: string;
+  engine_id: string;
+  subject: {
+    country?: string;
+    state_province?: string;
+    locality?: string;
+    organization?: string;
+    organization_unit?: string;
+    common_name: string;
+  };
+  key_metadata: {
+    type: string;
+    bits: number;
+  };
+  metadata: Record<string, any>;
+}
+
+export async function createCaRequest(payload: CreateCaRequestPayload, accessToken: string): Promise<void> {
+  const response = await fetch(`${caApiBaseUrl}cas/requests`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to create CA request. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Failed to create CA request: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) {
+      console.error("Failed to parse error response as JSON for CA request creation:", e);
     }
     throw new Error(errorMessage);
   }
