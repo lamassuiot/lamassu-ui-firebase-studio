@@ -2,7 +2,7 @@
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { CA_API_BASE_URL } from "./api-domains";
+import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from "./api-domains";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -807,5 +807,21 @@ export async function fetchCaStatsSummary(accessToken: string): Promise<CaStatsS
     if (!response.ok) {
         throw new Error('Failed to fetch CA stats');
     }
+    return response.json();
+}
+
+export async function fetchDmsStats(accessToken: string): Promise<{ total: number }> {
+    const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/stats`, { 
+        headers: { 'Authorization': `Bearer ${accessToken}` } 
+    });
+    if (!response.ok) throw new Error('Failed to fetch RA stats');
+    return response.json();
+}
+
+export async function fetchDevManagerStats(accessToken: string): Promise<{ total: number }> {
+    const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/stats`, { 
+        headers: { 'Authorization': `Bearer ${accessToken}` } 
+    });
+    if (!response.ok) throw new Error('Failed to fetch Device stats');
     return response.json();
 }
