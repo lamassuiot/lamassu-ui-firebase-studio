@@ -11,6 +11,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { DurationInput } from './DurationInput';
+import { Input } from '@/components/ui/input';
 
 export type ExpirationType = "Duration" | "Date" | "Indefinite";
 
