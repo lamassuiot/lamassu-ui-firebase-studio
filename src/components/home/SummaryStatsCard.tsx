@@ -30,31 +30,33 @@ const StatItem: React.FC<{
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault(); // Prevent default action (like scrolling) for spacebar
+      event.preventDefault();
       router.push(href);
     }
   };
 
   return (
-    <div
+    <Card
       role="button"
       tabIndex={0}
-      className="bg-primary/80 hover:bg-primary/90 dark:bg-primary/40 dark:hover:bg-primary/50 transition-colors cursor-pointer p-3 rounded-lg flex items-center space-x-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-primary"
+      className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer p-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background shadow-lg"
       onClick={() => router.push(href)}
       onKeyDown={handleKeyDown}
     >
-      <div className="p-3 rounded-full bg-primary/90 dark:bg-primary/50">
-        <Icon className="h-6 w-6 text-primary-foreground/80" />
+      <div className="flex items-center space-x-4">
+        <div className="p-3 rounded-full bg-primary-foreground/10">
+          <Icon className="h-6 w-6 text-primary-foreground/80" />
+        </div>
+        <div>
+          {isLoading ? (
+            <Skeleton className="h-7 w-12 bg-primary-foreground/20 mb-1" />
+          ) : (
+            <p className="text-2xl font-bold">{value ?? '—'}</p>
+          )}
+          <p className="text-sm text-primary-foreground/90">{label}</p>
+        </div>
       </div>
-      <div>
-        {isLoading ? (
-          <Skeleton className="h-7 w-12 bg-primary/50 mb-1" />
-        ) : (
-          <p className="text-2xl font-bold">{value ?? '—'}</p>
-        )}
-        <p className="text-sm text-primary-foreground/90">{label}</p>
-      </div>
-    </div>
+    </Card>
   );
 };
 
@@ -62,8 +64,8 @@ const StatItem: React.FC<{
 export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({ stats, isLoading }) => {
 
   return (
-    <Card className="shadow-lg w-full bg-primary text-primary-foreground p-4 flex flex-col justify-between h-full space-y-3">
-      <StatItem
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4">
+       <StatItem
         value={stats.certificates}
         label="Issued Certificates"
         href="/certificates"
@@ -91,6 +93,7 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({ stats, isLoa
         isLoading={isLoading}
         icon={Router}
       />
-    </Card>
+    </div>
   );
 };
+
