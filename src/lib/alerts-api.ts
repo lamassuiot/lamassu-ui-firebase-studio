@@ -29,11 +29,13 @@ export interface ApiSubscription {
         condition: string;
     }[];
     channel: {
-        type: 'EMAIL' | 'WEBHOOK' | 'TEAMS_WEBHOOK'; // Expanded types
+        type: 'EMAIL' | 'WEBHOOK' | 'TEAMS_WEBHOOK';
         name: string;
         config: {
             email?: string;
             url?: string;
+            method?: 'POST' | 'PUT';
+            name?: string;
         };
     };
 }
@@ -50,6 +52,8 @@ export interface SubscriptionPayload {
         config: {
             email?: string;
             url?: string;
+            method?: 'POST' | 'PUT';
+            name?: string;
         };
     };
 }

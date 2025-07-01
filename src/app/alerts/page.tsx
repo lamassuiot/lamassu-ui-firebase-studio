@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchLatestAlerts, type ApiAlertEvent, fetchSystemSubscriptions, unsubscribeFromAlert } from '@/lib/alerts-api';
+import { fetchLatestAlerts, type ApiAlertEvent, fetchSystemSubscriptions, unsubscribeFromAlert, type ApiSubscription } from '@/lib/alerts-api';
 import { AlertsTable } from '@/components/alerts/AlertsTable';
 import { useToast } from '@/hooks/use-toast';
 import { SubscribeToAlertModal } from '@/components/alerts/SubscribeToAlertModal';
@@ -98,6 +98,8 @@ export default function AlertsPage() {
         let displayValue = sub.channel.type;
         if(sub.channel.type === 'EMAIL' && sub.channel.config.email) {
             displayValue = `${sub.channel.type}: ${sub.channel.config.email}`;
+        } else if (sub.channel.type === 'WEBHOOK' && sub.channel.config.name) {
+            displayValue = `Webhook: ${sub.channel.config.name}`;
         } else if (sub.channel.config.url) {
              displayValue = `${sub.channel.type}: ${new URL(sub.channel.config.url).hostname}`;
         }

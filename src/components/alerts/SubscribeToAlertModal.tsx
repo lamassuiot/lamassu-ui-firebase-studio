@@ -88,6 +88,9 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   const [email, setEmail] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [teamsName, setTeamsName] = useState('');
+  const [webhookName, setWebhookName] = useState('');
+  const [webhookMethod, setWebhookMethod] = useState<'POST' | 'PUT'>('POST');
+
 
   // Step 2 State
   const [jsonPathCondition, setJsonPathCondition] = useState('$.data');
@@ -100,6 +103,8 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
       setEmail(user?.profile.email || '');
       setWebhookUrl('');
       setTeamsName('');
+      setWebhookName('');
+      setWebhookMethod('POST');
       setJsonPathCondition('$.data');
     }
   }, [isOpen, user]);
@@ -110,8 +115,8 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
             toast({ title: 'Validation Error', description: 'Email address is required.', variant: 'destructive' });
             return;
         }
-        if(channelType === 'WEBHOOK' && !webhookUrl.trim()) {
-            toast({ title: 'Validation Error', description: 'Webhook URL is required.', variant: 'destructive' });
+        if(channelType === 'WEBHOOK' && (!webhookUrl.trim() || !webhookName.trim())) {
+            toast({ title: 'Validation Error', description: 'Name and Webhook URL are required.', variant: 'destructive' });
             return;
         }
         if(channelType === 'TEAMS_WEBHOOK' && (!webhookUrl.trim() || !teamsName.trim())) {
@@ -132,16 +137,24 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
     
     setIsSubmitting(true);
     try {
-        let config = {};
+        let config: any = {};
         if (channelType === 'EMAIL') {
             config = { email };
-        } else {
+        } else if (channelType === 'WEBHOOK') {
+            config = {
+                url: webhookUrl,
+                method: webhookMethod,
+                name: webhookName,
+            };
+        } else { // TEAMS_WEBHOOK
             config = { url: webhookUrl };
         }
 
         let channelName = `${channelType.toLowerCase()}-subscription-for-${eventType}`;
         if (channelType === 'TEAMS_WEBHOOK' && teamsName.trim()) {
             channelName = teamsName.trim();
+        } else if (channelType === 'WEBHOOK' && webhookName.trim()){
+            channelName = webhookName.trim();
         }
 
         const payload: SubscriptionPayload = {
@@ -195,9 +208,25 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                     </div>
                 )}
                 {channelType === 'WEBHOOK' && (
-                     <div>
-                        <Label htmlFor="webhook-url-input">Webhook URL</Label>
-                        <Input id="webhook-url-input" type="url" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://your-webhook-url.com" />
+                     <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="webhook-name-input">Name</Label>
+                            <Input id="webhook-name-input" type="text" value={webhookName} onChange={e => setWebhookName(e.target.value)} placeholder="e.g., My Notification Endpoint" />
+                        </div>
+                        <div>
+                            <Label htmlFor="webhook-method-select">Method</Label>
+                            <Select value={webhookMethod} onValueChange={(v: 'POST' | 'PUT') => setWebhookMethod(v)}>
+                                <SelectTrigger id="webhook-method-select"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="POST">POST</SelectItem>
+                                    <SelectItem value="PUT">PUT</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label htmlFor="webhook-url-input">Webhook URL</Label>
+                            <Input id="webhook-url-input" type="url" value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://your-webhook-url.com" />
+                        </div>
                     </div>
                 )}
                 {channelType === 'TEAMS_WEBHOOK' && (
@@ -231,7 +260,13 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                 <p><strong>Event Type:</strong> <span className="font-mono text-xs">{eventType}</span></p>
                 <p><strong>Channel:</strong> {channelOptions.find(o => o.value === channelType)?.label}</p>
                 {channelType === 'EMAIL' && <p><strong>Email:</strong> {email}</p>}
-                {channelType === 'WEBHOOK' && <p><strong>URL:</strong> <span className="truncate">{webhookUrl}</span></p>}
+                {channelType === 'WEBHOOK' && (
+                    <>
+                        <p><strong>Name:</strong> {webhookName}</p>
+                        <p><strong>Method:</strong> {webhookMethod}</p>
+                        <p><strong>URL:</strong> <span className="truncate">{webhookUrl}</span></p>
+                    </>
+                )}
                 {channelType === 'TEAMS_WEBHOOK' && (
                     <>
                         <p><strong>Name:</strong> {teamsName}</p>
