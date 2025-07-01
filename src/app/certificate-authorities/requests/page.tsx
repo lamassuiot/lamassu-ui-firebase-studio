@@ -360,12 +360,12 @@ export default function CaRequestsPage() {
                         <Badge variant="outline">{req.engine_id}</Badge>
                     </div>
                 </CardContent>
-                <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground flex justify-between items-center">
-                    <span>Created: {format(parseISO(req.creation_ts), 'MMM dd, yyyy HH:mm')}</span>
-                    <div className="flex items-center gap-1.5" title={req.fingerprint}>
-                        <Fingerprint className="h-4 w-4 text-muted-foreground"/>
-                        <span className="font-mono">{req.fingerprint.substring(0, 12)}...</span>
+                <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground flex flex-col items-start gap-1.5">
+                    <div className="flex items-center gap-1.5 w-full" title={req.fingerprint}>
+                        <Fingerprint className="h-4 w-4 text-muted-foreground flex-shrink-0"/>
+                        <span className="font-mono truncate">{req.fingerprint}</span>
                     </div>
+                    <span>Created: {format(parseISO(req.creation_ts), 'MMM dd, yyyy HH:mm')}</span>
                 </CardFooter>
             </Card>
         ))}
