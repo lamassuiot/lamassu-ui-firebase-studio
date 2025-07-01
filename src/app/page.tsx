@@ -7,12 +7,13 @@ import { SummaryStatsCard } from '@/components/home/SummaryStatsCard';
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCw, HomeIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { ALERTS_API_BASE_URL, CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
+import { cn } from '@/lib/utils';
 
 // Helper function from old page.tsx
 function flattenCAs(cas: CA[]): CA[] {
@@ -151,9 +152,19 @@ export default function HomePage() {
 
   const anyTimelineError = errorCAs || errorEngines;
   const anyTimelineLoading = isLoadingCAs || isLoadingEngines || authLoading;
+  const isReloading = isLoadingCAs || isLoadingEngines || isLoadingStats || authLoading;
 
   return (
     <div className="w-full space-y-8">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+            <HomeIcon className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl font-headline font-semibold">Dashboard</h1>
+        </div>
+        <Button onClick={loadInitialData} variant="outline" disabled={isReloading}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isReloading && "animate-spin")} /> Refresh All
+        </Button>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <div className="lg:col-span-1">
           <SummaryStatsCard stats={summaryStats} isLoading={isLoadingStats || authLoading} />
