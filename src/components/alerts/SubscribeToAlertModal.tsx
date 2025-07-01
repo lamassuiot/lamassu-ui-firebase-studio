@@ -83,54 +83,40 @@ const filterOptions = [
     { value: 'JAVASCRIPT', label: 'Javascript' },
 ];
 
-function generateSchema(obj: any): any {
-  if (obj === null) {
-    return { type: 'null' };
-  }
-
-  const type = typeof obj;
-
-  if (type === 'string') {
-    if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?Z/.test(obj)) {
-        return { type: 'string', format: 'date-time', description: 'Timestamp of the event.' };
+// Self-contained schema generator to avoid external dependencies.
+function generateSchema(obj: any): object {
+    if (obj === null || typeof obj !== 'object') {
+        if (typeof obj === 'string') return { type: 'string' };
+        if (typeof obj === 'number') return { type: 'number' };
+        if (typeof obj === 'boolean') return { type: 'boolean' };
+        return {};
     }
-    return { type: 'string', description: 'A string value.' };
-  }
 
-  if (type === 'number') {
-    return { type: 'number', description: 'A numeric value.' };
-  }
-
-  if (type === 'boolean') {
-    return { type: 'boolean', description: 'A boolean value.' };
-  }
-
-  if (type === 'object') {
     if (Array.isArray(obj)) {
-      const itemsSchema = obj.length > 0 ? generateSchema(obj[0]) : {};
-      return { type: 'array', items: itemsSchema, description: 'An array of items.' };
+        const schema: { type: 'array', items?: object } = { type: 'array' };
+        if (obj.length > 0) {
+            schema.items = generateSchema(obj[0]);
+        }
+        return schema;
     }
 
-    const properties: { [key: string]: any } = {};
-    const required: string[] = [];
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        properties[key] = generateSchema(obj[key]);
-        required.push(key);
-      }
-    }
-    
-    const schema: any = {
-      type: 'object',
-      properties,
+    const schema: { type: 'object', properties: Record<string, object>, required?: string[] } = {
+        type: 'object',
+        properties: {},
     };
-    if (required.length > 0) {
-        schema.required = required.sort();
+
+    const requiredFields = Object.keys(obj);
+    if (requiredFields.length > 0) {
+        schema.required = requiredFields;
     }
+
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            schema.properties[key] = generateSchema(obj[key]);
+        }
+    }
+
     return schema;
-  }
-  
-  return {}; // Fallback for undefined, function, etc.
 }
 
 
