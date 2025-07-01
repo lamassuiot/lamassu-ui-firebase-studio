@@ -5,6 +5,8 @@ import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 
+const caBaseUrl = 'https://lab.lamassu.io/api/ca/v1/cas';
+
 // API Response Structures
 interface ApiKeyMetadata {
   type: string; // e.g., "ECDSA", "RSA"
@@ -345,8 +347,7 @@ function buildCaHierarchy(flatCaList: Omit<CA, 'children'>[]): CA[] {
 
 // Function to fetch, transform, and build hierarchy
 export async function fetchAndProcessCAs(accessToken: string, apiQueryString?: string): Promise<CA[]> {
-  const baseUrl = 'https://lab.lamassu.io/api/ca/v1/cas';
-  const url = apiQueryString ? `${baseUrl}?${apiQueryString}` : baseUrl;
+  const url = apiQueryString ? `${caBaseUrl}?${apiQueryString}` : caBaseUrl;
 
   const response = await fetch(url, {
     headers: {
@@ -463,7 +464,7 @@ export interface CreateCaPayload {
 }
 
 export async function createCa(payload: CreateCaPayload, accessToken: string): Promise<void> {
-  const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas', {
+  const response = await fetch(caBaseUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
