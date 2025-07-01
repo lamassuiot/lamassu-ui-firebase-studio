@@ -71,6 +71,13 @@ const channelOptions = [
     { value: 'WEBHOOK', label: 'Webhook', icon: Webhook },
 ];
 
+const filterOptions = [
+    { value: 'NONE', label: 'None' },
+    { value: 'JSON-PATH', label: 'JSON Path' },
+    { value: 'JSON-SCHEMA', label: 'JSON Schema' },
+    { value: 'JAVASCRIPT', label: 'Javascript' },
+];
+
 export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   isOpen,
   onOpenChange,
@@ -91,9 +98,10 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   const [webhookName, setWebhookName] = useState('');
   const [webhookMethod, setWebhookMethod] = useState<'POST' | 'PUT'>('POST');
 
-
   // Step 2 State
-  const [jsonPathCondition, setJsonPathCondition] = useState('$.data');
+  const [filterType, setFilterType] = useState<string>('JSON-PATH');
+  const [filterCondition, setFilterCondition] = useState('$.data');
+
 
   useEffect(() => {
     if (isOpen) {
@@ -105,7 +113,8 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
       setTeamsName('');
       setWebhookName('');
       setWebhookMethod('POST');
-      setJsonPathCondition('$.data');
+      setFilterType('JSON-PATH');
+      setFilterCondition('$.data');
     }
   }, [isOpen, user]);
 
@@ -147,7 +156,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                 name: webhookName,
             };
         } else { // TEAMS_WEBHOOK
-            config = { url: webhookUrl };
+            config = { url: webhookUrl, name: teamsName };
         }
 
         let channelName = `${channelType.toLowerCase()}-subscription-for-${eventType}`;
@@ -159,7 +168,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
 
         const payload: SubscriptionPayload = {
             event_type: eventType,
-            conditions: jsonPathCondition ? [{ type: 'JSON-PATH', condition: jsonPathCondition }] : [],
+            conditions: filterType !== 'NONE' && filterCondition.trim() ? [{ type: filterType, condition: filterCondition.trim() }] : [],
             channel: {
                 type: channelType,
                 name: channelName,
@@ -245,12 +254,26 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
         );
       case 2:
         return (
-            <div>
-                <Label htmlFor="json-path-condition">JSON-PATH Condition</Label>
-                <Textarea id="json-path-condition" value={jsonPathCondition} onChange={e => setJsonPathCondition(e.target.value)} placeholder="e.g., $.data.id" rows={4}/>
-                <p className="text-xs text-muted-foreground mt-1">
-                    Define a JSON-PATH expression to filter events based on their payload. Leave empty for no condition.
-                </p>
+            <div className="space-y-4">
+                <div>
+                    <Label htmlFor="filter-type">Filter or Condition Format</Label>
+                    <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger id="filter-type">
+                            <SelectValue placeholder="Select a filter type..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {filterOptions.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                {filterType !== 'NONE' && (
+                    <div>
+                        <Label htmlFor="filter-condition">Condition</Label>
+                        <Textarea id="filter-condition" value={filterCondition} onChange={e => setFilterCondition(e.target.value)} placeholder={`Enter ${filterOptions.find(o => o.value === filterType)?.label} expression...`} rows={4}/>
+                    </div>
+                )}
             </div>
         );
       case 3:
@@ -273,7 +296,8 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                         <p><strong>URL:</strong> <span className="truncate">{webhookUrl}</span></p>
                     </>
                 )}
-                <p><strong>Condition:</strong> {jsonPathCondition || "None"}</p>
+                <p><strong>Condition Type:</strong> {filterOptions.find(o => o.value === filterType)?.label}</p>
+                {filterType !== 'NONE' && <p><strong>Condition:</strong> {filterCondition}</p>}
             </div>
         );
       default:
