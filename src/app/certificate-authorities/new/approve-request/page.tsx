@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
+import { importCa, type ImportCaPayload } from '@/lib/ca-data';
 
 // --- Type Definitions ---
 interface Subject { common_name: string; }
@@ -174,7 +175,7 @@ export default function ApproveCaRequestPage() {
         return;
     }
 
-    const payload = {
+    const payload: ImportCaPayload = {
       request_id: requestIdFromUrl,
       ca: window.btoa(certificatePem.replace(/\\n/g, '\n')),
       ca_chain: chainPem ? [window.btoa(chainPem.replace(/\\n/g, '\n'))] : [],
@@ -183,22 +184,7 @@ export default function ApproveCaRequestPage() {
     };
     
     try {
-        const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas/import', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.access_token}` },
-            body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to approve request. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Approval failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-            } catch (e) { /* ignore */ }
-            throw new Error(errorMessage);
-        }
-
+        await importCa(payload, user.access_token);
         toast({ title: "Success!", description: `CA Request "${requestIdFromUrl}" approved successfully.` });
         router.push('/certificate-authorities');
     } catch (error: any) {

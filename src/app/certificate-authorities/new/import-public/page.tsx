@@ -16,6 +16,7 @@ import { DetailItem } from '@/components/shared/DetailItem';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { importCa, type ImportCaPayload } from '@/lib/ca-data';
 
 interface DecodedImportedCertInfo {
   subject?: string;
@@ -100,7 +101,7 @@ export default function CreateCaImportPublicPage() {
       return;
     }
 
-    const payload = {
+    const payload: ImportCaPayload = {
         id: crypto.randomUUID(),
         ca: window.btoa(importedCaCertPem),
         ca_chain: [],
@@ -108,27 +109,7 @@ export default function CreateCaImportPublicPage() {
     };
     
     try {
-        const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas/import', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.access_token}`,
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to import public CA. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Failed to import public CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-            } catch (e) {
-                console.error("Failed to parse error response as JSON for public CA import:", e);
-            }
-            throw new Error(errorMessage);
-        }
-
+        await importCa(payload, user.access_token);
         toast({
             title: "Public CA Import Successful",
             description: `Public CA "${decodedImportedCertInfo?.subject || 'imported certificate'}" has been imported.`,

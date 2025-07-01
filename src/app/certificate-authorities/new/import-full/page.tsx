@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -19,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 import { Separator } from '@/components/ui/separator';
+import { importCa, type ImportCaPayload } from '@/lib/ca-data';
 
 interface DecodedImportedCertInfo {
   subject?: string;
@@ -141,7 +143,7 @@ export default function CreateCaImportFullPage() {
     
     const caChainPems = caChainPem.match(/-----BEGIN CERTIFICATE-----[^-]*-----END CERTIFICATE-----/g) || [];
 
-    const payload = {
+    const payload: ImportCaPayload = {
       id: caId,
       engine_id: cryptoEngineId,
       private_key: window.btoa(importedPrivateKeyPem),
@@ -153,24 +155,7 @@ export default function CreateCaImportFullPage() {
     };
     
     try {
-      const response = await fetch('https://lab.lamassu.io/api/ca/v1/cas/import', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${user.access_token}`,
-          },
-          body: JSON.stringify(payload)
-      });
-       if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to import CA. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Failed to import CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-            } catch (e) { /* ignore */ }
-            throw new Error(errorMessage);
-        }
-        
+        await importCa(payload, user.access_token);
         toast({
             title: "CA Import Successful",
             description: `CA "${decodedImportedCertInfo?.subject || 'imported certificate'}" has been imported.`,

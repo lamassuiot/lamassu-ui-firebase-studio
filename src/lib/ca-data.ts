@@ -485,7 +485,7 @@ export async function createCa(payload: CreateCaPayload, accessToken: string): P
   }
 }
 
-// NEW: Function and type for creating a CA Request
+// Function and type for creating a CA Request
 export interface CreateCaRequestPayload {
   parent_id: string;
   id: string;
@@ -523,6 +523,42 @@ export async function createCaRequest(payload: CreateCaRequestPayload, accessTok
       errorMessage = `Failed to create CA request: ${errorJson.err || errorJson.message || 'Unknown error'}`;
     } catch (e) {
       console.error("Failed to parse error response as JSON for CA request creation:", e);
+    }
+    throw new Error(errorMessage);
+  }
+}
+
+// Function and type for importing a CA
+export interface ImportCaPayload {
+  request_id?: string;
+  id?: string;
+  engine_id?: string;
+  private_key?: string; // base64 encoded
+  ca: string; // base64 encoded
+  ca_chain?: string[]; // array of base64 encoded certs
+  ca_type: "MANAGED" | "IMPORTED" | "EXTERNAL_PUBLIC";
+  issuance_expiration?: { type: string; duration?: string; time?: string };
+  parent_id?: string;
+}
+
+export async function importCa(payload: ImportCaPayload, accessToken: string): Promise<void> {
+  const response = await fetch(`${caApiBaseUrl}cas/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to import CA. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Failed to import CA: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) {
+      // Ignore if response is not JSON
     }
     throw new Error(errorMessage);
   }
