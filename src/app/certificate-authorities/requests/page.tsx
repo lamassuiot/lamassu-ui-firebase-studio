@@ -54,7 +54,7 @@ export interface CACertificateRequest {
     creation_ts: string;
     engine_id: string;
     key_metadata: KeyMetadata;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    status: 'PENDING' | 'ISSUED';
     fingerprint: string;
     csr: string; // Base64 encoded PEM
 }
@@ -72,11 +72,8 @@ const StatusBadge: React.FC<{ status: CACertificateRequest['status'] }> = ({ sta
     case 'PENDING':
       badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
       break;
-    case 'APPROVED':
+    case 'ISSUED':
       badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
-      break;
-    case 'REJECTED':
-      badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
       break;
     default:
       badgeClass = "bg-muted text-muted-foreground border-border";
@@ -97,7 +94,7 @@ export default function CaRequestsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [searchField, setSearchField] = useState<'id' | 'subject'>('subject');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'ISSUED'>('ALL');
   const [pageSize, setPageSize] = useState('9');
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -306,8 +303,7 @@ export default function CaRequestsPage() {
   const statusOptions = [
     { label: 'All Statuses', value: 'ALL' },
     { label: 'Pending', value: 'PENDING' },
-    { label: 'Approved', value: 'APPROVED' },
-    { label: 'Rejected', value: 'REJECTED' },
+    { label: 'Issued', value: 'ISSUED' },
   ];
 
   const content = (
@@ -457,7 +453,7 @@ export default function CaRequestsPage() {
         </div>
         <div className="col-span-1">
             <Label htmlFor="reqStatusFilterSelect">Status</Label>
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED')} disabled={isLoading || authLoading}>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'ALL' | 'PENDING' | 'ISSUED')} disabled={isLoading || authLoading}>
                 <SelectTrigger id="reqStatusFilterSelect" className="w-full mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                     {statusOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}

@@ -29,7 +29,7 @@ interface CACertificateRequest {
     creation_ts: string;
     engine_id: string;
     key_metadata: KeyMetadata;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    status: 'PENDING' | 'ISSUED';
     fingerprint: string;
     csr: string; // Base64 encoded PEM
 }
