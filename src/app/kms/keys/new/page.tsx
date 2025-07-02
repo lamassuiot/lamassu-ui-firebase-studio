@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { KEY_TYPE_OPTIONS_POST_QUANTUM, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS, MLDSA_SECURITY_LEVEL_OPTIONS } from '@/lib/key-spec-constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
-import { CA_API_BASE_URL } from '@/lib/api-domains';
+import { createKmsKey } from '@/lib/ca-data';
 
 const creationModes = [
   {
@@ -131,25 +131,8 @@ export default function CreateKmsKeyPage() {
                 algorithm: keyType,
                 size: size,
             };
-
-            const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${user.access_token}`,
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                let errorJson;
-                let errorMessage = `Failed to create key. Status: ${response.status}`;
-                try {
-                    errorJson = await response.json();
-                    errorMessage = `Key creation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-                } catch (e) { /* ignore json parse error */ }
-                throw new Error(errorMessage);
-            }
+            
+            await createKmsKey(payload, user.access_token);
 
             toast({
                 title: "Key Pair Created",

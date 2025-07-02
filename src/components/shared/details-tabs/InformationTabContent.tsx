@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { CaHierarchyPathNode } from '@/components/ca/details/CaHierarchyPathNode';
-import { getCaDisplayName } from '@/lib/ca-data';
+import { getCaDisplayName, updateCaIssuanceExpiration } from '@/lib/ca-data';
 import { format, parseISO, isValid } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
@@ -21,7 +21,6 @@ import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import { ExpirationInput, type ExpirationConfig } from '../ExpirationInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 
 interface CaStats {
@@ -152,24 +151,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
 
     setIsSubmitting(true);
     try {
-        const response = await fetch(`${CA_API_BASE_URL}/cas/${caDetails.id}/issuance-expiration`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.access_token}`
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to update issuance expiration. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-            } catch (e) { /* ignore json parse error */ }
-            throw new Error(errorMessage);
-        }
+        await updateCaIssuanceExpiration(caDetails.id, payload, user.access_token);
 
         toast({
             title: "Success",

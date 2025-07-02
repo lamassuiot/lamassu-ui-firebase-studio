@@ -2,7 +2,7 @@
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { CA_API_BASE_URL } from "./api-domains";
+import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from "./api-domains";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -526,6 +526,54 @@ export async function createCaRequest(payload: CreateCaRequestPayload, accessTok
   }
 }
 
+export interface CACertificateRequest {
+    id: string;
+    key_id: string;
+    metadata: Record<string, any>;
+    subject: { common_name: string };
+    creation_ts: string;
+    engine_id: string;
+    key_metadata: { type: string; bits: number };
+    status: 'PENDING' | 'ISSUED';
+    fingerprint: string;
+    csr: string; // Base64 encoded PEM
+}
+
+export async function fetchCaRequests(params: URLSearchParams, accessToken: string): Promise<{ list: CACertificateRequest[]; next: string | null }> {
+  const response = await fetch(`${CA_API_BASE_URL}/cas/requests?${params.toString()}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to fetch CA requests. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Failed to fetch requests: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) { /* ignore */ }
+    throw new Error(errorMessage);
+  }
+  
+  return response.json();
+}
+
+export async function deleteCaRequest(requestId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`${CA_API_BASE_URL}/cas/requests/${requestId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to delete request. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) { /* ignore */ }
+    throw new Error(errorMessage);
+  }
+}
+
 // Function and type for importing a CA
 export interface ImportCaPayload {
   request_id?: string;
@@ -580,4 +628,200 @@ export async function updateCaMetadata(caId: string, metadata: object, accessTok
     } catch (e) { /* Ignore */ }
     throw new Error(`Failed to update CA metadata: ${errorBody} (Status: ${response.status})`);
   }
+}
+
+interface CaStats {
+  ACTIVE: number;
+  EXPIRED: number;
+  REVOKED: number;
+}
+export async function fetchCaStats(caId: string, accessToken: string): Promise<CaStats> {
+    const response = await fetch(`${CA_API_BASE_URL}/stats/${caId}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        let errorBody = 'Request failed.';
+        try {
+            const errJson = await response.json();
+            errorBody = errJson.err || errJson.message || errorBody;
+        } catch(e) { /* Ignore parsing error */ }
+        throw new Error(`Failed to fetch CA statistics: ${errorBody} (Status: ${response.status})`);
+    }
+    return response.json();
+}
+
+export async function revokeCa(caId: string, reason: string, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+            status: 'REVOKED',
+            revocation_reason: reason,
+        }),
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to revoke CA. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore json parse error */ }
+        throw new Error(errorMessage);
+    }
+}
+
+export async function deleteCa(caId: string, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to delete CA. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore json parse error */ }
+        throw new Error(errorMessage);
+    }
+}
+
+export async function signCertificate(caId: string, payload: any, accessToken: string): Promise<any> {
+    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/certificates/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+        body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok) {
+        throw new Error(result.err || `Failed to issue certificate. Status: ${response.status}`);
+    }
+    return result;
+}
+
+export async function fetchCaRequestById(requestId: string, accessToken: string): Promise<any> {
+    const response = await fetch(`${CA_API_BASE_URL}/cas/requests?filter=id[equal]${requestId}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) throw new Error("Failed to fetch CA request details.");
+    const data = await response.json();
+    const foundRequest = data.list?.[0];
+    if (foundRequest) {
+        return foundRequest;
+    }
+    throw new Error(`CA Request with ID "${requestId}" not found or is not pending.`);
+}
+
+export interface ApiKmsKey {
+  id: string;
+  algorithm: string;
+  size: string;
+  public_key: string;
+}
+export async function fetchKmsKeys(accessToken: string): Promise<ApiKmsKey[]> {
+    const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to fetch KMS keys. HTTP error ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Failed to fetch keys: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+        } catch(e) { /* ignore */}
+        throw new Error(errorMessage);
+    }
+    return response.json();
+}
+
+export async function signWithKmsKey(keyId: string, payload: any, accessToken: string): Promise<any> {
+    const response = await fetch(`${CA_API_BASE_URL}/kms/keys/${encodeURIComponent(keyId)}/sign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok) {
+        throw new Error(result.err || result.message || `Signing failed with status ${response.status}`);
+    }
+    return result;
+}
+
+export async function createKmsKey(payload: any, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to create key. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Key creation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore json parse error */ }
+        throw new Error(errorMessage);
+    }
+}
+
+export async function updateCaIssuanceExpiration(caId: string, payload: any, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/issuance-expiration`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to update issuance expiration. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore json parse error */ }
+        throw new Error(errorMessage);
+    }
+}
+
+export interface CaStatsSummaryResponse {
+  cas: { total: number };
+  certificates: { total: number };
+}
+
+export async function fetchCaStatsSummary(accessToken: string): Promise<CaStatsSummaryResponse> {
+    const response = await fetch(`${CA_API_BASE_URL}/stats`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch CA stats');
+    }
+    return response.json();
+}
+
+export async function fetchDmsStats(accessToken: string): Promise<{ total: number }> {
+    const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/stats`, { 
+        headers: { 'Authorization': `Bearer ${accessToken}` } 
+    });
+    if (!response.ok) throw new Error('Failed to fetch RA stats');
+    return response.json();
+}
+
+export async function fetchDevManagerStats(accessToken: string): Promise<{ total: number }> {
+    const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/stats`, { 
+        headers: { 'Authorization': `Bearer ${accessToken}` } 
+    });
+    if (!response.ok) throw new Error('Failed to fetch Device stats');
+    return response.json();
 }
