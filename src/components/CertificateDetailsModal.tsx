@@ -10,7 +10,6 @@ import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { cn } from '@/lib/utils';
 import { ApiStatusBadge } from '@/components/shared/ApiStatusBadge';
 
 interface CertificateDetailsModalProps {

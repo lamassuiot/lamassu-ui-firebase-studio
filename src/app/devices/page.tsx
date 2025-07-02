@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
-import { fetchDevices, type ApiDevice, type ApiResponse } from '@/lib/devices-api';
+import { fetchDevices } from '@/lib/devices-api';
 
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION' | 'DECOMMISSIONED';
 

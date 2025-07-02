@@ -10,7 +10,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import type { AlertEvent } from '@/app/alerts/page';
 import { Layers, ChevronDown } from 'lucide-react';

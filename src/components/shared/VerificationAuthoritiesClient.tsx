@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ShieldCheck, Settings, PlusCircle, Loader2, AlertTriangle as AlertTriangleIcon, FileText, Download, RefreshCw } from "lucide-react";
+import { ShieldCheck, Settings, Loader2, AlertTriangle as AlertTriangleIcon, FileText, Download, RefreshCw } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';

@@ -5,7 +5,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight, FileSignature, ShieldCheck } from "lucide-react";
+import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';

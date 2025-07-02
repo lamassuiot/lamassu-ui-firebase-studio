@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, Cpu, MoreVertical, Trash2, Layers, Fingerprint, Download, PlusCircle, ShieldCheck } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, MoreVertical, Trash2, Layers, Fingerprint, Download, PlusCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';

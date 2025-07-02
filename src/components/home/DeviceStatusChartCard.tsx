@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { fetchDeviceStats, type DeviceStats } from '@/lib/devices-api';
+import { fetchDeviceStats } from '@/lib/devices-api';
 
 interface ChartData {
   name: string;

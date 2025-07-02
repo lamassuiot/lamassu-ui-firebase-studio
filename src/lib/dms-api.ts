@@ -1,7 +1,6 @@
 // src/lib/dms-api.ts
 
 import { DMS_MANAGER_API_BASE_URL, handleApiError } from './api-domains';
-import type { CA } from './ca-data';
 
 // --- Interfaces ---
 

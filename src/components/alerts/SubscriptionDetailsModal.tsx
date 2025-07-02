@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { ApiSubscription } from '@/lib/alerts-api';
 import { DetailItem } from '../shared/DetailItem';
 import { CodeBlock } from '../shared/CodeBlock';

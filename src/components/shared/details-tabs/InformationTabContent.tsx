@@ -17,7 +17,6 @@ import { getCaDisplayName, updateCaIssuanceExpiration } from '@/lib/ca-data';
 import { format, parseISO, isValid } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import { ExpirationInput, type ExpirationConfig } from '../ExpirationInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
