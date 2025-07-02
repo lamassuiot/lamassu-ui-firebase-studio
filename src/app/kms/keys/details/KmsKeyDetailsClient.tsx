@@ -23,7 +23,7 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
-import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
+import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier, RSASSAPSSParams } from 'pkijs';
 import { fetchCryptoEngines, fetchKmsKeys, signWithKmsKey, verifyWithKmsKey, type ApiKmsKey } from '@/lib/ca-data';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 import { KeyStrengthIndicator } from '@/components/shared/KeyStrengthIndicator';
@@ -59,6 +59,13 @@ const SIGNATURE_OID_MAP: Record<string, string> = {
   "ML-DSA-65": "1.3.6.1.4.1.2.267.7.6.5", // Example OID for Dilithium3
   "ML-DSA-87": "1.3.6.1.4.1.2.267.7.8.7", // Example OID for Dilithium5
 };
+
+const PSS_ALGO_PARAMS: Record<string, { shaOid: string; saltLength: number }> = {
+  RSASSA_PSS_SHA_256: { shaOid: "2.16.840.1.101.3.4.2.1", saltLength: 32 },
+  RSASSA_PSS_SHA_384: { shaOid: "2.16.840.1.101.3.4.2.2", saltLength: 48 },
+  RSASSA_PSS_SHA_512: { shaOid: "2.16.840.1.101.3.4.2.3", saltLength: 64 },
+};
+
 
 interface KmsKeyDetailed {
   id: string;
@@ -419,21 +426,21 @@ export default function KmsKeyDetailsClient() {
           keyOpts = {
             name: "RSA-PSS",
             hash: { name: "SHA-256" },
-            saltLength: 32 // Default salt length for PSS
+            saltLength: PSS_ALGO_PARAMS["RSASSA_PSS_SHA_256"].saltLength
           };
           break;
         case "RSASSA_PSS_SHA_384":
           keyOpts = {
             name: "RSA-PSS",
             hash: { name: "SHA-384" },
-            saltLength: 32 // Default salt length for PSS
+            saltLength: PSS_ALGO_PARAMS["RSASSA_PSS_SHA_384"].saltLength
           };
           break;
         case "RSASSA_PSS_SHA_512":
           keyOpts = {
             name: "RSA-PSS",
             hash: { name: "SHA-512" },
-            saltLength: 32 // Default salt length for PSS
+            saltLength: PSS_ALGO_PARAMS["RSASSA_PSS_SHA_512"].saltLength
           };
           break;
         default:
@@ -460,9 +467,30 @@ export default function KmsKeyDetailsClient() {
         throw new Error(`Unsupported signature algorithm for CSR: ${csrSignAlgorithm}`);
       }
 
-      pkcs10.signatureAlgorithm = new AlgorithmIdentifier({
-        algorithmId: signatureOid,
-      });
+      if (csrSignAlgorithm.startsWith('RSASSA_PSS')) {
+        const { shaOid, saltLength } = PSS_ALGO_PARAMS[csrSignAlgorithm];
+        const hashAlgorithm = new AlgorithmIdentifier({
+          algorithmId: shaOid,
+          algorithmParams: new asn1js.Null(),
+        });
+        const maskGenAlgorithm = new AlgorithmIdentifier({
+          algorithmId: '1.2.840.113549.1.1.8',
+          algorithmParams: hashAlgorithm.toSchema(),
+        });
+        const pssParams = new pkijs.RSASSAPSSParams({
+          hashAlgorithm,
+          maskGenAlgorithm,
+          saltLength,
+        });
+        pkcs10.signatureAlgorithm = new AlgorithmIdentifier({
+          algorithmId: '1.2.840.113549.1.1.10',
+          algorithmParams: pssParams.toSchema(),
+        });
+      } else {
+        pkcs10.signatureAlgorithm = new AlgorithmIdentifier({
+          algorithmId: signatureOid,
+        });
+      }
 
       const tbs = pkcs10.encodeTBS().toBER(false);
       pkcs10.tbs = tbs;
