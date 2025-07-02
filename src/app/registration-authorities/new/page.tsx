@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -27,65 +28,6 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { createOrUpdateRa, fetchRaById, type ApiRaItem, type RaCreationPayload } from '@/lib/dms-api';
-
-// --- API and Form Types ---
-interface ApiRaOidcAuth {
-    client_id: string;
-    client_secret: string;
-    well_known_url: string;
-}
-interface ApiRaEstSettings {
-    auth_mode: string;
-    client_certificate_settings?: {
-        chain_level_validation: number;
-        validation_cas: string[];
-        allow_expired: boolean;
-    };
-    external_webhook_settings?: {
-        name: string;
-        url: string;
-        log_level: string;
-        auth_mode: string;
-        api_key_auth?: {
-            key: string;
-        };
-        oidc_auth?: ApiRaOidcAuth;
-    };
-}
-interface ApiRaSettings {
-    enrollment_settings: {
-        registration_mode: string;
-        enrollment_ca: string;
-        protocol: string;
-        enable_replaceable_enrollment: boolean;
-        est_rfc7030_settings?: ApiRaEstSettings;
-        device_provisioning_profile: {
-            icon: string;
-            icon_color: string;
-            tags: string[];
-        };
-    };
-    reenrollment_settings: {
-        revoke_on_reenrollment: boolean;
-        enable_expired_renewal: boolean;
-        critical_delta: string;
-        preventive_delta: string;
-        reenrollment_delta: string;
-        additional_validation_cas: string[];
-    };
-    server_keygen_settings: {
-        enabled: boolean;
-        key?: {
-            bits: number;
-            type: string;
-        };
-    };
-    ca_distribution_settings: {
-        include_enrollment_ca: boolean;
-        include_system_ca: boolean;
-        managed_cas: string[];
-    };
-}
 
 const mockSigningProfiles = [
   { id: 'profile-iot-standard', name: 'IoT Device Standard Profile' },
