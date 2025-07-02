@@ -66,7 +66,6 @@ interface KmsKeyDetailed {
   keyTypeDisplay: string;
   algorithm: 'RSA' | 'ECDSA' | 'ML-DSA' | 'Unknown';
   keySize?: string | number;
-  status: 'Enabled' | 'Disabled' | 'PendingDeletion';
   hasPrivateKey: boolean;
   publicKeyPem?: string;
   cryptoEngineId?: string;
@@ -78,14 +77,6 @@ const signatureAlgorithms = [
   'ECDSA_SHA_256', 'ECDSA_SHA_384', 'ECDSA_SHA_512',
   'ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87'
 ];
-
-const StatusBadge: React.FC<{ status: KmsKeyDetailed['status'] }> = ({ status }) => {
-  let badgeClass = "bg-muted text-muted-foreground border-border";
-  if (status === 'Enabled') badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
-  else if (status === 'Disabled') badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
-  else if (status === 'PendingDeletion') badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
-  return <Badge variant="outline" className={cn("text-xs", badgeClass)}>{status}</Badge>;
-};
 
 export default function KmsKeyDetailsClient() {
   const searchParams = useSearchParams();
@@ -173,7 +164,6 @@ export default function KmsKeyDetailsClient() {
           keyTypeDisplay: `${apiKey.algorithm} ${apiKey.size}`,
           algorithm: ['RSA', 'ECDSA', 'ML-DSA'].includes(algorithm) ? algorithm : 'Unknown',
           keySize: apiKey.size,
-          status: 'Enabled', // Default as API doesn't provide it
           hasPrivateKey: apiKey.id.includes('type=private'),
           publicKeyPem: pem,
           cryptoEngineId: engineId,
@@ -570,7 +560,6 @@ export default function KmsKeyDetailsClient() {
                 Key ID: {keyDetails.id}
               </p>
             </div>
-            <StatusBadge status={keyDetails.status} />
           </div>
         </div>
 
@@ -591,7 +580,6 @@ export default function KmsKeyDetailsClient() {
               <CardContent className="space-y-3">
                 <DetailItem label="Key ID" value={keyDetails.id} isMono fullWidthValue />
                 <DetailItem label="Alias" value={keyDetails.alias} isMono fullWidthValue />
-                <DetailItem label="Status" value={<StatusBadge status={keyDetails.status} />} />
 
                 {(() => {
                   const engine = allCryptoEngines.find(e => e.id === keyDetails.cryptoEngineId);
