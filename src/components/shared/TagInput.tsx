@@ -25,6 +25,7 @@ export const TagInput: React.FC<TagInputProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState('');
   const tags = Array.isArray(value) ? value : [];
+  const inputId = id || 'tag-input-field';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
@@ -50,9 +51,9 @@ export const TagInput: React.FC<TagInputProps> = ({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div
-        className="flex flex-wrap gap-2 items-center w-full rounded-md border border-input bg-card p-2 min-h-[2.5rem] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-        onClick={() => document.getElementById(id || 'tag-input-field')?.focus()} // Focus input when clicking container
+      <label
+        htmlFor={inputId}
+        className="flex flex-wrap gap-2 items-center w-full rounded-md border border-input bg-card p-2 min-h-[2.5rem] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 cursor-text"
       >
         {tags.map((tag, index) => (
           <Badge
@@ -77,7 +78,7 @@ export const TagInput: React.FC<TagInputProps> = ({
           </Badge>
         ))}
         <Input
-          id={id || 'tag-input-field'}
+          id={inputId}
           type="text"
           value={inputValue}
           onChange={handleInputChange}
@@ -86,7 +87,7 @@ export const TagInput: React.FC<TagInputProps> = ({
           className="flex-grow h-auto p-0 m-0 border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-sm"
           autoComplete="off"
         />
-      </div>
+      </label>
        <p className="text-xs text-muted-foreground">Press Enter to add a tag. Click 'x' on a tag to remove it.</p>
     </div>
   );
