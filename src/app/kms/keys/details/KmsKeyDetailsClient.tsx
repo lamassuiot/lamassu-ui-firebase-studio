@@ -184,8 +184,8 @@ export default function KmsKeyDetailsClient() {
           setCsrSignAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
         } else if (detailedKey.algorithm === 'ECDSA') {
           let defaultEcdsaAlgo = 'ECDSA_SHA_256';
-          if (detailedKey.keySize === 'P-384') defaultEcdsaAlgo = 'ECDSA_SHA_384';
-          if (detailedKey.keySize === 'P-521') defaultEcdsaAlgo = 'ECDSA_SHA_512';
+          if (detailedKey.keySize === '384') defaultEcdsaAlgo = 'ECDSA_SHA_384';
+          if (detailedKey.keySize === '521') defaultEcdsaAlgo = 'ECDSA_SHA_512';
           
           setSignAlgorithm(defaultEcdsaAlgo);
           setVerifyAlgorithm(defaultEcdsaAlgo);
@@ -549,9 +549,9 @@ export default function KmsKeyDetailsClient() {
       if (!algo.startsWith('ECDSA')) return true;
 
       switch (keyDetails.keySize) {
-        case 'P-256': return algo !== 'ECDSA_SHA_256';
-        case 'P-384': return algo !== 'ECDSA_SHA_384';
-        case 'P-521': return algo !== 'ECDSA_SHA_512';
+        case '256': return algo !== 'ECDSA_SHA_256';
+        case '384': return algo !== 'ECDSA_SHA_384';
+        case '521': return algo !== 'ECDSA_SHA_512';
         default: return true;
       }
     }
