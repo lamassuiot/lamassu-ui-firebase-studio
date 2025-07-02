@@ -330,15 +330,13 @@ export default function KmsKeyDetailsClient() {
     let r = rawSig.slice(0, half);
     let s = rawSig.slice(half);
 
-    // Helper to trim leading zeros
-    function trimZeros(buf: Uint8Array) {
-      let i = 0;
-      while (i < buf.length - 1 && buf[i] === 0) i++;
-      return buf.slice(i);
-    }
+    // Trim leading zeros
+    while (r.length > 1 && r[0] === 0) r = r.slice(1);
+    while (s.length > 1 && s[0] === 0) s = s.slice(1);
 
-    r = trimZeros(new Uint8Array(r));
-    s = trimZeros(new Uint8Array(s));
+    // Ensure positive integers by prefixing 0x00 if high bit is set
+    if (r[0] & 0x80) r = Uint8Array.from([0, ...r]);
+    if (s[0] & 0x80) s = Uint8Array.from([0, ...s]);
 
     const rAsn1 = new asn1js.Integer({ valueHex: r.buffer });
     const sAsn1 = new asn1js.Integer({ valueHex: s.buffer });
