@@ -112,6 +112,7 @@ export default function KmsKeyDetailsClient() {
   const [isSigning, setIsSigning] = useState(false);
   const [signAlgorithm, setSignAlgorithm] = useState(signatureAlgorithms[3]);
   const [signMessageType, setSignMessageType] = useState('RAW');
+  const [signPayloadEncoding, setSignPayloadEncoding] = useState('BASE64');
   const [payloadToSign, setPayloadToSign] = useState('');
   const [generatedSignature, setGeneratedSignature] = useState('');
 
@@ -233,9 +234,25 @@ export default function KmsKeyDetailsClient() {
     setGeneratedSignature('');
 
     try {
+      let encodedPayload = payloadToSign;
+      if (signPayloadEncoding === 'PLAIN_TEXT') {
+          encodedPayload = btoa(payloadToSign);
+      } else if (signPayloadEncoding === 'HEX') {
+          try {
+              const hex = payloadToSign.replace(/\s/g, '');
+              if (hex.length % 2 !== 0) throw new Error("Invalid hex string length.");
+              const buffer = new Uint8Array(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))).buffer;
+              encodedPayload = arrayBufferToBase64(buffer);
+          } catch (e) {
+              toast({ title: "Encoding Error", description: "Invalid hexadecimal string.", variant: "destructive" });
+              setIsSigning(false);
+              return;
+          }
+      }
+
       const payload = {
         algorithm: signAlgorithm,
-        message: payloadToSign,
+        message: encodedPayload,
         message_type: signMessageType.toLowerCase(),
       };
 
@@ -275,9 +292,37 @@ export default function KmsKeyDetailsClient() {
       toast({ title: "Verify Error", description: "Unsigned payload and signature cannot be empty.", variant: "destructive" });
       return;
     }
-    console.log("Mock Verify:", { verifyAlgorithm, verifyMessageType, verifyPayloadEncoding, unsignedPayload, signatureToVerify });
-    const isValid = Math.random() > 0.3;
-    toast({ title: "Mock Verify Result", description: `Signature is ${isValid ? 'VALID' : 'INVALID'} (mock).`, variant: isValid ? "default" : "destructive" });
+
+    let encodedUnsignedPayload: string;
+    if (verifyPayloadEncoding === 'HEX') {
+        try {
+            const hex = unsignedPayload.replace(/\s/g, '');
+             if (hex.length % 2 !== 0) throw new Error("Invalid hex string length.");
+            const buffer = new Uint8Array(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))).buffer;
+            encodedUnsignedPayload = arrayBufferToBase64(buffer);
+        } catch(e) {
+            toast({ title: "Encoding Error", description: "Invalid hexadecimal string for payload.", variant: "destructive" });
+            return;
+        }
+    } else if (verifyPayloadEncoding === 'BASE64') {
+        encodedUnsignedPayload = unsignedPayload;
+    } else { // PLAIN_TEXT
+        encodedUnsignedPayload = btoa(unsignedPayload);
+    }
+
+    console.log("Mock Verify with encoded payload:", {
+      verifyAlgorithm,
+      verifyMessageType,
+      unsignedPayload: encodedUnsignedPayload,
+      signatureToVerify,
+    });
+
+    const isValid = Math.random() > 0.3; // Existing mock logic
+    toast({
+      title: "Mock Verify Result",
+      description: `Signature is ${isValid ? 'VALID' : 'INVALID'} (mock). Payload was encoded to Base64.`,
+      variant: isValid ? "default" : "destructive",
+    });
   };
 
 
@@ -514,35 +559,52 @@ export default function KmsKeyDetailsClient() {
                 <CardDescription>Perform cryptographic sign operations using this key.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="signAlgorithm">Algorithm</Label>
-                  <Select value={signAlgorithm} onValueChange={setSignAlgorithm} disabled={isSigning}>
-                    <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {signatureAlgorithms.map(algo => (
-                        <SelectItem key={algo} value={algo} disabled={
-                          (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                          (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                          (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                        }>{algo}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="signAlgorithm">Algorithm</Label>
+                        <Select value={signAlgorithm} onValueChange={setSignAlgorithm} disabled={isSigning}>
+                            <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                            {signatureAlgorithms.map(algo => (
+                                <SelectItem key={algo} value={algo} disabled={
+                                (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                                (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                                (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                                }>{algo}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="signMessageType">Message Type</Label>
+                        <Select value={signMessageType} onValueChange={setSignMessageType} disabled={isSigning}>
+                            <SelectTrigger id="signMessageType"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                            <SelectItem value="RAW">Raw</SelectItem>
+                            <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-                <div>
-                  <Label htmlFor="signMessageType">Message Type</Label>
-                  <Select value={signMessageType} onValueChange={setSignMessageType} disabled={isSigning}>
-                    <SelectTrigger id="signMessageType"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="RAW">Raw</SelectItem>
-                      <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
+                    <div>
+                        <Label htmlFor="payloadToSign">Payload to Sign</Label>
+                        <Textarea id="payloadToSign" value={payloadToSign} onChange={e => setPayloadToSign(e.target.value)} placeholder="Enter data to be signed..." rows={4} disabled={isSigning} />
+                    </div>
+                     <div>
+                        <Label htmlFor="signPayloadEncoding">Payload Encoding</Label>
+                        <Select value={signPayloadEncoding} onValueChange={v => setSignPayloadEncoding(v as any)} disabled={isSigning}>
+                            <SelectTrigger id="signPayloadEncoding"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="BASE64">Base64</SelectItem>
+                                <SelectItem value="PLAIN_TEXT">Plain Text (UTF-8)</SelectItem>
+                                <SelectItem value="HEX">Hexadecimal</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-                <div>
-                  <Label htmlFor="payloadToSign">Payload to Sign (Base64)</Label>
-                  <Textarea id="payloadToSign" value={payloadToSign} onChange={e => setPayloadToSign(e.target.value)} placeholder="Enter Base64 encoded data to be signed..." rows={4} disabled={isSigning} />
-                </div>
+
                 <Button onClick={handleSign} className="w-full sm:w-auto" disabled={isSigning}>
                   {isSigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isSigning ? 'Signing...' : 'Sign'}
@@ -564,46 +626,52 @@ export default function KmsKeyDetailsClient() {
                 <CardDescription>Perform cryptographic verify operations using this key's public component. (Mock functionality)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="verifyAlgorithm">Algorithm</Label>
-                  <Select value={verifyAlgorithm} onValueChange={setVerifyAlgorithm}>
-                    <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {signatureAlgorithms.map(algo => (
-                        <SelectItem key={algo} value={algo} disabled={
-                          (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                          (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                          (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                        }>{algo}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="verifyAlgorithm">Algorithm</Label>
+                        <Select value={verifyAlgorithm} onValueChange={setVerifyAlgorithm}>
+                            <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                            {signatureAlgorithms.map(algo => (
+                                <SelectItem key={algo} value={algo} disabled={
+                                (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                                (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                                (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                                }>{algo}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="verifyMessageType">Message Type</Label>
+                        <Select value={verifyMessageType} onValueChange={setVerifyMessageType}>
+                            <SelectTrigger id="verifyMessageType"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                            <SelectItem value="RAW">Raw</SelectItem>
+                            <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-                <div>
-                  <Label htmlFor="verifyMessageType">Message Type</Label>
-                  <Select value={verifyMessageType} onValueChange={setVerifyMessageType}>
-                    <SelectTrigger id="verifyMessageType"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="RAW">Raw</SelectItem>
-                      <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
+                    <div>
+                        <Label htmlFor="unsignedPayload">Unsigned Payload</Label>
+                        <Textarea id="unsignedPayload" value={unsignedPayload} onChange={e => setUnsignedPayload(e.target.value)} placeholder="Enter the original unsigned data..." rows={3} />
+                    </div>
+                    <div>
+                        <Label htmlFor="verifyPayloadEncoding">Payload Encoding</Label>
+                        <Select value={verifyPayloadEncoding} onValueChange={setVerifyPayloadEncoding}>
+                            <SelectTrigger id="verifyPayloadEncoding"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="PLAIN_TEXT">Plain Text (UTF-8)</SelectItem>
+                                <SelectItem value="BASE64">Base64</SelectItem>
+                                <SelectItem value="HEX">Hexadecimal</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-                <div>
-                  <Label htmlFor="verifyPayloadEncoding">Unsigned Payload Encoding Format</Label>
-                  <Select value={verifyPayloadEncoding} onValueChange={setVerifyPayloadEncoding}>
-                    <SelectTrigger id="verifyPayloadEncoding"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PLAIN_TEXT">Plain Text</SelectItem>
-                      <SelectItem value="BASE64">Base64</SelectItem>
-                      <SelectItem value="HEX">Hexadecimal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="unsignedPayload">Unsigned Payload</Label>
-                  <Textarea id="unsignedPayload" value={unsignedPayload} onChange={e => setUnsignedPayload(e.target.value)} placeholder="Enter the original unsigned data..." rows={3} />
-                </div>
+
                 <div>
                   <Label htmlFor="signatureToVerify">Signature (Base64)</Label>
                   <Textarea id="signatureToVerify" value={signatureToVerify} onChange={e => setSignatureToVerify(e.target.value)} placeholder="Enter the signature to verify..." rows={3} className="font-mono" />
