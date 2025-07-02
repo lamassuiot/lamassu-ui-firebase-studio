@@ -26,7 +26,7 @@ import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/share
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 import { DurationInput } from '@/components/shared/DurationInput';
-import { DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
+import { createOrUpdateRa, fetchRaById, type ApiRaItem, type RaCreationPayload } from '@/lib/dms-api';
 
 // --- API and Form Types ---
 interface ApiRaOidcAuth {
@@ -85,11 +85,6 @@ interface ApiRaSettings {
         include_system_ca: boolean;
         managed_cas: string[];
     };
-}
-interface ApiRaItem {
-    id: string;
-    name: string;
-    settings: ApiRaSettings;
 }
 
 const mockSigningProfiles = [
@@ -205,19 +200,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
     setIsLoadingRA(true);
     setErrorRA(null);
     try {
-        const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms/${raIdFromQuery}`, {
-            headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) {
-             let errorJson;
-             let errorMessage = `Failed to fetch RA details. HTTP error ${response.status}`;
-             try {
-                errorJson = await response.json();
-                errorMessage = `Failed to fetch RA details: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-             } catch (e) {/* ignore */}
-             throw new Error(errorMessage);
-        }
-        const data: ApiRaItem = await response.json();
+        const data = await fetchRaById(raIdFromQuery, user.access_token);
         setRaData(data);
     } catch (err: any) {
         setErrorRA(err.message);
@@ -387,9 +370,9 @@ export default function CreateOrEditRegistrationAuthorityPage() {
             : parseInt(serverKeygenSpec, 10);
         keySettings = { type: serverKeygenType, bits };
     }
-    const payload = {
+    const payload: RaCreationPayload = {
       name: raName.trim(),
-      id: isEditMode ? raIdFromQuery : raId.trim(),
+      id: isEditMode ? raIdFromQuery! : raId.trim(),
       metadata: {},
       settings: {
         enrollment_settings: {
@@ -398,9 +381,8 @@ export default function CreateOrEditRegistrationAuthorityPage() {
           enable_replaceable_enrollment: allowOverrideEnrollment,
           est_rfc7030_settings: estSettings,
           device_provisioning_profile: {
-            icon: selectedDeviceIconName,
+            icon: selectedDeviceIconName!,
             icon_color: `${selectedDeviceIconColor}-${selectedDeviceIconBgColor}`,
-            metadata: {},
             tags: tags,
           },
           registration_mode: registrationMode,
@@ -425,27 +407,8 @@ export default function CreateOrEditRegistrationAuthorityPage() {
       }
     };
     
-    const url = isEditMode
-        ? `${DMS_MANAGER_API_BASE_URL}/dms/${raIdFromQuery}`
-        : `${DMS_MANAGER_API_BASE_URL}/dms`;
-    const method = isEditMode ? 'PUT' : 'POST';
-
     try {
-        const response = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.access_token}` },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to ${isEditMode ? 'update' : 'create'} RA. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `RA ${isEditMode ? 'update' : 'creation'} failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-            } catch (e) { /* ignore */ }
-            throw new Error(errorMessage);
-        }
+        await createOrUpdateRa(payload, user.access_token, isEditMode, raIdFromQuery);
         
         toast({ title: "Success!", description: `Registration Authority "${raName}" ${isEditMode ? 'updated' : 'created'} successfully.` });
         router.push('/registration-authorities');

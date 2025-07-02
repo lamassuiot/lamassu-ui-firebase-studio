@@ -2,7 +2,7 @@
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from "./api-domains";
+import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -539,41 +539,6 @@ export interface CACertificateRequest {
     csr: string; // Base64 encoded PEM
 }
 
-export async function fetchCaRequests(params: URLSearchParams, accessToken: string): Promise<{ list: CACertificateRequest[]; next: string | null }> {
-  const response = await fetch(`${CA_API_BASE_URL}/cas/requests?${params.toString()}`, {
-    headers: { 'Authorization': `Bearer ${accessToken}` },
-  });
-
-  if (!response.ok) {
-    let errorJson;
-    let errorMessage = `Failed to fetch CA requests. Status: ${response.status}`;
-    try {
-      errorJson = await response.json();
-      errorMessage = `Failed to fetch requests: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-    } catch (e) { /* ignore */ }
-    throw new Error(errorMessage);
-  }
-  
-  return response.json();
-}
-
-export async function deleteCaRequest(requestId: string, accessToken: string): Promise<void> {
-  const response = await fetch(`${CA_API_BASE_URL}/cas/requests/${requestId}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${accessToken}` },
-  });
-
-  if (!response.ok) {
-    let errorJson;
-    let errorMessage = `Failed to delete request. Status: ${response.status}`;
-    try {
-      errorJson = await response.json();
-      errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-    } catch (e) { /* ignore */ }
-    throw new Error(errorMessage);
-  }
-}
-
 // Function and type for importing a CA
 export interface ImportCaPayload {
   request_id?: string;
@@ -831,14 +796,6 @@ export async function fetchCaStatsSummary(accessToken: string): Promise<CaStatsS
     if (!response.ok) {
         throw new Error('Failed to fetch CA stats');
     }
-    return response.json();
-}
-
-export async function fetchDmsStats(accessToken: string): Promise<{ total: number }> {
-    const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/stats`, { 
-        headers: { 'Authorization': `Bearer ${accessToken}` } 
-    });
-    if (!response.ok) throw new Error('Failed to fetch RA stats');
     return response.json();
 }
 

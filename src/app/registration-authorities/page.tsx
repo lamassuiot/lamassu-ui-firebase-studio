@@ -33,32 +33,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
+import { fetchRegistrationAuthorities, type ApiRaItem } from '@/lib/dms-api';
 
-// Define types based on the provided API response
-interface ApiRaDeviceProfile {
-  icon: string;
-  icon_color: string;
-  tags: string[];
-}
-interface ApiRaEnrollmentSettings {
-  registration_mode: string;
-  enrollment_ca: string;
-  device_provisioning_profile: ApiRaDeviceProfile;
-}
-interface ApiRaSettings {
-  enrollment_settings: ApiRaEnrollmentSettings;
-}
-interface ApiRaItem {
-  id: string;
-  name: string;
-  creation_ts: string;
-  settings: ApiRaSettings;
-}
-interface ApiRaListResponse {
-  next: string | null;
-  list: ApiRaItem[];
-}
 
 const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: React.ReactNode }> = ({ icon: Icon, label, value }) => (
     <div className="flex items-start space-x-2 py-1">
@@ -95,26 +71,13 @@ export default function RegistrationAuthoritiesPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [raResponse, casData, enginesData] = await Promise.all([
-        fetch(`${DMS_MANAGER_API_BASE_URL}/dms?page_size=15`, {
-          headers: { 'Authorization': `Bearer ${user.access_token}` },
-        }),
+      const [raData, casData, enginesData] = await Promise.all([
+        fetchRegistrationAuthorities(user.access_token),
         fetchAndProcessCAs(user.access_token),
         fetchCryptoEngines(user.access_token),
       ]);
 
-      if (!raResponse.ok) {
-         let errorJson;
-         let errorMessage = `Failed to fetch RAs. HTTP error ${raResponse.status}`;
-         try {
-           errorJson = await raResponse.json();
-           errorMessage = `Failed to fetch RAs: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-         } catch (e) { /* ignore json parsing error */ }
-         throw new Error(errorMessage);
-      }
-      const raData: ApiRaListResponse = await raResponse.json();
       setRas(raData.list || []);
-
       setAllCAs(casData);
       setAllCryptoEngines(enginesData);
 
