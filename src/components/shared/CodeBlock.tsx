@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -61,33 +60,33 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
   return (
     <div className={cn('space-y-1.5', className)}>
       {title && <Label className="text-sm font-semibold text-muted-foreground">{title}</Label>}
-      <div className="relative group">
-        <ScrollArea className="h-64 w-full rounded-md border bg-background">
-          <pre className="text-xs whitespace-pre-wrap break-all font-mono p-4">
+      <div className="flex items-start gap-2">
+        <ScrollArea className="h-28 w-full rounded-md border bg-background">
+          <pre className="text-xs whitespace-pre-wrap break-all font-mono p-3">
             <code>{content}</code>
           </pre>
         </ScrollArea>
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-            {showDownload && (
-                 <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={handleDownload}
-                    title="Download content"
-                >
-                    <Download className="h-4 w-4" />
-                </Button>
-            )}
+        <div className="flex flex-col gap-2">
+          {showDownload && (
             <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={handleCopy}
-                title="Copy to clipboard"
+              variant="outline"
+              size="icon"
+              onClick={handleDownload}
+              title="Download content"
+              className="h-8 w-8"
             >
-                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              <Download className="h-4 w-4" />
             </Button>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleCopy}
+            title="Copy to clipboard"
+            className="h-8 w-8"
+          >
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          </Button>
         </div>
       </div>
     </div>
