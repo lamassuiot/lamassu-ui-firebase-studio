@@ -5,20 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { DEV_MANAGER_API_BASE_URL } from '@/lib/api-domains';
-
-interface DeviceStats {
-    total: number;
-    status_distribution: {
-        ACTIVE: number;
-        DECOMMISSIONED: number;
-        EXPIRED: number;
-        EXPIRING_SOON: number;
-        NO_IDENTITY: number;
-        RENEWAL_PENDING: number;
-        REVOKED: number;
-    };
-}
+import { fetchDeviceStats, type DeviceStats } from '@/lib/devices-api';
 
 interface ChartData {
   name: string;
@@ -63,7 +50,7 @@ export function DeviceStatusChartCard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchDeviceStats = async () => {
+    const getDeviceStats = async () => {
       if (!isAuthenticated() || !user?.access_token) {
         if (!authLoading) setError("User not authenticated.");
         setIsLoading(false);
@@ -73,13 +60,7 @@ export function DeviceStatusChartCard() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/stats`, {
-          headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch device stats. Status: ${response.status}`);
-        }
-        const data: DeviceStats = await response.json();
+        const data = await fetchDeviceStats(user.access_token);
         
         setTotalDevices(data.total);
 
@@ -104,7 +85,7 @@ export function DeviceStatusChartCard() {
     };
     
     if(!authLoading) {
-      fetchDeviceStats();
+      getDeviceStats();
     }
   }, [user, isAuthenticated, authLoading]);
 

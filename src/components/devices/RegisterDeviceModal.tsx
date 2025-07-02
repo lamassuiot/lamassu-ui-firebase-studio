@@ -14,7 +14,8 @@ import { TagInput } from '@/components/shared/TagInput';
 import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { Separator } from '../ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
-import { DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
+import { DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
+import { registerDevice } from '@/lib/devices-api';
 
 // Re-defining RA types here to avoid complex imports, but ideally these would be shared
 interface ApiRaDeviceProfile {
@@ -145,6 +146,10 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
       });
       return;
     }
+    if (!user?.access_token) {
+      toast({ title: "Authentication Error", description: "Not authenticated.", variant: "destructive" });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -157,24 +162,7 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
         metadata: {},
       };
 
-      const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to register device. Status: ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Failed to register device: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
-        } catch (e) { /* ignore */ }
-        throw new Error(errorMessage);
-      }
+      await registerDevice(payload, user.access_token);
 
       toast({
         title: "Device Registered",

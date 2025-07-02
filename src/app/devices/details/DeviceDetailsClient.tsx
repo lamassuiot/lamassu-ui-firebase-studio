@@ -24,30 +24,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
 import { DecommissionDeviceModal } from '@/components/shared/DecommissionDeviceModal';
-import { DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
-
-
-interface ApiDeviceIdentity {
-  status: string;
-  active_version: number;
-  type: string;
-  versions: Record<string, string>; 
-  events?: Record<string, { type: string; description: string }>;
-}
-
-interface ApiDevice {
-  id: string;
-  tags: string[];
-  status: string; 
-  icon: string;
-  icon_color: string;
-  creation_timestamp: string;
-  metadata: Record<string, any>;
-  dms_owner: string;
-  identity: ApiDeviceIdentity | null;
-  slots: Record<string, any>;
-  events?: Record<string, { type: string; description: string }>;
-}
+import { DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
+import { fetchDeviceById, decommissionDevice, type ApiDevice, type ApiDeviceIdentity } from '@/lib/devices-api';
 
 interface CertificateHistoryEntry {
   version: string;
@@ -145,25 +123,7 @@ export default function DeviceDetailsClient() {
       setIsLoadingDevice(true);
       setErrorDevice(null);
       try {
-        const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices/${deviceId}`, {
-          headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) {
-          let errorJson;
-          let errorMessage = `Failed to fetch device details. HTTP error ${response.status}`;
-          try {
-            errorJson = await response.json();
-            if (errorJson && errorJson.err) {
-              errorMessage = `Failed to fetch device details: ${errorJson.err}`;
-            } else if (errorJson && errorJson.message) {
-              errorMessage = `Failed to fetch device details: ${errorJson.message}`;
-            }
-          } catch (e) {
-            console.error("Failed to parse error response as JSON for device details:", e);
-          }
-          throw new Error(errorMessage);
-        }
-        const data: ApiDevice = await response.json();
+        const data = await fetchDeviceById(deviceId, user.access_token);
         setDevice(data);
         
         if (data.identity?.versions) {
@@ -523,23 +483,7 @@ export default function DeviceDetailsClient() {
     }
     setIsDecommissioning(true);
     try {
-        const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices/${deviceId}/decommission`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${user.access_token}`
-            }
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to decommission device. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Failed to decommission device: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
-            } catch (e) { /* ignore json parse error */ }
-            throw new Error(errorMessage);
-        }
-
+        await decommissionDevice(deviceId, user.access_token);
         toast({
             title: "Success!",
             description: "Device has been successfully decommissioned.",
