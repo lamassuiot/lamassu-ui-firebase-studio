@@ -119,6 +119,7 @@ export default function KmsKeyDetailsClient() {
   // State for CSR Tab
   const [csrCommonName, setCsrCommonName] = useState('');
   const [csrOrganization, setCsrOrganization] = useState('');
+  const [csrSignAlgorithm, setCsrSignAlgorithm] = useState('');
   const [generatedCsr, setGeneratedCsr] = useState('');
   const [isGeneratingCsr, setIsGeneratingCsr] = useState(false);
 
@@ -181,14 +182,17 @@ export default function KmsKeyDetailsClient() {
         if (detailedKey.algorithm === 'RSA') {
           setSignAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
           setVerifyAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
+          setCsrSignAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
         } else if (detailedKey.algorithm === 'ECDSA') {
           setSignAlgorithm('ECDSA_SHA_256');
           setVerifyAlgorithm('ECDSA_SHA_256');
+          setCsrSignAlgorithm('ECDSA_SHA_256');
         } else if (detailedKey.algorithm === 'ML-DSA') {
           const defaultMlDsaAlgo = detailedKey.keySize === 'ML-DSA-44' ? 'ML-DSA-44' :
             detailedKey.keySize === 'ML-DSA-87' ? 'ML-DSA-87' : 'ML-DSA-65';
           setSignAlgorithm(defaultMlDsaAlgo);
           setVerifyAlgorithm(defaultMlDsaAlgo);
+          setCsrSignAlgorithm(defaultMlDsaAlgo);
         }
 
       } else {
@@ -335,6 +339,10 @@ export default function KmsKeyDetailsClient() {
       toast({ title: "CSR Generation Error", description: "Key details or authentication are missing.", variant: "destructive" });
       return;
     }
+    if (!csrSignAlgorithm) {
+      toast({ title: "CSR Generation Error", description: "A signature algorithm must be selected.", variant: "destructive" });
+      return;
+    }
 
     setIsGeneratingCsr(true);
     setGeneratedCsr('');
@@ -373,8 +381,13 @@ export default function KmsKeyDetailsClient() {
 
       await pkcs10.subjectPublicKeyInfo.importKey(publicKey!);
 
+      const signatureOid = SIGNATURE_OID_MAP[csrSignAlgorithm];
+      if (!signatureOid) {
+        throw new Error(`Unsupported signature algorithm for CSR: ${csrSignAlgorithm}`);
+      }
+
       pkcs10.signatureAlgorithm = new AlgorithmIdentifier({
-        algorithmId: "1.2.840.10045.4.3.2", // ECDSA with SHA-256
+        algorithmId: signatureOid,
       });
 
       const tbs = pkcs10.encodeTBS().toBER(false);
@@ -382,16 +395,14 @@ export default function KmsKeyDetailsClient() {
 
       const tbsB64 = arrayBufferToBase64(tbs);
 
-      const kmsSignAlgorithm = 'ECDSA_SHA_256'
       const signPayload = {
-          algorithm: kmsSignAlgorithm,
+          algorithm: csrSignAlgorithm,
           message: tbsB64,
           message_type: "raw"
       };
 
       const signResult = await signWithKmsKey(keyDetails.id, signPayload, user.access_token);
       
-      // Fixed code
       const signatureBase64 = signResult.signature;
       const rawSignature = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0));
 
@@ -668,6 +679,21 @@ export default function KmsKeyDetailsClient() {
                 <div>
                   <Label htmlFor="csrOrganization">Organization (O)</Label>
                   <Input id="csrOrganization" value={csrOrganization} onChange={e => setCsrOrganization(e.target.value)} placeholder="e.g., LamassuIoT Corp" />
+                </div>
+                <div>
+                  <Label htmlFor="csrSignAlgorithm">Signature Algorithm</Label>
+                  <Select value={csrSignAlgorithm} onValueChange={setCsrSignAlgorithm} disabled={isGeneratingCsr}>
+                      <SelectTrigger id="csrSignAlgorithm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                      {signatureAlgorithms.map(algo => (
+                          <SelectItem key={algo} value={algo} disabled={
+                          (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                          (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                          (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                          }>{algo}</SelectItem>
+                      ))}
+                      </SelectContent>
+                  </Select>
                 </div>
                 <Button onClick={handleGenerateCsr} className="w-full sm:w-auto" disabled={isGeneratingCsr}>
                   {isGeneratingCsr && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
