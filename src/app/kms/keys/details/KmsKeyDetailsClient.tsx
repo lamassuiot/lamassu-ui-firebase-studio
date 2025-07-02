@@ -25,6 +25,7 @@ import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
 import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
 import { fetchCryptoEngines, fetchKmsKeys, signWithKmsKey, type ApiKmsKey } from '@/lib/ca-data';
+import { CodeBlock } from '@/components/shared/CodeBlock';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -481,8 +482,7 @@ export default function KmsKeyDetailsClient() {
           <TabsList className="mb-6">
             <TabsTrigger value="overview"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Overview</TabsTrigger>
             <TabsTrigger value="public-key"><FileText className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Public Key</TabsTrigger>
-            <TabsTrigger value="sign" disabled={!keyDetails.hasPrivateKey}><PenTool className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Sign</TabsTrigger>
-            <TabsTrigger value="verify"><ShieldCheck className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Verify</TabsTrigger>
+            <TabsTrigger value="sign-verify" disabled={!keyDetails.hasPrivateKey}><PenTool className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Sign / Verify</TabsTrigger>
             <TabsTrigger value="generate-csr" disabled={!keyDetails.hasPrivateKey}><FileSignature className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Generate CSR</TabsTrigger>
           </TabsList>
 
@@ -523,133 +523,135 @@ export default function KmsKeyDetailsClient() {
             />
           </TabsContent>
 
-          <TabsContent value="sign">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center"><PenTool className="mr-2 h-5 w-5 text-primary" />Sign Data</CardTitle>
-                <CardDescription>Perform cryptographic sign operations using this key.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="signAlgorithm">Algorithm</Label>
-                        <Select value={signAlgorithm} onValueChange={setSignAlgorithm} disabled={isSigning}>
-                            <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                            {signatureAlgorithms.map(algo => (
-                                <SelectItem key={algo} value={algo} disabled={
-                                (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                                (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                                (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                                }>{algo}</SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label htmlFor="signMessageType">Message Type</Label>
-                        <Select value={signMessageType} onValueChange={setSignMessageType} disabled={isSigning}>
-                            <SelectTrigger id="signMessageType"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                            <SelectItem value="RAW">Raw</SelectItem>
-                            <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
+          <TabsContent value="sign-verify">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center"><PenTool className="mr-2 h-5 w-5 text-primary" />Sign Data</CardTitle>
+                        <CardDescription>Perform cryptographic sign operations using this key.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="signAlgorithm">Algorithm</Label>
+                                <Select value={signAlgorithm} onValueChange={setSignAlgorithm} disabled={isSigning}>
+                                    <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                    {signatureAlgorithms.map(algo => (
+                                        <SelectItem key={algo} value={algo} disabled={
+                                        (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                                        (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                                        (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                                        }>{algo}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="signMessageType">Message Type</Label>
+                                <Select value={signMessageType} onValueChange={setSignMessageType} disabled={isSigning}>
+                                    <SelectTrigger id="signMessageType"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                    <SelectItem value="RAW">Raw</SelectItem>
+                                    <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
-                    <div>
-                        <Label htmlFor="payloadToSign">Payload to Sign</Label>
-                        <Textarea id="payloadToSign" value={payloadToSign} onChange={e => setPayloadToSign(e.target.value)} placeholder="Enter data to be signed..." rows={4} disabled={isSigning} />
-                    </div>
-                     <div>
-                        <Label htmlFor="signPayloadEncoding">Payload Encoding</Label>
-                        <Select value={signPayloadEncoding} onValueChange={v => setSignPayloadEncoding(v as any)} disabled={isSigning}>
-                            <SelectTrigger id="signPayloadEncoding"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="BASE64">Base64</SelectItem>
-                                <SelectItem value="PLAIN_TEXT">Plain Text (UTF-8)</SelectItem>
-                                <SelectItem value="HEX">Hexadecimal</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
+                            <div>
+                                <Label htmlFor="payloadToSign">Payload to Sign</Label>
+                                <Textarea id="payloadToSign" value={payloadToSign} onChange={e => setPayloadToSign(e.target.value)} placeholder="Enter data to be signed..." rows={4} disabled={isSigning} />
+                            </div>
+                            <div>
+                                <Label htmlFor="signPayloadEncoding">Payload Encoding</Label>
+                                <Select value={signPayloadEncoding} onValueChange={v => setSignPayloadEncoding(v as any)} disabled={isSigning}>
+                                    <SelectTrigger id="signPayloadEncoding"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="BASE64">Base64</SelectItem>
+                                        <SelectItem value="PLAIN_TEXT">Plain Text (UTF-8)</SelectItem>
+                                        <SelectItem value="HEX">Hexadecimal</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
 
-                <Button onClick={handleSign} className="w-full sm:w-auto" disabled={isSigning}>
-                  {isSigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isSigning ? 'Signing...' : 'Sign'}
-                </Button>
-                {generatedSignature && (
-                  <div>
-                    <Label htmlFor="generatedSignature">Generated Signature (Base64)</Label>
-                    <Textarea id="generatedSignature" value={generatedSignature} readOnly rows={3} className="font-mono bg-muted/50" />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                        <Button onClick={handleSign} className="w-full sm:w-auto" disabled={isSigning}>
+                        {isSigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isSigning ? 'Signing...' : 'Sign'}
+                        </Button>
+                        {generatedSignature && (
+                          <CodeBlock
+                            content={generatedSignature}
+                            title="Generated Signature (Base64)"
+                            showDownload={true}
+                            downloadFilename="signature.sig"
+                            downloadMimeType="text/plain"
+                          />
+                        )}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center"><ShieldCheck className="mr-2 h-5 w-5 text-primary" />Verify Signature</CardTitle>
+                        <CardDescription>Verify a signature using this key's public component. (Mock)</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="verifyAlgorithm">Algorithm</Label>
+                                <Select value={verifyAlgorithm} onValueChange={setVerifyAlgorithm}>
+                                    <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                    {signatureAlgorithms.map(algo => (
+                                        <SelectItem key={algo} value={algo} disabled={
+                                        (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
+                                        (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
+                                        (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
+                                        }>{algo}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="verifyMessageType">Message Type</Label>
+                                <Select value={verifyMessageType} onValueChange={setVerifyMessageType}>
+                                    <SelectTrigger id="verifyMessageType"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                    <SelectItem value="RAW">Raw</SelectItem>
+                                    <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
+                            <div>
+                                <Label htmlFor="unsignedPayload">Unsigned Payload</Label>
+                                <Textarea id="unsignedPayload" value={unsignedPayload} onChange={e => setUnsignedPayload(e.target.value)} placeholder="Enter the original unsigned data..." rows={3} />
+                            </div>
+                            <div>
+                                <Label htmlFor="verifyPayloadEncoding">Payload Encoding</Label>
+                                <Select value={verifyPayloadEncoding} onValueChange={setVerifyPayloadEncoding}>
+                                    <SelectTrigger id="verifyPayloadEncoding"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="PLAIN_TEXT">Plain Text (UTF-8)</SelectItem>
+                                        <SelectItem value="BASE64">Base64</SelectItem>
+                                        <SelectItem value="HEX">Hexadecimal</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
 
-          <TabsContent value="verify">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center"><ShieldCheck className="mr-2 h-5 w-5 text-primary" />Verify Signature</CardTitle>
-                <CardDescription>Perform cryptographic verify operations using this key's public component. (Mock functionality)</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="verifyAlgorithm">Algorithm</Label>
-                        <Select value={verifyAlgorithm} onValueChange={setVerifyAlgorithm}>
-                            <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                            {signatureAlgorithms.map(algo => (
-                                <SelectItem key={algo} value={algo} disabled={
-                                (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                                (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                                (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                                }>{algo}</SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label htmlFor="verifyMessageType">Message Type</Label>
-                        <Select value={verifyMessageType} onValueChange={setVerifyMessageType}>
-                            <SelectTrigger id="verifyMessageType"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                            <SelectItem value="RAW">Raw</SelectItem>
-                            <SelectItem value="DIGEST">Digest (pre-hashed)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
-                    <div>
-                        <Label htmlFor="unsignedPayload">Unsigned Payload</Label>
-                        <Textarea id="unsignedPayload" value={unsignedPayload} onChange={e => setUnsignedPayload(e.target.value)} placeholder="Enter the original unsigned data..." rows={3} />
-                    </div>
-                    <div>
-                        <Label htmlFor="verifyPayloadEncoding">Payload Encoding</Label>
-                        <Select value={verifyPayloadEncoding} onValueChange={setVerifyPayloadEncoding}>
-                            <SelectTrigger id="verifyPayloadEncoding"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="PLAIN_TEXT">Plain Text (UTF-8)</SelectItem>
-                                <SelectItem value="BASE64">Base64</SelectItem>
-                                <SelectItem value="HEX">Hexadecimal</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="signatureToVerify">Signature (Base64)</Label>
-                  <Textarea id="signatureToVerify" value={signatureToVerify} onChange={e => setSignatureToVerify(e.target.value)} placeholder="Enter the signature to verify..." rows={3} className="font-mono" />
-                </div>
-                <Button onClick={handleVerify} className="w-full sm:w-auto">Verify</Button>
-              </CardContent>
-            </Card>
+                        <div>
+                        <Label htmlFor="signatureToVerify">Signature (Base64)</Label>
+                        <Textarea id="signatureToVerify" value={signatureToVerify} onChange={e => setSignatureToVerify(e.target.value)} placeholder="Enter the signature to verify..." rows={3} className="font-mono" />
+                        </div>
+                        <Button onClick={handleVerify} className="w-full sm:w-auto">Verify</Button>
+                    </CardContent>
+                </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="generate-csr">
