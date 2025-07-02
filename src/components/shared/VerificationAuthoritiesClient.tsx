@@ -17,7 +17,6 @@ import { CertificateSelectorModal } from '@/components/shared/CertificateSelecto
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { useToast } from '@/hooks/use-toast';
-import { VA_API_BASE_URL, VA_CORE_API_BASE_URL } from '@/lib/api-domains';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { format, parseISO } from 'date-fns';
