@@ -26,6 +26,7 @@ import * as pkijs from 'pkijs';
 import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
 import { fetchCryptoEngines, fetchKmsKeys, signWithKmsKey, verifyWithKmsKey, type ApiKmsKey } from '@/lib/ca-data';
 import { CodeBlock } from '@/components/shared/CodeBlock';
+import { KeyStrengthIndicator } from '@/components/shared/KeyStrengthIndicator';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -537,7 +538,15 @@ export default function KmsKeyDetailsClient() {
                 })()}
 
                 <DetailItem label="Key Type" value={keyDetails.algorithm} />
-                <DetailItem label="Specification" value={keyDetails.keyTypeDisplay} />
+                <DetailItem
+                  label="Specification"
+                  value={
+                    <div className="flex items-center gap-4">
+                      <span>{keyDetails.keyTypeDisplay}</span>
+                      <KeyStrengthIndicator algorithm={keyDetails.algorithm} size={keyDetails.keySize} />
+                    </div>
+                  }
+                />
                 <DetailItem label="Private Key Accessible" value={keyDetails.hasPrivateKey ? "Yes" : "No (Public Key Only)"} />
               </CardContent>
             </Card>

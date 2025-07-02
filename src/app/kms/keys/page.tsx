@@ -17,13 +17,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchCryptoEngines, fetchKmsKeys } from '@/lib/ca-data';
-
+import { KeyStrengthIndicator } from '@/components/shared/KeyStrengthIndicator';
 
 interface ApiKmsKey {
   id: string;
   algorithm: string;
   size: string;
-  publicKey: string;
+  public_key: string;
 }
 
 interface KmsKey {
@@ -32,6 +32,8 @@ interface KmsKey {
   keyTypeDisplay: string;
   hasPrivateKey: boolean;
   cryptoEngineId?: string;
+  algorithm: string;
+  size: string;
 }
 
 export default function KmsKeysPage() {
@@ -75,7 +77,9 @@ export default function KmsKeysPage() {
             alias: apiKey.id,
             keyTypeDisplay: `${apiKey.algorithm} ${apiKey.size}`,
             hasPrivateKey: apiKey.id.includes('type=private'),
-            cryptoEngineId: engineId
+            cryptoEngineId: engineId,
+            algorithm: apiKey.algorithm,
+            size: apiKey.size,
         };
       });
 
@@ -163,6 +167,7 @@ export default function KmsKeysPage() {
               <TableRow>
                 <TableHead>Alias</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Strength</TableHead>
                 <TableHead><div className="flex items-center"><Cpu className="mr-1.5 h-4 w-4 text-muted-foreground"/>Crypto Engine</div></TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -176,6 +181,9 @@ export default function KmsKeysPage() {
                       <p className="truncate max-w-[250px] sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl" title={key.alias}>{key.alias}</p>
                     </TableCell>
                     <TableCell>{key.keyTypeDisplay}</TableCell>
+                    <TableCell>
+                      <KeyStrengthIndicator algorithm={key.algorithm} size={key.size} />
+                    </TableCell>
                     <TableCell>
                       {engine ? (
                         <CryptoEngineViewer engine={engine} />
