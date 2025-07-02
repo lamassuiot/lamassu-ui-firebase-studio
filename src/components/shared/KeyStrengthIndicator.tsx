@@ -10,10 +10,11 @@ interface KeyStrengthIndicatorProps {
   size?: string | number;
 }
 
+// Updated to a 3-level system
 const STRENGTH_LEVELS = {
   WEAK: { level: 1, color: 'bg-red-500', label: 'Weak' },
-  MEDIUM: { level: 3, color: 'bg-yellow-400', label: 'Medium' },
-  STRONG: { level: 5, color: 'bg-green-500', label: 'Strong' },
+  MEDIUM: { level: 2, color: 'bg-yellow-400', label: 'Medium' },
+  STRONG: { level: 3, color: 'bg-green-500', label: 'Strong' },
 };
 
 const getStrengthDetails = (algorithm?: string, size?: string | number) => {
@@ -31,8 +32,8 @@ const getStrengthDetails = (algorithm?: string, size?: string | number) => {
     return STRENGTH_LEVELS.STRONG;
   }
   if (algo === 'ML-DSA') {
-    if (s.includes('44')) return STRENGTH_LEVELS.MEDIUM; // Level 2
-    return STRENGTH_LEVELS.STRONG; // Level 5
+    if (s.includes('44')) return STRENGTH_LEVELS.MEDIUM; // Corresponds to NIST Level 2
+    return STRENGTH_LEVELS.STRONG; // Corresponds to NIST Level 5
   }
 
   // Default for unknown or other types
@@ -46,8 +47,9 @@ export const KeyStrengthIndicator: React.FC<KeyStrengthIndicatorProps> = ({ algo
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
+          {/* Changed to render 3 bars */}
           <div className="flex items-center gap-1" aria-label={`Key strength: ${label}`}>
-            {Array.from({ length: 5 }).map((_, index) => (
+            {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={index}
                 className={cn(
