@@ -754,6 +754,30 @@ export async function signWithKmsKey(keyId: string, payload: any, accessToken: s
     return result;
 }
 
+export async function verifyWithKmsKey(keyId: string, payload: any, accessToken: string): Promise<{ valid: boolean }> {
+    const response = await fetch(`${CA_API_BASE_URL}/kms/keys/${encodeURIComponent(keyId)}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Verification failed with status ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Verification failed: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+        } catch(e) { /* ignore json parse error */ }
+        throw new Error(errorMessage);
+    }
+
+    return response.json();
+}
+
+
 export async function createKmsKey(payload: any, accessToken: string): Promise<void> {
     const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
         method: 'POST',

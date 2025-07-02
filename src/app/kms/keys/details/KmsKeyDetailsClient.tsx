@@ -24,7 +24,7 @@ import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
 import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
-import { fetchCryptoEngines, fetchKmsKeys, signWithKmsKey, type ApiKmsKey } from '@/lib/ca-data';
+import { fetchCryptoEngines, fetchKmsKeys, signWithKmsKey, verifyWithKmsKey, type ApiKmsKey } from '@/lib/ca-data';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 
 // --- Helper Functions ---
@@ -110,6 +110,7 @@ export default function KmsKeyDetailsClient() {
   const [generatedSignature, setGeneratedSignature] = useState('');
 
   // State for Verify Tab
+  const [isVerifying, setIsVerifying] = useState(false);
   const [verifyAlgorithm, setVerifyAlgorithm] = useState(signatureAlgorithms[3]);
   const [verifyMessageType, setVerifyMessageType] = useState('RAW');
   const [verifyPayloadEncoding, setVerifyPayloadEncoding] = useState('PLAIN_TEXT');
@@ -268,42 +269,58 @@ export default function KmsKeyDetailsClient() {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (!unsignedPayload || !signatureToVerify) {
       toast({ title: "Verify Error", description: "Unsigned payload and signature cannot be empty.", variant: "destructive" });
       return;
     }
-
-    let encodedUnsignedPayload: string;
-    if (verifyPayloadEncoding === 'HEX') {
-        try {
-            const hex = unsignedPayload.replace(/\s/g, '');
-             if (hex.length % 2 !== 0) throw new Error("Invalid hex string length.");
-            const buffer = new Uint8Array(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))).buffer;
-            encodedUnsignedPayload = arrayBufferToBase64(buffer);
-        } catch(e) {
-            toast({ title: "Encoding Error", description: "Invalid hexadecimal string for payload.", variant: "destructive" });
-            return;
-        }
-    } else if (verifyPayloadEncoding === 'BASE64') {
-        encodedUnsignedPayload = unsignedPayload;
-    } else { // PLAIN_TEXT
-        encodedUnsignedPayload = btoa(unsignedPayload);
+    if (!keyId || !user?.access_token) {
+        toast({ title: "Verify Error", description: "Key ID or user authentication is missing.", variant: "destructive" });
+        return;
     }
 
-    console.log("Mock Verify with encoded payload:", {
-      verifyAlgorithm,
-      verifyMessageType,
-      unsignedPayload: encodedUnsignedPayload,
-      signatureToVerify,
-    });
+    setIsVerifying(true);
 
-    const isValid = Math.random() > 0.3; // Existing mock logic
-    toast({
-      title: "Mock Verify Result",
-      description: `Signature is ${isValid ? 'VALID' : 'INVALID'} (mock). Payload was encoded to Base64.`,
-      variant: isValid ? "default" : "destructive",
-    });
+    try {
+      let encodedUnsignedPayload: string;
+      if (verifyPayloadEncoding === 'HEX') {
+          try {
+              const hex = unsignedPayload.replace(/\s/g, '');
+               if (hex.length % 2 !== 0) throw new Error("Invalid hex string length.");
+              const buffer = new Uint8Array(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))).buffer;
+              encodedUnsignedPayload = arrayBufferToBase64(buffer);
+          } catch(e) {
+              toast({ title: "Encoding Error", description: "Invalid hexadecimal string for payload.", variant: "destructive" });
+              setIsVerifying(false);
+              return;
+          }
+      } else if (verifyPayloadEncoding === 'BASE64') {
+          encodedUnsignedPayload = unsignedPayload;
+      } else { // PLAIN_TEXT
+          encodedUnsignedPayload = btoa(unsignedPayload);
+      }
+
+      const payload = {
+          algorithm: verifyAlgorithm,
+          message: encodedUnsignedPayload,
+          message_type: verifyMessageType.toLowerCase(),
+          signature: signatureToVerify,
+      };
+
+      const result = await verifyWithKmsKey(keyId, payload, user.access_token);
+      
+      toast({
+          title: "Verification Result",
+          description: `Signature is ${result.valid ? 'VALID' : 'INVALID'}.`,
+          variant: result.valid ? "default" : "destructive",
+      });
+
+    } catch(error: any) {
+      console.error("Verification Error:", error);
+      toast({ title: "Verification Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
 
@@ -606,13 +623,13 @@ export default function KmsKeyDetailsClient() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center"><ShieldCheck className="mr-2 h-5 w-5 text-primary" />Verify Signature</CardTitle>
-                        <CardDescription>Verify a signature using this key's public component. (Mock)</CardDescription>
+                        <CardDescription>Verify a signature using this key's public component.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="verifyAlgorithm">Algorithm</Label>
-                                <Select value={verifyAlgorithm} onValueChange={setVerifyAlgorithm}>
+                                <Select value={verifyAlgorithm} onValueChange={setVerifyAlgorithm} disabled={isVerifying}>
                                     <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                     {signatureAlgorithms.map(algo => (
@@ -627,7 +644,7 @@ export default function KmsKeyDetailsClient() {
                             </div>
                             <div>
                                 <Label htmlFor="verifyMessageType">Message Type</Label>
-                                <Select value={verifyMessageType} onValueChange={setVerifyMessageType}>
+                                <Select value={verifyMessageType} onValueChange={setVerifyMessageType} disabled={isVerifying}>
                                     <SelectTrigger id="verifyMessageType"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                     <SelectItem value="RAW">Raw</SelectItem>
@@ -640,11 +657,11 @@ export default function KmsKeyDetailsClient() {
                         <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
                             <div>
                                 <Label htmlFor="unsignedPayload">Unsigned Payload</Label>
-                                <Textarea id="unsignedPayload" value={unsignedPayload} onChange={e => setUnsignedPayload(e.target.value)} placeholder="Enter the original unsigned data..." rows={3} />
+                                <Textarea id="unsignedPayload" value={unsignedPayload} onChange={e => setUnsignedPayload(e.target.value)} placeholder="Enter the original unsigned data..." rows={3} disabled={isVerifying} />
                             </div>
                             <div>
                                 <Label htmlFor="verifyPayloadEncoding">Payload Encoding</Label>
-                                <Select value={verifyPayloadEncoding} onValueChange={setVerifyPayloadEncoding}>
+                                <Select value={verifyPayloadEncoding} onValueChange={setVerifyPayloadEncoding} disabled={isVerifying}>
                                     <SelectTrigger id="verifyPayloadEncoding"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="PLAIN_TEXT">Plain Text (UTF-8)</SelectItem>
@@ -657,9 +674,12 @@ export default function KmsKeyDetailsClient() {
 
                         <div>
                         <Label htmlFor="signatureToVerify">Signature (Base64)</Label>
-                        <Textarea id="signatureToVerify" value={signatureToVerify} onChange={e => setSignatureToVerify(e.target.value)} placeholder="Enter the signature to verify..." rows={3} className="font-mono" />
+                        <Textarea id="signatureToVerify" value={signatureToVerify} onChange={e => setSignatureToVerify(e.target.value)} placeholder="Enter the signature to verify..." rows={3} className="font-mono" disabled={isVerifying} />
                         </div>
-                        <Button onClick={handleVerify} className="w-full sm:w-auto">Verify</Button>
+                        <Button onClick={handleVerify} className="w-full sm:w-auto" disabled={isVerifying}>
+                            {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Verify
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
