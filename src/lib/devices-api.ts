@@ -1,5 +1,5 @@
 // src/lib/devices-api.ts
-import { DEV_MANAGER_API_BASE_URL } from './api-domains';
+import { DEV_MANAGER_API_BASE_URL, handleApiError } from './api-domains';
 
 // Interfaces based on usage in components
 export interface ApiDeviceIdentity {
@@ -41,24 +41,6 @@ export interface DeviceStats {
         REVOKED: number;
     };
 }
-
-
-const handleApiError = async (response: Response, defaultMessage: string) => {
-    if (!response.ok) {
-        let errorJson;
-        let errorMessage = `${defaultMessage}. HTTP error ${response.status}`;
-        try {
-            errorJson = await response.json();
-            if (errorJson && (errorJson.err || errorJson.message)) {
-                errorMessage = `${defaultMessage}: ${errorJson.err || errorJson.message}`;
-            }
-        } catch (e) {
-            console.error("Failed to parse error response as JSON:", e);
-        }
-        throw new Error(errorMessage);
-    }
-    return response.json();
-};
 
 export async function fetchDevices(accessToken: string, params: URLSearchParams): Promise<ApiResponse> {
     const url = `${DEV_MANAGER_API_BASE_URL}/devices?${params.toString()}`;

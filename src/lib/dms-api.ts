@@ -1,6 +1,6 @@
 // src/lib/dms-api.ts
 
-import { DMS_MANAGER_API_BASE_URL } from './api-domains';
+import { DMS_MANAGER_API_BASE_URL, handleApiError } from './api-domains';
 import type { CA } from './ca-data';
 
 // --- Interfaces ---
@@ -80,23 +80,6 @@ export interface RaCreationPayload {
 }
 
 // --- API Functions ---
-
-const handleApiError = async (response: Response, defaultMessage: string) => {
-    if (!response.ok) {
-        let errorJson;
-        let errorMessage = `${defaultMessage}. HTTP error ${response.status}`;
-        try {
-            errorJson = await response.json();
-            if (errorJson && (errorJson.err || errorJson.message)) {
-                errorMessage = `${defaultMessage}: ${errorJson.err || errorJson.message}`;
-            }
-        } catch (e) {
-            console.error("Failed to parse error response as JSON:", e);
-        }
-        throw new Error(errorMessage);
-    }
-    return response.json();
-};
 
 export async function fetchRegistrationAuthorities(accessToken: string): Promise<ApiRaListResponse> {
     const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms?page_size=15`, {
