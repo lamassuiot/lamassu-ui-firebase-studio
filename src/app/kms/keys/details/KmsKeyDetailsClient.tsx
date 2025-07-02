@@ -488,10 +488,15 @@ export default function KmsKeyDetailsClient() {
       const signatureBase64 = signResult.signature;
       const rawSignature = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0));
 
-      // Convert raw ECDSA signature (r||s) to ASN.1 DER encoded format
-      const derEncodedSignature = rawEcdsaSigToDer(rawSignature);
 
-      pkcs10.signatureValue = new asn1js.BitString({ valueHex: derEncodedSignature });
+      if (!csrSignAlgorithm.startsWith('RSA')) {
+        // Convert raw ECDSA signature (r||s) to ASN.1 DER encoded format
+        const derEncodedSignature = rawEcdsaSigToDer(rawSignature);
+        pkcs10.signatureValue = new asn1js.BitString({ valueHex: derEncodedSignature });
+      } else {
+        // For RSA, we can directly use the raw signature as DER
+        pkcs10.signatureValue = new asn1js.BitString({ valueHex: rawSignature });
+      }
 
       const finalCsrDer = pkcs10.toSchema().toBER(false);
       const finalCsrPem = formatAsPem(arrayBufferToBase64(finalCsrDer), 'CERTIFICATE REQUEST');
