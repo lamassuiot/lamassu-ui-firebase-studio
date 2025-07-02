@@ -17,8 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
-import { importCa, type ImportCaPayload } from '@/lib/ca-data';
-import { CA_API_BASE_URL } from '@/lib/api-domains';
+import { importCa, type ImportCaPayload, fetchCaRequestById } from '@/lib/ca-data';
 
 // --- Type Definitions ---
 interface Subject { common_name: string; }
@@ -84,18 +83,8 @@ export default function ApproveCaRequestPage() {
     setIsLoadingRequest(true);
     setErrorRequest(null);
     try {
-        const response = await fetch(`${CA_API_BASE_URL}/cas/requests?filter=id[equal]${requestIdFromUrl}`, {
-            headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) throw new Error("Failed to fetch CA request details.");
-        const data = await response.json();
-        const foundRequest = data.list && data.list[0];
-
-        if (foundRequest) {
-          setRequest(foundRequest);
-        } else {
-          throw new Error(`CA Request with ID "${requestIdFromUrl}" not found or is not pending.`);
-        }
+        const foundRequest = await fetchCaRequestById(requestIdFromUrl, user.access_token);
+        setRequest(foundRequest);
     } catch (e: any) {
         setErrorRequest(e.message || "An unknown error occurred.");
     } finally {

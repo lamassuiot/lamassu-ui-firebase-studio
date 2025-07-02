@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, fetchAndProcessCAs, fetchCryptoEngines, updateCaMetadata } from '@/lib/ca-data';
+import { findCaById, fetchAndProcessCAs, fetchCryptoEngines, updateCaMetadata, fetchCaStats, revokeCa, deleteCa } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
@@ -27,7 +27,6 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CaStatsDisplay } from '@/components/ca/details/CaStatsDisplay';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import { IssuedCertificatesTab } from '@/components/ca/details/IssuedCertificatesTab';
-import { CA_API_BASE_URL } from '@/lib/api-domains';
 
 
 interface CaStats {
@@ -139,18 +138,7 @@ export default function CertificateAuthorityDetailsClient() {
     setIsLoadingStats(true);
     setErrorStats(null);
     try {
-      const response = await fetch(`${CA_API_BASE_URL}/stats/${caId}`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-      });
-      if (!response.ok) {
-        let errorBody = 'Request failed.';
-        try {
-            const errJson = await response.json();
-            errorBody = errJson.err || errJson.message || errorBody;
-        } catch(e) { /* Ignore parsing error */ }
-        throw new Error(`Failed to fetch CA statistics: ${errorBody} (Status: ${response.status})`);
-      }
-      const data: CaStats = await response.json();
+      const data = await fetchCaStats(caId, accessToken);
       setCaStats(data);
     } catch (err: any) {
       setErrorStats(err.message);
@@ -204,28 +192,7 @@ export default function CertificateAuthorityDetailsClient() {
     setIsRevocationModalOpen(false); // Close modal immediately
 
     try {
-        const response = await fetch(`${CA_API_BASE_URL}/cas/${caToRevoke.id}/status`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.access_token}`,
-            },
-            body: JSON.stringify({
-                status: 'REVOKED',
-                revocation_reason: reason,
-            }),
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to revoke CA. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-            } catch (e) { /* ignore json parse error */ }
-            throw new Error(errorMessage);
-        }
-
+        await revokeCa(caToRevoke.id, reason, user.access_token);
         // Success
         setCaDetails(prev => prev ? { ...prev, status: 'revoked' } : null);
         toast({
@@ -263,23 +230,7 @@ export default function CertificateAuthorityDetailsClient() {
     setIsDeleteModalOpen(false); // Close modal immediately
 
     try {
-        const response = await fetch(`${CA_API_BASE_URL}/cas/${caToDelete.id}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${user.access_token}`,
-            },
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to delete CA. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-            } catch (e) { /* ignore json parse error */ }
-            throw new Error(errorMessage);
-        }
-
+        await deleteCa(caToDelete.id, user.access_token);
         toast({
             title: "CA Deleted",
             description: `CA "${caToDelete.name}" has been permanently deleted.`,

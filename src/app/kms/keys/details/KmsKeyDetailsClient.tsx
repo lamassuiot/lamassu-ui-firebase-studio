@@ -24,8 +24,7 @@ import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
 import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier } from 'pkijs';
-import { fetchCryptoEngines } from '@/lib/ca-data';
-import { CA_API_BASE_URL } from '@/lib/api-domains';
+import { fetchCryptoEngines, fetchKmsKeys, signWithKmsKey, type ApiKmsKey } from '@/lib/ca-data';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -58,13 +57,6 @@ const SIGNATURE_OID_MAP: Record<string, string> = {
   "ML-DSA-65": "1.3.6.1.4.1.2.267.7.6.5", // Example OID for Dilithium3
   "ML-DSA-87": "1.3.6.1.4.1.2.267.7.8.7", // Example OID for Dilithium5
 };
-
-interface ApiKmsKey {
-  id: string;
-  algorithm: string;
-  size: string;
-  public_key: string;
-}
 
 interface KmsKeyDetailed {
   id: string;
@@ -148,16 +140,13 @@ export default function KmsKeyDetailsClient() {
     setError(null);
 
     try {
-      const [keysResponse, allEnginesData] = await Promise.all([
-        fetch(`${CA_API_BASE_URL}/kms/keys`, { headers: { 'Authorization': `Bearer ${user.access_token}` } }),
+      const [allKeys, allEnginesData] = await Promise.all([
+        fetchKmsKeys(user.access_token),
         fetchCryptoEngines(user.access_token)
       ]);
 
-      if (!keysResponse.ok) throw new Error(`Failed to fetch keys. HTTP Status: ${keysResponse.status}`);
-
       setAllCryptoEngines(allEnginesData);
 
-      const allKeys: ApiKmsKey[] = await keysResponse.json();
       const apiKey = allKeys.find(k => k.id === keyId);
 
       if (apiKey) {
@@ -256,21 +245,8 @@ export default function KmsKeyDetailsClient() {
         message_type: signMessageType.toLowerCase(),
       };
 
-      const response = await fetch(`${CA_API_BASE_URL}/kms/keys/${encodeURIComponent(keyId)}/sign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.err || result.message || `Signing failed with status ${response.status}`);
-      }
-
+      const result = await signWithKmsKey(keyId, payload, user.access_token);
+      
       if (!result.signature) {
         throw new Error("Signature not found in the API response.");
       }
@@ -406,19 +382,14 @@ export default function KmsKeyDetailsClient() {
       const tbsB64 = arrayBufferToBase64(tbs);
 
       const kmsSignAlgorithm = 'ECDSA_SHA_256'
-      const signResponse = await fetch(`${CA_API_BASE_URL}/kms/keys/${encodeURIComponent(keyDetails.id)}/sign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.access_token}` },
-        body: JSON.stringify({
+      const signPayload = {
           algorithm: kmsSignAlgorithm,
           message: tbsB64,
           message_type: "raw"
-        })
-      });
+      };
 
-      const signResult = await signResponse.json();
-      if (!signResponse.ok) throw new Error(signResult.err || signResult.message || 'Failed to sign CSR data via KMS.');
-
+      const signResult = await signWithKmsKey(keyDetails.id, signPayload, user.access_token);
+      
       // Fixed code
       const signatureBase64 = signResult.signature;
       const rawSignature = Uint8Array.from(atob(signatureBase64), c => c.charCodeAt(0));

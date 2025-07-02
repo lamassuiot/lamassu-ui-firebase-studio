@@ -35,30 +35,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { CA_API_BASE_URL } from '@/lib/api-domains';
+import { fetchCaRequests, deleteCaRequest, type CACertificateRequest } from '@/lib/ca-data';
 
-
-interface Subject {
-  common_name: string;
-}
-
-interface KeyMetadata {
-    type: string;
-    bits: number;
-}
-
-export interface CACertificateRequest {
-    id: string;
-    key_id: string;
-    metadata: Record<string, any>;
-    subject: Subject;
-    creation_ts: string;
-    engine_id: string;
-    key_metadata: KeyMetadata;
-    status: 'PENDING' | 'ISSUED';
-    fingerprint: string;
-    csr: string; // Base64 encoded PEM
-}
 
 type SortableColumn = 'id' | 'subject' | 'status' | 'creation_ts';
 type SortDirection = 'asc' | 'desc';
@@ -166,21 +144,7 @@ export default function CaRequestsPage() {
       }
       filtersToApply.forEach(f => params.append('filter', f));
       
-      const response = await fetch(`${CA_API_BASE_URL}/cas/requests?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${user.access_token}` },
-      });
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to fetch CA requests. Status: ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Failed to fetch requests: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-        } catch (e) { /* ignore */ }
-        throw new Error(errorMessage);
-      }
-      
-      const data = await response.json();
+      const data = await fetchCaRequests(params, user.access_token);
       setRequests(data.list || []);
       setNextTokenFromApi(data.next || null);
 
@@ -255,22 +219,7 @@ export default function CaRequestsPage() {
     }
     setIsDeleting(true);
     try {
-      const response = await fetch(`${CA_API_BASE_URL}/cas/requests/${requestToDelete.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-      });
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to delete request. Status: ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-        } catch (e) { /* ignore */ }
-        throw new Error(errorMessage);
-      }
+      await deleteCaRequest(requestToDelete.id, user.access_token);
 
       toast({
         title: "Request Deleted",
