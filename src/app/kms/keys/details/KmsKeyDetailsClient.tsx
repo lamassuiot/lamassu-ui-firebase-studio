@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, KeyRound, Info, FileText, ShieldCheck, FileSignature, Loader2, AlertTriangle, PenTool } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 import { KmsPublicKeyPemTabContent } from '@/components/kms/details/KmsPublicKeyPemTabContent';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -23,8 +22,8 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CryptoEngineViewer } from '@/components/shared/CryptoEngineViewer';
 import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
-import { CertificationRequest, PublicKeyInfo, AttributeTypeAndValue, AlgorithmIdentifier, RSASSAPSSParams } from 'pkijs';
-import { fetchCryptoEngines, fetchKmsKeys, signWithKmsKey, verifyWithKmsKey, type ApiKmsKey } from '@/lib/ca-data';
+import { CertificationRequest, AlgorithmIdentifier } from 'pkijs';
+import { fetchCryptoEngines, fetchKmsKeys, signWithKmsKey, verifyWithKmsKey } from '@/lib/ca-data';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 import { KeyStrengthIndicator } from '@/components/shared/KeyStrengthIndicator';
 
