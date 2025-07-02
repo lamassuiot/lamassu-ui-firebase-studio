@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, PlusCircle, UploadCloud, Loader2, Settings, AlertTriangle, Key } from "lucide-react";
+import { ArrowLeft, PlusCircle, UploadCloud, Loader2, Settings, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import * as pkijs from "pkijs";

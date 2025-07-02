@@ -7,10 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, CheckCircle, XCircle, ChevronRight, Layers, ShieldAlert, ChevronLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, ChevronRight, Layers, ChevronLeft, Trash2 } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict, isPast } from 'date-fns';
+import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from 'lucide-react';
@@ -24,30 +24,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
 import { DecommissionDeviceModal } from '@/components/shared/DecommissionDeviceModal';
-import { DEV_MANAGER_API_BASE_URL, DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
-
-
-interface ApiDeviceIdentity {
-  status: string;
-  active_version: number;
-  type: string;
-  versions: Record<string, string>; 
-  events?: Record<string, { type: string; description: string }>;
-}
-
-interface ApiDevice {
-  id: string;
-  tags: string[];
-  status: string; 
-  icon: string;
-  icon_color: string;
-  creation_timestamp: string;
-  metadata: Record<string, any>;
-  dms_owner: string;
-  identity: ApiDeviceIdentity | null;
-  slots: Record<string, any>;
-  events?: Record<string, { type: string; description: string }>;
-}
+import { fetchDeviceById, decommissionDevice, type ApiDevice, type ApiDeviceIdentity } from '@/lib/device-api-client';
+import { bindIdentityToDevice } from '@/lib/dms-api';
 
 interface CertificateHistoryEntry {
   version: string;
@@ -145,25 +123,7 @@ export default function DeviceDetailsClient() {
       setIsLoadingDevice(true);
       setErrorDevice(null);
       try {
-        const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices/${deviceId}`, {
-          headers: { 'Authorization': `Bearer ${user.access_token}` },
-        });
-        if (!response.ok) {
-          let errorJson;
-          let errorMessage = `Failed to fetch device details. HTTP error ${response.status}`;
-          try {
-            errorJson = await response.json();
-            if (errorJson && errorJson.err) {
-              errorMessage = `Failed to fetch device details: ${errorJson.err}`;
-            } else if (errorJson && errorJson.message) {
-              errorMessage = `Failed to fetch device details: ${errorJson.message}`;
-            }
-          } catch (e) {
-            console.error("Failed to parse error response as JSON for device details:", e);
-          }
-          throw new Error(errorMessage);
-        }
-        const data: ApiDevice = await response.json();
+        const data = await fetchDeviceById(deviceId, user.access_token);
         setDevice(data);
         
         if (data.identity?.versions) {
@@ -472,27 +432,7 @@ export default function DeviceDetailsClient() {
     }
     setIsAssigning(true);
     try {
-        const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms/bind-identity`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.access_token}`
-            },
-            body: JSON.stringify({
-                device_id: deviceId,
-                certificate_serial_number: certificateSerialNumber
-            })
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to assign identity. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Failed to assign identity: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
-            } catch (e) { /* ignore json parse error */ }
-            throw new Error(errorMessage);
-        }
+        await bindIdentityToDevice(deviceId, certificateSerialNumber, user.access_token);
 
         toast({
             title: "Success!",
@@ -523,23 +463,7 @@ export default function DeviceDetailsClient() {
     }
     setIsDecommissioning(true);
     try {
-        const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices/${deviceId}/decommission`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${user.access_token}`
-            }
-        });
-
-        if (!response.ok) {
-            let errorJson;
-            let errorMessage = `Failed to decommission device. Status: ${response.status}`;
-            try {
-                errorJson = await response.json();
-                errorMessage = `Failed to decommission device: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
-            } catch (e) { /* ignore json parse error */ }
-            throw new Error(errorMessage);
-        }
-
+        await decommissionDevice(deviceId, user.access_token);
         toast({
             title: "Success!",
             description: "Device has been successfully decommissioned.",

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchLatestAlerts, type ApiAlertEvent, fetchSystemSubscriptions, unsubscribeFromAlert, type ApiSubscription } from '@/lib/alerts-api';
+import { fetchLatestAlerts, fetchSystemSubscriptions, unsubscribeFromAlert, type ApiSubscription } from '@/lib/alerts-api';
 import { AlertsTable } from '@/components/alerts/AlertsTable';
 import { useToast } from '@/hooks/use-toast';
 import { SubscribeToAlertModal } from '@/components/alerts/SubscribeToAlertModal';

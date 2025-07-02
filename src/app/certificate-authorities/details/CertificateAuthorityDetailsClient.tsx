@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Edit, Loader2, AlertCircle, ListChecks, FilePlus2, Info, KeyRound, Lock, Network, Layers, Trash2, MoreVertical } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Loader2, AlertCircle, ListChecks, Info, KeyRound, Lock, Layers, Trash2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +17,6 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
 import { CrlCheckModal } from '@/components/shared/CrlCheckModal';
 import { DeleteCaModal } from '@/components/shared/DeleteCaModal';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { InformationTabContent } from '@/components/shared/details-tabs/InformationTabContent';
 import { PemTabContent } from '@/components/shared/details-tabs/PemTabContent';

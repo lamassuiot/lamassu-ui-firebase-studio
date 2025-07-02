@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
-import { DEV_MANAGER_API_BASE_URL } from '@/lib/api-domains';
+import { fetchDevices } from '@/lib/devices-api';
 
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION' | 'DECOMMISSIONED';
 
@@ -33,36 +33,6 @@ interface DeviceData {
   ipAddress?: string;
   firmwareVersion?: string;
 }
-
-interface ApiDeviceIdentity {
-  status: string;
-  active_version: number;
-  type: string;
-  versions: Record<string, string>;
-  events: Record<string, { type: string; description: string }>;
-}
-
-interface ApiDevice {
-  id: string;
-  tags: string[];
-  status: string;
-  icon: string;
-  icon_color: string;
-  creation_timestamp: string;
-  metadata: Record<string, any>;
-  dms_owner: string;
-  identity: ApiDeviceIdentity | null;
-  slots: Record<string, any>;
-  events: Record<string, { type: string; description: string }>;
-}
-
-interface ApiResponse {
-  next: string | null;
-  list: ApiDevice[];
-}
-
-type SortableColumn = 'id' | 'status' | 'deviceGroup' | 'createdAt';
-type SortDirection = 'asc' | 'desc';
 
 interface SortConfig {
   column: SortableColumn;
@@ -120,6 +90,8 @@ export const DeviceIcon: React.FC<{ type: string; iconColor?: string; bgColor?: 
   );
 };
 
+type SortableColumn = 'id' | 'status' | 'deviceGroup' | 'createdAt';
+type SortDirection = 'asc' | 'desc';
 
 export default function DevicesPage() {
   const router = useRouter();
@@ -160,7 +132,7 @@ export default function DevicesPage() {
   }, [debouncedSearchTerm, searchField, statusFilter, pageSize]);
 
 
-  const fetchDevices = useCallback(async (
+  const fetchDevicesData = useCallback(async (
     bookmarkToFetch: string | null,
     filterTerm: string,
     filterField: 'id' | 'tags',
@@ -178,7 +150,6 @@ export default function DevicesPage() {
     setIsLoadingApi(true);
     setApiError(null);
     try {
-      const baseUrl = `${DEV_MANAGER_API_BASE_URL}/devices`;
       const params = new URLSearchParams({
         sort_by: 'creation_timestamp',
         sort_mode: 'desc',
@@ -197,31 +168,7 @@ export default function DevicesPage() {
       }
       filtersToApply.forEach(f => params.append('filter', f));
 
-      const url = `${baseUrl}?${params.toString()}`;
-
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-      });
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to fetch devices. Invalid response from server. HTTP error ${response.status}`;
-        try {
-          errorJson = await response.json();
-          if (errorJson && errorJson.err) {
-            errorMessage = `Failed to fetch devices: ${errorJson.err}`;
-          } else if (errorJson && errorJson.message) {
-            errorMessage = `Failed to fetch devices: ${errorJson.message}`;
-          }
-        } catch (e) {
-          console.error("Failed to parse error response as JSON for devices:", e);
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data: ApiResponse = await response.json();
+      const data = await fetchDevices(user.access_token, params);
 
       const transformedDevices: DeviceData[] = data.list.map(apiDevice => ({
         id: apiDevice.id,
@@ -249,7 +196,7 @@ export default function DevicesPage() {
 
   useEffect(() => {
     if (bookmarkStack.length > 0 && currentPageIndex < bookmarkStack.length) {
-        fetchDevices(
+        fetchDevicesData(
           bookmarkStack[currentPageIndex],
           debouncedSearchTerm,
           searchField,
@@ -257,7 +204,7 @@ export default function DevicesPage() {
           pageSize
         );
     }
-  }, [fetchDevices, currentPageIndex, bookmarkStack, debouncedSearchTerm, searchField, statusFilter, pageSize]);
+  }, [fetchDevicesData, currentPageIndex, bookmarkStack, debouncedSearchTerm, searchField, statusFilter, pageSize]);
 
   const requestSort = (column: SortableColumn) => {
     let direction: SortDirection = 'asc';
@@ -347,7 +294,7 @@ export default function DevicesPage() {
 
   const handleRefresh = () => {
     if (currentPageIndex < bookmarkStack.length) {
-        fetchDevices(
+        fetchDevicesData(
           bookmarkStack[currentPageIndex],
           debouncedSearchTerm,
           searchField,

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -5,7 +6,7 @@ import { DeviceStatusChartCard } from '@/components/home/DeviceStatusChartCard';
 import { CaExpiryTimeline } from '@/components/home/CaExpiryTimeline';
 import { SummaryStatsCard } from '@/components/home/SummaryStatsCard';
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, fetchCryptoEngines, fetchCaStatsSummary, fetchDmsStats, fetchDevManagerStats } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines, fetchCaStatsSummary } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertTriangle, RefreshCw, HomeIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { cn } from '@/lib/utils';
+import { fetchDmsStats } from '@/lib/dms-api';
+import { fetchDeviceStats } from '@/lib/devices-api';
 
 // Helper function from old page.tsx
 function flattenCAs(cas: CA[]): CA[] {
@@ -92,7 +95,7 @@ export default function HomePage() {
         fetchCryptoEngines(user.access_token),
         fetchCaStatsSummary(user.access_token),
         fetchDmsStats(user.access_token),
-        fetchDevManagerStats(user.access_token),
+        fetchDeviceStats(user.access_token),
       ]);
 
       // Process CAs for timeline
