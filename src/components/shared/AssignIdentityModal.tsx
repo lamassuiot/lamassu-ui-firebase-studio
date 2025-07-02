@@ -75,12 +75,13 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
 
     try {
         const params = new URLSearchParams({
-            sort_by: 'valid_from',
-            sort_mode: 'desc',
-            page_size: certPageSize,
-            filter: `status[equal]ACTIVE`,
-            filter: `subject.common_name[equal]${deviceId}`
-        });
+        sort_by: 'valid_from',
+        sort_mode: 'desc',
+        page_size: certPageSize,
+    });
+    params.append('filter', `status[equal]ACTIVE`);
+    params.append('filter', `subject.common_name[equal]${deviceId}`);
+
         if (bookmarkToFetch) params.append('bookmark', bookmarkToFetch);
 
         const result = await fetchIssuedCertificates({ accessToken: user.access_token, apiQueryString: params.toString() });
