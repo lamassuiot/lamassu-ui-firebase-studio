@@ -17,26 +17,13 @@ import { CertificateSelectorModal } from '@/components/shared/CertificateSelecto
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { useToast } from '@/hooks/use-toast';
-import { VA_API_BASE_URL, VA_CORE_API_BASE_URL } from '@/lib/api-domains';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
 import { format, parseISO } from 'date-fns';
 import { DetailItem } from './DetailItem';
 import { cn } from '@/lib/utils';
+import { fetchVaConfig, updateVaConfig, downloadCrl, type VAConfig, type LatestCrlInfo } from '@/lib/va-api';
 
-interface VAConfig {
-  caId: string;
-  refreshInterval: string;
-  validity: string;
-  subjectKeyIDSigner: string | null;
-  regenerateOnRevoke: boolean;
-}
-
-interface LatestCrlInfo {
-  version: number;
-  valid_from: string;
-  valid_until: string;
-}
 
 const getDefaultVAConfig = (caId: string): VAConfig => ({
   caId,
@@ -132,7 +119,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
     }
   }, [loadData, authLoading]);
 
-  const fetchVaConfig = useCallback(async () => {
+  const fetchCurrentVaConfig = useCallback(async () => {
     if (!selectedCaForConfig?.subjectKeyId || !isAuthenticated() || !user?.access_token) {
       setConfig(null);
       setSelectedCertificateSignerDisplay(null);
@@ -146,28 +133,14 @@ export function VerificationAuthoritiesClient() { // Renamed component
     setLatestCrl(null);
 
     try {
-      const response = await fetch(`${VA_API_BASE_URL}/roles/${selectedCaForConfig.subjectKeyId}`, {
-        headers: { 'Authorization': `Bearer ${user.access_token}` },
-      });
+      const data = await fetchVaConfig(selectedCaForConfig.subjectKeyId, user.access_token);
 
-      if (response.status === 404) {
+      if (data === null) { // Not Found (404) case
         setConfig(getDefaultVAConfig(selectedCaForConfig.id));
         setLatestCrl(null);
         return;
       }
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to fetch VA config. HTTP status ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Failed to fetch VA config: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-        } catch (e) {/* ignore */ }
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-
+      
       const newConfig: VAConfig = {
         caId: selectedCaForConfig.id,
         refreshInterval: data.crl_options.refresh_interval || '24h',
@@ -209,13 +182,13 @@ export function VerificationAuthoritiesClient() { // Renamed component
 
   useEffect(() => {
     if (selectedCaForConfig) {
-      fetchVaConfig();
+      fetchCurrentVaConfig();
     } else {
       setConfig(null);
       setSelectedCertificateSignerDisplay(null);
       setLatestCrl(null);
     }
-  }, [selectedCaForConfig, fetchVaConfig]);
+  }, [selectedCaForConfig, fetchCurrentVaConfig]);
 
   const handleCaSelectedForConfiguration = (ca: CA) => {
     setSelectedCaForConfig(ca);
@@ -257,24 +230,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
         regenerate_on_revoke: config.regenerateOnRevoke,
       };
 
-      const response = await fetch(`${VA_API_BASE_URL}/roles/${selectedCaForConfig.subjectKeyId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        let errorJson;
-        let errorMessage = `Failed to save VA config. Status: ${response.status}`;
-        try {
-          errorJson = await response.json();
-          errorMessage = `Save failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
-        } catch (e) { /* ignore json parse error */ }
-        throw new Error(errorMessage);
-      }
+      await updateVaConfig(selectedCaForConfig.subjectKeyId, payload, user.access_token);
 
       toast({
         title: "Success!",
@@ -299,16 +255,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
     }
     setIsDownloadingCrl(true);
     try {
-      const response = await fetch(`${VA_CORE_API_BASE_URL}/crl/${selectedCaForConfig.subjectKeyId}`, {
-        headers: {
-          'Authorization': `Bearer ${user.access_token}`,
-          'Accept': 'application/pkix-crl',
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to download CRL. Server responded with status ${response.status}`);
-      }
-      const crlData = await response.arrayBuffer();
+      const crlData = await downloadCrl(selectedCaForConfig.subjectKeyId, user.access_token);
       downloadFile(crlData, `${selectedCaForConfig.subjectKeyId}.crl`, 'application/pkix-crl');
       toast({ title: "Success", description: "CRL download has started." });
     } catch (e: any) {
@@ -391,7 +338,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
                         </CardTitle>
                         <CardDescription>Define validation parameters for this CA.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={fetchVaConfig} disabled={isLoadingConfig}>
+                    <Button variant="outline" size="sm" onClick={fetchCurrentVaConfig} disabled={isLoadingConfig}>
                         <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingConfig && "animate-spin")} />
                         Refresh Config
                     </Button>
