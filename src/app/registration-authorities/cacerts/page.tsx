@@ -12,6 +12,7 @@ import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
+import { fetchEstCaCerts } from '@/lib/est-api';
 
 import * as asn1js from "asn1js";
 import { Certificate as PkijsCertificate, getCrypto, setEngine } from "pkijs";
@@ -96,28 +97,15 @@ export default function EstCaCertsPage() {
         setError(null);
         
         try {
-            const baseUrl = `${EST_API_BASE_URL}/${raId}/cacerts`;
-
             // Fetch PKCS7
-            const pkcs7Response = await fetch(baseUrl, {
-                headers: { 
-                    'Accept': 'application/pkcs7-mime'
-                },
-            });
-            if (!pkcs7Response.ok) throw new Error(`Failed to fetch PKCS7 certs (Status: ${pkcs7Response.status})`);
-            const pkcs7Buffer = await pkcs7Response.arrayBuffer();
+            const pkcs7Result = await fetchEstCaCerts(raId, 'pkcs7-mime');
+            const pkcs7Buffer = pkcs7Result.data as ArrayBuffer;
             const pkcs7Base64 = btoa(new Uint8Array(pkcs7Buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
             setPkcs7Certs(pkcs7Base64);
 
             // Fetch PEM
-            const pemResponse = await fetch(baseUrl, {
-                headers: { 
-                    'Authorization': `Bearer ${user.access_token}`,
-                    'Accept': 'application/x-pem-file' 
-                },
-            });
-            if (!pemResponse.ok) throw new Error(`Failed to fetch PEM certs (Status: ${pemResponse.status})`);
-            const pemText = await pemResponse.text();
+            const pemResult = await fetchEstCaCerts(raId, 'x-pem-file', user.access_token);
+            const pemText = pemResult.data as string;
             setPemCerts(pemText);
 
             // Parse PEM
