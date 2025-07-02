@@ -176,9 +176,13 @@ export default function KmsKeyDetailsClient() {
           setVerifyAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
           setCsrSignAlgorithm('RSASSA_PKCS1_V1_5_SHA_256');
         } else if (detailedKey.algorithm === 'ECDSA') {
-          setSignAlgorithm('ECDSA_SHA_256');
-          setVerifyAlgorithm('ECDSA_SHA_256');
-          setCsrSignAlgorithm('ECDSA_SHA_256');
+          let defaultEcdsaAlgo = 'ECDSA_SHA_256';
+          if (detailedKey.keySize === 'P-384') defaultEcdsaAlgo = 'ECDSA_SHA_384';
+          if (detailedKey.keySize === 'P-521') defaultEcdsaAlgo = 'ECDSA_SHA_512';
+          
+          setSignAlgorithm(defaultEcdsaAlgo);
+          setVerifyAlgorithm(defaultEcdsaAlgo);
+          setCsrSignAlgorithm(defaultEcdsaAlgo);
         } else if (detailedKey.algorithm === 'ML-DSA') {
           const defaultMlDsaAlgo = detailedKey.keySize === 'ML-DSA-44' ? 'ML-DSA-44' :
             detailedKey.keySize === 'ML-DSA-87' ? 'ML-DSA-87' : 'ML-DSA-65';
@@ -504,6 +508,30 @@ export default function KmsKeyDetailsClient() {
     }
   };
 
+  const isAlgorithmDisabled = useCallback((algo: string): boolean => {
+    if (!keyDetails) return true;
+
+    if (keyDetails.algorithm === 'RSA') {
+      return !algo.startsWith('RSASSA');
+    }
+    if (keyDetails.algorithm === 'ML-DSA') {
+      return !algo.startsWith('ML-DSA');
+    }
+    if (keyDetails.algorithm === 'ECDSA') {
+      if (!algo.startsWith('ECDSA')) return true;
+
+      switch (keyDetails.keySize) {
+        case 'P-256': return algo !== 'ECDSA_SHA_256';
+        case 'P-384': return algo !== 'ECDSA_SHA_384';
+        case 'P-521': return algo !== 'ECDSA_SHA_512';
+        default: return true;
+      }
+    }
+
+    return true; // Disable for unknown key types
+  }, [keyDetails]);
+
+
   if (isLoading || authLoading) {
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
@@ -630,11 +658,7 @@ export default function KmsKeyDetailsClient() {
                         <SelectTrigger id="signAlgorithm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {signatureAlgorithms.map(algo => (
-                            <SelectItem key={algo} value={algo} disabled={
-                              (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                              (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                              (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                            }>{algo}</SelectItem>
+                            <SelectItem key={algo} value={algo} disabled={isAlgorithmDisabled(algo)}>{algo}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -697,11 +721,7 @@ export default function KmsKeyDetailsClient() {
                         <SelectTrigger id="verifyAlgorithm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {signatureAlgorithms.map(algo => (
-                            <SelectItem key={algo} value={algo} disabled={
-                              (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                              (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                              (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                            }>{algo}</SelectItem>
+                            <SelectItem key={algo} value={algo} disabled={isAlgorithmDisabled(algo)}>{algo}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -770,11 +790,7 @@ export default function KmsKeyDetailsClient() {
                     <SelectTrigger id="csrSignAlgorithm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {signatureAlgorithms.map(algo => (
-                        <SelectItem key={algo} value={algo} disabled={
-                          (keyDetails.algorithm === 'RSA' && !algo.startsWith('RSASSA')) ||
-                          (keyDetails.algorithm === 'ECDSA' && !algo.startsWith('ECDSA')) ||
-                          (keyDetails.algorithm === 'ML-DSA' && !algo.startsWith('ML-DSA'))
-                        }>{algo}</SelectItem>
+                        <SelectItem key={algo} value={algo} disabled={isAlgorithmDisabled(algo)}>{algo}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
