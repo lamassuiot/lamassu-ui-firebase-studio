@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -73,7 +74,7 @@ export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({ stats, isLoa
       />
       <StatItem
         value={stats.cas}
-        label="Certificate Authorities"
+        label="Certification Authorities"
         href="/certificate-authorities"
         isLoading={isLoading}
         icon={Landmark}

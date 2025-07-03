@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -130,8 +131,8 @@ export default function CreateCaGeneratePage() {
   const handleParentCaSelectFromModal = (ca: CA) => {
     if (ca.rawApiData?.certificate.type === 'EXTERNAL_PUBLIC' || ca.status !== 'active') {
         toast({
-            title: "Invalid Parent CA",
-            description: `CA "${ca.name}" cannot be used as a parent as it's external-public or not active.`,
+            title: "Invalid Parent Certification Authority",
+            description: `Certification Authority "${ca.name}" cannot be used as a parent as it's external-public or not active.`,
             variant: "destructive"
         });
         return;
@@ -167,12 +168,12 @@ export default function CreateCaGeneratePage() {
     setIsSubmitting(true);
 
     if (caType === 'intermediate' && !selectedParentCa) {
-      toast({ title: "Validation Error", description: "Please select a Parent CA for intermediate CAs.", variant: "destructive" });
+      toast({ title: "Validation Error", description: "Please select a Parent Certification Authority for intermediate CAs.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
     if (!caName.trim()) {
-      toast({ title: "Validation Error", description: "CA Name (Common Name) cannot be empty.", variant: "destructive" });
+      toast({ title: "Validation Error", description: "Certification Authority Name (Common Name) cannot be empty.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
@@ -219,12 +220,12 @@ export default function CreateCaGeneratePage() {
     try {
       await createCa(payload, user.access_token);
 
-      toast({ title: "CA Creation Successful", description: `CA "${caName}" has been created.`, variant: "default" });
+      toast({ title: "Certification Authority Creation Successful", description: `Certification Authority "${caName}" has been created.`, variant: "default" });
       router.push('/certificate-authorities');
 
     } catch (error: any) {
       console.error("CA Creation API Error:", error);
-      toast({ title: "CA Creation Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Certification Authority Creation Failed", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -241,11 +242,11 @@ export default function CreateCaGeneratePage() {
           <div className="flex items-center space-x-3">
             <KeyRound className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-headline font-semibold">
-              Create New CA (New Key Pair)
+              Create New Certification Authority (New Key Pair)
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Provision a new Root or Intermediate CA. A new cryptographic key pair will be generated and managed by LamassuIoT.
+            Provision a new Root or Intermediate Certification Authority. A new cryptographic key pair will be generated and managed by LamassuIoT.
           </p>
         </CardHeader>
         <CardContent>
@@ -300,7 +301,7 @@ export default function CreateCaGeneratePage() {
                 </div>
                 {caType === 'intermediate' && (
                   <div>
-                    <Label htmlFor="parentCa">Parent CA</Label>
+                    <Label htmlFor="parentCa">Parent Certification Authority</Label>
                     <Button
                       type="button"
                       variant="outline"
@@ -309,14 +310,14 @@ export default function CreateCaGeneratePage() {
                       id="parentCa"
                       disabled={isLoadingCAs || authLoading}
                     >
-                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
+                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent Certification Authority..."}
                     </Button>
                     {selectedParentCa && (
                       <div className="mt-2">
                         <CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/>
                       </div>
                     )}
-                    {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected for intermediate CAs.</p>}
+                    {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent Certification Authority must be selected for intermediate CAs.</p>}
                   </div>
                 )}
                 {caType === 'root' && (
@@ -327,13 +328,13 @@ export default function CreateCaGeneratePage() {
                   </div>
                 )}
                 <div>
-                  <Label htmlFor="caId">CA ID (generated)</Label>
+                  <Label htmlFor="caId">Certification Authority ID (generated)</Label>
                   <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
                 </div>
                 <div>
-                  <Label htmlFor="caName">CA Name (Subject Common Name)</Label>
+                  <Label htmlFor="caName">Certification Authority Name (Subject Common Name)</Label>
                   <Input id="caName" value={caName} onChange={(e) => setCaName(e.target.value)} placeholder="e.g., LamassuIoT Secure Services CA" required className="mt-1" />
-                  {!caName.trim() && <p className="text-xs text-destructive mt-1">CA Name (Common Name) cannot be empty.</p>}
+                  {!caName.trim() && <p className="text-xs text-destructive mt-1">Certification Authority Name (Common Name) cannot be empty.</p>}
                 </div>
               </div>
             </section>
@@ -365,7 +366,7 @@ export default function CreateCaGeneratePage() {
                   <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
                   <Input id="organizationalUnit" value={organizationalUnit} onChange={e => setOrganizationalUnit(e.target.value)} placeholder="e.g., Secure Devices Division" className="mt-1" />
                 </div>
-                <p className="text-xs text-muted-foreground">The "CA Name" entered in CA Settings will be used as the Common Name (CN) for the subject.</p>
+                <p className="text-xs text-muted-foreground">The "Certification Authority Name" entered in CA Settings will be used as the Common Name (CN) for the subject.</p>
               </div>
             </section>
             
@@ -380,7 +381,7 @@ export default function CreateCaGeneratePage() {
             <div className="flex justify-end pt-4">
               <Button type="submit" size="lg" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-                {isSubmitting ? 'Creating...' : 'Create CA'}
+                {isSubmitting ? 'Creating...' : 'Create Certification Authority'}
               </Button>
             </div>
           </form>
@@ -390,8 +391,8 @@ export default function CreateCaGeneratePage() {
       <CaSelectorModal
         isOpen={isParentCaModalOpen}
         onOpenChange={setIsParentCaModalOpen}
-        title="Select Parent Certificate Authority"
-        description="Choose an existing CA to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
+        title="Select Parent Certification Authority"
+        description="Choose an existing Certification Authority to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
         availableCAs={availableParentCAs}
         isLoadingCAs={isLoadingCAs}
         errorCAs={errorCAs}

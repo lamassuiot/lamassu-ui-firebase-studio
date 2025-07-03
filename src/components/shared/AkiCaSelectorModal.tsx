@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -45,7 +46,7 @@ export const AkiCaSelectorModal: React.FC<AkiCaSelectorModalProps> = ({
       const results = await fetchAndProcessCAs(user.access_token, queryString);
       setFoundCAs(results);
     } catch (err: any) {
-      setError(err.message || 'An unknown error occurred while searching for the issuer CA.');
+      setError(err.message || 'An unknown error occurred while searching for the issuer Certification Authority.');
     } finally {
       setIsLoading(false);
     }
@@ -64,9 +65,9 @@ export const AkiCaSelectorModal: React.FC<AkiCaSelectorModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Select Issuer CA</DialogTitle>
+          <DialogTitle>Select Issuer Certification Authority</DialogTitle>
           <DialogDescription>
-            The following CAs match the Authority Key Identifier (AKI) of the certificate. Select one to view its details.
+            The following Certification Authorities match the Authority Key Identifier (AKI) of the certificate. Select one to view its details.
           </DialogDescription>
         </DialogHeader>
         
@@ -98,7 +99,7 @@ export const AkiCaSelectorModal: React.FC<AkiCaSelectorModalProps> = ({
             </ScrollArea>
           ) : (
             <div className="flex items-center justify-center h-full text-center text-muted-foreground p-4 border rounded-md bg-muted/20">
-              No matching issuer CA found in the system for the provided AKI.
+              No matching issuer Certification Authority found in the system for the provided AKI.
             </div>
           )}
         </div>

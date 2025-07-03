@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
@@ -163,9 +164,9 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       <Card ref={cardRef} className={cn("shadow-lg w-full bg-primary text-primary-foreground", isFullscreen && "fixed inset-0 z-50 flex flex-col")}>
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
-            <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+            <CardTitle className="text-xl font-semibold">Certification Authority Expiry Timeline</CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              Visual timeline of Certificate Authority expiry dates. Click an item to view details.
+              Visual timeline of Certification Authority expiry dates. Click an item to view details.
             </CardDescription>
           </div>
            <div className="flex items-center space-x-2">

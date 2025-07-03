@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -61,10 +62,10 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center text-xl">
             <AlertTriangle className="mr-2 h-6 w-6 text-destructive" />
-            Confirm Revocation: {itemType}
+            Confirm Revocation: {itemType === 'CA' ? 'Certification Authority' : 'Certificate'}
           </DialogTitle>
           <DialogDescription>
-            You are about to revoke the {itemType.toLowerCase()} "<strong>{itemName}</strong>". This action cannot be easily undone. Please select a reason for revocation.
+            You are about to revoke the {itemType === 'CA' ? 'Certification Authority' : 'certificate'} "<strong>{itemName}</strong>". This action cannot be easily undone. Please select a reason for revocation.
           </DialogDescription>
         </DialogHeader>
 
@@ -73,7 +74,7 @@ export const RevocationModal: React.FC<RevocationModalProps> = ({
                 <AlertTriangle className="h-4 w-4 text-orange-500" />
                 <AlertTitle className="text-orange-700 dark:text-orange-300">Warning: Critical Action</AlertTitle>
                 <AlertDescription className="text-orange-600 dark:text-orange-400">
-                    Revoking a Certificate Authority is a critical action. It will invalidate all certificates issued by this CA, potentially causing widespread outages for devices and services that trust it.
+                    Revoking a Certification Authority is a critical action. It will invalidate all certificates issued by this CA, potentially causing widespread outages for devices and services that trust it.
                 </AlertDescription>
             </Alert>
         )}

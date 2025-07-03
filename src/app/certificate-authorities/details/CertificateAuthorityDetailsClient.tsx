@@ -170,7 +170,7 @@ export default function CertificateAuthorityDetailsClient() {
       }
 
     } else {
-      setErrorCAs(`CA with ID "${caIdFromUrl}" not found.`);
+      setErrorCAs(`Certification Authority with ID "${caIdFromUrl}" not found.`);
     }
   }, [caIdFromUrl, allCertificateAuthoritiesData, isLoadingCAs, isAuthenticated, user?.access_token, loadCaStats]);
 
@@ -195,8 +195,8 @@ export default function CertificateAuthorityDetailsClient() {
         // Success
         setCaDetails(prev => prev ? { ...prev, status: 'revoked' } : null);
         toast({
-            title: "CA Revoked",
-            description: `CA "${caToRevoke.name}" has been successfully revoked.`,
+            title: "Certification Authority Revoked",
+            description: `Certification Authority "${caToRevoke.name}" has been successfully revoked.`,
             variant: "default"
         });
 
@@ -231,8 +231,8 @@ export default function CertificateAuthorityDetailsClient() {
     try {
         await deleteCa(caToDelete.id, user.access_token);
         toast({
-            title: "CA Deleted",
-            description: `CA "${caToDelete.name}" has been permanently deleted.`,
+            title: "Certification Authority Deleted",
+            description: `Certification Authority "${caToDelete.name}" has been permanently deleted.`,
             variant: "default"
         });
         routerHook.push('/certificate-authorities'); // Redirect to the list page
@@ -292,9 +292,9 @@ export default function CertificateAuthorityDetailsClient() {
     return (
       <div className="w-full space-y-6 flex flex-col items-center justify-center py-10">
         <FileText className="h-12 w-12 text-muted-foreground" />
-        <p className="text-muted-foreground">CA with ID "{caIdFromUrl || 'Unknown'}" not found or data is unavailable.</p>
+        <p className="text-muted-foreground">Certification Authority with ID "{caIdFromUrl || 'Unknown'}" not found or data is unavailable.</p>
         <Button variant="outline" onClick={() => routerHook.push('/certificate-authorities')} className="mt-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certification Authorities
         </Button>
       </div>
     );
@@ -337,7 +337,7 @@ export default function CertificateAuthorityDetailsClient() {
                 <div>
                     <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                        CA ID: {caDetails.id}
+                        Certification Authority ID: {caDetails.id}
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       <Badge variant={statusVariant} className={cn("text-sm", statusVariant !== 'outline' ? statusColorClass : '')}>{caDetails.status.toUpperCase()}</Badge>
@@ -419,7 +419,7 @@ export default function CertificateAuthorityDetailsClient() {
              <MetadataTabContent
               rawJsonData={caDetails.rawApiData?.metadata}
               itemName={caDetails.name}
-              tabTitle="CA Metadata"
+              tabTitle="Certification Authority Metadata"
               toast={toast}
               isEditable={true}
               itemId={caDetails.id}

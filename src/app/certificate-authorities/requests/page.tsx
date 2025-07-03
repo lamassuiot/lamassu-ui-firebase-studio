@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -349,7 +350,7 @@ export default function CaRequestsPage() {
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">{hasActiveFilters ? "No Requests Found" : "No CA Requests Found"}</h3>
           <p className="text-sm text-muted-foreground">
-            {hasActiveFilters ? "Try adjusting your filters." : "There are no pending or historical Certificate Authority requests."}
+            {hasActiveFilters ? "Try adjusting your filters." : "There are no pending or historical Certification Authority requests."}
           </p>
         </div>
       )}
@@ -361,7 +362,7 @@ export default function CaRequestsPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <FileSignature className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-headline font-semibold">Certificate Authority Requests</h1>
+          <h1 className="text-2xl font-headline font-semibold">Certification Authority Requests</h1>
         </div>
         <div className="flex items-center space-x-2">
             <Button onClick={handleRefresh} variant="outline" disabled={isLoading}>
@@ -373,7 +374,7 @@ export default function CaRequestsPage() {
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        View and manage pending and completed requests for new Certificate Authorities.
+        View and manage pending and completed requests for new Certification Authorities.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-end">

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -38,7 +39,7 @@ export const DeleteCaModal: React.FC<DeleteCaModalProps> = ({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center text-xl">
             <AlertTriangle className="mr-2 h-6 w-6 text-destructive" />
-            Permanently Delete CA
+            Permanently Delete Certification Authority
           </AlertDialogTitle>
           <AlertDialogDescription>
             This action is permanent and cannot be undone. Please read the warning carefully.
@@ -48,7 +49,7 @@ export const DeleteCaModal: React.FC<DeleteCaModalProps> = ({
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Warning: Irreversible Action</AlertTitle>
             <AlertDescription>
-                You are about to permanently delete the Certificate Authority "<strong>{caName}</strong>". This will remove it from the system entirely. This action is only available for already revoked CAs and cannot be reversed.
+                You are about to permanently delete the Certification Authority "<strong>{caName}</strong>". This will remove it from the system entirely. This action is only available for already revoked Certification Authorities and cannot be reversed.
             </AlertDescription>
         </Alert>
         <AlertDialogFooter>

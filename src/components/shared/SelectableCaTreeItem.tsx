@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState } from 'react';
@@ -87,7 +88,7 @@ export const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
               if (onMultiSelectToggle) onMultiSelectToggle(ca, e.target.checked);
             }} 
             className="h-4 w-4 mr-1 accent-primary shrink-0"
-            aria-label={`Select CA ${ca.name}`}
+            aria-label={`Select Certification Authority ${ca.name}`}
           />
         )}
         {hasChildren && (

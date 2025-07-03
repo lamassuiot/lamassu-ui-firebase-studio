@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -157,8 +158,8 @@ export default function CreateCaImportFullPage() {
     try {
         await importCa(payload, user.access_token);
         toast({
-            title: "CA Import Successful",
-            description: `CA "${decodedImportedCertInfo?.subject || 'imported certificate'}" has been imported.`,
+            title: "Certification Authority Import Successful",
+            description: `Certification Authority "${decodedImportedCertInfo?.subject || 'imported certificate'}" has been imported.`,
         });
         router.push('/certificate-authorities');
 
@@ -180,11 +181,11 @@ export default function CreateCaImportFullPage() {
           <div className="flex items-center space-x-3">
             <UploadCloud className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-headline font-semibold">
-              Import External CA (with Private Key)
+              Import External Certification Authority (with Private Key)
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Import an existing CA certificate and its private key to be managed by LamassuIoT.
+            Import an existing Certification Authority certificate and its private key to be managed by LamassuIoT.
           </p>
         </CardHeader>
         <CardContent>
@@ -193,7 +194,7 @@ export default function CreateCaImportFullPage() {
               <h3 className="text-lg font-semibold mb-3 flex items-center"><Settings className="mr-2 h-5 w-5 text-muted-foreground"/>Import Settings</h3>
                <div className="space-y-4">
                   <div>
-                    <Label htmlFor="caId">New CA ID (generated)</Label>
+                    <Label htmlFor="caId">New Certification Authority ID (generated)</Label>
                     <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
                   </div>
                   <div>
@@ -218,10 +219,10 @@ export default function CreateCaImportFullPage() {
             <Separator/>
             
             <section>
-              <h3 className="text-lg font-semibold mb-3">CA Details</h3>
+              <h3 className="text-lg font-semibold mb-3">Certification Authority Details</h3>
               <div className="space-y-4">
                  <div>
-                   <Label htmlFor="importedCaCertPem">CA Certificate (PEM)</Label>
+                   <Label htmlFor="importedCaCertPem">Certification Authority Certificate (PEM)</Label>
                     <Textarea 
                         id="importedCaCertPem" 
                         placeholder="Paste the CA certificate PEM here..." 
@@ -231,7 +232,7 @@ export default function CreateCaImportFullPage() {
                         value={importedCaCertPem}
                         onChange={(e) => handleImportedCertPemChange(e.target.value)}
                     />
-                   <p className="text-xs text-muted-foreground mt-1">The public certificate of the CA you are importing.</p>
+                   <p className="text-xs text-muted-foreground mt-1">The public certificate of the Certification Authority you are importing.</p>
                 </div>
                  {decodedImportedCertInfo && (
                     <Card className="bg-muted/30">
@@ -254,12 +255,12 @@ export default function CreateCaImportFullPage() {
                     </Card>
                 )}
                 <div>
-                   <Label htmlFor="importedCaKeyPem">CA Private Key (PEM)</Label>
+                   <Label htmlFor="importedCaKeyPem">Certification Authority Private Key (PEM)</Label>
                    <Textarea id="importedCaKeyPem" value={importedPrivateKeyPem} onChange={(e) => setImportedPrivateKeyPem(e.target.value)} placeholder="Paste the corresponding private key PEM here..." rows={6} required className="mt-1 font-mono"/>
                    <p className="text-xs text-muted-foreground mt-1">Provide the unencrypted private key in PKCS#8 format.</p>
                 </div>
                  <div>
-                   <Label htmlFor="caChainPem">CA Certificate Chain (PEM, Optional)</Label>
+                   <Label htmlFor="caChainPem">Certification Authority Certificate Chain (PEM, Optional)</Label>
                     <Textarea 
                         id="caChainPem" 
                         placeholder="Paste the PEM-encoded certificate chain (parent certs) here..." 
@@ -268,7 +269,7 @@ export default function CreateCaImportFullPage() {
                         value={caChainPem}
                         onChange={(e) => setCaChainPem(e.target.value)}
                     />
-                   <p className="text-xs text-muted-foreground mt-1">Concatenated PEM files of the issuing CA(s), from immediate issuer to root.</p>
+                   <p className="text-xs text-muted-foreground mt-1">Concatenated PEM files of the issuing Certification Authorities, from immediate issuer to root.</p>
                 </div>
               </div>
             </section>
@@ -276,7 +277,7 @@ export default function CreateCaImportFullPage() {
             <div className="flex justify-end pt-4">
               <Button type="submit" size="lg" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-                Import Full CA
+                Import Full Certification Authority
               </Button>
             </div>
           </form>

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -101,12 +102,12 @@ export default function CreateCaReuseKeyPage() {
     setIsSubmitting(true);
 
     if (caType === 'intermediate' && !selectedParentCa) {
-      toast({ title: "Validation Error", description: "Please select a Parent CA for intermediate CAs.", variant: "destructive" });
+      toast({ title: "Validation Error", description: "Please select a Parent Certification Authority for intermediate CAs.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
     if (!caName.trim() || !existingKeyId.trim()) {
-      toast({ title: "Validation Error", description: "CA Name and Existing Key ID are required.", variant: "destructive" });
+      toast({ title: "Validation Error", description: "Certification Authority Name and Existing Key ID are required.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
@@ -122,7 +123,7 @@ export default function CreateCaReuseKeyPage() {
       issuanceExpiration,
     };
     
-    console.log(`Mock Creating CA (Reuse Key Mode) with data:`, formData);
+    console.log(`Mock Creating Certification Authority (Reuse Key Mode) with data:`, formData);
     toast({ title: "Mock CA Creation", description: `Reuse Key mode submitted for "${caName}". Details in console.`, variant: "default" });
     router.push('/certificate-authorities');
 
@@ -140,11 +141,11 @@ export default function CreateCaReuseKeyPage() {
           <div className="flex items-center space-x-3">
             <Repeat className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-headline font-semibold">
-              Create CA (Reuse Key Pair)
+              Create Certification Authority (Reuse Key Pair)
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Provision a new Root or Intermediate CA using an existing key pair from your KMS.
+            Provision a new Root or Intermediate Certification Authority using an existing key pair from your KMS.
           </p>
         </CardHeader>
         <CardContent>
@@ -180,16 +181,16 @@ export default function CreateCaReuseKeyPage() {
                 </div>
                 {caType === 'intermediate' && (
                   <div>
-                    <Label htmlFor="parentCa">Parent CA</Label>
+                    <Label htmlFor="parentCa">Parent Certification Authority</Label>
                     <Button
                       type="button" variant="outline" onClick={() => setIsParentCaModalOpen(true)}
                       className="w-full justify-start text-left font-normal mt-1" id="parentCa"
                       disabled={isLoadingCAs || authLoading}
                     >
-                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent CA..."}
+                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent Certification Authority..."}
                     </Button>
                     {selectedParentCa && <div className="mt-2"><CaVisualizerCard ca={selectedParentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/></div>}
-                    {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent CA must be selected.</p>}
+                    {!selectedParentCa && <p className="text-xs text-destructive mt-1">A parent Certification Authority must be selected.</p>}
                   </div>
                 )}
                 {caType === 'root' && (
@@ -199,13 +200,13 @@ export default function CreateCaReuseKeyPage() {
                   </div>
                 )}
                 <div>
-                  <Label htmlFor="caId">CA ID (generated)</Label>
+                  <Label htmlFor="caId">Certification Authority ID (generated)</Label>
                   <Input id="caId" value={caId} readOnly className="mt-1 bg-muted/50" />
                 </div>
                 <div>
-                  <Label htmlFor="caName">CA Name (Subject Common Name)</Label>
+                  <Label htmlFor="caName">Certification Authority Name (Subject Common Name)</Label>
                   <Input id="caName" value={caName} onChange={(e) => setCaName(e.target.value)} placeholder="e.g., LamassuIoT Secure Services CA" required className="mt-1" />
-                  {!caName.trim() && <p className="text-xs text-destructive mt-1">CA Name is required.</p>}
+                  {!caName.trim() && <p className="text-xs text-destructive mt-1">Certification Authority Name is required.</p>}
                 </div>
               </div>
             </section>
@@ -226,7 +227,7 @@ export default function CreateCaReuseKeyPage() {
             <div className="flex justify-end pt-4">
               <Button type="submit" size="lg" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-                Create CA
+                Create Certification Authority
               </Button>
             </div>
           </form>
@@ -236,8 +237,8 @@ export default function CreateCaReuseKeyPage() {
       <CaSelectorModal
         isOpen={isParentCaModalOpen}
         onOpenChange={setIsParentCaModalOpen}
-        title="Select Parent Certificate Authority"
-        description="Choose an existing CA to be the issuer for this new intermediate CA."
+        title="Select Parent Certification Authority"
+        description="Choose an existing Certification Authority to be the issuer for this new intermediate CA."
         availableCAs={availableParentCAs}
         isLoadingCAs={isLoadingCAs}
         errorCAs={errorCAs}
