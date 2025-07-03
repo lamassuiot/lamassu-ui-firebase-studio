@@ -119,13 +119,12 @@ export default function CertificateDetailsClient() { // Renamed component
     setIsLoadingCert(true);
     setErrorCert(null);
     try {
-      // For simplicity, fetching a larger list to find the cert.
-      // In a real app, you might have an endpoint like /api/certificates/:serialNumber
+      // Use a specific filter to fetch only the requested certificate by its serial number.
       const { certificates: certList } = await fetchIssuedCertificates({ 
           accessToken: user.access_token, 
-          apiQueryString: `filter=serial_number[equal]${certificateId}&page_size=1` // More efficient filter
+          apiQueryString: `filter=serial_number[equal]${certificateId}&page_size=1`
       });
-      const foundCert = certList.length > 0 ? certList[0] : null; // Assuming serial is unique enough
+      const foundCert = certList.length > 0 ? certList[0] : null;
       
       if (foundCert) {
         setCertificateDetails(foundCert);
