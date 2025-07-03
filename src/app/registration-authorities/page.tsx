@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -134,7 +135,7 @@ export default function RegistrationAuthoritiesPage() {
   }
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full pb-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Users className="h-8 w-8 text-primary" />

@@ -266,7 +266,7 @@ export function VerificationAuthoritiesClient() { // Renamed component
   };
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full pb-8">
       <div>
         <div className="p-6">
           <div className="flex items-center space-x-3 mb-2">

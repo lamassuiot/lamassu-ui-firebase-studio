@@ -1,8 +1,11 @@
+
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Info, Loader2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { AlertTriangle, Info, Loader2, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +14,8 @@ import { AlertsTable } from '@/components/alerts/AlertsTable';
 import { useToast } from '@/hooks/use-toast';
 import { SubscribeToAlertModal } from '@/components/alerts/SubscribeToAlertModal';
 import { SubscriptionDetailsModal } from '@/components/alerts/SubscriptionDetailsModal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 // This is the structure the UI component expects.
@@ -23,6 +28,14 @@ export interface AlertEvent {
   payload: object; // Will be mapped from event
 }
 
+// Sorting state
+export type SortableAlertColumn = 'type' | 'lastSeen' | 'eventCounter';
+export type SortDirection = 'asc' | 'desc';
+export interface AlertSortConfig {
+    column: SortableAlertColumn;
+    direction: SortDirection;
+}
+
 export default function AlertsPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [events, setEvents] = useState<AlertEvent[]>([]);
@@ -30,6 +43,15 @@ export default function AlertsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Sorting and Filtering state
+  const [sortConfig, setSortConfig] = useState<AlertSortConfig>({ column: 'lastSeen', direction: 'desc' });
+  const [filterText, setFilterText] = useState('');
+  const [showWithSubscriptionsOnly, setShowWithSubscriptionsOnly] = useState(false);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // State for the new subscription modal
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
@@ -156,6 +178,80 @@ export default function AlertsPage() {
     }
   }, [loadAlertsData, authLoading]);
 
+  const handleSort = (column: SortableAlertColumn) => {
+    setSortConfig(currentConfig => ({
+        column,
+        direction: currentConfig.column === column && currentConfig.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const filteredAndSortedEvents = useMemo(() => {
+    let processedEvents = [...events];
+
+    // Filtering
+    if (filterText) {
+        processedEvents = processedEvents.filter(event =>
+            event.type.toLowerCase().includes(filterText.toLowerCase())
+        );
+    }
+
+    if (showWithSubscriptionsOnly) {
+        processedEvents = processedEvents.filter(event => event.activeSubscriptions.length > 0);
+    }
+
+    // Sorting
+    processedEvents.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.column) {
+            case 'lastSeen':
+                aValue = new Date(a.lastSeen).getTime();
+                bValue = new Date(b.lastSeen).getTime();
+                break;
+            case 'eventCounter':
+                aValue = a.eventCounter;
+                bValue = b.eventCounter;
+                break;
+            case 'type':
+            default:
+                aValue = a.type.toLowerCase();
+                bValue = b.type.toLowerCase();
+                break;
+        }
+        
+        if (aValue < bValue) {
+            return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+            return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+
+    return processedEvents;
+  }, [events, filterText, showWithSubscriptionsOnly, sortConfig]);
+
+  const totalPages = useMemo(() => Math.ceil(filteredAndSortedEvents.length / pageSize), [filteredAndSortedEvents.length, pageSize]);
+  
+  const paginatedEvents = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredAndSortedEvents.slice(startIndex, startIndex + pageSize);
+  }, [filteredAndSortedEvents, currentPage, pageSize]);
+
+  useEffect(() => {
+      if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages);
+      } else if (totalPages === 0 && currentPage !== 1) {
+        setCurrentPage(1);
+      }
+  }, [totalPages, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterText, showWithSubscriptionsOnly, sortConfig, pageSize]);
+
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -167,7 +263,7 @@ export default function AlertsPage() {
 
   return (
     <>
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 pb-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Info className="h-8 w-8 text-primary" />
@@ -183,6 +279,30 @@ export default function AlertsPage() {
         Monitor and get notified when operations are requested to the PKI.
       </p>
 
+       <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-grow space-y-1.5">
+              <Label htmlFor="alert-filter">Filter by Event Type</Label>
+              <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                      id="alert-filter"
+                      placeholder="e.g., ca_created"
+                      value={filterText}
+                      onChange={(e) => setFilterText(e.target.value)}
+                      className="pl-10"
+                  />
+              </div>
+          </div>
+          <div className="flex items-end pb-1">
+            <div className="flex items-center space-x-2">
+                <Checkbox id="show-with-subs" checked={showWithSubscriptionsOnly} onCheckedChange={(checked) => setShowWithSubscriptionsOnly(Boolean(checked))} />
+                <Label htmlFor="show-with-subs" className="font-normal whitespace-nowrap">
+                    Only show events with subscriptions
+                </Label>
+            </div>
+          </div>
+       </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center p-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -197,17 +317,48 @@ export default function AlertsPage() {
             <Button variant="link" onClick={loadAlertsData} className="p-0 h-auto ml-1">Try again?</Button>
           </AlertDescription>
         </Alert>
-      ) : events.length > 0 ? (
-        <AlertsTable 
-            events={events} 
-            onSubscriptionClick={handleViewSubscriptionDetails} 
-            onSubscribe={handleOpenSubscribeModal} 
-        />
+      ) : filteredAndSortedEvents.length > 0 ? (
+        <>
+          <AlertsTable 
+              events={paginatedEvents} 
+              onSubscriptionClick={handleViewSubscriptionDetails} 
+              onSubscribe={handleOpenSubscribeModal}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+          />
+          <div className="flex justify-between items-center mt-4">
+            <div className="flex items-center space-x-2">
+                <Label htmlFor="pageSizeSelectAlerts" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
+                <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+                    <SelectTrigger id="pageSizeSelectAlerts" className="w-[80px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages > 0 ? totalPages : 1}
+                </span>
+                <Button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} variant="outline" size="sm">
+                    <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                </Button>
+                <Button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages} variant="outline" size="sm">
+                    Next <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+            </div>
+          </div>
+        </>
       ) : (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-          <h3 className="text-lg font-semibold text-muted-foreground">No Events Found</h3>
+          <h3 className="text-lg font-semibold text-muted-foreground">{filterText ? 'No Matching Events Found' : 'No Events Found'}</h3>
           <p className="text-sm text-muted-foreground">
-            No system events have been recorded yet.
+            {filterText ? 'Try adjusting your filter.' : 'No system events have been recorded yet.'}
           </p>
         </div>
       )}

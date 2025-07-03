@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -336,7 +337,7 @@ export default function DevicesPage() {
   const hasActiveFilters = debouncedSearchTerm || statusFilter !== 'ALL';
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center space-x-3">
           <DeviceIcon type="CgSmartphoneChip" />
@@ -420,7 +421,7 @@ export default function DevicesPage() {
 
       {!apiError && sortedAndFilteredDevices.length > 0 && (
         <>
-          <div className={cn("overflow-x-auto overflow-y-auto max-h-[60vh] transition-opacity duration-300", isLoadingApi && sortedAndFilteredDevices.length > 0 && "opacity-50 pointer-events-none")}>
+          <div className={cn("overflow-x-auto transition-opacity duration-300", isLoadingApi && sortedAndFilteredDevices.length > 0 && "opacity-50 pointer-events-none")}>
             <Table>
               <TableHeader>
                 <TableRow>

@@ -32,7 +32,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchCaRequests, deleteCaRequest, type CACertificateRequest } from '@/lib/ca-data';
@@ -358,7 +357,7 @@ export default function CaRequestsPage() {
   );
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full pb-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <FileSignature className="h-8 w-8 text-primary" />
@@ -432,9 +431,7 @@ export default function CaRequestsPage() {
         </div>
       </div>
       
-      <ScrollArea className="h-[calc(100vh-450px)] w-full">
-        <div className="pr-4">{content}</div>
-      </ScrollArea>
+      {content}
 
       {(requests.length > 0 || hasActiveFilters) && (
           <div className="flex justify-between items-center mt-4">
@@ -497,11 +494,11 @@ export default function CaRequestsPage() {
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="my-4">
-                <ScrollArea className="h-80 w-full rounded-md border bg-muted/30">
-                    <pre className="p-4 text-xs">
+                <div className="h-80 w-full rounded-md border bg-muted/30">
+                    <pre className="p-4 text-xs h-full overflow-auto">
                         {requestForRawView && JSON.stringify(requestForRawView, null, 2)}
                     </pre>
-                </ScrollArea>
+                </div>
             </div>
             <AlertDialogFooter>
                 <AlertDialogCancel>Close</AlertDialogCancel>
