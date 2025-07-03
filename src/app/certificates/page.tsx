@@ -20,6 +20,7 @@ import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 import { usePaginatedCertificateFetcher, type ApiStatusFilterValue } from '@/hooks/usePaginatedCertificateFetcher';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export type SortableCertColumn = 'commonName' | 'serialNumber' | 'expires' | 'status' | 'validFrom';
 export type SortDirection = 'asc' | 'desc';
@@ -237,7 +238,7 @@ export default function CertificatesPage() {
       )}
 
       {!(apiError || errorCAs || errorCryptoEngines) && (
-        <>
+        <ScrollArea className="h-[calc(100vh-520px)] w-full">
           <CertificateList
             certificates={certificates}
             onInspectCertificate={handleInspectCertificate}
@@ -256,7 +257,7 @@ export default function CertificatesPage() {
               </p>
             </div>
           )}
-        </>
+        </ScrollArea>
       )}
       
       {!(apiError || errorCAs || errorCryptoEngines) && (certificates.length > 0 || isLoadingApi) && (
