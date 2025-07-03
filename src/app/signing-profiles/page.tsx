@@ -5,10 +5,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollTextIcon, PlusCircle, Settings2, Clock, Fingerprint, BookText, Eye, Edit, KeyRound, ShieldCheck, PenTool, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
+import { ScrollTextIcon, PlusCircle, Settings2, Clock, Fingerprint, BookText, Edit, KeyRound, ShieldCheck, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchSigningProfiles, type ApiSigningProfile } from '@/lib/ca-data';
+
 
 interface SigningProfile {
   id: string;
@@ -18,56 +21,8 @@ interface SigningProfile {
   subjectPolicy: string;
   extensionsPolicy: string;
   allowedKeyTypes: string[];
-  keyStrength: string;
-  signatureAlgorithm: string;
+  signAsCa: boolean;
 }
-
-const mockSigningProfilesData: SigningProfile[] = [
-  {
-    id: 'profile-iot-standard',
-    name: 'IoT Device Standard Profile',
-    description: 'General purpose profile for most IoT devices, balancing security and operational needs.',
-    duration: '1 year (Fixed)',
-    subjectPolicy: 'Respects CSR CN, appends OU=Managed Devices, O=LamassuIoT',
-    extensionsPolicy: 'Honors CSR EKU (if present), adds KeyUsage: Digital Signature, Client Auth. Basic Constraints: CA:FALSE',
-    allowedKeyTypes: ['RSA', 'ECDSA'],
-    keyStrength: 'RSA: min 2048-bit, ECDSA: P-256 or P-384',
-    signatureAlgorithm: 'SHA256withRSA or SHA256withECDSA (based on key type)',
-  },
-  {
-    id: 'profile-web-server-tls',
-    name: 'Web Server TLS Profile',
-    description: 'Profile for issuing TLS certificates for web servers and services.',
-    duration: '90 days (Fixed)',
-    subjectPolicy: 'Requires CN, O, L, ST, C. CSR values are used.',
-    extensionsPolicy: 'Strict: KeyUsage: Key Encipherment, Digital Signature. EKU: Server Authentication. Includes SAN from CSR.',
-    allowedKeyTypes: ['RSA', 'ECDSA'],
-    keyStrength: 'RSA: min 2048-bit, ECDSA: P-256',
-    signatureAlgorithm: 'SHA256withRSA or SHA256withECDSA',
-  },
-  {
-    id: 'profile-code-signing',
-    name: 'Code Signing Profile',
-    description: 'Profile for issuing code signing certificates for software and firmware.',
-    duration: '3 years (Fixed)',
-    subjectPolicy: 'Requires CN (Developer/Company Name), O. CSR values are used.',
-    extensionsPolicy: 'Strict: KeyUsage: Digital Signature. EKU: Code Signing. No Basic Constraints.',
-    allowedKeyTypes: ['RSA'],
-    keyStrength: 'RSA: min 3072-bit',
-    signatureAlgorithm: 'SHA384withRSA',
-  },
-  {
-    id: 'profile-short-lived-api',
-    name: 'Short-Lived API Client Profile',
-    description: 'For machine-to-machine API client authentication with short validity periods.',
-    duration: '24 hours (Fixed)',
-    subjectPolicy: 'CN generated based on service account ID. Fixed O and OU.',
-    extensionsPolicy: 'Strict: KeyUsage: Digital Signature. EKU: Client Authentication. Basic Constraints: CA:FALSE',
-    allowedKeyTypes: ['ECDSA'],
-    keyStrength: 'ECDSA: P-256',
-    signatureAlgorithm: 'SHA256withECDSA',
-  },
-];
 
 const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: string | React.ReactNode }> = ({ icon: Icon, label, value }) => (
   <div className="flex items-start space-x-2 py-1">
@@ -81,33 +36,76 @@ const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: strin
 
 export default function SigningProfilesPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [profiles, setProfiles] = useState<SigningProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const transformAndSetProfiles = useCallback((apiProfiles: ApiSigningProfile[]) => {
+    const transformed = apiProfiles.map(p => {
+        let subjectPolicy = 'Honors Subject DN from CSR.';
+        if (!p.honor_subject) {
+            const overrides = Object.entries(p.subject)
+                .filter(([, value]) => value)
+                .map(([key, value]) => `${key.substring(0,2).toUpperCase()}=${value}`)
+                .join(', ');
+            subjectPolicy = `Overrides subject with: ${overrides || 'No specific overrides defined'}`;
+        }
+
+        let extensionsPolicy = '';
+        if (p.honor_key_usage) {
+            extensionsPolicy += 'Honors Key Usage from CSR. ';
+        } else {
+            extensionsPolicy += `Enforces KU: ${p.key_usage.join(', ') || 'None'}. `;
+        }
+        if (p.honor_extended_key_usage) {
+            extensionsPolicy += 'Honors EKU from CSR.';
+        } else {
+            extensionsPolicy += `Enforces EKU: ${p.extended_key_usage.join(', ') || 'None'}.`;
+        }
+
+        const allowedKeyTypes = [];
+        if (p.allow_rsa_keys) allowedKeyTypes.push('RSA');
+        if (p.allow_ecdsa_keys) allowedKeyTypes.push('ECDSA');
+
+        return {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            duration: p.validity?.duration || 'Not specified',
+            subjectPolicy,
+            extensionsPolicy,
+            allowedKeyTypes,
+            signAsCa: p.sign_as_ca
+        };
+    });
+    setProfiles(transformed);
+  }, []);
+
   const fetchProfiles = useCallback(async () => {
+    if (!isAuthenticated() || !user?.access_token) {
+        if (!authLoading) setError("User not authenticated.");
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     setError(null);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 700));
     try {
-      // Replace with actual API call:
-      // const response = await fetch('/api/signing-profiles');
-      // if (!response.ok) throw new Error('Failed to fetch signing profiles');
-      // const data = await response.json();
-      // setProfiles(data);
-      setProfiles(mockSigningProfilesData); // Using mock data for simulation
+      const data = await fetchSigningProfiles(user.access_token);
+      transformAndSetProfiles(data);
     } catch (err: any) {
       setError(err.message || "An unknown error occurred while fetching profiles.");
       setProfiles([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated, user, authLoading, transformAndSetProfiles]);
 
   useEffect(() => {
-    fetchProfiles();
-  }, [fetchProfiles]);
+    if (!authLoading && isAuthenticated()) {
+        fetchProfiles();
+    }
+  }, [fetchProfiles, authLoading, isAuthenticated]);
 
   const handleCreateNewProfile = () => {
     router.push('/signing-profiles/new');
@@ -115,19 +113,13 @@ export default function SigningProfilesPage() {
 
   const handleEditProfile = (profileId: string) => {
     alert(`Edit profile ${profileId} (placeholder)`);
-    // router.push(`/signing-profiles/${profileId}/edit`);
   };
 
-  const handleViewUsage = (profileId: string) => {
-     alert(`View usage for profile ${profileId} (placeholder)`);
-    // router.push(`/signing-profiles/${profileId}/usage`);
-  };
-
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">Loading Signing Profiles...</p>
+        <p className="text-lg text-muted-foreground">{authLoading ? "Authenticating..." : "Loading Signing Profiles..."}</p>
       </div>
     );
   }
@@ -172,7 +164,7 @@ export default function SigningProfilesPage() {
                 <CardDescription className="text-xs pt-1">{profile.description}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 text-sm flex-grow">
-                <DetailRow icon={Clock} label="Duration" value={profile.duration} />
+                <DetailRow icon={Clock} label="Validity Duration" value={profile.duration} />
                 <DetailRow icon={Fingerprint} label="Subject Policy" value={profile.subjectPolicy} />
                 <DetailRow icon={BookText} label="Extensions Policy" value={profile.extensionsPolicy} />
                 <DetailRow 
@@ -181,19 +173,23 @@ export default function SigningProfilesPage() {
                   value={
                     <div className="flex flex-wrap gap-1">
                       {profile.allowedKeyTypes.map(kt => <Badge key={kt} variant="secondary" className="text-xs">{kt}</Badge>)}
+                      {profile.allowedKeyTypes.length === 0 && <Badge variant="outline">None</Badge>}
                     </div>
                   } 
                 />
-                 <DetailRow icon={ShieldCheck} label="Key Strength" value={profile.keyStrength} />
-                 <DetailRow icon={PenTool} label="Signature Algorithm" value={profile.signatureAlgorithm} />
+                 <DetailRow 
+                    icon={ShieldCheck} 
+                    label="Can Sign as CA" 
+                    value={<Badge variant={profile.signAsCa ? "default" : "secondary"}>{profile.signAsCa ? 'Yes' : 'No'}</Badge>}
+                 />
               </CardContent>
               <CardFooter className="border-t pt-4">
                 <div className="flex w-full justify-end space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => handleViewUsage(profile.id)}>
-                    <Eye className="mr-1.5 h-3.5 w-3.5" /> View Usage
+                  <Button variant="outline" size="sm" onClick={() => alert(`View usage for ${profile.name} (placeholder)`)}>
+                    View Usage
                   </Button>
                   <Button variant="default" size="sm" onClick={() => handleEditProfile(profile.id)}>
-                    <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit Profile
+                    <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit
                   </Button>
                 </div>
               </CardFooter>

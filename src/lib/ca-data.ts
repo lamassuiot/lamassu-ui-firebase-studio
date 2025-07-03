@@ -1,3 +1,4 @@
+
 // Define the CA data structure
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
@@ -840,4 +841,50 @@ export async function fetchDevManagerStats(accessToken: string): Promise<{ total
     });
     if (!response.ok) throw new Error('Failed to fetch Device stats');
     return response.json();
+}
+
+// --- Signing Profiles ---
+
+export interface ApiSigningProfile {
+    id: string;
+	name: string;
+	description: string;
+	validity: {
+		type: string;
+		duration: string;
+		validity_from?: string;
+	};
+	sign_as_ca: boolean;
+	honor_key_usage: boolean;
+	key_usage: string[];
+	honor_extended_key_usage: boolean;
+	extended_key_usage: string[];
+	honor_subject: boolean;
+	subject: {
+		organization?: string;
+		organizational_unit?: string;
+		country?: string;
+		locality?: string;
+		state?: string;
+	};
+	honor_extensions: boolean;
+	allow_rsa_keys: boolean;
+	allow_ecdsa_keys: boolean;
+}
+
+export async function fetchSigningProfiles(accessToken: string): Promise<ApiSigningProfile[]> {
+    const response = await fetch(`${CA_API_BASE_URL}/profiles`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to fetch signing profiles. HTTP error ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Failed to fetch profiles: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+        } catch(e) { /* ignore */}
+        throw new Error(errorMessage);
+    }
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
 }
