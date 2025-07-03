@@ -118,7 +118,7 @@ export default function CryptoEnginesPage() {
   }
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full pb-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-3">
           <Cpu className="h-8 w-8 text-primary" />
