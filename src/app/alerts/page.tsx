@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Info, Loader2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { AlertTriangle, Info, Loader2, RefreshCw, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +25,14 @@ export interface AlertEvent {
   payload: object; // Will be mapped from event
 }
 
+// Sorting state
+export type SortableAlertColumn = 'type' | 'lastSeen' | 'eventCounter';
+export type SortDirection = 'asc' | 'desc';
+export interface AlertSortConfig {
+    column: SortableAlertColumn;
+    direction: SortDirection;
+}
+
 export default function AlertsPage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [events, setEvents] = useState<AlertEvent[]>([]);
@@ -30,6 +40,10 @@ export default function AlertsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Sorting and Filtering state
+  const [sortConfig, setSortConfig] = useState<AlertSortConfig>({ column: 'lastSeen', direction: 'desc' });
+  const [filterText, setFilterText] = useState('');
 
   // State for the new subscription modal
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
@@ -156,6 +170,56 @@ export default function AlertsPage() {
     }
   }, [loadAlertsData, authLoading]);
 
+  const handleSort = (column: SortableAlertColumn) => {
+    setSortConfig(currentConfig => ({
+        column,
+        direction: currentConfig.column === column && currentConfig.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const filteredAndSortedEvents = useMemo(() => {
+    let processedEvents = [...events];
+
+    // Filtering
+    if (filterText) {
+        processedEvents = processedEvents.filter(event =>
+            event.type.toLowerCase().includes(filterText.toLowerCase())
+        );
+    }
+
+    // Sorting
+    processedEvents.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.column) {
+            case 'lastSeen':
+                aValue = new Date(a.lastSeen).getTime();
+                bValue = new Date(b.lastSeen).getTime();
+                break;
+            case 'eventCounter':
+                aValue = a.eventCounter;
+                bValue = b.eventCounter;
+                break;
+            case 'type':
+            default:
+                aValue = a.type.toLowerCase();
+                bValue = b.type.toLowerCase();
+                break;
+        }
+        
+        if (aValue < bValue) {
+            return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+            return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+
+    return processedEvents;
+  }, [events, filterText, sortConfig]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -183,6 +247,20 @@ export default function AlertsPage() {
         Monitor and get notified when operations are requested to the PKI.
       </p>
 
+       <div className="space-y-1.5">
+          <Label htmlFor="alert-filter">Filter by Event Type</Label>
+          <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                  id="alert-filter"
+                  placeholder="e.g., ca_created"
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  className="pl-10"
+              />
+          </div>
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center p-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -197,17 +275,19 @@ export default function AlertsPage() {
             <Button variant="link" onClick={loadAlertsData} className="p-0 h-auto ml-1">Try again?</Button>
           </AlertDescription>
         </Alert>
-      ) : events.length > 0 ? (
+      ) : filteredAndSortedEvents.length > 0 ? (
         <AlertsTable 
-            events={events} 
+            events={filteredAndSortedEvents} 
             onSubscriptionClick={handleViewSubscriptionDetails} 
-            onSubscribe={handleOpenSubscribeModal} 
+            onSubscribe={handleOpenSubscribeModal}
+            sortConfig={sortConfig}
+            onSort={handleSort}
         />
       ) : (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-          <h3 className="text-lg font-semibold text-muted-foreground">No Events Found</h3>
+          <h3 className="text-lg font-semibold text-muted-foreground">{filterText ? 'No Matching Events Found' : 'No Events Found'}</h3>
           <p className="text-sm text-muted-foreground">
-            No system events have been recorded yet.
+            {filterText ? 'Try adjusting your filter.' : 'No system events have been recorded yet.'}
           </p>
         </div>
       )}
