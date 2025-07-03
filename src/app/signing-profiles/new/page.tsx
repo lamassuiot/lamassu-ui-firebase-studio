@@ -13,10 +13,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, PlusCircle, Settings2, KeyRound, ListChecks, Info } from "lucide-react"; 
+import { ArrowLeft, PlusCircle, Settings2, KeyRound, ListChecks, Info, Loader2, Shield } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { useAuth } from '@/contexts/AuthContext';
+import { createSigningProfile, type CreateSigningProfilePayload } from '@/lib/ca-data';
+
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
 const ecdsaCurves = ["P-256", "P-384", "P-521"] as const;
@@ -41,6 +44,7 @@ const signingProfileSchema = z.object({
   profileName: z.string().min(3, "Profile name must be at least 3 characters long."),
   description: z.string().optional(),
   duration: z.string().min(1, "Duration is required (e.g., '1y', '90d')."),
+  signAsCa: z.boolean().default(false),
   
   honorSubject: z.boolean().default(true),
   overrideCountry: z.string().optional(),
@@ -84,6 +88,7 @@ const toTitleCase = (str: string) => {
 export default function CreateSigningProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const form = useForm<SigningProfileFormValues>({
     resolver: zodResolver(signingProfileSchema),
@@ -91,6 +96,7 @@ export default function CreateSigningProfilePage() {
       profileName: '',
       description: '',
       duration: '1y',
+      signAsCa: false,
       honorSubject: true,
       allowRsa: true,
       allowEcdsa: false,
@@ -103,19 +109,67 @@ export default function CreateSigningProfilePage() {
     },
   });
 
+  const { isSubmitting } = form.formState;
   const watchAllowRsa = form.watch("allowRsa");
   const watchAllowEcdsa = form.watch("allowEcdsa");
   const watchHonorSubject = form.watch("honorSubject");
   const watchHonorKeyUsage = form.watch("honorKeyUsage");
   const watchHonorExtendedKeyUsage = form.watch("honorExtendedKeyUsage");
 
-  function onSubmit(data: SigningProfileFormValues) {
-    console.log('New Signing Profile Data:', data);
-    toast({
-      title: "Profile Creation Mock",
-      description: `Signing Profile "${data.profileName}" submitted. Check console for details.`,
-    });
-    router.push('/signing-profiles'); 
+  async function onSubmit(data: SigningProfileFormValues) {
+    if (!user?.access_token) {
+        toast({
+            title: "Authentication Error",
+            description: "You must be logged in to create a profile.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    const payload: CreateSigningProfilePayload = {
+        name: data.profileName,
+        description: data.description,
+        validity: {
+            type: "duration",
+            duration: data.duration,
+        },
+        sign_as_ca: data.signAsCa,
+        honor_key_usage: data.honorKeyUsage,
+        key_usage: data.keyUsages || [],
+        honor_extended_key_usage: data.honorExtendedKeyUsage,
+        extended_key_usage: data.extendedKeyUsages || [],
+        honor_subject: data.honorSubject,
+        honor_extensions: true,
+        allow_rsa_keys: data.allowRsa,
+        allow_ecdsa_keys: data.allowEcdsa,
+        allowed_rsa_key_strengths: data.allowedRsaKeyStrengths,
+        allowed_ecdsa_curves: data.allowedEcdsaCurves,
+        default_signature_algorithm: data.defaultSignatureAlgorithm,
+    };
+    
+    if (!data.honorSubject) {
+        payload.subject = {
+            country: data.overrideCountry,
+            state: data.overrideState,
+            organization: data.overrideOrganization,
+            organizational_unit: data.overrideOrgUnit,
+        }
+    }
+    
+    try {
+        await createSigningProfile(payload, user.access_token);
+        toast({
+            title: "Profile Created",
+            description: `Signing Profile "${data.profileName}" has been successfully created.`,
+        });
+        router.push('/signing-profiles'); 
+    } catch (error: any) {
+        toast({
+            title: "Creation Failed",
+            description: error.message,
+            variant: "destructive",
+        });
+    }
   }
 
   return (
@@ -181,6 +235,27 @@ export default function CreateSigningProfilePage() {
                     </FormControl>
                     <FormDescription>Default validity period for certificates signed with this profile (e.g., '1y' for 1 year, '90d' for 90 days).</FormDescription>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="signAsCa"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4 text-muted-foreground"/>Sign as Certificate Authority</FormLabel>
+                      <FormDescription>
+                        Allow certificates signed with this profile to act as intermediate CAs. This enables the `isCA:TRUE` basic constraint.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />
@@ -534,8 +609,13 @@ export default function CreateSigningProfilePage() {
                 <Button type="button" variant="outline" onClick={() => router.push('/signing-profiles')}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Create Profile
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                  )}
+                  {isSubmitting ? "Creating..." : "Create Profile"}
                 </Button>
               </div>
             </form>

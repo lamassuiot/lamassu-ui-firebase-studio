@@ -888,3 +888,50 @@ export async function fetchSigningProfiles(accessToken: string): Promise<ApiSign
     const data = await response.json();
     return Array.isArray(data) ? data : [];
 }
+
+export interface CreateSigningProfilePayload {
+    name: string;
+    description?: string;
+    validity: {
+        type: "duration";
+        duration: string;
+    };
+    sign_as_ca: boolean;
+    honor_key_usage: boolean;
+    key_usage: string[];
+    honor_extended_key_usage: boolean;
+    extended_key_usage: string[];
+    honor_subject: boolean;
+    subject?: {
+        organization?: string;
+        organizational_unit?: string;
+        country?: string;
+        state?: string;
+    };
+    honor_extensions: boolean;
+    allow_rsa_keys: boolean;
+    allow_ecdsa_keys: boolean;
+    allowed_rsa_key_strengths?: string[];
+    allowed_ecdsa_curves?: string[];
+    default_signature_algorithm?: string;
+}
+
+export async function createSigningProfile(payload: CreateSigningProfilePayload, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/profiles`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to create signing profile. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Profile creation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorMessage);
+    }
+}
