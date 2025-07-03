@@ -857,8 +857,8 @@ export interface ApiSigningProfile {
 	sign_as_ca: boolean;
 	honor_key_usage: boolean;
 	key_usage: string[];
-	honor_extended_key_usage: boolean;
-	extended_key_usage: string[];
+	honor_extended_key_usages: boolean;
+	extended_key_usages: string[];
 	honor_subject: boolean;
 	subject: {
 		organization?: string;
@@ -902,8 +902,8 @@ export interface CreateSigningProfilePayload {
     sign_as_ca: boolean;
     honor_key_usage: boolean;
     key_usage: string[];
-    honor_extended_key_usage: boolean;
-    extended_key_usage: string[];
+    honor_extended_key_usages: boolean;
+    extended_key_usages: string[];
     honor_subject: boolean;
     subject?: {
         organization?: string;

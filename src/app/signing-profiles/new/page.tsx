@@ -61,7 +61,7 @@ const signingProfileSchema = z.object({
   honorKeyUsage: z.boolean().default(false),
   keyUsages: z.array(z.enum(keyUsageOptions)).optional().default([]),
   
-  honorExtendedKeyUsage: z.boolean().default(false),
+  honorExtendedKeyUsages: z.boolean().default(false),
   extendedKeyUsages: z.array(z.enum(extendedKeyUsageOptions)).optional().default([]),
 }).refine(data => data.allowRsa || data.allowEcdsa, {
   message: "At least one key type (RSA or ECDSA) must be allowed.",
@@ -104,7 +104,7 @@ export default function CreateSigningProfilePage() {
       allowedEcdsaCurves: [],
       honorKeyUsage: false,
       keyUsages: ['DigitalSignature', 'KeyEncipherment'],
-      honorExtendedKeyUsage: false,
+      honorExtendedKeyUsages: false,
       extendedKeyUsages: ['ClientAuth'],
     },
   });
@@ -114,7 +114,7 @@ export default function CreateSigningProfilePage() {
   const watchAllowEcdsa = form.watch("allowEcdsa");
   const watchHonorSubject = form.watch("honorSubject");
   const watchHonorKeyUsage = form.watch("honorKeyUsage");
-  const watchHonorExtendedKeyUsage = form.watch("honorExtendedKeyUsage");
+  const watchHonorExtendedKeyUsages = form.watch("honorExtendedKeyUsages");
 
   async function onSubmit(data: SigningProfileFormValues) {
     if (!user?.access_token) {
@@ -136,8 +136,8 @@ export default function CreateSigningProfilePage() {
         sign_as_ca: data.signAsCa,
         honor_key_usage: data.honorKeyUsage,
         key_usage: data.keyUsages || [],
-        honor_extended_key_usage: data.honorExtendedKeyUsage,
-        extended_key_usage: data.extendedKeyUsages || [],
+        honor_extended_key_usages: data.honorExtendedKeyUsages,
+        extended_key_usages: data.extendedKeyUsages || [],
         honor_subject: data.honorSubject,
         honor_extensions: true,
         allow_rsa_keys: data.allowRsa,
@@ -536,7 +536,7 @@ export default function CreateSigningProfilePage() {
 
               <FormField
                   control={form.control}
-                  name="honorExtendedKeyUsage"
+                  name="honorExtendedKeyUsages"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                       <div className="space-y-0.5">
@@ -555,7 +555,7 @@ export default function CreateSigningProfilePage() {
                   )}
                 />
               
-              {!watchHonorExtendedKeyUsage && (
+              {!watchHonorExtendedKeyUsages && (
                  <div className="ml-4 -mt-4">
                   <FormField
                     control={form.control}
