@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { AlertTriangle, Info, Loader2, RefreshCw, Search } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ import { AlertsTable } from '@/components/alerts/AlertsTable';
 import { useToast } from '@/hooks/use-toast';
 import { SubscribeToAlertModal } from '@/components/alerts/SubscribeToAlertModal';
 import { SubscriptionDetailsModal } from '@/components/alerts/SubscriptionDetailsModal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 // This is the structure the UI component expects.
@@ -44,6 +46,10 @@ export default function AlertsPage() {
   // Sorting and Filtering state
   const [sortConfig, setSortConfig] = useState<AlertSortConfig>({ column: 'lastSeen', direction: 'desc' });
   const [filterText, setFilterText] = useState('');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // State for the new subscription modal
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
@@ -220,6 +226,26 @@ export default function AlertsPage() {
     return processedEvents;
   }, [events, filterText, sortConfig]);
 
+  const totalPages = useMemo(() => Math.ceil(filteredAndSortedEvents.length / pageSize), [filteredAndSortedEvents.length, pageSize]);
+  
+  const paginatedEvents = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredAndSortedEvents.slice(startIndex, startIndex + pageSize);
+  }, [filteredAndSortedEvents, currentPage, pageSize]);
+
+  useEffect(() => {
+      if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages);
+      } else if (totalPages === 0 && currentPage !== 1) {
+        setCurrentPage(1);
+      }
+  }, [totalPages, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterText, sortConfig, pageSize]);
+
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -276,13 +302,42 @@ export default function AlertsPage() {
           </AlertDescription>
         </Alert>
       ) : filteredAndSortedEvents.length > 0 ? (
-        <AlertsTable 
-            events={filteredAndSortedEvents} 
-            onSubscriptionClick={handleViewSubscriptionDetails} 
-            onSubscribe={handleOpenSubscribeModal}
-            sortConfig={sortConfig}
-            onSort={handleSort}
-        />
+        <>
+          <AlertsTable 
+              events={paginatedEvents} 
+              onSubscriptionClick={handleViewSubscriptionDetails} 
+              onSubscribe={handleOpenSubscribeModal}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+          />
+          <div className="flex justify-between items-center mt-4">
+            <div className="flex items-center space-x-2">
+                <Label htmlFor="pageSizeSelectAlerts" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
+                <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+                    <SelectTrigger id="pageSizeSelectAlerts" className="w-[80px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages > 0 ? totalPages : 1}
+                </span>
+                <Button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1} variant="outline" size="sm">
+                    <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                </Button>
+                <Button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages} variant="outline" size="sm">
+                    Next <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+            </div>
+          </div>
+        </>
       ) : (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">{filterText ? 'No Matching Events Found' : 'No Events Found'}</h3>
