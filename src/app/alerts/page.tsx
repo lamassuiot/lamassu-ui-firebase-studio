@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SubscribeToAlertModal } from '@/components/alerts/SubscribeToAlertModal';
 import { SubscriptionDetailsModal } from '@/components/alerts/SubscriptionDetailsModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 // This is the structure the UI component expects.
@@ -46,6 +47,7 @@ export default function AlertsPage() {
   // Sorting and Filtering state
   const [sortConfig, setSortConfig] = useState<AlertSortConfig>({ column: 'lastSeen', direction: 'desc' });
   const [filterText, setFilterText] = useState('');
+  const [showWithSubscriptionsOnly, setShowWithSubscriptionsOnly] = useState(false);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -193,6 +195,10 @@ export default function AlertsPage() {
         );
     }
 
+    if (showWithSubscriptionsOnly) {
+        processedEvents = processedEvents.filter(event => event.activeSubscriptions.length > 0);
+    }
+
     // Sorting
     processedEvents.sort((a, b) => {
         let aValue: any;
@@ -224,7 +230,7 @@ export default function AlertsPage() {
     });
 
     return processedEvents;
-  }, [events, filterText, sortConfig]);
+  }, [events, filterText, showWithSubscriptionsOnly, sortConfig]);
 
   const totalPages = useMemo(() => Math.ceil(filteredAndSortedEvents.length / pageSize), [filteredAndSortedEvents.length, pageSize]);
   
@@ -243,7 +249,7 @@ export default function AlertsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterText, sortConfig, pageSize]);
+  }, [filterText, showWithSubscriptionsOnly, sortConfig, pageSize]);
 
 
   if (authLoading) {
@@ -273,19 +279,29 @@ export default function AlertsPage() {
         Monitor and get notified when operations are requested to the PKI.
       </p>
 
-       <div className="space-y-1.5">
-          <Label htmlFor="alert-filter">Filter by Event Type</Label>
-          <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                  id="alert-filter"
-                  placeholder="e.g., ca_created"
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  className="pl-10"
-              />
+       <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-grow space-y-1.5">
+              <Label htmlFor="alert-filter">Filter by Event Type</Label>
+              <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                      id="alert-filter"
+                      placeholder="e.g., ca_created"
+                      value={filterText}
+                      onChange={(e) => setFilterText(e.target.value)}
+                      className="pl-10"
+                  />
+              </div>
           </div>
-      </div>
+          <div className="flex items-end pb-1">
+            <div className="flex items-center space-x-2">
+                <Checkbox id="show-with-subs" checked={showWithSubscriptionsOnly} onCheckedChange={(checked) => setShowWithSubscriptionsOnly(Boolean(checked))} />
+                <Label htmlFor="show-with-subs" className="font-normal whitespace-nowrap">
+                    Only show events with subscriptions
+                </Label>
+            </div>
+          </div>
+       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center p-8">
