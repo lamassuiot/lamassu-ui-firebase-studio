@@ -870,6 +870,9 @@ export interface ApiSigningProfile {
 	honor_extensions: boolean;
 	allow_rsa_keys: boolean;
 	allow_ecdsa_keys: boolean;
+    allowed_rsa_key_strengths?: string[];
+    allowed_ecdsa_curves?: string[];
+    default_signature_algorithm?: string;
 }
 
 export async function fetchSigningProfiles(accessToken: string): Promise<ApiSigningProfile[]> {
@@ -931,6 +934,42 @@ export async function createSigningProfile(payload: CreateSigningProfilePayload,
         try {
             errorJson = await response.json();
             errorMessage = `Profile creation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorMessage);
+    }
+}
+
+export async function fetchSigningProfileById(profileId: string, accessToken: string): Promise<ApiSigningProfile> {
+    const response = await fetch(`${CA_API_BASE_URL}/profiles/${profileId}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to fetch signing profile. HTTP error ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Failed to fetch profile: ${errorJson.err || errorJson.message || 'Unknown API error'}`;
+        } catch(e) { /* ignore */}
+        throw new Error(errorMessage);
+    }
+    return response.json();
+}
+
+export async function updateSigningProfile(profileId: string, payload: CreateSigningProfilePayload, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/profiles/${profileId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to update signing profile. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Profile update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
         } catch (e) { /* ignore */ }
         throw new Error(errorMessage);
     }

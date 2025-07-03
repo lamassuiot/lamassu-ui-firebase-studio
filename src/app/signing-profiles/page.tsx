@@ -45,7 +45,7 @@ export default function SigningProfilesPage() {
     const transformed = apiProfiles.map(p => {
         let subjectPolicy = 'Honors Subject DN from CSR.';
         if (!p.honor_subject) {
-            const overrides = Object.entries(p.subject)
+            const overrides = Object.entries(p.subject || {})
                 .filter(([, value]) => value)
                 .map(([key, value]) => `${key.substring(0,2).toUpperCase()}=${value}`)
                 .join(', ');
@@ -56,12 +56,12 @@ export default function SigningProfilesPage() {
         if (p.honor_key_usage) {
             extensionsPolicy += 'Honors Key Usage from CSR. ';
         } else {
-            extensionsPolicy += `Enforces KU: ${p.key_usage.join(', ') || 'None'}. `;
+            extensionsPolicy += `Enforces KU: ${p.key_usage?.join(', ') || 'None'}. `;
         }
         if (p.honor_extended_key_usage) {
             extensionsPolicy += 'Honors EKU from CSR.';
         } else {
-            extensionsPolicy += `Enforces EKU: ${p.extended_key_usage.join(', ') || 'None'}.`;
+            extensionsPolicy += `Enforces EKU: ${p.extended_key_usage?.join(', ') || 'None'}.`;
         }
 
         const allowedKeyTypes = [];
@@ -112,7 +112,7 @@ export default function SigningProfilesPage() {
   };
 
   const handleEditProfile = (profileId: string) => {
-    alert(`Edit profile ${profileId} (placeholder)`);
+    router.push(`/signing-profiles/edit?id=${profileId}`);
   };
 
   if (isLoading || authLoading) {
