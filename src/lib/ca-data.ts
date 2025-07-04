@@ -166,91 +166,98 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
 
         const certificate = new Certificate({ schema: asn1.result });
         
-        // 1. Signature Algorithm
-        const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
-        const signatureAlgorithm = SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
+        // Wrap each parsing section in try-catch to prevent a single failure from crashing the process
+        let signatureAlgorithm = 'N/A';
+        try {
+            const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
+            signatureAlgorithm = SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
+        } catch(e) { console.error("Failed to parse Signature Algorithm:", e); }
 
-        // 2. CRL Distribution Points
         const crlDistributionPoints: string[] = [];
-        const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31");
-        if (cdpExtension?.parsedValue) {
-            const crls = cdpExtension.parsedValue as CRLDistributionPoints;
-            crls.distributionPoints?.forEach((point: any) => {
-                if (point.distributionPoint && point.distributionPoint[0]) {
-                    const generalName = point.distributionPoint[0];
-                    crlDistributionPoints.push(generalName.value);
-                }
-            });
-        }
-        
-        // 3. Authority Information Access (AIA) for OCSP and CA Issuers
-        const ocspUrls: string[] = [];
-        const caIssuersUrls: string[] = [];
-        const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1");
-        if (aiaExtension?.parsedValue) {
-            const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
-            aia.accessDescriptions.forEach((desc: any) => {
-                if (desc.accessMethod === "1.3.6.1.5.5.7.48.1") { // id-ad-ocsp
-                    if (desc.accessLocation.type === 6) ocspUrls.push(desc.accessLocation.value);
-                } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2") { // id-ad-caIssuers
-                    if (desc.accessLocation.type === 6) caIssuersUrls.push(desc.accessLocation.value);
-                }
-            });
-        }
-        
-        // 4. Path Length Constraint
-        let pathLenConstraint: number | 'None' = 'None';
-        const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
-        if (bcExtension?.parsedValue) {
-            const basicConstraints = bcExtension.parsedValue as BasicConstraints;
-            if (basicConstraints.pathLenConstraint !== undefined) {
-                pathLenConstraint = basicConstraints.pathLenConstraint;
-            }
-        }
-        
-        // 5. Subject Alternative Names (SANs)
-        const sanExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.17");
-        const sans: string[] = [];
-        if (sanExtension?.parsedValue) {
-            const sanValue = sanExtension.parsedValue as GeneralNames;
-            if (sanValue.names && Array.isArray(sanValue.names)) {
-                sanValue.names.forEach((name: any) => {
-                    if (name.type === 1) sans.push(`Email: ${name.value}`);
-                    else if (name.type === 2) sans.push(`DNS: ${name.value}`);
-                    else if (name.type === 6) sans.push(`URI: ${name.value}`);
-                    else if (name.type === 7) {
-                        const ipBytes = Array.from(new Uint8Array(name.value.valueBlock.valueHex));
-                        sans.push(`IP: ${ipBytes.join('.')}`);
+        try {
+            const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31");
+            if (cdpExtension?.parsedValue) {
+                const crls = cdpExtension.parsedValue as CRLDistributionPoints;
+                crls.distributionPoints?.forEach((point: any) => {
+                    if (point.distributionPoint && point.distributionPoint[0]) {
+                        crlDistributionPoints.push(point.distributionPoint[0].value);
                     }
                 });
             }
-        }
+        } catch(e) { console.error("Failed to parse CRL Distribution Points:", e); }
         
-        // 6. Key Usage
-        const keyUsageExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.15");
+        const ocspUrls: string[] = [];
+        const caIssuersUrls: string[] = [];
+        try {
+            const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1");
+            if (aiaExtension?.parsedValue) {
+                const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
+                aia.accessDescriptions.forEach((desc: any) => {
+                    if (desc.accessMethod === "1.3.6.1.5.5.7.48.1" && desc.accessLocation.type === 6) { // id-ad-ocsp
+                        ocspUrls.push(desc.accessLocation.value);
+                    } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2" && desc.accessLocation.type === 6) { // id-ad-caIssuers
+                        caIssuersUrls.push(desc.accessLocation.value);
+                    }
+                });
+            }
+        } catch(e) { console.error("Failed to parse Authority Information Access:", e); }
+        
+        let pathLenConstraint: number | 'None' = 'None';
+        try {
+            const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
+            if (bcExtension?.parsedValue) {
+                const basicConstraints = bcExtension.parsedValue as BasicConstraints;
+                if (basicConstraints.pathLenConstraint !== undefined) {
+                    pathLenConstraint = basicConstraints.pathLenConstraint;
+                }
+            }
+        } catch(e) { console.error("Failed to parse Basic Constraints:", e); }
+        
+        const sans: string[] = [];
+        try {
+            const sanExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.17");
+            if (sanExtension?.parsedValue) {
+                const sanValue = sanExtension.parsedValue as GeneralNames;
+                if (sanValue.names && Array.isArray(sanValue.names)) {
+                    sanValue.names.forEach((name: any) => {
+                        if (name.type === 1) sans.push(`Email: ${name.value}`);
+                        else if (name.type === 2) sans.push(`DNS: ${name.value}`);
+                        else if (name.type === 6) sans.push(`URI: ${name.value}`);
+                        else if (name.type === 7) {
+                            const ipBytes = Array.from(new Uint8Array(name.value.valueBlock.valueHex));
+                            sans.push(`IP: ${ipBytes.join('.')}`);
+                        }
+                    });
+                }
+            }
+        } catch(e) { console.error("Failed to parse Subject Alternative Names:", e); }
+        
         const keyUsage: string[] = [];
-        if (keyUsageExtension) {
-            const keyUsageAsn1 = asn1js.fromBER(keyUsageExtension.extnValue.valueBlock.valueHex);
-            if(keyUsageAsn1.offset !== -1) {
-                const keyUsageValue = new asn1js.BitString({ schema: keyUsageAsn1.result });
-                for (let i = 0; i < 9; i++) {
-                    if (keyUsageValue.get(i)) {
-                        keyUsage.push(KEY_USAGE_NAMES[i]);
+        try {
+            const keyUsageExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.15");
+            if (keyUsageExtension) {
+                const keyUsageAsn1 = asn1js.fromBER(keyUsageExtension.extnValue.valueBlock.valueHex);
+                if (keyUsageAsn1.offset !== -1) {
+                    const keyUsageValue = new asn1js.BitString({ schema: keyUsageAsn1.result });
+                    for (let i = 0; i < 9; i++) {
+                        if (keyUsageValue.get(i)) {
+                            keyUsage.push(KEY_USAGE_NAMES[i]);
+                        }
                     }
                 }
             }
-        }
+        } catch(e) { console.error("Failed to parse Key Usage:", e); }
         
-        // 7. Extended Key Usage
-        const ekuExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.37");
         const extendedKeyUsage: string[] = [];
-        if (ekuExtension?.parsedValue) {
-            const ekuValue = ekuExtension.parsedValue as ExtKeyUsage;
-            ekuValue.keyPurposes.forEach((oid: string) => {
-                extendedKeyUsage.push(EKU_OID_MAP[oid] || oid);
-            });
-        }
-
+        try {
+            const ekuExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.37");
+            if (ekuExtension?.parsedValue) {
+                const ekuValue = ekuExtension.parsedValue as ExtKeyUsage;
+                ekuValue.keyPurposes.forEach((oid: string) => {
+                    extendedKeyUsage.push(EKU_OID_MAP[oid] || oid);
+                });
+            }
+        } catch(e) { console.error("Failed to parse Extended Key Usage:", e); }
 
         return {
             signatureAlgorithm,
@@ -264,8 +271,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         };
 
     } catch (e) {
-        console.error("Failed to parse certificate PEM details:", e);
-        return defaultResult;
+        console.error("Fatal error during certificate parsing:", e);
+        return defaultResult; // Return default if the entire parsing fails
     }
 }
 
