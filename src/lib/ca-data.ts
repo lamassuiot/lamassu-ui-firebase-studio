@@ -230,11 +230,13 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         const keyUsageExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.15");
         const keyUsage: string[] = [];
         if (keyUsageExtension) {
-            // Re-parse the BitString from the raw extension value to ensure it has methods.
-            const keyUsageValue = new asn1js.BitString({ valueHex: keyUsageExtension.extnValue.valueBlock.valueHex });
-            for (let i = 0; i < 9; i++) {
-                if (keyUsageValue.get(i)) {
-                    keyUsage.push(KEY_USAGE_NAMES[i]);
+            const keyUsageAsn1 = asn1js.fromBER(keyUsageExtension.extnValue.valueBlock.valueHex);
+            if(keyUsageAsn1.offset !== -1) {
+                const keyUsageValue = new asn1js.BitString({ schema: keyUsageAsn1.result });
+                for (let i = 0; i < 9; i++) {
+                    if (keyUsageValue.get(i)) {
+                        keyUsage.push(KEY_USAGE_NAMES[i]);
+                    }
                 }
             }
         }
