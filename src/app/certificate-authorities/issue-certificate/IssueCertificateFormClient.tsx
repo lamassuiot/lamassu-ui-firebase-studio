@@ -225,18 +225,31 @@ export default function IssueCertificateFormClient() {
     // Only run this logic if we are not still loading the CA
     if (!isLoadingCa) {
         if (issuerCa) {
+            // Set default validity duration
             const defaultLifetime = issuerCa.defaultIssuanceLifetime;
-            // The regex from the DurationInput component to validate duration strings
             const DURATION_REGEX = /^(?=.*\d)(\d+y)?(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$/;
 
             if (defaultLifetime && DURATION_REGEX.test(defaultLifetime)) {
                 setDuration(defaultLifetime);
             } else {
-                // Fallback for Indefinite, date, or not specified
                 setDuration('1y'); 
             }
+
+            // Set default key algorithm based on issuer
+            const keyMeta = issuerCa.rawApiData?.certificate.key_metadata;
+            if (keyMeta) {
+                if (keyMeta.type === 'RSA' && keyMeta.bits) {
+                    setSelectedAlgorithm('RSA');
+                    setSelectedRsaKeySize(String(keyMeta.bits));
+                } else if (keyMeta.type === 'ECDSA' && keyMeta.curve_name) {
+                    setSelectedAlgorithm('ECDSA');
+                    // curve_name from API should be P-256, P-384, etc.
+                    setSelectedEcdsaCurve(keyMeta.curve_name);
+                }
+            }
+
         } else {
-            // If CA loading is finished and there's no CA (e.g., error), set a default
+            // Fallback for Indefinite, date, or not specified when no CA
             setDuration('1y');
         }
     }
