@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Loader2, AlertTriangle, Copy, Check, Download as DownloadIcon } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle, Copy, Check, Download as DownloadIcon, X as XIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,6 @@ import {
 } from "pkijs";
 import * as asn1js from "asn1js";
 import { useAuth } from '@/contexts/AuthContext';
-import { TagInput } from '@/components/shared/TagInput';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
@@ -92,6 +91,11 @@ const EKU_OPTIONS = [
     { id: "OcspSigning", label: "OCSP Signing" },
 ] as const;
 
+// --- SAN Interface ---
+interface SanEntry {
+  type: 'DNS' | 'IP' | 'Email' | 'URI';
+  value: string;
+}
 
 // --- Stepper Component ---
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
@@ -152,10 +156,12 @@ export default function IssueCertificateFormClient() {
   const [country, setCountry] = useState('');
   const [stateProvince, setStateProvince] = useState('');
   const [locality, setLocality] = useState('');
-  const [dnsSans, setDnsSans] = useState<string[]>([]);
-  const [ipSans, setIpSans] = useState<string[]>([]);
-  const [emailSans, setEmailSans] = useState<string[]>([]);
-  const [uriSans, setUriSans] = useState<string[]>([]);
+  
+  // New SANs state
+  const [sans, setSans] = useState<SanEntry[]>([]);
+  const [currentSanType, setCurrentSanType] = useState<SanEntry['type']>('DNS');
+  const [currentSanValue, setCurrentSanValue] = useState('');
+
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('RSA');
   const [selectedRsaKeySize, setSelectedRsaKeySize] = useState<string>('2048');
   const [selectedEcdsaCurve, setSelectedEcdsaCurve] = useState<string>('P-256');
@@ -249,6 +255,24 @@ export default function IssueCertificateFormClient() {
   }, [csrPem, issuanceMode]);
 
   // --- Handlers ---
+
+  const handleAddSan = () => {
+    if (currentSanValue.trim() === '') return;
+    setSans(prev => [...prev, { type: currentSanType, value: currentSanValue.trim() }]);
+    setCurrentSanValue('');
+  };
+
+  const handleAddSanOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+          e.preventDefault();
+          handleAddSan();
+      }
+  };
+
+  const handleRemoveSan = (indexToRemove: number) => {
+      setSans(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
   const handleBack = () => {
     setGenerationError(null);
     setStep(1);
@@ -327,15 +351,21 @@ export default function IssueCertificateFormClient() {
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
       
       pkcs10.attributes = [];
-      const generalNamesArray: GeneralName[] = [
-        ...emailSans.map(email => new GeneralName({ type: 1, value: email.trim() })),
-        ...dnsSans.map(dnsName => new GeneralName({ type: 2, value: dnsName.trim() })),
-        ...uriSans.map(uri => new GeneralName({ type: 6, value: uri.trim() })),
-        ...ipSans.map(ip => {
-            const ipBuffer = ipToBuffer(ip);
-            return ipBuffer ? new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) }) : null;
-        }).filter((n): n is GeneralName => n !== null)
-      ];
+      const generalNamesArray: GeneralName[] = sans.map(san => {
+          switch (san.type) {
+              case 'Email':
+                  return new GeneralName({ type: 1, value: san.value.trim() });
+              case 'DNS':
+                  return new GeneralName({ type: 2, value: san.value.trim() });
+              case 'URI':
+                  return new GeneralName({ type: 6, value: san.value.trim() });
+              case 'IP':
+                  const ipBuffer = ipToBuffer(san.value.trim());
+                  return ipBuffer ? new GeneralName({ type: 7, value: new asn1js.OctetString({ valueHex: ipBuffer }) }) : null;
+              default:
+                  return null;
+          }
+      }).filter((n): n is GeneralName => n !== null);
       
       if (generalNamesArray.length > 0) {
         const extensions = new Extensions({
@@ -489,14 +519,63 @@ export default function IssueCertificateFormClient() {
                                 <div className="space-y-1"><Label htmlFor="locality">Locality (L)</Label><Input id="locality" value={locality || ''} onChange={e => setLocality(e.target.value)} /></div>
                                 <div className="space-y-1"><Label htmlFor="stateProvince">State/Province (ST)</Label><Input id="stateProvince" value={stateProvince || ''} onChange={e => setStateProvince(e.target.value)} /></div>
                                 <div className="space-y-1"><Label htmlFor="country">Country (C)</Label><Input id="country" value={country || ''} onChange={e => setCountry(e.target.value)} placeholder="e.g. US" maxLength={2} /></div>
+                                
                                 <div className="md:col-span-2 border-t pt-4 mt-2">
-                                    <h4 className="font-medium mb-2">Subject Alternative Names (SANs)</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
-                                        <div className="space-y-1"><Label htmlFor="dnsSans">DNS Names</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="e.g., example.com"/></div>
-                                        <div className="space-y-1"><Label htmlFor="ipSans">IP Addresses</Label><TagInput id="ipSans" value={ipSans} onChange={setIpSans} placeholder="e.g., 192.168.1.1"/></div>
-                                        <div className="space-y-1"><Label htmlFor="emailSans">Email Addresses</Label><TagInput id="emailSans" value={emailSans} onChange={setEmailSans} placeholder="e.g., security@example.com"/></div>
-                                        <div className="space-y-1"><Label htmlFor="uriSans">URIs</Label><TagInput id="uriSans" value={uriSans} onChange={setUriSans} placeholder="e.g., https://device.id/info"/></div>
+                                  <h4 className="font-medium mb-2">Subject Alternative Names (SANs)</h4>
+                                  
+                                  <div className="flex items-end gap-2">
+                                    <div className="w-40 flex-none">
+                                      <Label htmlFor="san-type">Type</Label>
+                                      <Select value={currentSanType} onValueChange={(v) => setCurrentSanType(v as any)}>
+                                        <SelectTrigger id="san-type"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="DNS">DNS</SelectItem>
+                                          <SelectItem value="IP">IP Address</SelectItem>
+                                          <SelectItem value="Email">Email</SelectItem>
+                                          <SelectItem value="URI">URI</SelectItem>
+                                        </SelectContent>
+                                      </Select>
                                     </div>
+                                    <div className="flex-grow">
+                                      <Label htmlFor="san-value">Value</Label>
+                                      <Input 
+                                        id="san-value" 
+                                        value={currentSanValue} 
+                                        onChange={(e) => setCurrentSanValue(e.target.value)} 
+                                        onKeyDown={handleAddSanOnEnter}
+                                        placeholder={
+                                          currentSanType === 'DNS' ? 'e.g., example.com' :
+                                          currentSanType === 'IP' ? 'e.g., 192.168.1.1' :
+                                          currentSanType === 'Email' ? 'e.g., security@example.com' :
+                                          'e.g., https://device.id/info'
+                                        }
+                                      />
+                                    </div>
+                                    <Button type="button" onClick={handleAddSan}>Add</Button>
+                                  </div>
+
+                                  {sans.length > 0 && (
+                                    <div className="mt-4 p-3 border rounded-md bg-muted/30">
+                                      <div className="flex flex-wrap gap-2">
+                                        {sans.map((san, index) => (
+                                          <Badge key={index} variant="secondary" className="pl-2 pr-1 py-1 text-sm">
+                                            <span className="font-semibold mr-1.5">{san.type}:</span>
+                                            <span className="font-normal">{san.value}</span>
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-5 w-5 ml-1.5 opacity-60 hover:opacity-100 hover:bg-transparent p-0"
+                                              onClick={() => handleRemoveSan(index)}
+                                              aria-label={`Remove SAN ${san.value}`}
+                                            >
+                                              <XIcon className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                             </div>
                             ) : (
