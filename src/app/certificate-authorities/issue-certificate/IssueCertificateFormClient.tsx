@@ -477,14 +477,14 @@ export default function IssueCertificateFormClient() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Issue New Certificate</CardTitle>
-          <CardDescription>
-            Follow the steps below to issue a new certificate from Certification Authority: {' '}
+          <div className="text-sm text-muted-foreground pt-1">
+            Follow the steps below to issue a new certificate from Certification Authority:{' '}
             {isLoadingCa ? (
-                <Skeleton className="h-4 w-[200px] inline-block" />
+              <Skeleton className="h-4 w-[200px] inline-block align-middle" />
             ) : (
-                <span className="font-mono">{issuerCa?.name || caId.substring(0,12)+'...'}</span>
+              <span className="font-mono">{issuerCa?.name || caId.substring(0, 12) + '...'}</span>
             )}
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
             {isLoadingCa ? (
