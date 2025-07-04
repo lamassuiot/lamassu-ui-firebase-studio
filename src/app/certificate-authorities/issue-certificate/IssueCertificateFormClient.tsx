@@ -241,10 +241,11 @@ export default function IssueCertificateFormClient() {
                 if (keyMeta.type === 'RSA' && keyMeta.bits) {
                     setSelectedAlgorithm('RSA');
                     setSelectedRsaKeySize(String(keyMeta.bits));
-                } else if (keyMeta.type === 'ECDSA' && keyMeta.curve_name) {
+                } else if (keyMeta.type === 'ECDSA' && keyMeta.bits) {
                     setSelectedAlgorithm('ECDSA');
-                    // curve_name from API should be P-256, P-384, etc.
-                    setSelectedEcdsaCurve(keyMeta.curve_name);
+                    // For ECDSA, the API provides the key size in bits. We map it to the curve name.
+                    const curveName = { 256: 'P-256', 384: 'P-384', 521: 'P-521' }[keyMeta.bits] || 'P-256';
+                    setSelectedEcdsaCurve(curveName);
                 }
             }
 
