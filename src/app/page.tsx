@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -166,19 +167,19 @@ export default function HomePage() {
         {anyTimelineLoading && !anyTimelineError ? (
           <Card className="shadow-lg w-full bg-card">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+              <CardTitle className="text-xl font-semibold">Certification Authority Expiry Timeline</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-3 text-muted-foreground">Loading CA timeline data...</p>
+                <p className="ml-3 text-muted-foreground">Loading Certification Authority timeline data...</p>
               </div>
             </CardContent>
           </Card>
         ) : anyTimelineError ? (
           <Card className="shadow-lg w-full bg-card">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold">CA Expiry Timeline</CardTitle>
+              <CardTitle className="text-xl font-semibold">Certification Authority Expiry Timeline</CardTitle>
             </CardHeader>
             <CardContent>
               <Alert variant="destructive">

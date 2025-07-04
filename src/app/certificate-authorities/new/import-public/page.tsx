@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState } from 'react';
@@ -111,8 +112,8 @@ export default function CreateCaImportPublicPage() {
     try {
         await importCa(payload, user.access_token);
         toast({
-            title: "Public CA Import Successful",
-            description: `Public CA "${decodedImportedCertInfo?.subject || 'imported certificate'}" has been imported.`,
+            title: "Public Certification Authority Import Successful",
+            description: `Public Certification Authority "${decodedImportedCertInfo?.subject || 'imported certificate'}" has been imported.`,
             variant: "default",
         });
         router.push('/certificate-authorities');
@@ -136,20 +137,20 @@ export default function CreateCaImportPublicPage() {
           <div className="flex items-center space-x-3">
             <FileText className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-headline font-semibold">
-              Import Certificate Only (Public Key)
+              Import Certification Authority Certificate Only (no Private Key)
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Import an existing CA certificate for trust anchor or reference purposes. LamassuIoT will not be able to sign certificates with this CA.
+            Import an existing Certification Authority certificate for trust anchor or reference purposes. LamassuIoT will not be able to sign certificates with this Certification Authority.
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-8">
             <section>
-              <h3 className="text-lg font-semibold mb-3">CA Details</h3>
+              <h3 className="text-lg font-semibold mb-3">Certification Authority Details</h3>
               <div className="space-y-4">
                  <div>
-                   <Label htmlFor="importedCaCertPem">CA Certificate (PEM)</Label>
+                   <Label htmlFor="importedCaCertPem">Certification Authority Certificate (PEM)</Label>
                     <Textarea 
                         id="importedCaCertPem" 
                         placeholder="Paste the CA certificate PEM here..." 

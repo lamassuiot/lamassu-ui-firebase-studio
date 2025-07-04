@@ -368,12 +368,12 @@ export default function IssueCertificateFormClient() {
   return (
     <div className="w-full space-y-6">
       <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.back()}><ArrowLeft className="mr-2 h-4 w-4" /> Back to CA</Button>
+        <Button variant="outline" onClick={() => router.back()}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Certification Authority</Button>
       </div>
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Issue New Certificate</CardTitle>
-          <CardDescription>Follow the steps below to issue a new certificate from CA: <span className="font-mono">{caId.substring(0,12)}...</span></CardDescription>
+          <CardDescription>Follow the steps below to issue a new certificate from Certification Authority: <span className="font-mono">{caId.substring(0,12)}...</span></CardDescription>
         </CardHeader>
         <CardContent>
           <Stepper currentStep={step} />
@@ -465,7 +465,7 @@ export default function IssueCertificateFormClient() {
                   <Loader2 className="h-16 w-16 text-primary animate-spin" />
                   <h3 className="text-2xl font-semibold mt-4">Issuing Certificate...</h3>
                   <p className="text-muted-foreground mt-2">
-                    Your request is being processed by the Certificate Authority. Please wait.
+                    Your request is being processed by the Certification Authority. Please wait.
                   </p>
                 </>
               ) : generationError ? (

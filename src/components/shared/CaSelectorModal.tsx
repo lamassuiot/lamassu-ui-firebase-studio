@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -56,13 +57,13 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
             {(isLoadingCAs || isAuthLoading) && (
               <div className="flex items-center justify-center h-72">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-2">{isAuthLoading ? "Authenticating..." : "Loading CAs..."}</p>
+                <p className="ml-2">{isAuthLoading ? "Authenticating..." : "Loading Certification Authorities..."}</p>
               </div>
             )}
             {errorCAs && !isLoadingCAs && !isAuthLoading && (
               <Alert variant="destructive" className="my-4">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Error Loading CAs</AlertTitle>
+                <AlertTitle>Error Loading Certification Authorities</AlertTitle>
                 <AlertDescription>
                   {errorCAs} <Button variant="link" onClick={loadCAsAction} className="p-0 h-auto">Try again?</Button>
                 </AlertDescription>
@@ -86,7 +87,7 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
             )}
             {!isLoadingCAs && !isAuthLoading && !errorCAs && availableCAs.length === 0 && (
               <p className="text-muted-foreground text-center my-4 p-4 border rounded-md bg-muted/20">
-                No CAs available to select.
+                No Certification Authorities available to select.
               </p>
             )}
             <DialogFooter>

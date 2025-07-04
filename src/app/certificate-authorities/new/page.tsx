@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -22,30 +23,30 @@ const creationModes: CreationMode[] = [
   {
     id: 'generate',
     href: '/certificate-authorities/new/generate',
-    title: 'Create New CA (new Key Pair)',
-    description: 'Provision a new Root or Intermediate CA directly. The CA will be active immediately upon creation.',
+    title: 'Create New Certification Authority (new Key Pair)',
+    description: 'Provision a new Root or Intermediate Certification Authority directly. The CA will be active immediately upon creation.',
     icon: <KeyRound className="h-8 w-8 text-primary" />,
   },
   {
     id: 'reuse-key',
     href: '/certificate-authorities/new/reuse-key',
-    title: 'Create CA (Reuse Key)',
-    description: 'Provision a new Root or Intermediate CA using an existing key from your KMS.',
+    title: 'Create Certification Authority (Reuse Key)',
+    description: 'Provision a new Root or Intermediate Certification Authority using an existing key pair from your KMS.',
     icon: <Repeat className="h-8 w-8 text-primary" />,
     disabled: true,
   },
   {
     id: 'import-full',
     href: '/certificate-authorities/new/import-full',
-    title: 'Import External CA (with Private Key)',
-    description: 'Import an existing CA certificate along with its private key. This CA will be fully managed by LamassuIoT.',
+    title: 'Import External Certification Authority (with Private Key)',
+    description: 'Import an existing Certification Authority certificate along with its private key. This CA will be fully managed by LamassuIoT.',
     icon: <UploadCloud className="h-8 w-8 text-primary" />,
   },
   {
     id: 'import-public',
     href: '/certificate-authorities/new/import-public',
-    title: 'Import Certificate Only (no Private Key)',
-    description: "Import an existing CA certificate (public key only) for trust anchor or reference purposes. LamassuIoT will not be able to sign certificates with this CA.",
+    title: 'Import Certification Authority Certificate Only (no Private Key)',
+    description: "Import an existing Certification Authority certificate (public key only) for trust anchor or reference purposes. LamassuIoT will not be able to sign certificates with this Certification Authority.",
     icon: <FileText className="h-8 w-8 text-primary" />,
   },
 ];
@@ -63,11 +64,11 @@ export default function CreateCaHubPage() {
   return (
     <div className="w-full space-y-8 mb-8">
       <Button variant="outline" onClick={() => router.push('/certificate-authorities')} className="mb-0">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to CAs
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certification Authorities
       </Button>
       <div className="text-center">
-        <h1 className="text-3xl font-headline font-semibold">Choose CA Creation Method</h1>
-        <p className="text-muted-foreground mt-2">Select how you want to create or import your Certificate Authority.</p>
+        <h1 className="text-3xl font-headline font-semibold">Choose Certification Authority Creation Method</h1>
+        <p className="text-muted-foreground mt-2">Select how you want to create or import your Certification Authority.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {creationModes.map(mode => (

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -175,7 +176,7 @@ export default function ApproveCaRequestPage() {
     
     try {
         await importCa(payload, user.access_token);
-        toast({ title: "Success!", description: `CA Request "${requestIdFromUrl}" approved successfully.` });
+        toast({ title: "Success!", description: `Certification Authority Request "${requestIdFromUrl}" approved successfully.` });
         router.push('/certificate-authorities');
     } catch (error: any) {
         toast({ title: "Approval Failed", description: error.message, variant: "destructive" });
@@ -193,7 +194,7 @@ export default function ApproveCaRequestPage() {
             <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Missing Request ID</AlertTitle>
-                <AlertDescription>No CA Request ID was provided in the URL. Please navigate from the requests list.</AlertDescription>
+                <AlertDescription>No Certification Authority Request ID was provided in the URL. Please navigate from the requests list.</AlertDescription>
             </Alert>
         </div>
     );
@@ -210,11 +211,11 @@ export default function ApproveCaRequestPage() {
           <div className="flex items-center space-x-3">
             <ShieldCheck className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-headline font-semibold">
-              Import CA Certificate
+              Import Certification Authority Certificate
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Import the signed certificate to activate the new CA for the selected request.
+            Import the signed certificate to activate the new Certification Authority for the selected request.
           </p>
         </CardHeader>
         <CardContent>
@@ -244,7 +245,7 @@ export default function ApproveCaRequestPage() {
                 <h3 className="text-lg font-semibold mb-3">Import Signed Certificate</h3>
                 <div className="space-y-4">
                     <div>
-                        <Label htmlFor="certificatePem">CA Certificate (PEM)</Label>
+                        <Label htmlFor="certificatePem">Certification Authority Certificate (PEM)</Label>
                         <Textarea id="certificatePem" value={certificatePem} onChange={(e) => {setCertificatePem(e.target.value); parseCertificatePem(e.target.value);}} placeholder="Paste the signed certificate from the external CA..." rows={6} required className="mt-1 font-mono"/>
                         {!certificatePem.trim() && <p className="text-xs text-destructive mt-1">Certificate PEM is required.</p>}
                     </div>
@@ -254,7 +255,7 @@ export default function ApproveCaRequestPage() {
                                 <DetailItem label="Subject" value={decodedCertInfo.subject} isMono />
                                 <DetailItem label="Issuer" value={decodedCertInfo.issuer} isMono />
                                 <DetailItem label="Is CA" value={<Badge variant={decodedCertInfo.isCa ? "default" : "secondary"}>{decodedCertInfo.isCa ? 'Yes' : 'No'}</Badge>} />
-                                {!decodedCertInfo.isCa && <Alert variant="warning" className="mt-2">This certificate does not appear to be a CA certificate.</Alert>}
+                                {!decodedCertInfo.isCa && <Alert variant="warning" className="mt-2">This certificate does not appear to be a Certification Authority certificate.</Alert>}
                             </>)}
                         </CardContent></Card>
                     )}

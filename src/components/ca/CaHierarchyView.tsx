@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState } from 'react'; 
@@ -26,7 +27,7 @@ export const CaHierarchyView: React.FC<CaHierarchyViewProps> = ({ cas, router, a
 
   if (cas.length === 0) {
     return (
-      <p className="text-muted-foreground text-center p-4">No Certificate Authorities to display in hierarchy view.</p>
+      <p className="text-muted-foreground text-center p-4">No Certification Authorities to display in hierarchy view.</p>
     );
   }
 

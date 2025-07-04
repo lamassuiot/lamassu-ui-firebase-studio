@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -86,7 +87,7 @@ export default function CertificateAuthoritiesPage() {
       const fetchedCAs = await fetchAndProcessCAs(user.access_token);
       setCas(fetchedCAs);
     } catch (err: any) {
-      setErrorCas(err.message || 'Failed to load Certificate Authorities.');
+      setErrorCas(err.message || 'Failed to load Certification Authorities.');
       setCas([]); 
     } finally {
       setIsLoadingCas(false);
@@ -130,7 +131,7 @@ export default function CertificateAuthoritiesPage() {
 
   if (authLoading || (isLoadingCas && cas.length === 0) || (isLoadingCryptoEngines && viewMode === 'list')) {
     let loadingText = "Authenticating...";
-    if (!authLoading && isLoadingCas) loadingText = "Loading Certificate Authorities...";
+    if (!authLoading && isLoadingCas) loadingText = "Loading Certification Authorities...";
     else if (!authLoading && isLoadingCryptoEngines && viewMode === 'list') loadingText = "Loading Crypto Engines for List View...";
     
     return (
@@ -148,7 +149,7 @@ export default function CertificateAuthoritiesPage() {
           <div className="flex items-center justify-between mb-4"> 
             <div className="flex items-center space-x-3">
               <Landmark className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-headline font-semibold">Certificate Authorities</h1> 
+              <h1 className="text-2xl font-headline font-semibold">Certification Authorities</h1> 
             </div>
             <div className="flex items-center space-x-2">
               <ToggleGroup type="single" value={viewMode} onValueChange={handleViewModeChange} variant="outline" aria-label="View mode">
@@ -173,7 +174,7 @@ export default function CertificateAuthoritiesPage() {
               </Button>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">Currently viewing CAs in: <span className="font-semibold">{currentViewTitle}</span>. Manage your Certificate Authority configurations and trust stores.</p> 
+          <p className="text-sm text-muted-foreground">Currently viewing CAs in: <span className="font-semibold">{currentViewTitle}</span>. Manage your Certification Authority configurations and trust stores.</p> 
         </div>
         <div className="pt-6"> 
           {(errorCas || (viewMode === 'list' && errorCryptoEngines)) && (
@@ -199,7 +200,7 @@ export default function CertificateAuthoritiesPage() {
               )}
             </>
           ) : (
-            !errorCas && !(viewMode === 'list' && errorCryptoEngines) && <p className="text-muted-foreground">No Certificate Authorities configured or found.</p>
+            !errorCas && !(viewMode === 'list' && errorCryptoEngines) && <p className="text-muted-foreground">No Certification Authorities configured or found.</p>
           )}
         </div>
       </div>

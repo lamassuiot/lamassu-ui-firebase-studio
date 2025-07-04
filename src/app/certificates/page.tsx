@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -119,7 +120,7 @@ export default function CertificatesPage() {
     if (ca.status !== 'active' || new Date(ca.expires) < new Date()) {
       toast({
         title: "Cannot Issue Certificate",
-        description: `CA "${ca.name}" is not active or is expired.`,
+        description: `Certification Authority "${ca.name}" is not active or is expired.`,
         variant: "destructive"
       });
       return;
@@ -127,7 +128,7 @@ export default function CertificatesPage() {
     if (ca.rawApiData?.certificate.type === 'EXTERNAL_PUBLIC') {
       toast({
         title: "Cannot Issue Certificate",
-        description: `CA "${ca.name}" is an external public CA and cannot be used for issuance.`,
+        description: `Certification Authority "${ca.name}" is an external public CA and cannot be used for issuance.`,
         variant: "destructive"
       });
       return;
@@ -292,7 +293,7 @@ export default function CertificatesPage() {
       )}
 
       <CertificateDetailsModal certificate={selectedCertificate} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      <CaSelectorModal isOpen={isCaSelectorOpen} onOpenChange={setIsCaSelectorOpen} title="Select an Issuer CA" description="Choose the Certificate Authority that will issue the new certificate." availableCAs={allCAs} isLoadingCAs={isLoadingCAs} errorCAs={errorCAs} loadCAsAction={loadPageDependencies} onCaSelected={handleCaSelectedForIssuance} isAuthLoading={authLoading} allCryptoEngines={allCryptoEngines} />
+      <CaSelectorModal isOpen={isCaSelectorOpen} onOpenChange={setIsCaSelectorOpen} title="Select an Issuer Certification Authority" description="Choose the Certification Authority that will issue the new certificate." availableCAs={allCAs} isLoadingCAs={isLoadingCAs} errorCAs={errorCAs} loadCAsAction={loadPageDependencies} onCaSelected={handleCaSelectedForIssuance} isAuthLoading={authLoading} allCryptoEngines={allCryptoEngines} />
     </div>
   );
 }

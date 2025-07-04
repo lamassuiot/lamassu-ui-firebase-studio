@@ -26,7 +26,7 @@ export const DetailItem: React.FC<DetailItemProps> = ({ label, value, fullWidthV
       <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          "text-sm text-foreground break-all",
+          "text-sm text-foreground break-all min-w-0",
           fullWidthValue ? 'mt-1' : 'mt-1 sm:mt-0',
           isMono && "font-mono"
         )}
