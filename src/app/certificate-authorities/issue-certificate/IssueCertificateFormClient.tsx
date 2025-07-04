@@ -262,7 +262,11 @@ export default function IssueCertificateFormClient() {
       const pkcs10 = new CertificationRequest({ version: 0 });
       pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: commonName.trim() }) }));
       if (organization.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.10", value: new asn1js.Utf8String({ value: organization.trim() })}));
-      // Add other subject parts here if needed
+      if (organizationalUnit.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.11", value: new asn1js.Utf8String({ value: organizationalUnit.trim() })}));
+      if (locality.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.7", value: new asn1js.Utf8String({ value: locality.trim() })}));
+      if (stateProvince.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.8", value: new asn1js.Utf8String({ value: stateProvince.trim() })}));
+      if (country.trim()) pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.6", value: new asn1js.PrintableString({ value: country.trim() })}));
+
       await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
       
       pkcs10.attributes = [];
@@ -409,6 +413,10 @@ export default function IssueCertificateFormClient() {
                       )}
                     </div>
                     <div className="space-y-1"><Label htmlFor="organization">Organization (O)</Label><Input id="organization" value={organization || ''} onChange={e => setOrganization(e.target.value)} /></div>
+                    <div className="space-y-1"><Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label><Input id="organizationalUnit" value={organizationalUnit || ''} onChange={e => setOrganizationalUnit(e.target.value)} /></div>
+                    <div className="space-y-1"><Label htmlFor="locality">Locality (L)</Label><Input id="locality" value={locality || ''} onChange={e => setLocality(e.target.value)} /></div>
+                    <div className="space-y-1"><Label htmlFor="stateProvince">State/Province (ST)</Label><Input id="stateProvince" value={stateProvince || ''} onChange={e => setStateProvince(e.target.value)} /></div>
+                    <div className="space-y-1"><Label htmlFor="country">Country (C)</Label><Input id="country" value={country || ''} onChange={e => setCountry(e.target.value)} placeholder="e.g. US" maxLength={2} /></div>
                     <div className="space-y-1 md:col-span-2"><Label htmlFor="dnsSans">DNS Names (SAN)</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="Add DNS names..."/></div>
                   </div>
                 ) : (
