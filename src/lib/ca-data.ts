@@ -1,7 +1,7 @@
 
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, GeneralNames } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
 
@@ -72,11 +72,11 @@ export interface CA {
   id: string;
   name: string;
   issuer: string; // ID of the parent CA or "Self-signed"
-  expires: string; // ISO Date string from valid_to
+  expires: string; // ISO date string from valid_to
   serialNumber: string;
   status: 'active' | 'expired' | 'revoked' | 'unknown'; // Added 'unknown' for safety
   keyAlgorithm: string;
-  signatureAlgorithm: string; // Placeholder for now
+  signatureAlgorithm: string;
   kmsKeyId?: string;
   pemData?: string;
   children?: CA[];
@@ -93,6 +93,9 @@ export interface CA {
   caType?: string;
   defaultIssuanceLifetime?: string;
   pathLenConstraint?: number | 'None';
+  sans: string[];
+  keyUsage: string[];
+  extendedKeyUsage: string[];
 }
 
 // OID Map for signature algorithms
@@ -106,21 +109,43 @@ const SIG_OID_MAP: Record<string, string> = {
     "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
 };
 
-interface ParsedPemDetails {
+const EKU_OID_MAP: Record<string, string> = {
+    "1.3.6.1.5.5.7.3.1": "ServerAuth",
+    "1.3.6.1.5.5.7.3.2": "ClientAuth",
+    "1.3.6.1.5.5.7.3.3": "CodeSigning",
+    "1.3.6.1.5.5.7.3.4": "EmailProtection",
+    "1.3.6.1.5.5.7.3.8": "TimeStamping",
+    "1.3.6.1.5.5.7.3.9": "OCSPSigning",
+    "2.5.29.37.0": "AnyExtendedKeyUsage",
+};
+
+const KEY_USAGE_NAMES = [
+    "digitalSignature", "nonRepudiation", "keyEncipherment", "dataEncipherment",
+    "keyAgreement", "keyCertSign", "cRLSign", "encipherOnly", "decipherOnly"
+];
+
+
+export interface ParsedPemDetails {
     signatureAlgorithm: string;
     crlDistributionPoints: string[];
     ocspUrls: string[];
     caIssuersUrls: string[];
     pathLenConstraint: number | 'None';
+    sans: string[];
+    keyUsage: string[];
+    extendedKeyUsage: string[];
 }
 
-function parseCertificatePemDetails(pem: string): ParsedPemDetails {
+export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
     const defaultResult: ParsedPemDetails = {
         signatureAlgorithm: 'N/A',
         crlDistributionPoints: [],
         ocspUrls: [],
         caIssuersUrls: [],
-        pathLenConstraint: 'None'
+        pathLenConstraint: 'None',
+        sans: [],
+        keyUsage: [],
+        extendedKeyUsage: []
     };
 
     if (typeof window === 'undefined' || !pem) return defaultResult;
@@ -183,12 +208,57 @@ function parseCertificatePemDetails(pem: string): ParsedPemDetails {
             }
         }
         
+        // 5. Subject Alternative Names (SANs)
+        const sanExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.17");
+        const sans: string[] = [];
+        if (sanExtension?.parsedValue) {
+            const sanValue = sanExtension.parsedValue as GeneralNames;
+            if (sanValue.names && Array.isArray(sanValue.names)) {
+                sanValue.names.forEach((name: any) => {
+                    if (name.type === 1) sans.push(`Email: ${name.value}`);
+                    else if (name.type === 2) sans.push(`DNS: ${name.value}`);
+                    else if (name.type === 6) sans.push(`URI: ${name.value}`);
+                    else if (name.type === 7) {
+                        const ipBytes = Array.from(new Uint8Array(name.value.valueBlock.valueHex));
+                        sans.push(`IP: ${ipBytes.join('.')}`);
+                    }
+                });
+            }
+        }
+        
+        // 6. Key Usage
+        const keyUsageExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.15");
+        const keyUsage: string[] = [];
+        if (keyUsageExtension) {
+            // Re-parse the BitString from the raw extension value to ensure it has methods.
+            const keyUsageValue = new asn1js.BitString({ valueHex: keyUsageExtension.extnValue.valueBlock.valueHex });
+            for (let i = 0; i < 9; i++) {
+                if (keyUsageValue.get(i)) {
+                    keyUsage.push(KEY_USAGE_NAMES[i]);
+                }
+            }
+        }
+        
+        // 7. Extended Key Usage
+        const ekuExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.37");
+        const extendedKeyUsage: string[] = [];
+        if (ekuExtension?.parsedValue) {
+            const ekuValue = ekuExtension.parsedValue as ExtKeyUsage;
+            ekuValue.keyPurposes.forEach((oid: string) => {
+                extendedKeyUsage.push(EKU_OID_MAP[oid] || oid);
+            });
+        }
+
+
         return {
             signatureAlgorithm,
             crlDistributionPoints,
             ocspUrls,
             caIssuersUrls,
-            pathLenConstraint
+            pathLenConstraint,
+            sans,
+            keyUsage,
+            extendedKeyUsage
         };
 
     } catch (e) {
@@ -261,6 +331,9 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     caType: apiCa.certificate.type,
     defaultIssuanceLifetime: defaultIssuanceLifetime,
     pathLenConstraint: parsedDetails.pathLenConstraint,
+    sans: parsedDetails.sans,
+    keyUsage: parsedDetails.keyUsage,
+    extendedKeyUsage: parsedDetails.extendedKeyUsage,
   };
 }
 
@@ -812,8 +885,8 @@ export interface ApiSigningProfile {
 	sign_as_ca: boolean;
 	honor_key_usage: boolean;
 	key_usage: string[];
-	honor_extended_key_usages: boolean;
-	extended_key_usages: string[];
+	honor_extended_key_usage: boolean;
+	extended_key_usage: string[];
 	honor_subject: boolean;
 	subject: {
 		organization?: string;

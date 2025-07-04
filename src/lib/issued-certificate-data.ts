@@ -2,6 +2,7 @@ import type { CertificateData } from '@/types/certificate';
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess } from "pkijs";
 import { CA_API_BASE_URL } from './api-domains';
+import { parseCertificatePemDetails } from './ca-data';
 
 
 // API Response Structures for Issued Certificates
@@ -63,92 +64,6 @@ const SIG_OID_MAP: Record<string, string> = {
     "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
 };
 
-function parseAiaUrls(pem: string): { ocsp: string[], caIssuers: string[] } {
-    const result = { ocsp: [], caIssuers: [] };
-    if (typeof window === 'undefined' || !pem) return result;
-    try {
-        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
-        const binaryString = window.atob(pemString);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const asn1 = asn1js.fromBER(bytes.buffer);
-        if (asn1.offset === -1) return result;
-
-        const certificate = new Certificate({ schema: asn1.result });
-        const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
-        
-        if (!aiaExtension || !aiaExtension.parsedValue) {
-          return result;
-        }
-
-        const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
-        
-        aia.accessDescriptions.forEach((desc: any) => {
-            if (desc.accessMethod === "1.3.6.1.5.5.7.48.1") { // id-ad-ocsp
-                if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
-                    result.ocsp.push(desc.accessLocation.value);
-                }
-            } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2") { // id-ad-caIssuers
-                if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
-                    result.caIssuers.push(desc.accessLocation.value);
-                }
-            }
-        });
-        return result;
-
-    } catch (e) {
-        console.error("Failed to parse AIA URLs from certificate PEM:", e);
-        return result;
-    }
-}
-
-function parseCrlUrlsFromPem(pem: string): string[] {
-    if (typeof window === 'undefined' || !pem) return [];
-    try {
-        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
-        const binaryString = window.atob(pemString);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const asn1 = asn1js.fromBER(bytes.buffer);
-        if (asn1.offset === -1) return [];
-
-        const certificate = new Certificate({ schema: asn1.result });
-        const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31"); // id-ce-cRLDistributionPoints
-        
-        if (!cdpExtension || !cdpExtension.parsedValue) {
-          return [];
-        }
-
-        const crlDistributionPoints = cdpExtension.parsedValue as CRLDistributionPoints;
-        const urls: string[] = [];
-        
-        crlDistributionPoints.distributionPoints?.forEach((point: any) => {
-            if (point.distributionPoint) {
-                if (point.distributionPoint.type === 0) { 
-                  const generalNames = point.distributionPoint.value;
-                  generalNames.names?.forEach((generalName: any) => {
-                      if (generalName.type === 6) { // uniformResourceIdentifier
-                          urls.push(generalName.value);
-                      }
-                  });
-                }
-            }
-        });
-        return urls;
-
-    } catch (e) {
-        console.error("Failed to parse CRL URLs from certificate PEM:", e);
-        return [];
-    }
-}
-
-
 async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): Promise<CertificateData> {
   let publicKeyAlgorithm = apiCert.key_metadata.type;
   if (apiCert.key_metadata.bits) {
@@ -185,10 +100,8 @@ async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificat
   if (apiCert.issuer.organization_unit) issuerDNParts.push(`OU=${apiCert.issuer.organization_unit}`);
   const fullIssuer = issuerDNParts.join(', ');
 
-  const aiaUrls = parseAiaUrls(pemData);
-  const crlUrls = parseCrlUrlsFromPem(pemData);
+  const parsedDetails = parseCertificatePemDetails(pemData);
   
-  let signatureAlgorithm = 'N/A';
   let fingerprintSha256 = '';
 
   if (pemData && !pemData.startsWith("Error") && typeof window !== 'undefined' && window.crypto?.subtle) {
@@ -198,15 +111,8 @@ async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificat
 
         const hashBuffer = await crypto.subtle.digest('SHA-256', derBuffer);
         fingerprintSha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(':');
-
-        const asn1 = asn1js.fromBER(derBuffer);
-        if (asn1.offset !== -1) {
-            const certificate = new Certificate({ schema: asn1.result });
-            signatureAlgorithm = SIG_OID_MAP[certificate.signatureAlgorithm.algorithmId] || certificate.signatureAlgorithm.algorithmId;
-        }
     } catch (e) {
-        console.error("Error parsing certificate PEM for details:", e);
-        signatureAlgorithm = "Parsing Error";
+        console.error("Error generating fingerprint:", e);
         fingerprintSha256 = "Parsing Error";
     }
   }
@@ -220,18 +126,20 @@ async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificat
     serialNumber: apiCert.serial_number,
     validFrom: apiCert.valid_from,
     validTo: apiCert.valid_to,
-    sans: apiCert.metadata?.sans || [],
+    sans: parsedDetails.sans,
     pemData: pemData,
     apiStatus: apiCert.status,
     revocationReason: apiCert.revocation_reason,
     revocationTimestamp: apiCert.revocation_timestamp,
     publicKeyAlgorithm,
-    signatureAlgorithm,
+    signatureAlgorithm: parsedDetails.signatureAlgorithm,
     fingerprintSha256,
     issuerCaId: apiCert.issuer_metadata.id,
-    ocspUrls: aiaUrls.ocsp,
-    crlDistributionPoints: crlUrls,
-    caIssuersUrls: aiaUrls.caIssuers,
+    ocspUrls: parsedDetails.ocspUrls,
+    crlDistributionPoints: parsedDetails.crlDistributionPoints,
+    caIssuersUrls: parsedDetails.caIssuersUrls,
+    keyUsage: parsedDetails.keyUsage,
+    extendedKeyUsage: parsedDetails.extendedKeyUsage,
     rawApiData: apiCert,
   };
 }

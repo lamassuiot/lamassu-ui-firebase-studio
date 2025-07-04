@@ -20,4 +20,6 @@ export interface CertificateData {
   ocspUrls?: string[]; // Added for OCSP check feature
   crlDistributionPoints?: string[];
   caIssuersUrls?: string[];
+  keyUsage: string[];
+  extendedKeyUsage: string[];
 }

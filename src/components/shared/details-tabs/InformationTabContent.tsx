@@ -93,6 +93,12 @@ const parseLifetime = (lifetime?: string): ExpirationConfig => {
   return { type: 'Duration', durationValue: lifetime };
 };
 
+const toTitleCase = (str: string) => {
+  return str
+    .replace(/([A-Z])/g, ' $1') // insert a space before all caps
+    .replace(/^./, (s) => s.toUpperCase()); // uppercase the first character
+};
+
 
 export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   item,
@@ -178,7 +184,6 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
 
   if (itemType === 'ca' && caSpecific) {
     const caDetails = item as CA;
-    const cryptoEngine = caDetails.kmsKeyId && caSpecific.allCryptoEngines ? caSpecific.allCryptoEngines.find(e => e.id === caDetails.kmsKeyId) : undefined;
     
     return (
       <Accordion type="multiple" defaultValue={['general', 'hierarchy']} className="w-full space-y-3">
@@ -250,13 +255,17 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <Separator className="my-2" />
             <DetailItem label="Key Usage" value={
               <div className="flex flex-wrap gap-1">
-                <Badge variant="outline">Certificate Signing</Badge>
-                <Badge variant="outline">CRL Signing</Badge>
-                <Badge variant="outline">Digital Signature</Badge>
+                {caDetails.keyUsage?.map(usage => <Badge key={usage} variant="outline">{toTitleCase(usage)}</Badge>)}
               </div>
             } />
             <Separator className="my-2" />
-            <DetailItem label="Extended Key Usage" value={"Not Specified"} />
+            <DetailItem label="Extended Key Usage" value={
+                caDetails.extendedKeyUsage && caDetails.extendedKeyUsage.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                        {caDetails.extendedKeyUsage.map(usage => <Badge key={usage} variant="outline">{toTitleCase(usage)}</Badge>)}
+                    </div>
+                ) : ("Not Specified")
+            } />
           </AccordionContent>
         </AccordionItem>
 
@@ -361,19 +370,37 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             />
           </AccordionContent>
         </AccordionItem>
-
-        {certDetails.sans && certDetails.sans.length > 0 && (
-          <AccordionItem value="sans" className="border-b-0">
+        
+        <AccordionItem value="extensions" className="border-b-0">
             <AccordionTrigger className={cn(accordionTriggerStyle)}>
-              <ListChecks className="mr-2 h-5 w-5" /> Subject Alternative Names
+                <Lock className="mr-2 h-5 w-5" /> Certificate Extensions
             </AccordionTrigger>
-            <AccordionContent className="px-4 pt-3">
-              <div className="flex flex-wrap gap-1">
-                {certDetails.sans.map((san, index) => <Badge key={index} variant="secondary">{san}</Badge>)}
-              </div>
+            <AccordionContent className="space-y-3 px-4 pt-3">
+                <DetailItem label="Subject Alternative Names" value={
+                    certDetails.sans && certDetails.sans.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                            {certDetails.sans.map((san, index) => <Badge key={index} variant="secondary">{san}</Badge>)}
+                        </div>
+                    ) : ("Not Specified")
+                }/>
+                <Separator/>
+                <DetailItem label="Key Usage" value={
+                    certDetails.keyUsage && certDetails.keyUsage.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                            {certDetails.keyUsage.map(usage => <Badge key={usage} variant="outline">{toTitleCase(usage)}</Badge>)}
+                        </div>
+                    ) : ("Not Specified")
+                }/>
+                <Separator/>
+                <DetailItem label="Extended Key Usage" value={
+                    certDetails.extendedKeyUsage && certDetails.extendedKeyUsage.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                            {certDetails.extendedKeyUsage.map(usage => <Badge key={usage} variant="outline">{toTitleCase(usage)}</Badge>)}
+                        </div>
+                    ) : ("Not Specified")
+                }/>
             </AccordionContent>
-          </AccordionItem>
-        )}
+        </AccordionItem>
 
         {(certDetails.crlDistributionPoints || certDetails.ocspUrls || certDetails.caIssuersUrls) && (
           <AccordionItem value="distribution" className="border-b-0">
