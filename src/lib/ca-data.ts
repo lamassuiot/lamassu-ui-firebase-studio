@@ -76,7 +76,6 @@ export interface CA {
   serialNumber: string;
   status: 'active' | 'expired' | 'revoked' | 'unknown'; // Added 'unknown' for safety
   keyAlgorithm: string;
-  signatureAlgorithm: string;
   kmsKeyId?: string;
   pemData?: string;
   children?: CA[];
@@ -86,16 +85,18 @@ export interface CA {
   issuerDN?: ApiDistinguishedName;
   isCa?: boolean;
   level?: number; // Store the original level from API
-  crlDistributionPoints?: string[];
-  ocspUrls?: string[];
-  caIssuersUrls?: string[];
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
   caType?: string;
   defaultIssuanceLifetime?: string;
+  // Optional fields that will be parsed on demand
+  signatureAlgorithm?: string;
+  crlDistributionPoints?: string[];
+  ocspUrls?: string[];
+  caIssuersUrls?: string[];
   pathLenConstraint?: number | 'None';
-  sans: string[];
-  keyUsage: string[];
-  extendedKeyUsage: string[];
+  sans?: string[];
+  keyUsage?: string[];
+  extendedKeyUsage?: string[];
 }
 
 // OID Map for signature algorithms
@@ -166,110 +167,91 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
 
         const certificate = new Certificate({ schema: asn1.result });
         
-        let signatureAlgorithm = 'N/A';
         try {
             const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
-            signatureAlgorithm = SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
+            defaultResult.signatureAlgorithm = SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
         } catch(e) { console.error("Failed to parse Signature Algorithm:", e); }
 
-        const crlDistributionPoints: string[] = [];
         try {
             const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31");
             if (cdpExtension?.parsedValue) {
                 const crls = cdpExtension.parsedValue as CRLDistributionPoints;
                 crls.distributionPoints?.forEach((point: any) => {
                     if (point.distributionPoint && point.distributionPoint[0]) {
-                        crlDistributionPoints.push(point.distributionPoint[0].value);
+                        defaultResult.crlDistributionPoints.push(point.distributionPoint[0].value);
                     }
                 });
             }
         } catch(e) { console.error("Failed to parse CRL Distribution Points:", e); }
         
-        const ocspUrls: string[] = [];
-        const caIssuersUrls: string[] = [];
         try {
             const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1");
             if (aiaExtension?.parsedValue) {
                 const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
                 aia.accessDescriptions.forEach((desc: any) => {
                     if (desc.accessMethod === "1.3.6.1.5.5.7.48.1" && desc.accessLocation.type === 6) { // id-ad-ocsp
-                        ocspUrls.push(desc.accessLocation.value);
+                        defaultResult.ocspUrls.push(desc.accessLocation.value);
                     } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2" && desc.accessLocation.type === 6) { // id-ad-caIssuers
-                        caIssuersUrls.push(desc.accessLocation.value);
+                        defaultResult.caIssuersUrls.push(desc.accessLocation.value);
                     }
                 });
             }
         } catch(e) { console.error("Failed to parse Authority Information Access:", e); }
         
-        let pathLenConstraint: number | 'None' = 'None';
         try {
             const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
             if (bcExtension?.parsedValue) {
                 const basicConstraints = bcExtension.parsedValue as BasicConstraints;
                 if (basicConstraints.pathLenConstraint !== undefined) {
-                    pathLenConstraint = basicConstraints.pathLenConstraint;
+                    defaultResult.pathLenConstraint = basicConstraints.pathLenConstraint;
                 }
             }
         } catch(e) { console.error("Failed to parse Basic Constraints:", e); }
         
-        const sans: string[] = [];
         try {
             const sanExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.17");
             if (sanExtension?.parsedValue) {
                 const sanValue = sanExtension.parsedValue as GeneralNames;
                 if (sanValue.names && Array.isArray(sanValue.names)) {
                     sanValue.names.forEach((name: any) => {
-                        if (name.type === 1) sans.push(`Email: ${name.value}`);
-                        else if (name.type === 2) sans.push(`DNS: ${name.value}`);
-                        else if (name.type === 6) sans.push(`URI: ${name.value}`);
+                        if (name.type === 1) defaultResult.sans.push(`Email: ${name.value}`);
+                        else if (name.type === 2) defaultResult.sans.push(`DNS: ${name.value}`);
+                        else if (name.type === 6) defaultResult.sans.push(`URI: ${name.value}`);
                         else if (name.type === 7) {
                             const ipBytes = Array.from(new Uint8Array(name.value.valueBlock.valueHex));
-                            sans.push(`IP: ${ipBytes.join('.')}`);
+                            defaultResult.sans.push(`IP: ${ipBytes.join('.')}`);
                         }
                     });
                 }
             }
         } catch(e) { console.error("Failed to parse Subject Alternative Names:", e); }
         
-        const keyUsage: string[] = [];
         try {
             const keyUsageExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.15");
             if (keyUsageExtension) {
-                // The extension's value is an OCTET STRING containing a DER-encoded BIT STRING.
-                // We need to parse this inner value.
                 const keyUsageAsn1 = asn1js.fromBER(keyUsageExtension.extnValue.valueBlock.valueHex);
                 if (keyUsageAsn1.offset !== -1) {
                     const keyUsageValue = new asn1js.BitString({ schema: keyUsageAsn1.result });
                     for (let i = 0; i < 9; i++) {
                         if (keyUsageValue.get(i)) {
-                            keyUsage.push(KEY_USAGE_NAMES[i]);
+                            defaultResult.keyUsage.push(KEY_USAGE_NAMES[i]);
                         }
                     }
                 }
             }
         } catch(e) { console.error("Failed to parse Key Usage:", e); }
         
-        const extendedKeyUsage: string[] = [];
         try {
             const ekuExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.37");
             if (ekuExtension?.parsedValue) {
                 const ekuValue = ekuExtension.parsedValue as ExtKeyUsage;
                 ekuValue.keyPurposes.forEach((oid: string) => {
-                    extendedKeyUsage.push(EKU_OID_MAP[oid] || oid);
+                    defaultResult.extendedKeyUsage.push(EKU_OID_MAP[oid] || oid);
                 });
             }
         } catch(e) { console.error("Failed to parse Extended Key Usage:", e); }
 
-        return {
-            signatureAlgorithm,
-            crlDistributionPoints,
-            ocspUrls,
-            caIssuersUrls,
-            pathLenConstraint,
-            sans,
-            keyUsage,
-            extendedKeyUsage
-        };
+        return defaultResult;
 
     } catch (e) {
         console.error("Fatal error during certificate parsing:", e);
@@ -298,8 +280,6 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
   }
 
   const pemData = typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : ''; // Decode base64 PEM
-  
-  const parsedDetails = parseCertificatePemDetails(pemData);
 
   let defaultIssuanceLifetime = 'Not Specified';
   if (apiCa.validity) {
@@ -325,7 +305,6 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     serialNumber: apiCa.certificate.serial_number,
     status,
     keyAlgorithm: keyAlgorithm,
-    signatureAlgorithm: parsedDetails.signatureAlgorithm,
     kmsKeyId: apiCa.certificate.engine_id,
     pemData: pemData,
     subjectKeyId: apiCa.certificate.subject_key_id,
@@ -334,16 +313,10 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     issuerDN: apiCa.certificate.issuer,
     isCa: apiCa.certificate.is_ca,
     level: apiCa.level,
-    crlDistributionPoints: parsedDetails.crlDistributionPoints,
-    ocspUrls: parsedDetails.ocspUrls,
-    caIssuersUrls: parsedDetails.caIssuersUrls,
     rawApiData: apiCa,
     caType: apiCa.certificate.type,
     defaultIssuanceLifetime: defaultIssuanceLifetime,
-    pathLenConstraint: parsedDetails.pathLenConstraint,
-    sans: parsedDetails.sans,
-    keyUsage: parsedDetails.keyUsage,
-    extendedKeyUsage: parsedDetails.extendedKeyUsage,
+    // Parsed fields are intentionally left undefined for lazy parsing
   };
 }
 

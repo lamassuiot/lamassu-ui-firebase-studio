@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
 import { fetchIssuedCertificates, updateCertificateStatus, updateCertificateMetadata } from '@/lib/issued-certificate-data';
-import { fetchAndProcessCAs, findCaById, fetchCryptoEngines } from '@/lib/ca-data';
+import { fetchAndProcessCAs, findCaById, fetchCryptoEngines, parseCertificatePemDetails } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
@@ -127,7 +127,13 @@ export default function CertificateDetailsClient() { // Renamed component
       const foundCert = certList.length > 0 ? certList[0] : null;
       
       if (foundCert) {
-        setCertificateDetails(foundCert);
+        if (foundCert.pemData) {
+            const parsedDetails = parseCertificatePemDetails(foundCert.pemData);
+            const completeCert = { ...foundCert, ...parsedDetails };
+            setCertificateDetails(completeCert);
+        } else {
+            setCertificateDetails(foundCert);
+        }
       } else {
         setErrorCert(`Certificate with Serial Number "${certificateId}" not found.`);
       }

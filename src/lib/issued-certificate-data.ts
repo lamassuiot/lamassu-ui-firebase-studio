@@ -1,6 +1,4 @@
 import type { CertificateData } from '@/types/certificate';
-import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess } from "pkijs";
 import { CA_API_BASE_URL } from './api-domains';
 import { parseCertificatePemDetails } from './ca-data';
 
@@ -53,17 +51,6 @@ export interface ApiIssuedCertificateListResponse {
   list: ApiIssuedCertificateItem[];
 }
 
-// OID Map for signature algorithms
-const SIG_OID_MAP: Record<string, string> = {
-    "1.2.840.113549.1.1.11": "sha256WithRSAEncryption",
-    "1.2.840.113549.1.1.12": "sha384WithRSAEncryption",
-    "1.2.840.113549.1.1.13": "sha512WithRSAEncryption",
-    "1.2.840.113549.1.1.14": "sha224WithRSAEncryption",
-    "1.2.840.10045.4.3.2": "ecdsa-with-SHA256",
-    "1.2.840.10045.4.3.3": "ecdsa-with-SHA384",
-    "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
-};
-
 async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificateItem): Promise<CertificateData> {
   let publicKeyAlgorithm = apiCert.key_metadata.type;
   if (apiCert.key_metadata.bits) {
@@ -99,8 +86,6 @@ async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificat
   if (apiCert.issuer.organization) issuerDNParts.push(`O=${apiCert.issuer.organization}`);
   if (apiCert.issuer.organization_unit) issuerDNParts.push(`OU=${apiCert.issuer.organization_unit}`);
   const fullIssuer = issuerDNParts.join(', ');
-
-  const parsedDetails = parseCertificatePemDetails(pemData);
   
   let fingerprintSha256 = '';
 
@@ -126,21 +111,22 @@ async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificat
     serialNumber: apiCert.serial_number,
     validFrom: apiCert.valid_from,
     validTo: apiCert.valid_to,
-    sans: parsedDetails.sans,
     pemData: pemData,
     apiStatus: apiCert.status,
     revocationReason: apiCert.revocation_reason,
     revocationTimestamp: apiCert.revocation_timestamp,
     publicKeyAlgorithm,
-    signatureAlgorithm: parsedDetails.signatureAlgorithm,
     fingerprintSha256,
     issuerCaId: apiCert.issuer_metadata.id,
-    ocspUrls: parsedDetails.ocspUrls,
-    crlDistributionPoints: parsedDetails.crlDistributionPoints,
-    caIssuersUrls: parsedDetails.caIssuersUrls,
-    keyUsage: parsedDetails.keyUsage,
-    extendedKeyUsage: parsedDetails.extendedKeyUsage,
     rawApiData: apiCert,
+     // Parsed fields are intentionally left undefined for lazy parsing
+    sans: [],
+    signatureAlgorithm: undefined,
+    ocspUrls: [],
+    crlDistributionPoints: [],
+    caIssuersUrls: [],
+    keyUsage: [],
+    extendedKeyUsage: [],
   };
 }
 
