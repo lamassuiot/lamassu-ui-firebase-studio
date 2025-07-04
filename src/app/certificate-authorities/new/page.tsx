@@ -3,7 +3,6 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -26,13 +25,12 @@ const creationModes: CreationMode[] = [
     title: 'Create New CA (new Key Pair)',
     description: 'Provision a new Root or Intermediate CA directly. The CA will be active immediately upon creation.',
     icon: <KeyRound className="h-8 w-8 text-primary" />,
-    isComingSoon: false,
   },
   {
     id: 'reuse-key',
     href: '/certificate-authorities/new/reuse-key',
     title: 'Create CA (Reuse Key)',
-    description: 'Provision a new Root or Intermediate CA using an existing key pair from your KMS.',
+    description: 'Provision a new Root or Intermediate CA using an existing key from your KMS.',
     icon: <Repeat className="h-8 w-8 text-primary" />,
     disabled: true,
   },
@@ -42,7 +40,6 @@ const creationModes: CreationMode[] = [
     title: 'Import External CA (with Private Key)',
     description: 'Import an existing CA certificate along with its private key. This CA will be fully managed by LamassuIoT.',
     icon: <UploadCloud className="h-8 w-8 text-primary" />,
-    isComingSoon: false,
   },
   {
     id: 'import-public',
@@ -59,14 +56,6 @@ const ComingSoonBadge = () => (
     </Badge>
 );
 
-const CardWrapper: React.FC<{ mode: CreationMode, children: React.ReactNode }> = ({ mode, children }) => {
-    if (mode.disabled) {
-        return <div className="relative opacity-50 cursor-not-allowed">{children}<ComingSoonBadge /></div>;
-    }
-    // The link is wrapped so that it's not applied on disabled cards
-    return <Link href={mode.href} className="no-underline relative">{children}</Link>;
-};
-
 
 export default function CreateCaHubPage() {
   const router = useRouter();
@@ -82,26 +71,42 @@ export default function CreateCaHubPage() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         {creationModes.map(mode => (
-          <CardWrapper key={mode.id} mode={mode}>
-            <Card
-              className={cn("hover:shadow-lg transition-shadow flex flex-col group h-full", mode.disabled ? "" : "cursor-pointer")}
-            >
-              <CardHeader className="flex-grow">
-                <div className="flex items-start space-x-4">
-                  <div className="mt-1">{mode.icon}</div>
-                  <div>
-                    <CardTitle className={cn("text-xl", !mode.disabled && "group-hover:text-primary transition-colors")}>{mode.title}</CardTitle>
-                    <CardDescription className="mt-1 text-sm">{mode.description}</CardDescription>
-                  </div>
+          <Card
+            key={mode.id}
+            role="button"
+            tabIndex={mode.disabled ? -1 : 0}
+            aria-disabled={mode.disabled}
+            className={cn(
+              "hover:shadow-lg transition-shadow flex flex-col group h-full relative",
+              mode.disabled
+                ? "opacity-50 cursor-not-allowed"
+                : "cursor-pointer"
+            )}
+            onClick={() => {
+              if (!mode.disabled) router.push(mode.href);
+            }}
+            onKeyDown={(e) => {
+              if (!mode.disabled && (e.key === 'Enter' || e.key === ' ')) {
+                router.push(mode.href);
+              }
+            }}
+          >
+            {mode.disabled && <ComingSoonBadge />}
+            <CardHeader className="flex-grow">
+              <div className="flex items-start space-x-4">
+                <div className="mt-1">{mode.icon}</div>
+                <div>
+                  <CardTitle className={cn("text-xl", !mode.disabled && "group-hover:text-primary transition-colors")}>{mode.title}</CardTitle>
+                  <CardDescription className="mt-1 text-sm">{mode.description}</CardDescription>
                 </div>
-              </CardHeader>
-              <CardFooter>
-                  <Button variant="default" className="w-full" disabled={mode.disabled}>
-                      Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-              </CardFooter>
-            </Card>
-          </CardWrapper>
+              </div>
+            </CardHeader>
+            <CardFooter>
+              <Button variant="default" className="w-full" disabled={mode.disabled} tabIndex={-1}>
+                  Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
         ))}
       </div>
     </div>
