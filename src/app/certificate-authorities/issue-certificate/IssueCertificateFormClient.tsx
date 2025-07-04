@@ -489,7 +489,15 @@ export default function IssueCertificateFormClient() {
                                 <div className="space-y-1"><Label htmlFor="locality">Locality (L)</Label><Input id="locality" value={locality || ''} onChange={e => setLocality(e.target.value)} /></div>
                                 <div className="space-y-1"><Label htmlFor="stateProvince">State/Province (ST)</Label><Input id="stateProvince" value={stateProvince || ''} onChange={e => setStateProvince(e.target.value)} /></div>
                                 <div className="space-y-1"><Label htmlFor="country">Country (C)</Label><Input id="country" value={country || ''} onChange={e => setCountry(e.target.value)} placeholder="e.g. US" maxLength={2} /></div>
-                                <div className="space-y-1 md:col-span-2"><Label htmlFor="dnsSans">DNS Names (SAN)</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="Add DNS names..."/></div>
+                                <div className="md:col-span-2 border-t pt-4 mt-2">
+                                    <h4 className="font-medium mb-2">Subject Alternative Names (SANs)</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
+                                        <div className="space-y-1"><Label htmlFor="dnsSans">DNS Names</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="e.g., example.com"/></div>
+                                        <div className="space-y-1"><Label htmlFor="ipSans">IP Addresses</Label><TagInput id="ipSans" value={ipSans} onChange={setIpSans} placeholder="e.g., 192.168.1.1"/></div>
+                                        <div className="space-y-1"><Label htmlFor="emailSans">Email Addresses</Label><TagInput id="emailSans" value={emailSans} onChange={setEmailSans} placeholder="e.g., security@example.com"/></div>
+                                        <div className="space-y-1"><Label htmlFor="uriSans">URIs</Label><TagInput id="uriSans" value={uriSans} onChange={setUriSans} placeholder="e.g., https://device.id/info"/></div>
+                                    </div>
+                                </div>
                             </div>
                             ) : (
                             <div className="space-y-4">
