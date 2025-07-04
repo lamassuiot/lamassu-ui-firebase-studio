@@ -889,9 +889,7 @@ export async function fetchSigningProfiles(accessToken: string): Promise<ApiSign
         throw new Error(errorMessage);
     }
     const data = await response.json();
-    // Assuming the API returns an object with a 'list' property, similar to other endpoints.
-    // If data.list is not an array, it will fall back to an empty array.
-    return data?.list || [];
+    return Array.isArray(data) ? data : [];
 }
 
 export interface CreateSigningProfilePayload {
