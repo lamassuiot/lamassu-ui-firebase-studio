@@ -511,30 +511,55 @@ export default function IssueCertificateFormClient() {
                             {/* --- Subject & SANs section --- */}
                             <h3 className="font-medium text-lg border-t pt-4">Certificate Subject {issuanceMode === 'upload' && '(from CSR)'}</h3>
                             {issuanceMode === 'generate' ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-4">
+                                {/* Row 1: CN */}
                                 <div className="space-y-1">
-                                <Label htmlFor="commonName">Common Name (CN)</Label>
-                                <Input
-                                    id="commonName"
-                                    value={commonName || ''}
-                                    onChange={e => setCommonName(e.target.value)}
-                                    required
-                                    readOnly={!!prefilledCn}
-                                    className={cn(!!prefilledCn && 'bg-muted/50')}
-                                />
-                                {!!prefilledCn && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                    Common Name pre-filled from device ID and cannot be changed.
-                                    </p>
-                                )}
+                                    <Label htmlFor="commonName">Common Name (CN)</Label>
+                                    <Input
+                                        id="commonName"
+                                        value={commonName || ''}
+                                        onChange={e => setCommonName(e.target.value)}
+                                        required
+                                        readOnly={!!prefilledCn}
+                                        className={cn(!!prefilledCn && 'bg-muted/50')}
+                                    />
+                                    {!!prefilledCn && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                        Common Name pre-filled from device ID and cannot be changed.
+                                        </p>
+                                    )}
                                 </div>
-                                <div className="space-y-1"><Label htmlFor="organization">Organization (O)</Label><Input id="organization" value={organization || ''} onChange={e => setOrganization(e.target.value)} /></div>
-                                <div className="space-y-1"><Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label><Input id="organizationalUnit" value={organizationalUnit || ''} onChange={e => setOrganizationalUnit(e.target.value)} /></div>
-                                <div className="space-y-1"><Label htmlFor="locality">Locality (L)</Label><Input id="locality" value={locality || ''} onChange={e => setLocality(e.target.value)} /></div>
-                                <div className="space-y-1"><Label htmlFor="stateProvince">State/Province (ST)</Label><Input id="stateProvince" value={stateProvince || ''} onChange={e => setStateProvince(e.target.value)} /></div>
-                                <div className="space-y-1"><Label htmlFor="country">Country (C)</Label><Input id="country" value={country || ''} onChange={e => setCountry(e.target.value)} placeholder="e.g. US" maxLength={2} /></div>
+
+                                {/* Row 2: OU, O */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label>
+                                        <Input id="organizationalUnit" value={organizationalUnit || ''} onChange={e => setOrganizationalUnit(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="organization">Organization (O)</Label>
+                                        <Input id="organization" value={organization || ''} onChange={e => setOrganization(e.target.value)} />
+                                    </div>
+                                </div>
+
+                                {/* Row 3: L, ST, C */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="locality">Locality (L)</Label>
+                                        <Input id="locality" value={locality || ''} onChange={e => setLocality(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="stateProvince">State/Province (ST)</Label>
+                                        <Input id="stateProvince" value={stateProvince || ''} onChange={e => setStateProvince(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="country">Country (C)</Label>
+                                        <Input id="country" value={country || ''} onChange={e => setCountry(e.target.value)} placeholder="e.g. US" maxLength={2} />
+                                    </div>
+                                </div>
                                 
-                                <div className="md:col-span-2 border-t pt-4 mt-2">
+                                {/* SANs Section */}
+                                <div className="border-t pt-4 mt-2">
                                   <h4 className="font-medium mb-2">Subject Alternative Names (SANs)</h4>
                                   
                                   <div className="flex items-end gap-2">
