@@ -166,7 +166,6 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
 
         const certificate = new Certificate({ schema: asn1.result });
         
-        // Wrap each parsing section in try-catch to prevent a single failure from crashing the process
         let signatureAlgorithm = 'N/A';
         try {
             const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
@@ -236,6 +235,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         try {
             const keyUsageExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.15");
             if (keyUsageExtension) {
+                // The extension's value is an OCTET STRING containing a DER-encoded BIT STRING.
+                // We need to parse this inner value.
                 const keyUsageAsn1 = asn1js.fromBER(keyUsageExtension.extnValue.valueBlock.valueHex);
                 if (keyUsageAsn1.offset !== -1) {
                     const keyUsageValue = new asn1js.BitString({ schema: keyUsageAsn1.result });
@@ -272,7 +273,7 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
 
     } catch (e) {
         console.error("Fatal error during certificate parsing:", e);
-        return defaultResult; // Return default if the entire parsing fails
+        return defaultResult;
     }
 }
 
