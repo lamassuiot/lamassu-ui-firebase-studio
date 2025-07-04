@@ -28,7 +28,8 @@ import { TagInput } from '@/components/shared/TagInput';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
-import { signCertificate } from '@/lib/ca-data';
+import { fetchAndProcessCAs, findCaById, signCertificate, type CA } from '@/lib/ca-data';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -139,6 +140,9 @@ export default function IssueCertificateFormClient() {
   const caId = searchParams.get('caId');
   const prefilledCn = searchParams.get('prefill_cn');
   const [step, setStep] = useState(1);
+  
+  const [issuerCa, setIssuerCa] = useState<CA | null>(null);
+  const [isLoadingCa, setIsLoadingCa] = useState(true);
 
   // Step 1 State
   const [issuanceMode, setIssuanceMode] = useState<'generate' | 'upload'>('generate');
@@ -161,7 +165,7 @@ export default function IssueCertificateFormClient() {
   // Step 1 - Configuration State (previously step 3)
   const [keyUsages, setKeyUsages] = useState<string[]>(['DigitalSignature', 'KeyEncipherment']);
   const [extendedKeyUsages, setExtendedKeyUsages] = useState<string[]>(['ClientAuth', 'ServerAuth']);
-  const [duration, setDuration] = useState('1y');
+  const [duration, setDuration] = useState('');
 
   // Step 2 & 3 State
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
@@ -178,6 +182,59 @@ export default function IssueCertificateFormClient() {
   useEffect(() => {
     if (typeof window !== 'undefined' && window.crypto) setEngine("webcrypto", getCrypto());
   }, []);
+  
+  useEffect(() => {
+    if (!caId || !user?.access_token) {
+        setIsLoadingCa(false);
+        return;
+    }
+    const loadIssuerCa = async () => {
+        setIsLoadingCa(true);
+        try {
+            const allCAs = await fetchAndProcessCAs(user.access_token);
+            const foundCa = findCaById(caId, allCAs);
+            if (foundCa) {
+                setIssuerCa(foundCa);
+            } else {
+                toast({
+                    title: "Error",
+                    description: `Could not find issuer Certification Authority with ID: ${caId}`,
+                    variant: "destructive",
+                });
+            }
+        } catch (error: any) {
+             toast({
+                title: "Error loading CA details",
+                description: error.message,
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoadingCa(false);
+        }
+    }
+    loadIssuerCa();
+  }, [caId, user?.access_token, toast]);
+
+  useEffect(() => {
+    // Only run this logic if we are not still loading the CA
+    if (!isLoadingCa) {
+        if (issuerCa) {
+            const defaultLifetime = issuerCa.defaultIssuanceLifetime;
+            // The regex from the DurationInput component to validate duration strings
+            const DURATION_REGEX = /^(?=.*\d)(\d+y)?(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$/;
+
+            if (defaultLifetime && DURATION_REGEX.test(defaultLifetime)) {
+                setDuration(defaultLifetime);
+            } else {
+                // Fallback for Indefinite, date, or not specified
+                setDuration('1y'); 
+            }
+        } else {
+            // If CA loading is finished and there's no CA (e.g., error), set a default
+            setDuration('1y');
+        }
+    }
+  }, [issuerCa, isLoadingCa]);
 
   useEffect(() => {
     const process = async () => {
@@ -377,174 +434,190 @@ export default function IssueCertificateFormClient() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Issue New Certificate</CardTitle>
-          <CardDescription>Follow the steps below to issue a new certificate from Certification Authority: <span className="font-mono">{caId.substring(0,12)}...</span></CardDescription>
+          <CardDescription>
+            Follow the steps below to issue a new certificate from Certification Authority: {' '}
+            {isLoadingCa ? (
+                <Skeleton className="h-4 w-[200px] inline-block" />
+            ) : (
+                <span className="font-mono">{issuerCa?.name || caId.substring(0,12)+'...'}</span>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Stepper currentStep={step} />
-          
-          {step === 1 && (
-            <div className="space-y-6 mt-6">
-                <Select value={issuanceMode} onValueChange={(val: 'generate' | 'upload') => setIssuanceMode(val)}>
-                    <SelectTrigger className="w-full sm:w-[300px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="generate">Generate Key & CSR In Browser</SelectItem>
-                        <SelectItem value="upload">Upload Existing CSR</SelectItem>
-                    </SelectContent>
-                </Select>
-                
-                {/* --- Subject & SANs section --- */}
-                <h3 className="font-medium text-lg border-t pt-4">Certificate Subject {issuanceMode === 'upload' && '(from CSR)'}</h3>
-                {issuanceMode === 'generate' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <Label htmlFor="commonName">Common Name (CN)</Label>
-                      <Input
-                        id="commonName"
-                        value={commonName || ''}
-                        onChange={e => setCommonName(e.target.value)}
-                        required
-                        readOnly={!!prefilledCn}
-                        className={cn(!!prefilledCn && 'bg-muted/50')}
-                      />
-                      {!!prefilledCn && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Common Name pre-filled from device ID and cannot be changed.
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1"><Label htmlFor="organization">Organization (O)</Label><Input id="organization" value={organization || ''} onChange={e => setOrganization(e.target.value)} /></div>
-                    <div className="space-y-1"><Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label><Input id="organizationalUnit" value={organizationalUnit || ''} onChange={e => setOrganizationalUnit(e.target.value)} /></div>
-                    <div className="space-y-1"><Label htmlFor="locality">Locality (L)</Label><Input id="locality" value={locality || ''} onChange={e => setLocality(e.target.value)} /></div>
-                    <div className="space-y-1"><Label htmlFor="stateProvince">State/Province (ST)</Label><Input id="stateProvince" value={stateProvince || ''} onChange={e => setStateProvince(e.target.value)} /></div>
-                    <div className="space-y-1"><Label htmlFor="country">Country (C)</Label><Input id="country" value={country || ''} onChange={e => setCountry(e.target.value)} placeholder="e.g. US" maxLength={2} /></div>
-                    <div className="space-y-1 md:col-span-2"><Label htmlFor="dnsSans">DNS Names (SAN)</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="Add DNS names..."/></div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                     <div className="space-y-1"><Label htmlFor="csrFile">Upload CSR File</Label><Input id="csrFile" type="file" accept=".csr,.pem" onChange={handleCsrFileUpload}/></div>
-                     <div className="space-y-1"><Label htmlFor="csrPemTextarea">Or Paste CSR (PEM)</Label><Textarea id="csrPemTextarea" value={csrPem} onChange={e=>setCsrPem(e.target.value)} rows={8} className="font-mono"/></div>
-                     {decodedCsrInfo && (
-                        <Card className="bg-muted/30"><CardHeader><CardTitle className="text-md">Decoded CSR Information</CardTitle></CardHeader><CardContent className="space-y-2 text-sm pt-4">{decodedCsrInfo.error ? <Alert variant="destructive">{decodedCsrInfo.error}</Alert> : <>
-                            <DetailItem label="Subject" value={decodedCsrInfo.subject} isMono />
-                            <DetailItem label="Public Key" value={decodedCsrInfo.publicKeyInfo} isMono />
-                            {decodedCsrInfo.sans && decodedCsrInfo.sans.length > 0 && <DetailItem label="SANs" value={<div className="flex flex-wrap gap-1">{decodedCsrInfo.sans.map((san, i)=><Badge key={i} variant="secondary">{san}</Badge>)}</div>}/>}
-                            {decodedCsrInfo.basicConstraints && <DetailItem label="Basic Constraints" value={decodedCsrInfo.basicConstraints} isMono />}
-                        </> }</CardContent></Card>
+            {isLoadingCa ? (
+                <div className="flex items-center justify-center p-8 flex-col text-center min-h-[400px]">
+                    <Loader2 className="h-16 w-16 text-primary animate-spin" />
+                    <h3 className="text-xl font-semibold mt-4">Loading Issuing CA Details...</h3>
+                    <p className="text-muted-foreground mt-2">Fetching default issuance policies.</p>
+                </div>
+            ) : (
+                <>
+                    <Stepper currentStep={step} />
+                    
+                    {step === 1 && (
+                        <div className="space-y-6 mt-6">
+                            <Select value={issuanceMode} onValueChange={(val: 'generate' | 'upload') => setIssuanceMode(val)}>
+                                <SelectTrigger className="w-full sm:w-[300px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="generate">Generate Key & CSR In Browser</SelectItem>
+                                    <SelectItem value="upload">Upload Existing CSR</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            
+                            {/* --- Subject & SANs section --- */}
+                            <h3 className="font-medium text-lg border-t pt-4">Certificate Subject {issuanceMode === 'upload' && '(from CSR)'}</h3>
+                            {issuanceMode === 'generate' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                <Label htmlFor="commonName">Common Name (CN)</Label>
+                                <Input
+                                    id="commonName"
+                                    value={commonName || ''}
+                                    onChange={e => setCommonName(e.target.value)}
+                                    required
+                                    readOnly={!!prefilledCn}
+                                    className={cn(!!prefilledCn && 'bg-muted/50')}
+                                />
+                                {!!prefilledCn && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                    Common Name pre-filled from device ID and cannot be changed.
+                                    </p>
+                                )}
+                                </div>
+                                <div className="space-y-1"><Label htmlFor="organization">Organization (O)</Label><Input id="organization" value={organization || ''} onChange={e => setOrganization(e.target.value)} /></div>
+                                <div className="space-y-1"><Label htmlFor="organizationalUnit">Organizational Unit (OU)</Label><Input id="organizationalUnit" value={organizationalUnit || ''} onChange={e => setOrganizationalUnit(e.target.value)} /></div>
+                                <div className="space-y-1"><Label htmlFor="locality">Locality (L)</Label><Input id="locality" value={locality || ''} onChange={e => setLocality(e.target.value)} /></div>
+                                <div className="space-y-1"><Label htmlFor="stateProvince">State/Province (ST)</Label><Input id="stateProvince" value={stateProvince || ''} onChange={e => setStateProvince(e.target.value)} /></div>
+                                <div className="space-y-1"><Label htmlFor="country">Country (C)</Label><Input id="country" value={country || ''} onChange={e => setCountry(e.target.value)} placeholder="e.g. US" maxLength={2} /></div>
+                                <div className="space-y-1 md:col-span-2"><Label htmlFor="dnsSans">DNS Names (SAN)</Label><TagInput id="dnsSans" value={dnsSans} onChange={setDnsSans} placeholder="Add DNS names..."/></div>
+                            </div>
+                            ) : (
+                            <div className="space-y-4">
+                                <div className="space-y-1"><Label htmlFor="csrFile">Upload CSR File</Label><Input id="csrFile" type="file" accept=".csr,.pem" onChange={handleCsrFileUpload}/></div>
+                                <div className="space-y-1"><Label htmlFor="csrPemTextarea">Or Paste CSR (PEM)</Label><Textarea id="csrPemTextarea" value={csrPem} onChange={e=>setCsrPem(e.target.value)} rows={8} className="font-mono"/></div>
+                                {decodedCsrInfo && (
+                                    <Card className="bg-muted/30"><CardHeader><CardTitle className="text-md">Decoded CSR Information</CardTitle></CardHeader><CardContent className="space-y-2 text-sm pt-4">{decodedCsrInfo.error ? <Alert variant="destructive">{decodedCsrInfo.error}</Alert> : <>
+                                        <DetailItem label="Subject" value={decodedCsrInfo.subject} isMono />
+                                        <DetailItem label="Public Key" value={decodedCsrInfo.publicKeyInfo} isMono />
+                                        {decodedCsrInfo.sans && decodedCsrInfo.sans.length > 0 && <DetailItem label="SANs" value={<div className="flex flex-wrap gap-1">{decodedCsrInfo.sans.map((san, i)=><Badge key={i} variant="secondary">{san}</Badge>)}</div>}/>}
+                                        {decodedCsrInfo.basicConstraints && <DetailItem label="Basic Constraints" value={decodedCsrInfo.basicConstraints} isMono />}
+                                    </> }</CardContent></Card>
+                                )}
+                            </div>
+                            )}
+
+                            {/* --- Key Generation section (generate mode only) --- */}
+                            {issuanceMode === 'generate' && (
+                                <>
+                                <h3 className="font-medium text-lg border-t pt-4">Key Generation Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1"><Label htmlFor="keyAlgorithm">Algorithm</Label><Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{KEY_TYPE_OPTIONS.map(a=><SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent></Select></div>
+                                    {selectedAlgorithm === 'RSA' ? (
+                                    <div className="space-y-1"><Label htmlFor="rsaKeySize">RSA Key Size</Label><Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{RSA_KEY_SIZE_OPTIONS.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
+                                    ) : (
+                                    <div className="space-y-1"><Label htmlFor="ecdsaCurve">ECDSA Curve</Label><Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ECDSA_CURVE_OPTIONS.map(c=><SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
+                                    )}
+                                </div>
+                                </>
+                            )}
+                            
+                            {/* --- Configuration section (both modes) --- */}
+                            <h3 className="font-medium text-lg border-t pt-4">Certificate Configuration</h3>
+                            <DurationInput 
+                            id="duration" 
+                            label="Validity Duration" 
+                            value={duration} 
+                            onChange={setDuration} 
+                            placeholder="e.g., 365d, 1y, 2w"
+                            description="Units: y, w, d, h, m, s."
+                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2"><h4 className="font-medium">Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{KEY_USAGE_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`ku-${o.id}`} checked={keyUsages.includes(o.id)} onCheckedChange={(c)=>handleKeyUsageChange(o.id, !!c)}/><Label htmlFor={`ku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
+                                <div className="space-y-2"><h4 className="font-medium">Extended Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{EKU_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`eku-${o.id}`} checked={extendedKeyUsages.includes(o.id)} onCheckedChange={(c)=>handleExtendedKeyUsageChange(o.id, !!c)}/><Label htmlFor={`eku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
+                            </div>
+                        </div>
                     )}
-                  </div>
-                )}
 
-                {/* --- Key Generation section (generate mode only) --- */}
-                {issuanceMode === 'generate' && (
-                    <>
-                    <h3 className="font-medium text-lg border-t pt-4">Key Generation Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1"><Label htmlFor="keyAlgorithm">Algorithm</Label><Select value={selectedAlgorithm} onValueChange={setSelectedAlgorithm}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{KEY_TYPE_OPTIONS.map(a=><SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent></Select></div>
-                        {selectedAlgorithm === 'RSA' ? (
-                           <div className="space-y-1"><Label htmlFor="rsaKeySize">RSA Key Size</Label><Select value={selectedRsaKeySize} onValueChange={setSelectedRsaKeySize}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{RSA_KEY_SIZE_OPTIONS.map(s=><SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
-                        ) : (
-                           <div className="space-y-1"><Label htmlFor="ecdsaCurve">ECDSA Curve</Label><Select value={selectedEcdsaCurve} onValueChange={setSelectedEcdsaCurve}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ECDSA_CURVE_OPTIONS.map(c=><SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
+                    {step === 2 && (
+                        <div className="flex items-center justify-center p-8 flex-col text-center">
+                        {isGenerating ? (
+                            <>
+                            <Loader2 className="h-16 w-16 text-primary animate-spin" />
+                            <h3 className="text-2xl font-semibold mt-4">Issuing Certificate...</h3>
+                            <p className="text-muted-foreground mt-2">
+                                Your request is being processed by the Certification Authority. Please wait.
+                            </p>
+                            </>
+                        ) : generationError ? (
+                            <>
+                            <AlertTriangle className="h-16 w-16 text-destructive" />
+                            <h3 className="text-2xl font-semibold mt-4">Issuance Failed</h3>
+                            <p className="text-muted-foreground mt-2">
+                                An error occurred. Please review the message below, go back to correct any issues, and try again.
+                            </p>
+                            </>
+                        ) : null}
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="space-y-6 mt-6 text-center">
+                        <Check className="h-16 w-16 text-green-500 mx-auto" />
+                        <h3 className="text-2xl font-semibold">Certificate Issued Successfully!</h3>
+                        <p className="text-muted-foreground">The certificate has been provisioned. Remember to save your private key if you generated one in the browser.</p>
+                        
+                        <div className="space-y-2 text-left">
+                            <div className="flex justify-between items-center">
+                            <h3 className="font-medium">Issued Certificate PEM</h3>
+                            <div className="flex space-x-2">
+                                <Button type="button" variant="outline" size="sm" onClick={() => handleCopy(issuedCertificate?.pem || '', "Certificate", setIssuedCertCopied)}>
+                                {issuedCertCopied ? <Check className="mr-1 h-4 w-4 text-green-500"/> : <Copy className="mr-1 h-4 w-4"/>}
+                                {issuedCertCopied ? 'Copied' : 'Copy'}
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => handleDownload(issuedCertificate?.pem || '', "certificate.pem", "application/x-pem-file")}>
+                                <DownloadIcon className="mr-1 h-4 w-4"/>Download
+                                </Button>
+                            </div>
+                            </div>
+                            <Textarea readOnly value={issuedCertificate?.pem || ''} rows={10} className="font-mono bg-muted/50"/>
+                        </div>
+
+                        {generatedPrivateKeyPem && (
+                            <div className="space-y-2 text-left pt-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-medium">Generated Private Key</h3>
+                                    <div className="flex space-x-2">
+                                        <Button type="button" variant="outline" size="sm" onClick={()=>handleCopy(generatedPrivateKeyPem, "Private Key", setPrivateKeyCopied)}>
+                                            {privateKeyCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}
+                                            {privateKeyCopied?'Copied':'Copy'}
+                                        </Button>
+                                        <Button type="button" variant="outline" size="sm" onClick={()=>handleDownload(generatedPrivateKeyPem, "private_key.pem", "application/x-pem-file")}>
+                                            <DownloadIcon className="mr-1 h-4 w-4"/>Download
+                                        </Button>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-destructive">This is your only chance to save the private key. Store it securely.</p>
+                                <Textarea readOnly value={generatedPrivateKeyPem} rows={8} className="font-mono bg-muted/50"/>
+                            </div>
                         )}
-                    </div>
-                    </>
-                )}
-                
-                {/* --- Configuration section (both modes) --- */}
-                <h3 className="font-medium text-lg border-t pt-4">Certificate Configuration</h3>
-                 <DurationInput 
-                  id="duration" 
-                  label="Validity Duration" 
-                  value={duration} 
-                  onChange={setDuration} 
-                  placeholder="e.g., 365d, 1y, 2w"
-                  description="Units: y, w, d, h, m, s."
-                />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2"><h4 className="font-medium">Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{KEY_USAGE_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`ku-${o.id}`} checked={keyUsages.includes(o.id)} onCheckedChange={(c)=>handleKeyUsageChange(o.id, !!c)}/><Label htmlFor={`ku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
-                    <div className="space-y-2"><h4 className="font-medium">Extended Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{EKU_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`eku-${o.id}`} checked={extendedKeyUsages.includes(o.id)} onCheckedChange={(c)=>handleExtendedKeyUsageChange(o.id, !!c)}/><Label htmlFor={`eku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
-                </div>
-            </div>
-          )}
+                        </div>
+                    )}
 
-          {step === 2 && (
-            <div className="flex items-center justify-center p-8 flex-col text-center">
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-16 w-16 text-primary animate-spin" />
-                  <h3 className="text-2xl font-semibold mt-4">Issuing Certificate...</h3>
-                  <p className="text-muted-foreground mt-2">
-                    Your request is being processed by the Certification Authority. Please wait.
-                  </p>
+
+                    {generationError && <Alert variant="destructive" className="mt-4"><AlertTriangle className="h-4 w-4" /><AlertDescription>{generationError}</AlertDescription></Alert>}
                 </>
-              ) : generationError ? (
-                <>
-                  <AlertTriangle className="h-16 w-16 text-destructive" />
-                  <h3 className="text-2xl font-semibold mt-4">Issuance Failed</h3>
-                  <p className="text-muted-foreground mt-2">
-                    An error occurred. Please review the message below, go back to correct any issues, and try again.
-                  </p>
-                </>
-              ) : null}
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-6 mt-6 text-center">
-              <Check className="h-16 w-16 text-green-500 mx-auto" />
-              <h3 className="text-2xl font-semibold">Certificate Issued Successfully!</h3>
-              <p className="text-muted-foreground">The certificate has been provisioned. Remember to save your private key if you generated one in the browser.</p>
-              
-              <div className="space-y-2 text-left">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium">Issued Certificate PEM</h3>
-                  <div className="flex space-x-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => handleCopy(issuedCertificate?.pem || '', "Certificate", setIssuedCertCopied)}>
-                      {issuedCertCopied ? <Check className="mr-1 h-4 w-4 text-green-500"/> : <Copy className="mr-1 h-4 w-4"/>}
-                      {issuedCertCopied ? 'Copied' : 'Copy'}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => handleDownload(issuedCertificate?.pem || '', "certificate.pem", "application/x-pem-file")}>
-                      <DownloadIcon className="mr-1 h-4 w-4"/>Download
-                    </Button>
-                  </div>
-                </div>
-                <Textarea readOnly value={issuedCertificate?.pem || ''} rows={10} className="font-mono bg-muted/50"/>
-              </div>
-
-              {generatedPrivateKeyPem && (
-                  <div className="space-y-2 text-left pt-4">
-                      <div className="flex justify-between items-center">
-                          <h3 className="font-medium">Generated Private Key</h3>
-                          <div className="flex space-x-2">
-                              <Button type="button" variant="outline" size="sm" onClick={()=>handleCopy(generatedPrivateKeyPem, "Private Key", setPrivateKeyCopied)}>
-                                  {privateKeyCopied?<Check className="mr-1 h-4 w-4 text-green-500"/>:<Copy className="mr-1 h-4 w-4"/>}
-                                  {privateKeyCopied?'Copied':'Copy'}
-                              </Button>
-                              <Button type="button" variant="outline" size="sm" onClick={()=>handleDownload(generatedPrivateKeyPem, "private_key.pem", "application/x-pem-file")}>
-                                  <DownloadIcon className="mr-1 h-4 w-4"/>Download
-                              </Button>
-                          </div>
-                      </div>
-                      <p className="text-xs text-destructive">This is your only chance to save the private key. Store it securely.</p>
-                      <Textarea readOnly value={generatedPrivateKeyPem} rows={8} className="font-mono bg-muted/50"/>
-                  </div>
-              )}
-            </div>
-          )}
-
-
-          {generationError && <Alert variant="destructive" className="mt-4"><AlertTriangle className="h-4 w-4" /><AlertDescription>{generationError}</AlertDescription></Alert>}
-
+            )}
         </CardContent>
         <CardFooter className="flex justify-between">
           {step < 2 || (step === 2 && !!generationError) ? (
-            <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1}>
+            <Button type="button" variant="ghost" onClick={handleBack} disabled={isLoadingCa || step === 1}>
               Back
             </Button>
           ) : <div/> /* Spacer */}
             
             <div className="flex space-x-2">
-                {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndIssue} disabled={isGenerating || !commonName.trim()}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Generate & Issue</Button>}
-                {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleIssueCertificateFromUpload} disabled={isGenerating || !csrPem.trim() || !!decodedCsrInfo?.error}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Issue Certificate</Button>}
+                {step === 1 && issuanceMode === 'generate' && <Button type="button" onClick={handleGenerateAndIssue} disabled={isLoadingCa || isGenerating || !commonName.trim()}>{isLoadingCa ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoadingCa ? 'Loading...' : 'Generate & Issue'}</Button>}
+                {step === 1 && issuanceMode === 'upload' && <Button type="button" onClick={handleIssueCertificateFromUpload} disabled={isLoadingCa || isGenerating || !csrPem.trim() || !!decodedCsrInfo?.error}>{isLoadingCa ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}{isLoadingCa ? 'Loading...' : 'Issue Certificate'}</Button>}
                 
                 {step === 2 && !!generationError && (
                   <Button type="button" onClick={issuanceMode === 'generate' ? handleGenerateAndIssue : handleIssueCertificateFromUpload} disabled={isGenerating}>
