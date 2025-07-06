@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, MoreVertical, Trash2, Fingerprint, Download, PlusCircle, ShieldCheck } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, MoreVertical, Trash2, Fingerprint, Download, PlusCircle, ShieldCheck, ArrowLeft, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -34,7 +34,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchCaRequests, deleteCaRequest, type CACertificateRequest } from '@/lib/ca-data';
 
 
@@ -351,6 +350,9 @@ export default function CaRequestsPage() {
 
   return (
     <div className="space-y-6 w-full pb-8">
+      <Button variant="outline" onClick={() => router.push('/certificate-authorities')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certification Authorities
+      </Button>
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <FileSignature className="h-8 w-8 text-primary" />
