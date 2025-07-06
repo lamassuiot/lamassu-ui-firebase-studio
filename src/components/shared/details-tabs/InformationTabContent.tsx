@@ -249,7 +249,6 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="Basic Constraints" value={
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">CA: <Badge variant={caDetails.isCa ? "default" : "secondary"} className={(caDetails.isCa ? 'bg-green-100 text-green-700' : '')}>{caDetails.isCa ? "TRUE" : "FALSE"}</Badge></div>
-                {caDetails.isCa && <div>Path Length Constraint: {caDetails.pathLenConstraint}</div>}
               </div>
             } />
             <Separator className="my-2" />
