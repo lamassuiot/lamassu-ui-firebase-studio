@@ -26,7 +26,7 @@ export function CertificateDetailsModal({ certificate, isOpen, onClose }: Certif
     return (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 py-2">
         <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-        <dd className="text-sm text-foreground sm:col-span-2">
+        <dd className="text-sm text-foreground sm:col-span-2 break-all">
           {React.isValidElement(value) ? value : 
             Array.isArray(value) ? (
               <ul className="list-disc list-inside">

@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById, fetchAndProcessCAs, fetchCryptoEngines, updateCaMetadata, fetchCaStats, revokeCa, deleteCa } from '@/lib/ca-data';
+import { findCaById, fetchAndProcessCAs, fetchCryptoEngines, updateCaMetadata, fetchCaStats, revokeCa, deleteCa, parseCertificatePemDetails } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RevocationModal } from '@/components/shared/RevocationModal';
@@ -159,15 +159,22 @@ export default function CertificateAuthorityDetailsClient() {
       return;
     }
     const foundCa = findCaById(caIdFromUrl, allCertificateAuthoritiesData);
-    setCaDetails(foundCa);
     if (foundCa) {
-      const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
-      setCaPathToRoot(path);
-      const chainPem = path.map(p => p.pemData).filter(Boolean).join('\\n\\n');
-      setFullChainPemString(chainPem);
-      if (isAuthenticated() && user?.access_token) {
-        loadCaStats(foundCa.id, user.access_token);
-      }
+        if(foundCa.pemData) {
+            const parsedDetails = parseCertificatePemDetails(foundCa.pemData);
+            const completeCa = { ...foundCa, ...parsedDetails };
+            setCaDetails(completeCa);
+        } else {
+            setCaDetails(foundCa);
+        }
+
+        const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
+        setCaPathToRoot(path);
+        const chainPem = path.map(p => p.pemData).filter(Boolean).join('\\n\\n');
+        setFullChainPemString(chainPem);
+        if (isAuthenticated() && user?.access_token) {
+            loadCaStats(foundCa.id, user.access_token);
+        }
 
     } else {
       setErrorCAs(`Certification Authority with ID "${caIdFromUrl}" not found.`);

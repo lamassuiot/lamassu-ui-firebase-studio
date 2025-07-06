@@ -1,7 +1,7 @@
 
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
 
@@ -72,11 +72,10 @@ export interface CA {
   id: string;
   name: string;
   issuer: string; // ID of the parent CA or "Self-signed"
-  expires: string; // ISO Date string from valid_to
+  expires: string; // ISO date string from valid_to
   serialNumber: string;
   status: 'active' | 'expired' | 'revoked' | 'unknown'; // Added 'unknown' for safety
   keyAlgorithm: string;
-  signatureAlgorithm: string; // Placeholder for now
   kmsKeyId?: string;
   pemData?: string;
   children?: CA[];
@@ -86,13 +85,18 @@ export interface CA {
   issuerDN?: ApiDistinguishedName;
   isCa?: boolean;
   level?: number; // Store the original level from API
-  crlDistributionPoints?: string[];
-  ocspUrls?: string[];
-  caIssuersUrls?: string[];
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
   caType?: string;
   defaultIssuanceLifetime?: string;
+  // Optional fields that will be parsed on demand
+  signatureAlgorithm?: string;
+  crlDistributionPoints?: string[];
+  ocspUrls?: string[];
+  caIssuersUrls?: string[];
   pathLenConstraint?: number | 'None';
+  sans?: string[];
+  keyUsage?: string[];
+  extendedKeyUsage?: string[];
 }
 
 // OID Map for signature algorithms
@@ -106,10 +110,49 @@ const SIG_OID_MAP: Record<string, string> = {
     "1.2.840.10045.4.3.4": "ecdsa-with-SHA512",
 };
 
-function parseSignatureAlgorithmFromPem(pem: string): string {
-    if (typeof window === 'undefined' || !pem) return 'N/A';
+const EKU_OID_MAP: Record<string, string> = {
+    "1.3.6.1.5.5.7.3.1": "ServerAuth",
+    "1.3.6.1.5.5.7.3.2": "ClientAuth",
+    "1.3.6.1.5.5.7.3.3": "CodeSigning",
+    "1.3.6.1.5.5.7.3.4": "EmailProtection",
+    "1.3.6.1.5.5.7.3.8": "TimeStamping",
+    "1.3.6.1.5.5.7.3.9": "OCSPSigning",
+    "2.5.29.37.0": "AnyExtendedKeyUsage",
+};
+
+const KEY_USAGE_NAMES = [
+    "digitalSignature", "nonRepudiation", "keyEncipherment", "dataEncipherment",
+    "keyAgreement", "keyCertSign", "cRLSign", "encipherOnly", "decipherOnly"
+];
+
+
+export interface ParsedPemDetails {
+    signatureAlgorithm: string;
+    crlDistributionPoints: string[];
+    ocspUrls: string[];
+    caIssuersUrls: string[];
+    pathLenConstraint: number | 'None';
+    sans: string[];
+    keyUsage: string[];
+    extendedKeyUsage: string[];
+}
+
+export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
+    const defaultResult: ParsedPemDetails = {
+        signatureAlgorithm: 'N/A',
+        crlDistributionPoints: [],
+        ocspUrls: [],
+        caIssuersUrls: [],
+        pathLenConstraint: 'None',
+        sans: [],
+        keyUsage: [],
+        extendedKeyUsage: []
+    };
+
+    if (typeof window === 'undefined' || !pem) return defaultResult;
+
     try {
-        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s+/g, "");
         const binaryString = window.atob(pemString);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -117,126 +160,103 @@ function parseSignatureAlgorithmFromPem(pem: string): string {
         }
 
         const asn1 = asn1js.fromBER(bytes.buffer);
-        if (asn1.offset === -1) return 'Parsing Error (ASN.1)';
+        if (asn1.offset === -1) {
+            console.error("Failed to parse PEM: Invalid ASN.1 structure.");
+            return defaultResult;
+        }
 
         const certificate = new Certificate({ schema: asn1.result });
-        const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
         
-        return SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
+        
+        try {
+            const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
+            defaultResult.signatureAlgorithm = SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
+        } catch(e) { console.error("Failed to parse Signature Algorithm:", e); }
 
-    } catch (e) {
-        console.error("Failed to parse signature algorithm from certificate PEM:", e);
-        return 'Parsing Error';
-    }
-}
-
-
-function parseCrlUrlsFromPem(pem: string): string[] {
-  if (typeof window === 'undefined' || !pem) return [];
-  try {
-    const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
-    const binaryString = window.atob(pemString);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    const asn1 = asn1js.fromBER(bytes.buffer);
-    if (asn1.offset === -1) return [];
-
-    const certificate = new Certificate({ schema: asn1.result });
-    const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31"); // id-ce-cRLDistributionPoints
-
-    if (!cdpExtension || !cdpExtension.parsedValue) {
-      return [];
-    }
-
-    const crlDistributionPoints = cdpExtension.parsedValue as CRLDistributionPoints;
-    const urls: string[] = [];
-
-    crlDistributionPoints.distributionPoints?.forEach((point: any) => {
-      if (point.distributionPoint && point.distributionPoint[0]) {
-        const generalName = point.distributionPoint[0];
-        urls.push(generalName.value);
-      }
-    });
-    return urls;
-
-  } catch (e) {
-    console.error("Failed to parse CRL URLs from certificate PEM:", e);
-    return [];
-  }
-}
-
-function parseAiaUrls(pem: string): { ocsp: string[], caIssuers: string[] } {
-  const result = { ocsp: [], caIssuers: [] };
-  if (typeof window === 'undefined' || !pem) return result;
-  try {
-    const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
-    const binaryString = window.atob(pemString);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    const asn1 = asn1js.fromBER(bytes.buffer);
-    if (asn1.offset === -1) return result;
-
-    const certificate = new Certificate({ schema: asn1.result });
-    const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1"); // id-pe-authorityInfoAccess
-
-    if (!aiaExtension || !aiaExtension.parsedValue) {
-      return result;
-    }
-
-    const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
-
-    aia.accessDescriptions.forEach((desc: any) => {
-      if (desc.accessMethod === "1.3.6.1.5.5.7.48.1") { // id-ad-ocsp
-        if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
-          result.ocsp.push(desc.accessLocation.value);
-        }
-      } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2") { // id-ad-caIssuers
-        if (desc.accessLocation.type === 6) { // uniformResourceIdentifier
-          result.caIssuers.push(desc.accessLocation.value);
-        }
-      }
-    });
-    return result;
-
-  } catch (e) {
-    console.error("Failed to parse AIA URLs from certificate PEM:", e);
-    return result;
-  }
-}
-
-function parsePathLenConstraintFromPem(pem: string): number | 'None' {
-    if (typeof window === 'undefined' || !pem) return 'None';
-    try {
-        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
-        const binaryString = window.atob(pemString);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        const asn1 = asn1js.fromBER(bytes.buffer);
-        if (asn1.offset === -1) return 'None';
-
-        const certificate = new Certificate({ schema: asn1.result });
-        const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19"); // id-ce-basicConstraints
-
-        if (bcExtension && bcExtension.parsedValue) {
-            const basicConstraints = bcExtension.parsedValue as BasicConstraints;
-            if (basicConstraints.pathLenConstraint !== undefined) {
-                return basicConstraints.pathLenConstraint;
+        try {
+            const cdpExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.31");
+            if (cdpExtension?.parsedValue) {
+                const crls = cdpExtension.parsedValue as CRLDistributionPoints;
+                crls.distributionPoints?.forEach((point: any) => {
+                    if (point.distributionPoint && point.distributionPoint[0]) {
+                        defaultResult.crlDistributionPoints.push(point.distributionPoint[0].value);
+                    }
+                });
             }
-        }
-        return 'None';
+        } catch(e) { console.error("Failed to parse CRL Distribution Points:", e); }
+        
+        try {
+            const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1");
+            if (aiaExtension?.parsedValue) {
+                const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
+                aia.accessDescriptions.forEach((desc: any) => {
+                    if (desc.accessMethod === "1.3.6.1.5.5.7.48.1" && desc.accessLocation.type === 6) { // id-ad-ocsp
+                        defaultResult.ocspUrls.push(desc.accessLocation.value);
+                    } else if (desc.accessMethod === "1.3.6.1.5.5.7.48.2" && desc.accessLocation.type === 6) { // id-ad-caIssuers
+                        defaultResult.caIssuersUrls.push(desc.accessLocation.value);
+                    }
+                });
+            }
+        } catch(e) { console.error("Failed to parse Authority Information Access:", e); }
+        
+        try {
+            const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
+            if (bcExtension?.parsedValue) {
+                const basicConstraints = bcExtension.parsedValue as BasicConstraints;
+                if (basicConstraints.pathLenConstraint !== undefined) {
+                    defaultResult.pathLenConstraint = basicConstraints.pathLenConstraint;
+                }
+            }
+        } catch(e) { console.error("Failed to parse Basic Constraints:", e); }
+        
+        try {
+            const sanExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.17");
+            if (sanExtension?.parsedValue) {
+                const sanValue = sanExtension.parsedValue;
+                if (sanValue.altNames && Array.isArray(sanValue.altNames)) {
+                    sanValue.altNames.forEach(name => {
+                        if (name.type === 1) defaultResult.sans.push(`Email: ${name.value}`);
+                        else if (name.type === 2) defaultResult.sans.push(`DNS: ${name.value}`);
+                        else if (name.type === 6) defaultResult.sans.push(`URI: ${name.value}`);
+                        else if (name.type === 7) {
+                            const ipBytes = Array.from(new Uint8Array(name.value.valueBlock.valueHex));
+                            defaultResult.sans.push(`IP: ${ipBytes.join('.')}`);
+                        }
+                    });
+                }
+            }
+        } catch(e) { console.error("Failed to parse Subject Alternative Names:", e); }
+        
+        try {
+            const keyUsageExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.15");
+
+            if (keyUsageExtension?.parsedValue) {
+              const bitString = keyUsageExtension.parsedValue;
+              const keyUsage = bitString.valueBlock.valueHex ? new Uint8Array(bitString.valueBlock.valueHex) : [];
+
+              for (let i = 0; i < KEY_USAGE_NAMES.length; i++) {
+                if (keyUsage.length && (keyUsage[Math.floor(i / 8)] & (1 << (7 - (i % 8))))) {
+                  defaultResult.keyUsage.push(KEY_USAGE_NAMES[i]);
+                }
+              }
+             }
+        } catch(e) { console.error("Failed to parse Key Usage:", e); }
+        
+        try {
+            const ekuExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.37");
+            if (ekuExtension?.parsedValue) {
+                const ekuValue = ekuExtension.parsedValue as ExtKeyUsage;
+                ekuValue.keyPurposes.forEach((oid: string) => {
+                    defaultResult.extendedKeyUsage.push(EKU_OID_MAP[oid] || oid);
+                });
+            }
+        } catch(e) { console.error("Failed to parse Extended Key Usage:", e); }
+
+        return defaultResult;
 
     } catch (e) {
-        console.error("Failed to parse Path Length Constraint from certificate PEM:", e);
-        return 'None';
+        console.error("Fatal error during certificate parsing:", e);
+        return defaultResult;
     }
 }
 
@@ -261,10 +281,6 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
   }
 
   const pemData = typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : ''; // Decode base64 PEM
-  const crlUrls = parseCrlUrlsFromPem(pemData);
-  const aiaUrls = parseAiaUrls(pemData);
-  const signatureAlgorithm = parseSignatureAlgorithmFromPem(pemData);
-  const pathLenConstraint = parsePathLenConstraintFromPem(pemData);
 
   let defaultIssuanceLifetime = 'Not Specified';
   if (apiCa.validity) {
@@ -290,7 +306,6 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     serialNumber: apiCa.certificate.serial_number,
     status,
     keyAlgorithm: keyAlgorithm,
-    signatureAlgorithm: signatureAlgorithm,
     kmsKeyId: apiCa.certificate.engine_id,
     pemData: pemData,
     subjectKeyId: apiCa.certificate.subject_key_id,
@@ -299,13 +314,10 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     issuerDN: apiCa.certificate.issuer,
     isCa: apiCa.certificate.is_ca,
     level: apiCa.level,
-    crlDistributionPoints: crlUrls,
-    ocspUrls: aiaUrls.ocsp,
-    caIssuersUrls: aiaUrls.caIssuers,
     rawApiData: apiCa,
     caType: apiCa.certificate.type,
     defaultIssuanceLifetime: defaultIssuanceLifetime,
-    pathLenConstraint: pathLenConstraint,
+    // Parsed fields are intentionally left undefined for lazy parsing
   };
 }
 
@@ -857,8 +869,8 @@ export interface ApiSigningProfile {
 	sign_as_ca: boolean;
 	honor_key_usage: boolean;
 	key_usage: string[];
-	honor_extended_key_usages: boolean;
-	extended_key_usages: string[];
+	honor_extended_key_usage: boolean;
+	extended_key_usage: string[];
 	honor_subject: boolean;
 	subject: {
 		organization?: string;
