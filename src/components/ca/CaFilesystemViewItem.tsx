@@ -110,7 +110,7 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
                 size="icon" 
                 onClick={handleIssueCertClick} 
                 title={`Issue certificate from ${ca.name}`}
-                disabled={ca.status === 'revoked'}
+                disabled={ca.status === 'revoked' || ca.caType === 'EXTERNAL_PUBLIC'}
             >
                 <FilePlus2 className="h-4 w-4" />
                 <span className="sr-only">Issue</span>
