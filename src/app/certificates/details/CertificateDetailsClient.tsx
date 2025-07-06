@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -372,7 +371,6 @@ export default function CertificateDetailsClient() { // Renamed component
             <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Details</TabsTrigger>
             <TabsTrigger value="pem"><Code2 className="mr-2 h-4 w-4 sm:hidden md:inline-block" />PEM Data</TabsTrigger>
             <TabsTrigger value="metadata"><Layers className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Metadata</TabsTrigger>
-            <TabsTrigger value="raw_api"><Layers className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Raw API Data</TabsTrigger>
           </TabsList>
 
           <TabsContent value="information">
@@ -410,16 +408,6 @@ export default function CertificateDetailsClient() { // Renamed component
               itemId={certificateDetails.serialNumber}
               onSave={handleUpdateCertMetadata}
               onUpdateSuccess={loadCertificate}
-            />
-          </TabsContent>
-
-          <TabsContent value="raw_api">
-            <MetadataTabContent
-              rawJsonData={certificateDetails.rawApiData}
-              itemName={certificateDetails.subject || certificateDetails.serialNumber}
-              tabTitle="Raw API Data"
-              toast={toast}
-              isEditable={false}
             />
           </TabsContent>
         </Tabs>
