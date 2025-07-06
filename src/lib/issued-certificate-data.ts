@@ -1,6 +1,5 @@
 import type { CertificateData } from '@/types/certificate';
 import { CA_API_BASE_URL } from './api-domains';
-import { parseCertificatePemDetails } from './ca-data';
 
 
 // API Response Structures for Issued Certificates
