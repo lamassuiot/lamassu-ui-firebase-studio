@@ -160,7 +160,7 @@ export default function CreateSigningProfilePage() {
         await createSigningProfile(payload, user.access_token);
         toast({
             title: "Profile Created",
-            description: `Signing Profile "${data.profileName}" has been successfully created.`,
+            description: `Issuance Profile "${data.profileName}" has been successfully created.`,
         });
         router.push('/signing-profiles'); 
     } catch (error: any) {
@@ -175,17 +175,17 @@ export default function CreateSigningProfilePage() {
   return (
     <div className="w-full space-y-6 mb-8">
       <Button variant="outline" onClick={() => router.push('/signing-profiles')} className="mb-0">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Signing Profiles
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Issuance Profiles
       </Button>
 
       <Card className="shadow-lg">
         <CardHeader>
           <div className="flex items-center space-x-3">
             <PlusCircle className="h-7 w-7 text-primary" />
-            <CardTitle className="text-xl font-headline">Create New Signing Profile</CardTitle>
+            <CardTitle className="text-xl font-headline">Create New Issuance Profile</CardTitle>
           </div>
           <CardDescription>
-            Define the parameters for a new certificate signing profile.
+            Define the parameters for a new certificate issuance profile.
           </CardDescription>
         </CardHeader>
         <CardContent>

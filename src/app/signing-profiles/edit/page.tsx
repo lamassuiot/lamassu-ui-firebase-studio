@@ -196,7 +196,7 @@ export default function EditSigningProfilePage() {
 
     try {
         await updateSigningProfile(profileId, payload, user.access_token);
-        toast({ title: "Profile Updated", description: `Signing Profile "${data.profileName}" has been successfully updated.` });
+        toast({ title: "Profile Updated", description: `Issuance Profile "${data.profileName}" has been successfully updated.` });
         router.push('/signing-profiles');
     } catch (error: any) {
         toast({ title: "Update Failed", description: error.message, variant: "destructive" });
@@ -216,7 +216,7 @@ export default function EditSigningProfilePage() {
     return (
       <div className="space-y-4">
         <Button variant="outline" onClick={() => router.push('/signing-profiles')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Signing Profiles
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Issuance Profiles
         </Button>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -230,17 +230,17 @@ export default function EditSigningProfilePage() {
   return (
     <div className="w-full space-y-6 mb-8">
       <Button variant="outline" onClick={() => router.push('/signing-profiles')} className="mb-0">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Signing Profiles
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Issuance Profiles
       </Button>
 
       <Card className="shadow-lg">
         <CardHeader>
           <div className="flex items-center space-x-3">
             <Settings2 className="h-7 w-7 text-primary" />
-            <CardTitle className="text-xl font-headline">Edit Signing Profile</CardTitle>
+            <CardTitle className="text-xl font-headline">Edit Issuance Profile</CardTitle>
           </div>
           <CardDescription>
-            Modify the parameters for this certificate signing profile.
+            Modify the parameters for this certificate issuance profile.
           </CardDescription>
         </CardHeader>
         <CardContent>

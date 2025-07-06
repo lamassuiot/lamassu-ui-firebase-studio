@@ -62,7 +62,7 @@ interface DecodedAccessToken {
 const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'certificates': "Certificates",
   'certificate-authorities': "Certification Authorities",
-  'signing-profiles': "Signing Profiles",
+  'signing-profiles': "Issuance Profiles",
   'registration-authorities': "Registration Authorities",
   'verification-authorities': "Verification Authorities",
   'new': "New",
@@ -151,7 +151,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const pkiItems = [
     { href: '/certificates', label: 'Certificates', icon: FileText },
     { href: '/certificate-authorities', label: 'Certification Authorities', icon: Landmark },
-    { href: '/signing-profiles', label: 'Signing Profiles', icon: ScrollTextIcon },
+    { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon },
     { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
     { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
   ];

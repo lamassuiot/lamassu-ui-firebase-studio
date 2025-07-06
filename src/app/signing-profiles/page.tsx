@@ -119,7 +119,7 @@ export default function SigningProfilesPage() {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg text-muted-foreground">{authLoading ? "Authenticating..." : "Loading Signing Profiles..."}</p>
+        <p className="text-lg text-muted-foreground">{authLoading ? "Authenticating..." : "Loading Issuance Profiles..."}</p>
       </div>
     );
   }
@@ -129,7 +129,7 @@ export default function SigningProfilesPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <ScrollTextIcon className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-headline font-semibold">Signing Profiles</h1>
+          <h1 className="text-2xl font-headline font-semibold">Issuance Profiles</h1>
         </div>
         <div className="flex items-center space-x-2">
             <Button onClick={fetchProfiles} variant="outline" disabled={isLoading}>
@@ -198,9 +198,9 @@ export default function SigningProfilesPage() {
         </div>
       ) : (
          !isLoading && !error && <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-            <h3 className="text-lg font-semibold text-muted-foreground">No Signing Profiles Defined</h3>
+            <h3 className="text-lg font-semibold text-muted-foreground">No Issuance Profiles Defined</h3>
             <p className="text-sm text-muted-foreground">
-            Get started by creating a new signing profile.
+            Get started by creating a new issuance profile.
             </p>
             <Button onClick={handleCreateNewProfile} className="mt-4">
               <PlusCircle className="mr-2 h-4 w-4" /> Create New Profile
