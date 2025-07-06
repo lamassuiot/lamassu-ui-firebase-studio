@@ -24,7 +24,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import { FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Info, User, Blocks } from 'lucide-react';
+import { FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Info, User, Blocks, Binary } from 'lucide-react';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -77,6 +77,8 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'crypto-engines': "Crypto Engines",
   'requests': "CA Requests",
   'alerts': "Alerts",
+  'tools': "Tools",
+  'certificate-viewer': "Certificate Viewer",
 };
 
 function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
@@ -182,6 +184,9 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   }
 
   const homeItem = { href: '/', label: 'Home', icon: HomeIcon };
+  const toolsItems = [
+    { href: '/tools/certificate-viewer', label: 'Certificate Viewer', icon: Binary },
+  ];
   const kmsItems = [
     { href: '/kms/keys', label: 'Keys', icon: KeyRound },
     { href: '/crypto-engines', label: 'Crypto Engines', icon: Cpu },
@@ -289,6 +294,22 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Tools</SidebarGroupLabel>
+                  {toolsItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname.startsWith(item.href)}
+                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
+                      >
+                        <Link href={item.href} className="flex items-center w-full justify-start">
+                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+
                   <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
                   {kmsItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
@@ -328,10 +349,12 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                         asChild
                         isActive={pathname.startsWith(item.href)}
                         tooltip={{ children: item.label, side: 'right', align: 'center' }}
+                        disabled={item.comingSoon}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
                           <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap flex-grow">{item.label}</span>
+                          {item.comingSoon && <Badge variant="outline" className="text-xs group-data-[collapsible=icon]:hidden">Soon</Badge>}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
