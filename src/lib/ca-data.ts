@@ -167,6 +167,7 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
 
         const certificate = new Certificate({ schema: asn1.result });
         
+        
         try {
             const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
             defaultResult.signatureAlgorithm = SIG_OID_MAP[signatureAlgorithmOid] || signatureAlgorithmOid;
@@ -211,9 +212,9 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         try {
             const sanExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.17");
             if (sanExtension?.parsedValue) {
-                const sanValue = sanExtension.parsedValue as GeneralNames;
-                if (sanValue.names && Array.isArray(sanValue.names)) {
-                    sanValue.names.forEach((name: any) => {
+                const sanValue = sanExtension.parsedValue;
+                if (sanValue.altNames && Array.isArray(sanValue.altNames)) {
+                    sanValue.altNames.forEach(name => {
                         if (name.type === 1) defaultResult.sans.push(`Email: ${name.value}`);
                         else if (name.type === 2) defaultResult.sans.push(`DNS: ${name.value}`);
                         else if (name.type === 6) defaultResult.sans.push(`URI: ${name.value}`);
@@ -228,17 +229,17 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         
         try {
             const keyUsageExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.15");
-            if (keyUsageExtension) {
-                const keyUsageAsn1 = asn1js.fromBER(keyUsageExtension.extnValue.valueBlock.valueHex);
-                if (keyUsageAsn1.offset !== -1) {
-                    const keyUsageValue = new asn1js.BitString({ schema: keyUsageAsn1.result });
-                    for (let i = 0; i < 9; i++) {
-                        if (keyUsageValue.get(i)) {
-                            defaultResult.keyUsage.push(KEY_USAGE_NAMES[i]);
-                        }
-                    }
+
+            if (keyUsageExtension?.parsedValue) {
+              const bitString = keyUsageExtension.parsedValue;
+              const keyUsage = bitString.valueBlock.valueHex ? new Uint8Array(bitString.valueBlock.valueHex) : [];
+
+              for (let i = 0; i < KEY_USAGE_NAMES.length; i++) {
+                if (keyUsage.length && (keyUsage[Math.floor(i / 8)] & (1 << (7 - (i % 8))))) {
+                  defaultResult.keyUsage.push(KEY_USAGE_NAMES[i]);
                 }
-            }
+              }
+             }
         } catch(e) { console.error("Failed to parse Key Usage:", e); }
         
         try {
