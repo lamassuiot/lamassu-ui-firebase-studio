@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -6,37 +7,44 @@ import { Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function ThemeToggle() {
-  // Default to "theme-light"
-  const [theme, setThemeState] = React.useState<"theme-light" | "dark" | "system">(
-    "theme-light"
-  )
+  const [theme, setTheme] = React.useState<"light" | "dark">("light")
+  const [mounted, setMounted] = React.useState(false)
 
-React.useEffect(() => {
-    // Set initial theme based on component state, not just class
-    const isDark =
-      theme === "dark" ||
-      (theme === "system" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-    document.documentElement.classList[isDark ? "add" : "remove"]("dark")
-  }, [theme])
-
-
+  React.useEffect(() => {
+    setMounted(true)
+    // On mount, check the class on the documentElement and set the initial state
+    const isDark = document.documentElement.classList.contains("dark")
+    setTheme(isDark ? "dark" : "light")
+  }, [])
+  
   const toggleTheme = () => {
-    setThemeState(prevTheme => {
-        const newTheme = prevTheme === "dark" ? "theme-light" : "dark";
-        if (newTheme === "dark") {
-            document.documentElement.classList.add("dark")
-        } else {
-            document.documentElement.classList.remove("dark")
-        }
-        return newTheme;
-    })
+    if (theme === "light") {
+      document.documentElement.classList.add("dark")
+      setTheme("dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+      setTheme("light")
+    }
+  }
+
+  // To avoid hydration mismatch, we don't render the button until the component has mounted on the client
+  if (!mounted) {
+    return <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" disabled />
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={toggleTheme}>
-      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+      aria-label="Toggle theme"
+    >
+      {theme === "light" ? (
+        <Sun className="h-5 w-5" />
+      ) : (
+        <Moon className="h-5 w-5" />
+      )}
       <span className="sr-only">Toggle theme</span>
     </Button>
   )

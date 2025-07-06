@@ -5,7 +5,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams }
   from 'next/navigation';
@@ -24,7 +24,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import { FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Info } from 'lucide-react';
+import { FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Info, User } from 'lucide-react';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,25 @@ import Image from 'next/image'
 import LogoFullWhite from './lamassu_full_white.svg'
 import LogoFullBlue from './lamassu_full_blue.svg'
 import LogoBlue from './lamassu_logo_blue.svg'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+
 
 interface DecodedAccessToken {
   realm_access?: {
@@ -109,6 +128,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, login, logout } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
@@ -146,7 +166,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   return (
     <SidebarProvider defaultOpen>
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
-        <header className="flex h-12 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
+        <header className="flex h-14 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" />
             <Image
@@ -155,29 +175,41 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               alt="LamassuIoT Logo"
             />
           </div>
-          <div className="flex items-center gap-3">
-            {isAuthenticated() && user?.profile?.name && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm hidden sm:inline">Welcome, {user.profile.name}</span>
-                {userRoles.length > 0 && (
-                  <div className="hidden sm:flex items-center gap-1 ml-1">
-                    {userRoles.map((role: string, index: number) => (
-                      <Badge
-                        key={index}
-                        variant="default"
-                        className="text-xs font-normal px-1.5 py-0.5 border-primary text-black bg-primary-foreground hover:bg-primary-foreground/80"
-                      >
-                        {role}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="flex items-center gap-4">
             {isAuthenticated() ? (
-              <Button variant="ghost" size="sm" onClick={logout} className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
-                <LogOut className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Logout</span>
-              </Button>
+              <>
+                <ThemeToggle />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
+                      <span className='hidden sm:inline'>{user?.profile.name}</span>
+                       <div className='flex items-center justify-center bg-primary-foreground/20 rounded-full h-8 w-8'>
+                        <User className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">My Account</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user?.profile.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setIsProfileModalOpen(true)}>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile / Token Claims</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <Button variant="ghost" size="sm" onClick={login} className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
                 <LogIn className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Login</span>
@@ -282,7 +314,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               <SidebarFooter className="p-2 pb-4 mt-auto border-t border-sidebar-border">
                 <CustomSidebarToggle />
                 <div className="w-full group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-                    <ThemeToggle />
+                    
                 </div>
               </SidebarFooter>
             </Sidebar>
@@ -309,6 +341,43 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
           </div>
         )}
       </div>
+
+      <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>User Profile & Token Claims</DialogTitle>
+            <DialogDescription>
+              This is the decoded information from your ID and Access tokens.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assigned Roles</h4>
+              <div className="flex flex-wrap gap-2">
+                {userRoles.length > 0 ? (
+                  userRoles.map(role => <Badge key={role} variant="secondary">{role}</Badge>)
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">No roles found in access token.</p>
+                )}
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2">ID Token Claims</h4>
+              <ScrollArea className="h-60 w-full rounded-md border p-4 bg-muted/30">
+                  <pre className="text-xs whitespace-pre-wrap break-all">
+                  {user ? JSON.stringify(user.profile, null, 2) : "No user profile data available."}
+                  </pre>
+              </ScrollArea>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setIsProfileModalOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 };
