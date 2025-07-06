@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCw, FileSignature, AlertTriangle, MoreVertical, Trash2, Layers, Fingerprint, Download, PlusCircle, ShieldCheck } from "lucide-react";
+import { Loader2, RefreshCw, FileSignature, AlertTriangle, MoreVertical, Trash2, Fingerprint, Download, PlusCircle, ShieldCheck, ArrowLeft, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -34,7 +34,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchCaRequests, deleteCaRequest, type CACertificateRequest } from '@/lib/ca-data';
 
 
@@ -87,10 +86,6 @@ export default function CaRequestsPage() {
   const [requestToDelete, setRequestToDelete] = useState<CACertificateRequest | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  // State for raw data viewer
-  const [requestForRawView, setRequestForRawView] = useState<CACertificateRequest | null>(null);
-
-
   // Debounce search term
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -305,10 +300,6 @@ export default function CaRequestsPage() {
                                     <Download className="mr-2 h-4 w-4" />
                                     Download CSR
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setRequestForRawView(req)}>
-                                    <Layers className="mr-2 h-4 w-4" />
-                                    View Raw API Data
-                                </DropdownMenuItem>
                                 {req.status === 'PENDING' && (
                                     <>
                                     <DropdownMenuSeparator />
@@ -359,6 +350,9 @@ export default function CaRequestsPage() {
 
   return (
     <div className="space-y-6 w-full pb-8">
+      <Button variant="outline" onClick={() => router.push('/certificate-authorities')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Certification Authorities
+      </Button>
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <FileSignature className="h-8 w-8 text-primary" />
@@ -485,27 +479,6 @@ export default function CaRequestsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-       <AlertDialog open={!!requestForRawView} onOpenChange={(open) => !open && setRequestForRawView(null)}>
-        <AlertDialogContent className="max-w-2xl">
-            <AlertDialogHeader>
-                <AlertDialogTitle>Raw API Data for Request</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This is the complete, unmodified data object received from the API for debugging purposes.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="my-4">
-                <div className="h-80 w-full rounded-md border bg-muted/30">
-                    <pre className="p-4 text-xs h-full overflow-auto">
-                        {requestForRawView && JSON.stringify(requestForRawView, null, 2)}
-                    </pre>
-                </div>
-            </div>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Close</AlertDialogCancel>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
     </div>
   );
 }
