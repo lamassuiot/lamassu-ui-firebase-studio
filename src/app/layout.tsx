@@ -294,22 +294,6 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Tools</SidebarGroupLabel>
-                  {toolsItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname.startsWith(item.href)}
-                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                      >
-                        <Link href={item.href} className="flex items-center w-full justify-start">
-                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-
                   <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
                   {kmsItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
@@ -362,6 +346,22 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
 
                   <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">NOTIFICATIONS</SidebarGroupLabel>
                   {notificationItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname.startsWith(item.href)}
+                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
+                      >
+                        <Link href={item.href} className="flex items-center w-full justify-start">
+                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                  
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Tools</SidebarGroupLabel>
+                  {toolsItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
