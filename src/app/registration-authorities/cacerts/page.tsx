@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
 import { fetchEstCaCerts } from '@/lib/est-api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 import * as asn1js from "asn1js";
 import { Certificate as PkijsCertificate, getCrypto, setEngine } from "pkijs";
@@ -138,7 +140,7 @@ export default function EstCaCertsPage() {
     }
     
     return (
-        <div className="space-y-6 w-full pb-8">
+        <div className="space-y-6 w-full pb-12">
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                     <FileText className="h-8 w-8 text-primary" />
@@ -161,62 +163,67 @@ export default function EstCaCertsPage() {
             )}
 
             {!error && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle className="text-base">RAW PKCS7 CA CERTS</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertDescription>Obtain CACerts using cURL</AlertDescription>
-                                <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPkcs7}</pre>
-                            </Alert>
-                            <CodeBlock content={pkcs7Certs} />
-                        </CardContent>
-                    </Card>
-                    <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle className="text-base">PEM FORMAT CA CERTS</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                             <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertDescription>Obtain CACerts using cURL</AlertDescription>
-                                <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPem}</pre>
-                            </Alert>
-                            <CodeBlock content={pemCerts} />
-                        </CardContent>
-                    </Card>
-                     <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle className="text-base">PARSED CAs</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ScrollArea className="h-[42rem]">
-                                <div className="space-y-4">
-                                    {parsedCerts.map((cert, index) => (
-                                        <div key={index}>
-                                            <Alert>
-                                                <Info className="h-4 w-4" />
-                                                <AlertDescription>Decoded Certificate</AlertDescription>
-                                            </Alert>
-                                            <div className="p-3 border-x border-b rounded-b-md space-y-2">
-                                                <DetailItem label="Serial Number" value={cert.serialNumber} isMono />
-                                                <DetailItem label="Public Key Algorithm" value={<Badge variant="secondary">{cert.publicKeyAlgorithm}</Badge>} />
-                                                <DetailItem label="Subject" value={cert.subject} isMono />
-                                                <DetailItem label="Issuer" value={cert.issuer} isMono />
-                                                <DetailItem label="Valid From" value={cert.validFrom} />
-                                                <DetailItem label="Valid To" value={cert.validTo} />
+                <Tabs defaultValue="pkcs7" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="pkcs7">RAW PKCS7</TabsTrigger>
+                        <TabsTrigger value="pem">PEM Format</TabsTrigger>
+                        <TabsTrigger value="parsed">Parsed CAs</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="pkcs7" className="mt-4">
+                        <Card>
+                            <CardContent className="space-y-3 pt-6">
+                                <Alert>
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription>Obtain CACerts using cURL</AlertDescription>
+                                    <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPkcs7}</pre>
+                                </Alert>
+                                <CodeBlock content={pkcs7Certs} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    
+                    <TabsContent value="pem" className="mt-4">
+                        <Card>
+                            <CardContent className="space-y-3 pt-6">
+                                 <Alert>
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription>Obtain CACerts using cURL</AlertDescription>
+                                    <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPem}</pre>
+                                </Alert>
+                                <CodeBlock content={pemCerts} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="parsed" className="mt-4">
+                         <Card>
+                            <CardContent className="pt-6">
+                                <ScrollArea className="h-[42rem]">
+                                    <div className="space-y-4">
+                                        {parsedCerts.map((cert, index) => (
+                                            <div key={index}>
+                                                <Alert>
+                                                    <Info className="h-4 w-4" />
+                                                    <AlertDescription>Decoded Certificate</AlertDescription>
+                                                </Alert>
+                                                <div className="p-3 border-x border-b rounded-b-md space-y-2">
+                                                    <DetailItem label="Serial Number" value={cert.serialNumber} isMono />
+                                                    <DetailItem label="Public Key Algorithm" value={<Badge variant="secondary">{cert.publicKeyAlgorithm}</Badge>} />
+                                                    <DetailItem label="Subject" value={cert.subject} isMono />
+                                                    <DetailItem label="Issuer" value={cert.issuer} isMono />
+                                                    <DetailItem label="Valid From" value={cert.validFrom} />
+                                                    <DetailItem label="Valid To" value={cert.validTo} />
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                    {parsedCerts.length === 0 && <p className="text-sm text-center text-muted-foreground p-4">No certificates to display.</p>}
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
-                </div>
+                                        ))}
+                                        {parsedCerts.length === 0 && <p className="text-sm text-center text-muted-foreground p-4">No certificates to display.</p>}
+                                    </div>
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             )}
         </div>
     );
