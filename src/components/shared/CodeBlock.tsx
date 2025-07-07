@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Copy, Check, Download } from 'lucide-react';
 import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 
 interface CodeBlockProps {
   content: string;
@@ -61,11 +61,11 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
     <div className={cn('space-y-1.5', className)}>
       {title && <Label className="text-sm font-semibold text-muted-foreground">{title}</Label>}
       <div className="flex items-start gap-2">
-        <ScrollArea className="h-28 w-full rounded-md border bg-background">
-          <pre className="text-xs whitespace-pre-wrap break-all font-mono p-3">
-            <code>{content}</code>
-          </pre>
-        </ScrollArea>
+        <Textarea
+          readOnly
+          value={content}
+          className="h-96 font-mono text-xs"
+        />
         <div className="flex flex-col gap-2">
           {showDownload && (
             <Button
