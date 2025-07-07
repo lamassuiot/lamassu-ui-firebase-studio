@@ -260,16 +260,31 @@ export default function RegistrationAuthoritiesPage() {
                 return (
                 <Card key={ra.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader>
-                        <div className="flex justify-between items-start space-x-3">
-                             <div className="flex items-center space-x-3 flex-grow min-w-0">
+                        <div className="flex justify-between items-start space-x-4">
+                            <div className="flex items-center space-x-4 flex-grow min-w-0">
+                                <div className="p-2 rounded-md flex-shrink-0" style={{ backgroundColor: bgColor }}>
+                                    {IconComponent ? (
+                                        <IconComponent className="h-6 w-6" style={{ color: iconColor }} />
+                                    ) : (
+                                        <Settings2 className="h-6 w-6 text-primary" />
+                                    )}
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg truncate" title={ra.name}>{ra.name}</CardTitle>
+                                    <CardDescription className="text-xs pt-1 truncate">
+                                       ID: <span className="font-mono">{ra.id}</span>
+                                    </CardDescription>
+                                </div>
+                            </div>
+                            <div className="flex-shrink-0">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 -ml-2">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
                                             <MoreVertical className="h-4 w-4" />
                                             <span className="sr-only">More actions for {ra.name}</span>
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start">
+                                    <DropdownMenuContent align="end">
                                         <DropdownMenuItem onClick={() => router.push(`/registration-authorities/new?raId=${ra.id}`)}>
                                             <Edit className="mr-2 h-4 w-4" />
                                             <span>Edit</span>
@@ -301,20 +316,6 @@ export default function RegistrationAuthoritiesPage() {
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                                <div>
-                                    <CardTitle className="text-lg truncate" title={ra.name}>{ra.name}</CardTitle>
-                                    <CardDescription className="text-xs pt-1 truncate">
-                                       ID: <span className="font-mono">{ra.id}</span>
-                                    </CardDescription>
-                                </div>
-                            </div>
-                           
-                            <div className="p-1.5 rounded-md inline-flex items-center justify-center" style={{ backgroundColor: bgColor }}>
-                                {IconComponent ? (
-                                    <IconComponent className="h-5 w-5" style={{ color: iconColor }} />
-                                ) : (
-                                    <Settings2 className="h-5 w-5 text-primary" />
-                                )}
                             </div>
                         </div>
                     </CardHeader>
