@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -33,7 +34,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { fetchRegistrationAuthorities, type ApiRaItem } from '@/lib/dms-api';
+import { fetchRegistrationAuthorities, updateRaMetadata, type ApiRaItem } from '@/lib/dms-api';
 import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
 
 
@@ -128,6 +129,13 @@ export default function RegistrationAuthoritiesPage() {
   const handleShowMetadata = (ra: ApiRaItem) => {
     setSelectedRaForMetadata(ra);
     setIsMetadataModalOpen(true);
+  };
+
+  const handleUpdateRaMetadata = async (raId: string, metadata: object) => {
+    if (!user?.access_token) {
+        throw new Error("User not authenticated.");
+    }
+    await updateRaMetadata(raId, metadata, user.access_token);
   };
 
   if (authLoading || (isLoading && ras.length === 0)) {
@@ -264,7 +272,7 @@ export default function RegistrationAuthoritiesPage() {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleShowMetadata(ra)}>
                                       <BookText className="mr-2 h-4 w-4" />
-                                      <span>Show Metadata</span>
+                                      <span>Show/Edit Metadata</span>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
@@ -300,6 +308,10 @@ export default function RegistrationAuthoritiesPage() {
         title={`Metadata for ${selectedRaForMetadata?.name}`}
         description={`Raw metadata object associated with the Registration Authority.`}
         data={selectedRaForMetadata?.metadata || null}
+        isEditable={true}
+        itemId={selectedRaForMetadata?.id}
+        onSave={handleUpdateRaMetadata}
+        onUpdateSuccess={loadData}
       />
     </>
   );
