@@ -63,7 +63,7 @@ export default function RegistrationAuthoritiesPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Pagination State
-  const [pageSize, setPageSize] = useState('9');
+  const [pageSize, setPageSize] = useState('6');
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
@@ -356,6 +356,7 @@ export default function RegistrationAuthoritiesPage() {
                 <Select value={pageSize} onValueChange={setPageSize} disabled={isLoading || authLoading}>
                   <SelectTrigger id="pageSizeSelectRaList" className="w-[80px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="6">6</SelectItem>
                     <SelectItem value="9">9</SelectItem>
                     <SelectItem value="15">15</SelectItem>
                     <SelectItem value="30">30</SelectItem>
