@@ -25,6 +25,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Shield,
+  ListChecks,
 } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -252,6 +254,7 @@ export default function RegistrationAuthoritiesPage() {
                 const profile = ra.settings.enrollment_settings.device_provisioning_profile;
                 const IconComponent = getLucideIconByName(profile.icon);
                 const [iconColor, bgColor] = (profile.icon_color || '#888888-#e0e0e0').split('-');
+                const authMode = ra.settings.enrollment_settings.est_rfc7030_settings?.auth_mode;
 
                 return (
                 <Card key={ra.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
@@ -339,6 +342,45 @@ export default function RegistrationAuthoritiesPage() {
                                 </div>
                             } 
                         />
+                        <DetailRow
+                            icon={Shield}
+                            label="Authentication Mode"
+                            value={
+                                <Badge variant="outline">
+                                    {authMode?.replace('_', ' ') || 'N/A'}
+                                </Badge>
+                            }
+                        />
+                        {authMode === 'CLIENT_CERTIFICATE' && (
+                            <>
+                                <DetailRow
+                                    icon={ListChecks}
+                                    label="Validation CAs"
+                                    value={
+                                        ra.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas?.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {ra.settings.enrollment_settings.est_rfc7030_settings.client_certificate_settings.validation_cas.map(id => (
+                                                    <Badge key={id} variant="secondary" className="truncate max-w-[150px]" title={getCaNameById(id)}>{getCaNameById(id)}</Badge>
+                                                ))}
+                                            </div>
+                                        ) : (<span className="text-xs text-muted-foreground">None</span>)
+                                    }
+                                />
+                                <DetailRow
+                                    icon={ListChecks}
+                                    label="Re-enrollment Validation CAs"
+                                    value={
+                                        ra.settings.reenrollment_settings?.additional_validation_cas?.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {ra.settings.reenrollment_settings.additional_validation_cas.map(id => (
+                                                    <Badge key={id} variant="secondary" className="truncate max-w-[150px]" title={getCaNameById(id)}>{getCaNameById(id)}</Badge>
+                                                ))}
+                                            </div>
+                                        ) : (<span className="text-xs text-muted-foreground">None</span>)
+                                    }
+                                />
+                            </>
+                        )}
                     </CardContent>
                     <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground">
                         <span>Created: {format(parseISO(ra.creation_ts), 'MMM dd, yyyy')}</span>
