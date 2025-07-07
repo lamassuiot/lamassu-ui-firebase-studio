@@ -142,14 +142,12 @@ export default function EstCaCertsPage() {
     
     return (
         <div className="space-y-6 w-full pb-12">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                    <FileText className="h-8 w-8 text-primary" />
-                    <h1 className="text-2xl font-headline font-semibold">CA Certificates for {raId}</h1>
-                </div>
-                <Button variant="outline" onClick={() => router.back()}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                </Button>
+            <Button variant="outline" onClick={() => router.back()}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+            <div className="flex items-center space-x-3">
+                <FileText className="h-8 w-8 text-primary" />
+                <h1 className="text-2xl font-headline font-semibold">CA Certificates for {raId}</h1>
             </div>
             <p className="text-sm text-muted-foreground">
                 Obtain the list of trusted CAs that are configured for this DMS instance.
