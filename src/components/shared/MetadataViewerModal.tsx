@@ -130,9 +130,9 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
            )}
 
             {isEditing ? (
-              <div className="border rounded-md overflow-hidden flex-grow">
+              <div className="border rounded-md overflow-hidden">
                   <Editor
-                    height="100%"
+                    height="30rem"
                     defaultLanguage="json"
                     value={content}
                     onChange={(value) => setContent(value || '')}
