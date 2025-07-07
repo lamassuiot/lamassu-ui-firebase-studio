@@ -261,14 +261,46 @@ export default function RegistrationAuthoritiesPage() {
                 <Card key={ra.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader>
                         <div className="flex justify-between items-start space-x-3">
-                            <div className="flex items-center space-x-3 flex-grow min-w-0">
-                                <div className="p-1.5 rounded-md inline-flex items-center justify-center" style={{ backgroundColor: bgColor }}>
-                                    {IconComponent ? (
-                                        <IconComponent className="h-5 w-5" style={{ color: iconColor }} />
-                                    ) : (
-                                        <Settings2 className="h-5 w-5 text-primary" />
-                                    )}
-                                </div>
+                             <div className="flex items-center space-x-3 flex-grow min-w-0">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 -ml-2">
+                                            <MoreVertical className="h-4 w-4" />
+                                            <span className="sr-only">More actions for {ra.name}</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                        <DropdownMenuItem onClick={() => router.push(`/registration-authorities/new?raId=${ra.id}`)}>
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            <span>Edit</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleOpenEnrollModal(ra)}>
+                                            <TerminalSquare className="mr-2 h-4 w-4" />
+                                            <span>EST - Enroll: cURL Commands</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/registration-authorities/cacerts?raId=${ra.id}`)}>
+                                            <Landmark className="mr-2 h-4 w-4" />
+                                            <span>EST - CACerts</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/devices?dms_owner=${ra.id}`)}>
+                                            <RouterIcon className="mr-2 h-4 w-4" />
+                                            <span>Go to DMS owned devices</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleShowMetadata(ra)}>
+                                            <BookText className="mr-2 h-4 w-4" />
+                                            <span>Show/Edit Metadata</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={() => alert(`Delete RA ${ra.name} (placeholder)`)}
+                                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            <span>Delete</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                                 <div>
                                     <CardTitle className="text-lg truncate" title={ra.name}>{ra.name}</CardTitle>
                                     <CardDescription className="text-xs pt-1 truncate">
@@ -276,45 +308,14 @@ export default function RegistrationAuthoritiesPage() {
                                     </CardDescription>
                                 </div>
                             </div>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 -mt-1 -mr-2">
-                                        <MoreVertical className="h-4 w-4" />
-                                        <span className="sr-only">More actions for {ra.name}</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => router.push(`/registration-authorities/new?raId=${ra.id}`)}>
-                                        <Edit className="mr-2 h-4 w-4" />
-                                        <span>Edit</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleOpenEnrollModal(ra)}>
-                                        <TerminalSquare className="mr-2 h-4 w-4" />
-                                        <span>EST - Enroll: cURL Commands</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => router.push(`/registration-authorities/cacerts?raId=${ra.id}`)}>
-                                        <Landmark className="mr-2 h-4 w-4" />
-                                        <span>EST - CACerts</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => alert(`Go to DMS owned devices for RA ${ra.name} (placeholder)`)}>
-                                        <RouterIcon className="mr-2 h-4 w-4" />
-                                        <span>Go to DMS owned devices</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleShowMetadata(ra)}>
-                                        <BookText className="mr-2 h-4 w-4" />
-                                        <span>Show/Edit Metadata</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        onClick={() => alert(`Delete RA ${ra.name} (placeholder)`)}
-                                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                    >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        <span>Delete</span>
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                           
+                            <div className="p-1.5 rounded-md inline-flex items-center justify-center" style={{ backgroundColor: bgColor }}>
+                                {IconComponent ? (
+                                    <IconComponent className="h-5 w-5" style={{ color: iconColor }} />
+                                ) : (
+                                    <Settings2 className="h-5 w-5 text-primary" />
+                                )}
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent className="flex-grow space-y-3 pt-0">
@@ -359,7 +360,7 @@ export default function RegistrationAuthoritiesPage() {
                                     label="Validation CAs"
                                     value={
                                         ra.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas?.length > 0 ? (
-                                            <span className="font-medium text-primary/90 truncate">
+                                            <span className="font-normal text-foreground/90 truncate">
                                                 {ra.settings.enrollment_settings.est_rfc7030_settings.client_certificate_settings.validation_cas.map(id => getCaNameById(id)).join(', ')}
                                             </span>
                                         ) : (<span className="text-xs text-muted-foreground">None</span>)
@@ -370,7 +371,7 @@ export default function RegistrationAuthoritiesPage() {
                                         icon={ListChecks}
                                         label="Re-enrollment Validation CAs"
                                         value={
-                                            <span className="font-medium text-primary/90 truncate">
+                                            <span className="font-normal text-foreground/90 truncate">
                                                 {ra.settings.reenrollment_settings.additional_validation_cas.map(id => getCaNameById(id)).join(', ')}
                                             </span>
                                         }

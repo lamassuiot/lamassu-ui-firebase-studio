@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -96,10 +96,13 @@ type SortDirection = 'asc' | 'desc';
 
 export default function DevicesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [devices, setDevices] = useState<DeviceData[]>([]);
   const [isLoadingApi, setIsLoadingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const dmsOwnerFilter = searchParams.get('dms_owner');
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -130,7 +133,7 @@ export default function DevicesPage() {
   useEffect(() => {
     setBookmarkStack([null]);
     setCurrentPageIndex(0);
-  }, [debouncedSearchTerm, searchField, statusFilter, pageSize]);
+  }, [debouncedSearchTerm, searchField, statusFilter, pageSize, dmsOwnerFilter]);
 
 
   const fetchDevicesData = useCallback(async (
@@ -161,7 +164,10 @@ export default function DevicesPage() {
       }
       
       const filtersToApply: string[] = [];
-      if (filterTerm.trim() !== '') {
+      if (dmsOwnerFilter) {
+          filtersToApply.push(`dms_owner[equal]${dmsOwnerFilter}`);
+      }
+      if (filterTerm.trim() !== '' && !dmsOwnerFilter) {
         filtersToApply.push(`${filterField}[contains]${filterTerm.trim()}`);
       }
       if (filterStatus !== 'ALL') {
@@ -193,7 +199,7 @@ export default function DevicesPage() {
     } finally {
       setIsLoadingApi(false);
     }
-  }, [user?.access_token, authLoading, isAuthenticated]);
+  }, [user?.access_token, authLoading, isAuthenticated, dmsOwnerFilter]);
 
   useEffect(() => {
     if (bookmarkStack.length > 0 && currentPageIndex < bookmarkStack.length) {
@@ -334,7 +340,7 @@ export default function DevicesPage() {
     );
   }
 
-  const hasActiveFilters = debouncedSearchTerm || statusFilter !== 'ALL';
+  const hasActiveFilters = debouncedSearchTerm || statusFilter !== 'ALL' || dmsOwnerFilter;
 
   return (
     <div className="space-y-6 w-full pb-8">
@@ -356,6 +362,19 @@ export default function DevicesPage() {
         Overview of all registered IoT devices, their status, and associated groups.
       </p>
 
+      {dmsOwnerFilter && (
+        <Alert variant="default" className="my-4">
+          <AlertCircleIcon className="h-4 w-4" />
+          <AlertTitle>Filtering by Registration Authority</AlertTitle>
+          <AlertDescription>
+            Showing devices owned by <strong>{dmsOwnerFilter}</strong>.
+            <Button variant="link" onClick={() => router.push('/devices')} className="p-0 h-auto ml-2 text-primary">
+              Clear filter
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
         <div className="space-y-1">
           <Label htmlFor="searchTermInput">Search Term</Label>
@@ -368,14 +387,14 @@ export default function DevicesPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10"
-              disabled={isLoadingApi || authLoading}
+              disabled={isLoadingApi || authLoading || !!dmsOwnerFilter}
             />
           </div>
         </div>
 
         <div className="space-y-1">
           <Label htmlFor="searchFieldSelect">Search In</Label>
-          <Select value={searchField} onValueChange={(value: 'id' | 'tags') => setSearchField(value)} disabled={isLoadingApi || authLoading}>
+          <Select value={searchField} onValueChange={(value: 'id' | 'tags') => setSearchField(value)} disabled={isLoadingApi || authLoading || !!dmsOwnerFilter}>
             <SelectTrigger id="searchFieldSelect">
               <SelectValue />
             </SelectTrigger>
