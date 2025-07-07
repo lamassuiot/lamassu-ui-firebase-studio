@@ -358,9 +358,9 @@ export default function RegistrationAuthoritiesPage() {
                                     label="Validation CAs"
                                     value={
                                         ra.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas?.length > 0 ? (
-                                            <div className="flex flex-wrap gap-1">
+                                            <div className="flex flex-col gap-1">
                                                 {ra.settings.enrollment_settings.est_rfc7030_settings.client_certificate_settings.validation_cas.map(id => (
-                                                    <Badge key={id} variant="secondary" className="truncate max-w-[150px]" title={getCaNameById(id)}>{getCaNameById(id)}</Badge>
+                                                    <span key={id} className="font-medium text-primary/90 truncate" title={getCaNameById(id)}>{getCaNameById(id)}</span>
                                                 ))}
                                             </div>
                                         ) : (<span className="text-xs text-muted-foreground">None</span>)
@@ -371,9 +371,9 @@ export default function RegistrationAuthoritiesPage() {
                                     label="Re-enrollment Validation CAs"
                                     value={
                                         ra.settings.reenrollment_settings?.additional_validation_cas?.length > 0 ? (
-                                            <div className="flex flex-wrap gap-1">
+                                             <div className="flex flex-col gap-1">
                                                 {ra.settings.reenrollment_settings.additional_validation_cas.map(id => (
-                                                    <Badge key={id} variant="secondary" className="truncate max-w-[150px]" title={getCaNameById(id)}>{getCaNameById(id)}</Badge>
+                                                    <span key={id} className="font-medium text-primary/90 truncate" title={getCaNameById(id)}>{getCaNameById(id)}</span>
                                                 ))}
                                             </div>
                                         ) : (<span className="text-xs text-muted-foreground">None</span>)
