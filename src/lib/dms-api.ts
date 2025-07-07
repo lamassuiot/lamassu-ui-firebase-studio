@@ -81,8 +81,16 @@ export interface RaCreationPayload {
 
 // --- API Functions ---
 
-export async function fetchRegistrationAuthorities(accessToken: string): Promise<ApiRaListResponse> {
-    const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms?page_size=15`, {
+export async function fetchRegistrationAuthorities(accessToken: string, params?: URLSearchParams): Promise<ApiRaListResponse> {
+    const url = new URL(`${DMS_MANAGER_API_BASE_URL}/dms`);
+    if (params) {
+        params.forEach((value, key) => url.searchParams.append(key, value));
+    }
+    if (!url.searchParams.has('page_size')) {
+        url.searchParams.set('page_size', '15');
+    }
+    
+    const response = await fetch(url.toString(), {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     return handleApiError(response, 'Failed to fetch RAs');

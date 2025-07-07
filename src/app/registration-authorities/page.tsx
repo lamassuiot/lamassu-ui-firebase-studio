@@ -76,14 +76,17 @@ export default function RegistrationAuthoritiesPage() {
     setIsLoading(true);
     setError(null);
     try {
+      const params = new URLSearchParams();
+      params.append('sort_by', 'name');
+      params.append('sort_mode', 'asc');
+      
       const [raData, casData, enginesData] = await Promise.all([
-        fetchRegistrationAuthorities(user.access_token),
+        fetchRegistrationAuthorities(user.access_token, params),
         fetchAndProcessCAs(user.access_token),
         fetchCryptoEngines(user.access_token),
       ]);
 
-      const sortedRas = (raData.list || []).sort((a, b) => a.name.localeCompare(b.name));
-      setRas(sortedRas);
+      setRas(raData.list || []);
       setAllCAs(casData);
       setAllCryptoEngines(enginesData);
 
