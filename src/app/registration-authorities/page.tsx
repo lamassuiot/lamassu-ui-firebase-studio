@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Shield,
   ListChecks,
+  Server,
 } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -358,11 +359,9 @@ export default function RegistrationAuthoritiesPage() {
                                     label="Validation CAs"
                                     value={
                                         ra.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas?.length > 0 ? (
-                                            <div className="flex flex-col gap-1">
-                                                {ra.settings.enrollment_settings.est_rfc7030_settings.client_certificate_settings.validation_cas.map(id => (
-                                                    <span key={id} className="font-medium text-primary/90 truncate" title={getCaNameById(id)}>{getCaNameById(id)}</span>
-                                                ))}
-                                            </div>
+                                            <span className="font-medium text-primary/90 truncate">
+                                                {ra.settings.enrollment_settings.est_rfc7030_settings.client_certificate_settings.validation_cas.map(id => getCaNameById(id)).join(', ')}
+                                            </span>
                                         ) : (<span className="text-xs text-muted-foreground">None</span>)
                                     }
                                 />
@@ -371,16 +370,35 @@ export default function RegistrationAuthoritiesPage() {
                                         icon={ListChecks}
                                         label="Re-enrollment Validation CAs"
                                         value={
-                                            <div className="flex flex-col gap-1">
-                                            {ra.settings.reenrollment_settings.additional_validation_cas.map(id => (
-                                                <span key={id} className="font-medium text-primary/90 truncate" title={getCaNameById(id)}>{getCaNameById(id)}</span>
-                                            ))}
-                                            </div>
+                                            <span className="font-medium text-primary/90 truncate">
+                                                {ra.settings.reenrollment_settings.additional_validation_cas.map(id => getCaNameById(id)).join(', ')}
+                                            </span>
                                         }
                                     />
                                 )}
                             </>
                         )}
+                        <DetailRow
+                            icon={Server}
+                            label="Server-Side Key Generation"
+                            value={
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge variant={ra.settings.server_keygen_settings?.enabled ? "default" : "secondary"} className={ra.settings.server_keygen_settings?.enabled ? 'bg-green-100 text-green-700' : ''}>
+                                        {ra.settings.server_keygen_settings?.enabled ? 'Enabled' : 'Disabled'}
+                                    </Badge>
+                                    {ra.settings.server_keygen_settings?.enabled && ra.settings.server_keygen_settings.key && (
+                                        <span className="text-xs text-muted-foreground">
+                                            ({ra.settings.server_keygen_settings.key.type}
+                                            {' - '}
+                                            {ra.settings.server_keygen_settings.key.type === 'RSA' 
+                                                ? `${ra.settings.server_keygen_settings.key.bits} bit` 
+                                                : { 256: 'P-256', 384: 'P-384', 521: 'P-521' }[ra.settings.server_keygen_settings.key.bits] || `${ra.settings.server_keygen_settings.key.bits} bit`
+                                            })
+                                        </span>
+                                    )}
+                                </div>
+                            }
+                        />
                     </CardContent>
                     <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground">
                         <span>Created: {format(parseISO(ra.creation_ts), 'MMM dd, yyyy')}</span>
