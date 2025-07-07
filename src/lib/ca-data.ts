@@ -901,7 +901,7 @@ export async function fetchSigningProfiles(accessToken: string): Promise<ApiSign
         throw new Error(errorMessage);
     }
     const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    return data.list || [];
 }
 
 export interface CreateSigningProfilePayload {
