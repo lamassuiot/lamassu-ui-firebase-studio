@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -35,6 +34,7 @@ import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchRegistrationAuthorities, type ApiRaItem } from '@/lib/dms-api';
+import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
 
 
 const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: React.ReactNode }> = ({ icon: Icon, label, value }) => (
@@ -59,6 +59,9 @@ export default function RegistrationAuthoritiesPage() {
 
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [selectedRaForEnroll, setSelectedRaForEnroll] = useState<ApiRaItem | null>(null);
+  
+  const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
+  const [selectedRaForMetadata, setSelectedRaForMetadata] = useState<ApiRaItem | null>(null);
 
   const loadData = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -122,6 +125,10 @@ export default function RegistrationAuthoritiesPage() {
     setIsEnrollModalOpen(true);
   };
 
+  const handleShowMetadata = (ra: ApiRaItem) => {
+    setSelectedRaForMetadata(ra);
+    setIsMetadataModalOpen(true);
+  };
 
   if (authLoading || (isLoading && ras.length === 0)) {
     return (
@@ -135,6 +142,7 @@ export default function RegistrationAuthoritiesPage() {
   }
 
   return (
+    <>
     <div className="space-y-6 w-full pb-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -254,7 +262,7 @@ export default function RegistrationAuthoritiesPage() {
                                       <RouterIcon className="mr-2 h-4 w-4" />
                                       <span>Go to DMS owned devices</span>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => alert(`Show Metadata for ${ra.name} (placeholder)`)}>
+                                  <DropdownMenuItem onClick={() => handleShowMetadata(ra)}>
                                       <BookText className="mr-2 h-4 w-4" />
                                       <span>Show Metadata</span>
                                   </DropdownMenuItem>
@@ -274,6 +282,7 @@ export default function RegistrationAuthoritiesPage() {
             )})}
         </div>
       )}
+    </div>
 
       <EstEnrollModal
           isOpen={isEnrollModalOpen}
@@ -285,6 +294,13 @@ export default function RegistrationAuthoritiesPage() {
           errorCAs={error}
           loadCAsAction={loadData}
       />
-    </div>
+      <MetadataViewerModal
+        isOpen={isMetadataModalOpen}
+        onOpenChange={setIsMetadataModalOpen}
+        title={`Metadata for ${selectedRaForMetadata?.name}`}
+        description={`Raw metadata object associated with the Registration Authority.`}
+        data={selectedRaForMetadata?.metadata || null}
+      />
+    </>
   );
 }
