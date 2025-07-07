@@ -366,19 +366,19 @@ export default function RegistrationAuthoritiesPage() {
                                         ) : (<span className="text-xs text-muted-foreground">None</span>)
                                     }
                                 />
-                                <DetailRow
-                                    icon={ListChecks}
-                                    label="Re-enrollment Validation CAs"
-                                    value={
-                                        ra.settings.reenrollment_settings?.additional_validation_cas?.length > 0 ? (
-                                             <div className="flex flex-col gap-1">
-                                                {ra.settings.reenrollment_settings.additional_validation_cas.map(id => (
-                                                    <span key={id} className="font-medium text-primary/90 truncate" title={getCaNameById(id)}>{getCaNameById(id)}</span>
-                                                ))}
+                                {ra.settings.reenrollment_settings?.additional_validation_cas?.length > 0 && (
+                                    <DetailRow
+                                        icon={ListChecks}
+                                        label="Re-enrollment Validation CAs"
+                                        value={
+                                            <div className="flex flex-col gap-1">
+                                            {ra.settings.reenrollment_settings.additional_validation_cas.map(id => (
+                                                <span key={id} className="font-medium text-primary/90 truncate" title={getCaNameById(id)}>{getCaNameById(id)}</span>
+                                            ))}
                                             </div>
-                                        ) : (<span className="text-xs text-muted-foreground">None</span>)
-                                    }
-                                />
+                                        }
+                                    />
+                                )}
                             </>
                         )}
                     </CardContent>
