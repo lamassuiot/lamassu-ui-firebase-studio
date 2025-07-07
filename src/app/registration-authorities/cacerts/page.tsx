@@ -163,49 +163,21 @@ export default function EstCaCertsPage() {
             )}
 
             {!error && (
-                <Tabs defaultValue="pkcs7" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="pkcs7">RAW PKCS7</TabsTrigger>
-                        <TabsTrigger value="pem">PEM Format</TabsTrigger>
-                        <TabsTrigger value="parsed">Parsed CAs</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="pkcs7" className="mt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                    {/* Left Column - Parsed Certs */}
+                    <div className="lg:col-span-1">
                         <Card>
-                            <CardContent className="space-y-3 pt-6">
-                                <Alert>
-                                    <Info className="h-4 w-4" />
-                                    <AlertDescription>Obtain CACerts using cURL</AlertDescription>
-                                    <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPkcs7}</pre>
-                                </Alert>
-                                <CodeBlock content={pkcs7Certs} />
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    
-                    <TabsContent value="pem" className="mt-4">
-                        <Card>
-                            <CardContent className="space-y-3 pt-6">
-                                 <Alert>
-                                    <Info className="h-4 w-4" />
-                                    <AlertDescription>Obtain CACerts using cURL</AlertDescription>
-                                    <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPem}</pre>
-                                </Alert>
-                                <CodeBlock content={pemCerts} />
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    <TabsContent value="parsed" className="mt-4">
-                         <Card>
-                            <CardContent className="pt-6">
+                            <CardHeader>
+                                <CardTitle>Parsed Certificates</CardTitle>
+                            </CardHeader>
+                            <CardContent>
                                 <ScrollArea className="h-[42rem]">
                                     <div className="space-y-4">
                                         {parsedCerts.map((cert, index) => (
                                             <div key={index}>
                                                 <Alert>
                                                     <Info className="h-4 w-4" />
-                                                    <AlertDescription>Decoded Certificate</AlertDescription>
+                                                    <AlertDescription>Decoded Certificate #{index + 1}</AlertDescription>
                                                 </Alert>
                                                 <div className="p-3 border-x border-b rounded-b-md space-y-2">
                                                     <DetailItem label="Serial Number" value={cert.serialNumber} isMono />
@@ -222,8 +194,44 @@ export default function EstCaCertsPage() {
                                 </ScrollArea>
                             </CardContent>
                         </Card>
-                    </TabsContent>
-                </Tabs>
+                    </div>
+
+                    {/* Right Column - Tabs for Raw Data */}
+                    <div className="lg:col-span-1">
+                        <Tabs defaultValue="pem" className="w-full">
+                            <TabsList>
+                                <TabsTrigger value="pem">PEM Format</TabsTrigger>
+                                <TabsTrigger value="pkcs7">RAW PKCS7</TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="pem" className="mt-4">
+                                <Card>
+                                    <CardContent className="space-y-3 pt-6">
+                                        <Alert>
+                                            <Info className="h-4 w-4" />
+                                            <AlertDescription>Obtain CACerts using cURL</AlertDescription>
+                                            <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPem}</pre>
+                                        </Alert>
+                                        <CodeBlock content={pemCerts} />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value="pkcs7" className="mt-4">
+                                <Card>
+                                    <CardContent className="space-y-3 pt-6">
+                                        <Alert>
+                                            <Info className="h-4 w-4" />
+                                            <AlertDescription>Obtain CACerts using cURL</AlertDescription>
+                                            <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPkcs7}</pre>
+                                        </Alert>
+                                        <CodeBlock content={pkcs7Certs} />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
+                </div>
             )}
         </div>
     );
