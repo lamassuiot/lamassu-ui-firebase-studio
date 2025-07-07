@@ -131,7 +131,7 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
-        <div className="flex-grow my-2 overflow-hidden relative flex flex-col min-h-[400px]">
+        <div className="my-2 relative">
            {!isEditing && (
               <Button
                 variant="ghost"
@@ -146,7 +146,7 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
            )}
 
             {isEditing ? (
-              <div className="border rounded-md overflow-hidden flex-grow">
+              <div className="border rounded-md overflow-hidden h-[400px]">
                   <Editor
                     height="100%"
                     defaultLanguage="json"
@@ -157,7 +157,7 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
                   />
               </div>
             ) : (
-                 <ScrollArea className="flex-grow w-full rounded-md border bg-muted/30">
+                 <ScrollArea className="h-[400px] w-full rounded-md border bg-muted/30">
                     <pre className="text-xs whitespace-pre-wrap break-all font-mono p-4">
                         {hasData ? jsonStringForDisplay : "No metadata available for this item."}
                     </pre>
