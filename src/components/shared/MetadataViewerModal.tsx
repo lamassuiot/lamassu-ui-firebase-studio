@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Copy, Check, Edit, Save, X, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false, loading: () => <div className="h-80 w-full flex items-center justify-center bg-muted/30 rounded-md"><Loader2 className="h-8 w-8 animate-spin"/></div> });
+const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false, loading: () => <div className="h-full w-full flex items-center justify-center bg-muted/30 rounded-md"><Loader2 className="h-8 w-8 animate-spin"/></div> });
 
 interface MetadataViewerModalProps {
   isOpen: boolean;
@@ -49,22 +49,36 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [jsonError, setJsonError] = useState<string | null>(null);
+  
+  // Internal state to hold the current version of the data being displayed
+  const [displayData, setDisplayData] = useState(data);
 
-  const jsonString = data ? JSON.stringify(data, null, 2) : "{}";
-  const hasData = data && Object.keys(data).length > 0;
-
+  // When the modal opens or the external data prop changes, reset our internal state
   useEffect(() => {
+    if (isOpen) {
+      setDisplayData(data);
+    }
+  }, [data, isOpen]);
+
+  // When the display data changes (or modal opens), update the editor content
+  useEffect(() => {
+    const jsonString = displayData ? JSON.stringify(displayData, null, 2) : '{}';
     setContent(jsonString);
-    if (!isOpen) { // Reset state when modal closes
+    if (!isOpen) { // Reset editing state when modal closes
         setIsEditing(false);
         setJsonError(null);
     }
-  }, [jsonString, isOpen]);
+  }, [displayData, isOpen]);
+
+
+  const jsonStringForDisplay = displayData ? JSON.stringify(displayData, null, 2) : '{}';
+  const hasData = displayData && Object.keys(displayData).length > 0;
+
 
   const handleCopy = async () => {
     if (!hasData) return;
     try {
-      await navigator.clipboard.writeText(jsonString);
+      await navigator.clipboard.writeText(jsonStringForDisplay);
       setCopied(true);
       toast({ title: "Copied!", description: "Metadata JSON copied to clipboard." });
       setTimeout(() => setCopied(false), 2000);
@@ -76,14 +90,15 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
   const handleEdit = () => setIsEditing(true);
 
   const handleCancel = () => {
-    setContent(jsonString);
+    const currentJsonString = displayData ? JSON.stringify(displayData, null, 2) : '{}';
+    setContent(currentJsonString);
     setIsEditing(false);
     setJsonError(null);
   };
-
+  
   const handleSave = async () => {
     if (!onSave || !itemId) return;
-
+    
     let parsedContent;
     try {
       parsedContent = JSON.parse(content);
@@ -97,8 +112,9 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
     try {
       await onSave(itemId, parsedContent);
       toast({ title: "Success!", description: "Metadata updated successfully." });
+      setDisplayData(parsedContent); // Update internal state immediately
       setIsEditing(false);
-      onUpdateSuccess?.();
+      onUpdateSuccess?.(); // Notify parent to refetch list data in the background
     } catch (e: any) {
       toast({ title: "Save Failed", description: e.message, variant: "destructive" });
     } finally {
@@ -115,7 +131,7 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
-        <div className="flex-grow my-2 overflow-hidden relative flex flex-col min-h-[300px]">
+        <div className="flex-grow my-2 overflow-hidden relative flex flex-col min-h-[400px]">
            {!isEditing && (
               <Button
                 variant="ghost"
@@ -130,9 +146,9 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
            )}
 
             {isEditing ? (
-              <div className="border rounded-md overflow-hidden">
+              <div className="border rounded-md overflow-hidden flex-grow">
                   <Editor
-                    height="30rem"
+                    height="100%"
                     defaultLanguage="json"
                     value={content}
                     onChange={(value) => setContent(value || '')}
@@ -143,7 +159,7 @@ export const MetadataViewerModal: React.FC<MetadataViewerModalProps> = ({
             ) : (
                  <ScrollArea className="flex-grow w-full rounded-md border bg-muted/30">
                     <pre className="text-xs whitespace-pre-wrap break-all font-mono p-4">
-                        {hasData ? jsonString : "No metadata available for this item."}
+                        {hasData ? jsonStringForDisplay : "No metadata available for this item."}
                     </pre>
                 </ScrollArea>
             )}
