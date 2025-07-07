@@ -15,6 +15,7 @@ import { CodeBlock } from '@/components/shared/CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
 import { fetchEstCaCerts } from '@/lib/est-api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 import * as asn1js from "asn1js";
@@ -172,25 +173,31 @@ export default function EstCaCertsPage() {
                             </CardHeader>
                             <CardContent>
                                 <ScrollArea className="h-[42rem]">
-                                    <div className="space-y-4">
-                                        {parsedCerts.map((cert, index) => (
-                                            <div key={index}>
-                                                <Alert>
-                                                    <Info className="h-4 w-4" />
-                                                    <AlertDescription>Decoded Certificate #{index + 1}</AlertDescription>
-                                                </Alert>
-                                                <div className="p-3 border-x border-b rounded-b-md space-y-2">
-                                                    <DetailItem label="Serial Number" value={cert.serialNumber} isMono />
-                                                    <DetailItem label="Public Key Algorithm" value={<Badge variant="secondary">{cert.publicKeyAlgorithm}</Badge>} />
-                                                    <DetailItem label="Subject" value={cert.subject} isMono />
-                                                    <DetailItem label="Issuer" value={cert.issuer} isMono />
-                                                    <DetailItem label="Valid From" value={cert.validFrom} />
-                                                    <DetailItem label="Valid To" value={cert.validTo} />
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {parsedCerts.length === 0 && <p className="text-sm text-center text-muted-foreground p-4">No certificates to display.</p>}
-                                    </div>
+                                    {parsedCerts.length > 0 ? (
+                                        <Accordion type="single" collapsible className="w-full">
+                                            {parsedCerts.map((cert, index) => {
+                                                const cnMatch = cert.subject.match(/CN=([^,]+)/);
+                                                const commonName = cnMatch ? cnMatch[1] : `Certificate #${index + 1}`;
+                                                return (
+                                                    <AccordionItem value={`item-${index}`} key={index}>
+                                                        <AccordionTrigger>{commonName}</AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <div className="p-3 border-t space-y-2">
+                                                                <DetailItem label="Serial Number" value={cert.serialNumber} isMono />
+                                                                <DetailItem label="Public Key Algorithm" value={<Badge variant="secondary">{cert.publicKeyAlgorithm}</Badge>} />
+                                                                <DetailItem label="Subject" value={cert.subject} isMono />
+                                                                <DetailItem label="Issuer" value={cert.issuer} isMono />
+                                                                <DetailItem label="Valid From" value={cert.validFrom} />
+                                                                <DetailItem label="Valid To" value={cert.validTo} />
+                                                            </div>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                )
+                                            })}
+                                        </Accordion>
+                                    ) : (
+                                        <p className="text-sm text-center text-muted-foreground p-4">No certificates to display.</p>
+                                    )}
                                 </ScrollArea>
                             </CardContent>
                         </Card>
