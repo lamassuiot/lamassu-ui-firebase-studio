@@ -82,7 +82,8 @@ export default function RegistrationAuthoritiesPage() {
         fetchCryptoEngines(user.access_token),
       ]);
 
-      setRas(raData.list || []);
+      const sortedRas = (raData.list || []).sort((a, b) => a.name.localeCompare(b.name));
+      setRas(sortedRas);
       setAllCAs(casData);
       setAllCryptoEngines(enginesData);
 
