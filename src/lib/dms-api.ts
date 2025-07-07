@@ -87,7 +87,7 @@ export async function fetchRegistrationAuthorities(accessToken: string, params?:
         params.forEach((value, key) => url.searchParams.append(key, value));
     }
     if (!url.searchParams.has('page_size')) {
-        url.searchParams.set('page_size', '15');
+        url.searchParams.set('page_size', '9');
     }
     
     const response = await fetch(url.toString(), {

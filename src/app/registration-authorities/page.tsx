@@ -22,7 +22,9 @@ import {
   Landmark,
   Router as RouterIcon,
   BookText,
-  Trash2
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -36,6 +38,8 @@ import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchRegistrationAuthorities, updateRaMetadata, type ApiRaItem } from '@/lib/dms-api';
 import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: React.ReactNode }> = ({ icon: Icon, label, value }) => (
@@ -58,17 +62,27 @@ export default function RegistrationAuthoritiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination State
+  const [pageSize, setPageSize] = useState('9');
+  const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
+
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [selectedRaForEnroll, setSelectedRaForEnroll] = useState<ApiRaItem | null>(null);
   
   const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
   const [selectedRaForMetadata, setSelectedRaForMetadata] = useState<ApiRaItem | null>(null);
 
-  const loadData = useCallback(async () => {
+  // Reset pagination when page size changes
+  useEffect(() => {
+    setCurrentPageIndex(0);
+    setBookmarkStack([null]);
+  }, [pageSize]);
+
+  const fetchRAs = useCallback(async (bookmarkToFetch: string | null) => {
     if (!isAuthenticated() || !user?.access_token) {
-      if (!authLoading) {
-        setError("User not authenticated. Please log in.");
-      }
+      if (!authLoading) setError("User not authenticated.");
       setIsLoading(false);
       return;
     }
@@ -79,32 +93,72 @@ export default function RegistrationAuthoritiesPage() {
       const params = new URLSearchParams();
       params.append('sort_by', 'name');
       params.append('sort_mode', 'asc');
+      params.append('page_size', pageSize);
+      if (bookmarkToFetch) {
+        params.append('bookmark', bookmarkToFetch);
+      }
       
-      const [raData, casData, enginesData] = await Promise.all([
-        fetchRegistrationAuthorities(user.access_token, params),
-        fetchAndProcessCAs(user.access_token),
-        fetchCryptoEngines(user.access_token),
-      ]);
-
+      const raData = await fetchRegistrationAuthorities(user.access_token, params);
       setRas(raData.list || []);
-      setAllCAs(casData);
-      setAllCryptoEngines(enginesData);
+      setNextTokenFromApi(raData.next || null);
 
     } catch (err: any) {
-      setError(err.message || 'An unknown error occurred.');
+      setError(err.message || 'An unknown error occurred while fetching RAs.');
       setRas([]);
-      setAllCAs([]);
-      setAllCryptoEngines([]);
+      setNextTokenFromApi(null);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.access_token, isAuthenticated, authLoading]);
+  }, [user?.access_token, isAuthenticated, authLoading, pageSize]);
+
+
+  const loadDependencies = useCallback(async () => {
+    if (!isAuthenticated() || !user?.access_token) {
+        return;
+    }
+    
+    // Only fetch if not already loaded
+    if(allCAs.length === 0 || allCryptoEngines.length === 0) {
+        try {
+            const [casData, enginesData] = await Promise.all([
+                fetchAndProcessCAs(user.access_token),
+                fetchCryptoEngines(user.access_token),
+            ]);
+            setAllCAs(casData);
+            setAllCryptoEngines(enginesData);
+        } catch (err: any) {
+            setError(prev => prev ? `${prev}\nFailed to load dependencies: ${err.message}` : `Failed to load dependencies: ${err.message}`);
+        }
+    }
+  }, [user?.access_token, isAuthenticated, allCAs.length, allCryptoEngines.length]);
+
 
   useEffect(() => {
-    if (!authLoading) {
-      loadData();
+    if (!authLoading && isAuthenticated()) {
+      fetchRAs(bookmarkStack[currentPageIndex]);
+      loadDependencies();
     }
-  }, [loadData, authLoading]);
+  }, [authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchRAs, loadDependencies]);
+
+  const handleNextPage = () => {
+    if (isLoading || !nextTokenFromApi) return;
+    const potentialNextPageIndex = currentPageIndex + 1;
+    if (potentialNextPageIndex < bookmarkStack.length) {
+      setCurrentPageIndex(potentialNextPageIndex);
+    } else {
+      setBookmarkStack(prev => [...prev, nextTokenFromApi]);
+      setCurrentPageIndex(prev => prev + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (isLoading || currentPageIndex === 0) return;
+    setCurrentPageIndex(prev => prev - 1);
+  };
+  
+  const handleRefresh = () => {
+    fetchRAs(bookmarkStack[currentPageIndex]);
+  };
 
   const handleCreateNewRAClick = () => {
     router.push('/registration-authorities/new');
@@ -162,7 +216,7 @@ export default function RegistrationAuthoritiesPage() {
           <h1 className="text-2xl font-headline font-semibold">Registration Authorities</h1>
         </div>
         <div className="flex items-center space-x-2">
-           <Button onClick={loadData} variant="outline" disabled={isLoading}>
+           <Button onClick={handleRefresh} variant="outline" disabled={isLoading}>
                 <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
             </Button>
             <Button variant="default" onClick={handleCreateNewRAClick}>
@@ -178,7 +232,7 @@ export default function RegistrationAuthoritiesPage() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>{error} <Button variant="link" onClick={loadData} className="p-0 h-auto ml-1">Try again?</Button></AlertDescription>
+          <AlertDescription>{error} <Button variant="link" onClick={handleRefresh} className="p-0 h-auto ml-1">Try again?</Button></AlertDescription>
         </Alert>
       )}
 
@@ -192,8 +246,8 @@ export default function RegistrationAuthoritiesPage() {
         </div>
       )}
 
-      {!isLoading && !error && ras.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {!error && ras.length > 0 && (
+        <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6", isLoading && "opacity-50")}>
             {ras.map(ra => {
                 const profile = ra.settings.enrollment_settings.device_provisioning_profile;
                 const IconComponent = getLucideIconByName(profile.icon);
@@ -294,6 +348,31 @@ export default function RegistrationAuthoritiesPage() {
             )})}
         </div>
       )}
+
+      {(!isLoading && !error && (ras.length > 0 || currentPageIndex > 0)) && (
+          <div className="flex justify-between items-center mt-4">
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="pageSizeSelectRaList" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
+                <Select value={pageSize} onValueChange={setPageSize} disabled={isLoading || authLoading}>
+                  <SelectTrigger id="pageSizeSelectRaList" className="w-[80px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="9">9</SelectItem>
+                    <SelectItem value="15">15</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
+                  <Button onClick={handlePreviousPage} disabled={isLoading || currentPageIndex === 0} variant="outline">
+                      <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                  </Button>
+                  <Button onClick={handleNextPage} disabled={isLoading || !nextTokenFromApi} variant="outline">
+                      Next <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+              </div>
+          </div>
+      )}
+
     </div>
 
       <EstEnrollModal
@@ -304,7 +383,7 @@ export default function RegistrationAuthoritiesPage() {
           allCryptoEngines={allCryptoEngines}
           isLoadingCAs={isLoading}
           errorCAs={error}
-          loadCAsAction={loadData}
+          loadCAsAction={handleRefresh}
       />
       <MetadataViewerModal
         isOpen={isMetadataModalOpen}
@@ -315,7 +394,7 @@ export default function RegistrationAuthoritiesPage() {
         isEditable={true}
         itemId={selectedRaForMetadata?.id}
         onSave={handleUpdateRaMetadata}
-        onUpdateSuccess={loadData}
+        onUpdateSuccess={handleRefresh}
       />
     </>
   );
