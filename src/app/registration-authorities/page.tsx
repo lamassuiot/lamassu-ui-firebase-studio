@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Users,
@@ -315,11 +315,6 @@ export default function RegistrationAuthoritiesPage() {
                     </CardHeader>
                     <CardContent className="flex-grow space-y-3 pt-0">
                         <DetailRow 
-                            icon={Calendar} 
-                            label="Created On" 
-                            value={format(parseISO(ra.creation_ts), 'MMM dd, yyyy')} 
-                        />
-                        <DetailRow 
                             icon={PlusCircle} 
                             label="Registration Mode" 
                             value={<Badge variant="outline">{ra.settings.enrollment_settings.registration_mode}</Badge>} 
@@ -345,6 +340,9 @@ export default function RegistrationAuthoritiesPage() {
                             } 
                         />
                     </CardContent>
+                    <CardFooter className="border-t pt-3 pb-3 text-xs text-muted-foreground">
+                        <span>Created: {format(parseISO(ra.creation_ts), 'MMM dd, yyyy')}</span>
+                    </CardFooter>
                 </Card>
             )})}
         </div>
