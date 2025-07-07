@@ -174,7 +174,7 @@ export default function EstCaCertsPage() {
                             <CardContent>
                                 <ScrollArea className="h-[42rem]">
                                     {parsedCerts.length > 0 ? (
-                                        <Accordion type="single" collapsible className="w-full">
+                                        <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
                                             {parsedCerts.map((cert, index) => {
                                                 const cnMatch = cert.subject.match(/CN=([^,]+)/);
                                                 const commonName = cnMatch ? cnMatch[1] : `Certificate #${index + 1}`;
