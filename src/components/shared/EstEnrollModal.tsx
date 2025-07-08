@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -267,11 +267,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setBootstrapCn(deviceId.trim()); // Sync bootstrap CN with device ID when moving from step 1
             setStep(2);
         } else if (step === 2) { // --> Define Props
-            if (keygenMethod === 'device') {
-                setStep(3);
-            } else { // server-side keygen skips CSR gen and goes straight to bootstrap
-                setStep(3);
-            }
+            // Both device and server keygen methods proceed to step 3 (Bootstrap Options)
+            setStep(3);
         } else if (step === 3) { // --> Issue Bootstrap Cert
              if (!bootstrapSigner || !user?.access_token) {
                 toast({ title: "Bootstrap Signer Required", description: "You must select a CA to sign the bootstrap certificate.", variant: "destructive" });
