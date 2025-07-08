@@ -34,7 +34,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { findCaById } from '@/lib/ca-data';
+import { findCaById, fetchAndProcessCAs } from '@/lib/ca-data';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
@@ -85,7 +85,7 @@ export default function RegistrationAuthoritiesPage() {
     setBookmarkStack([null]);
   }, [pageSize]);
 
-  const fetchRAs = useCallback(async (bookmarkToFetch: string | null) => {
+  const fetchData = useCallback(async (bookmarkToFetch: string | null) => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading) setError("User not authenticated.");
       setIsLoading(false);
@@ -103,14 +103,20 @@ export default function RegistrationAuthoritiesPage() {
         params.append('bookmark', bookmarkToFetch);
       }
       
-      const raData = await fetchRegistrationAuthorities(user.access_token, params);
+      const [raData, caData] = await Promise.all([
+        fetchRegistrationAuthorities(user.access_token, params),
+        fetchAndProcessCAs(user.access_token)
+      ]);
+
       setRas(raData.list || []);
       setNextTokenFromApi(raData.next || null);
+      setAllCAs(caData);
 
     } catch (err: any) {
-      setError(err.message || 'An unknown error occurred while fetching RAs.');
+      setError(err.message || 'An unknown error occurred while fetching data.');
       setRas([]);
       setNextTokenFromApi(null);
+      setAllCAs([]);
     } finally {
       setIsLoading(false);
     }
@@ -118,25 +124,15 @@ export default function RegistrationAuthoritiesPage() {
 
 
   const getCaNameById = (caId: string) => {
-    const findCa = (id: string, cas: CA[]): CA | undefined => {
-        for (const ca of cas) {
-            if (ca.id === id) return ca;
-            if (ca.children) {
-                const found = findCa(id, ca.children);
-                if (found) return found;
-            }
-        }
-        return undefined;
-    }
-    const ca = findCa(caId, allCAs);
+    const ca = findCaById(caId, allCAs);
     return ca ? ca.name : caId;
   };
 
   useEffect(() => {
     if (!authLoading && isAuthenticated()) {
-      fetchRAs(bookmarkStack[currentPageIndex]);
+      fetchData(bookmarkStack[currentPageIndex]);
     }
-  }, [authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchRAs]);
+  }, [authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchData]);
 
   const handleNextPage = () => {
     if (isLoading || !nextTokenFromApi) return;
@@ -155,7 +151,7 @@ export default function RegistrationAuthoritiesPage() {
   };
   
   const handleRefresh = () => {
-    fetchRAs(bookmarkStack[currentPageIndex]);
+    fetchData(bookmarkStack[currentPageIndex]);
   };
 
   const handleCreateNewRAClick = () => {
