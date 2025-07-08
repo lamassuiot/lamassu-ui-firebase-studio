@@ -33,7 +33,7 @@ interface EstReEnrollModalProps {
 }
 
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Search Device", "Configure Key", "Commands"];
+  const steps = ["Search Device", "Commands"];
   return (
     <div className="flex items-center space-x-2 sm:space-x-4 mb-6 sm:mb-8">
       {steps.map((label, index) => {
@@ -82,17 +82,17 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
     const [searchError, setSearchError] = useState<string | null>(null);
     const [foundDevice, setFoundDevice] = useState<ApiDevice | null>(null);
 
-    // Step 2: Keygen state
+    // Step 2: Config state
+    const [rekey, setRekey] = useState(true);
     const [keygenType, setKeygenType] = useState('RSA');
     const [keygenSpec, setKeygenSpec] = useState('2048');
-
-    // Step 3: Command state
     const [validateServerCert, setValidateServerCert] = useState(false);
 
     useEffect(() => {
         if(isOpen) {
             setStep(1);
             setDeviceId('');
+            setRekey(true);
             setKeygenType('RSA');
             setKeygenSpec('2048');
             setValidateServerCert(false);
@@ -137,28 +137,22 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
         }
     };
     
-    const handleNext = () => {
-        if (step === 2) {
-            setStep(3);
-        }
-    };
-    
     const handleBack = () => {
-        if (step === 3) setStep(2);
-        if (step === 2) {
-            setStep(1);
-            setFoundDevice(null);
-            setSearchError(null);
-        }
+        setStep(1);
+        setFoundDevice(null);
+        setSearchError(null);
     };
 
     const finalDeviceId = foundDevice?.id || 'device-id';
 
-    const keygenCommandPart = keygenType === 'RSA' 
-        ? `-newkey rsa:${keygenSpec}` 
-        : `-newkey ec -pkeyopt ec_paramgen_curve:${keygenSpec}`;
+    const keygenCommandForRekey = keygenType === 'RSA' 
+        ? `-newkey rsa:${keygenSpec} -keyout ${finalDeviceId}.new.key`
+        : `-newkey ec -pkeyopt ec_paramgen_curve:${keygenSpec} -keyout ${finalDeviceId}.new.key`;
     
-    const opensslCombinedCommand = `echo "Generating new key and CSR for re-enrollment..."\nopenssl req -new ${keygenCommandPart} -nodes -keyout ${finalDeviceId}.new.key -out ${finalDeviceId}.new.csr -subj "/CN=${finalDeviceId}"\ncat ${finalDeviceId}.new.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${finalDeviceId}.new.stripped.csr`;
+    const opensslCombinedCommand = rekey
+        ? `echo "Generating new key and CSR for re-enrollment..."\nopenssl req -new ${keygenCommandForRekey} -nodes -out ${finalDeviceId}.new.csr -subj "/CN=${finalDeviceId}"\n\n# Strip header/footer from CSR for cURL\ncat ${finalDeviceId}.new.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d' | sed '/-----END CERTIFICATE REQUEST-----/d' > ${finalDeviceId}.new.stripped.csr`
+        : `echo "Generating CSR using existing key..."\nopenssl req -new -key ${finalDeviceId}.existing.key -out ${finalDeviceId}.new.csr -subj "/CN=${finalDeviceId}"\n\n# Strip header/footer from CSR for cURL\ncat ${finalDeviceId}.new.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d' | sed '/-----END CERTIFICATE REQUEST-----/d' > ${finalDeviceId}.new.stripped.csr`;
+
 
     const serverCertCommand = `echo "Fetching server root CA for validation..."\nLAMASSU_SERVER=lab.lamassu.io\nopenssl s_client -showcerts -servername $LAMASSU_SERVER -connect $LAMASSU_SERVER:443 2>/dev/null </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > root-ca.pem`;
     
@@ -202,71 +196,63 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
                     )}
 
                     {step === 2 && foundDevice && (
-                         <div className="space-y-4">
-                            <Alert>
-                                <Info className="h-4 w-4"/>
-                                <AlertTitle>Device Found</AlertTitle>
-                                <AlertDescUI>
-                                    <div className="flex items-center gap-4 mt-2 p-2 border rounded-md bg-background">
-                                        <DeviceIcon type={foundDevice.icon} iconColor={foundDevice.icon_color.split('-')[0]} bgColor={foundDevice.icon_color.split('-')[1]} />
-                                        <div className="flex-grow">
-                                            <p className="font-semibold">{foundDevice.id}</p>
-                                            <p className="text-xs text-muted-foreground">Status: <StatusBadge status={foundDevice.status as any} /></p>
-                                        </div>
-                                    </div>
-                                </AlertDescUI>
-                            </Alert>
-                            <div>
-                                <Label>New Key Parameters</Label>
-                                <p className="text-xs text-muted-foreground mb-1">
-                                    Define the new key and CSR that will be generated on the device.
-                                </p>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="keygen-type">Key Type</Label>
-                                        <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
-                                            <SelectTrigger id="keygen-type"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                {KEY_TYPE_OPTIONS.map(opt => (
-                                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
-                                         <Select value={keygenSpec} onValueChange={setKeygenSpec}>
-                                            <SelectTrigger id="keygen-spec"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                {currentKeySpecOptions.map(opt => (
-                                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {step === 3 && foundDevice && (
                         <div className="space-y-4">
                              <Alert>
-                                <Info className="h-4 w-4" />
+                                <Info className="h-4 w-4"/>
                                 <AlertTitle>Prerequisites</AlertTitle>
                                 <AlertDescUI>
                                     This process assumes you have the device's current, valid certificate and private key (e.g., `{finalDeviceId}.existing.crt` and `{finalDeviceId}.existing.key`).
+                                    {!rekey && ' The existing private key will be used to generate the new CSR.'}
                                 </AlertDescUI>
                             </Alert>
-                            <div>
-                                <Label>1. Generate New Key &amp; CSR</Label>
-                                <p className="text-xs text-muted-foreground mb-1">
-                                    Run this on your device to generate a new private key (`{finalDeviceId}.new.key`) and CSR (`{finalDeviceId}.new.csr`).
-                                </p>
-                                <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
+                            <div className="flex items-center space-x-2 my-2">
+                                <Switch
+                                    id="rekey-switch"
+                                    checked={rekey}
+                                    onCheckedChange={setRekey}
+                                />
+                                <Label htmlFor="rekey-switch">Generate New Key (Rekey)</Label>
                             </div>
+
+                            {rekey && (
+                                <div>
+                                    <Label>New Key Parameters</Label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="keygen-type">Key Type</Label>
+                                            <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
+                                                <SelectTrigger id="keygen-type"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {KEY_TYPE_OPTIONS.map(opt => (
+                                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
+                                             <Select value={keygenSpec} onValueChange={setKeygenSpec}>
+                                                <SelectTrigger id="keygen-spec"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {currentKeySpecOptions.map(opt => (
+                                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             
                             <div>
+                                <Label>1. Generate CSR</Label>
+                                <p className="text-xs text-muted-foreground mb-1">
+                                    Run this on your device to generate a new CSR.
+                                </p>
+                                <CodeBlock content={opensslCombinedCommand} textareaClassName="h-32" />
+                            </div>
+
+                             <div>
                                 <Label>2. Run Re-enrollment Command</Label>
                                 <div className="flex items-center space-x-2 my-2">
                                     <Switch
@@ -293,18 +279,13 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
                     <div className="w-full flex justify-between">
                         <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
                         <div className="flex space-x-2">
-                            {step > 1 && (
-                                <Button variant="outline" onClick={handleBack}>
-                                    <ArrowLeft className="mr-2 h-4 w-4"/>Back
-                                </Button>
-                            )}
                             {step === 2 && (
-                                <Button onClick={handleNext}>
-                                    Generate Commands
-                                </Button>
-                            )}
-                             {step === 3 && (
-                                <Button onClick={() => onOpenChange(false)}>Finish</Button>
+                                <>
+                                    <Button variant="outline" onClick={handleBack}>
+                                        <ArrowLeft className="mr-2 h-4 w-4"/>Back
+                                    </Button>
+                                    <Button onClick={() => onOpenChange(false)}>Finish</Button>
+                                </>
                             )}
                         </div>
                     </div>
