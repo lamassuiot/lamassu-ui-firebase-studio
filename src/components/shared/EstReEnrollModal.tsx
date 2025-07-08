@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Check, Info, RefreshCw as RefreshCwIcon } from "lucide-react";
+import { ArrowLeft, Check, Info, RefreshCw as RefreshCwIcon, Search, AlertTriangle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription as AlertDescUI, AlertTitle } from '../ui/alert';
@@ -15,6 +15,10 @@ import { EST_API_BASE_URL } from '@/lib/api-domains';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 import { Switch } from '@/components/ui/switch';
+import { useAuth } from '@/contexts/AuthContext';
+import { ApiDevice, fetchDevices } from '@/lib/devices-api';
+import { DeviceIcon, StatusBadge } from '@/app/devices/page';
+
 
 // RA type definition
 interface ApiRaItem {
@@ -29,7 +33,7 @@ interface EstReEnrollModalProps {
 }
 
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Configure", "Commands"];
+  const steps = ["Search Device", "Configure Key", "Commands"];
   return (
     <div className="flex items-center space-x-2 sm:space-x-4 mb-6 sm:mb-8">
       {steps.map((label, index) => {
@@ -68,14 +72,21 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
 
 export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOpenChange, ra }) => {
     const { toast } = useToast();
+    const { user } = useAuth();
     
     const [step, setStep] = useState(1);
-    const [deviceId, setDeviceId] = useState('');
     
-    // Keygen state
+    // Step 1: Search state
+    const [deviceId, setDeviceId] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
+    const [foundDevice, setFoundDevice] = useState<ApiDevice | null>(null);
+
+    // Step 2: Keygen state
     const [keygenType, setKeygenType] = useState('RSA');
     const [keygenSpec, setKeygenSpec] = useState('2048');
 
+    // Step 3: Command state
     const [validateServerCert, setValidateServerCert] = useState(false);
 
     useEffect(() => {
@@ -85,6 +96,9 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
             setKeygenType('RSA');
             setKeygenSpec('2048');
             setValidateServerCert(false);
+            setFoundDevice(null);
+            setIsSearching(false);
+            setSearchError(null);
         }
     }, [isOpen]);
     
@@ -95,31 +109,64 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
 
     const currentKeySpecOptions = keygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
 
-    const handleNext = () => {
-        if (step === 1) {
-            if (!deviceId.trim()) {
-                toast({ title: "Device ID required", variant: "destructive" });
-                return;
+    const handleSearch = async () => {
+        if (!deviceId.trim() || !ra?.id || !user?.access_token) {
+            setSearchError("Please enter a Device ID.");
+            return;
+        }
+        setIsSearching(true);
+        setSearchError(null);
+        setFoundDevice(null);
+        try {
+            const params = new URLSearchParams();
+            params.append('page_size', '1');
+            params.append('filter', `id[equal]${deviceId.trim()}`);
+            params.append('filter', `dms_owner[equal]${ra.id}`); // Important: scope to the RA
+
+            const result = await fetchDevices(user.access_token, params);
+            if (result.list && result.list.length > 0) {
+                setFoundDevice(result.list[0]);
+                setStep(2); // Move to next step on success
+            } else {
+                setSearchError(`No device found with ID "${deviceId.trim()}" for this RA.`);
             }
-            setStep(2);
+        } catch (e: any) {
+            setSearchError(e.message || "An error occurred during search.");
+        } finally {
+            setIsSearching(false);
         }
     };
     
-    const handleBack = () => setStep(1);
+    const handleNext = () => {
+        if (step === 2) {
+            setStep(3);
+        }
+    };
+    
+    const handleBack = () => {
+        if (step === 3) setStep(2);
+        if (step === 2) {
+            setStep(1);
+            setFoundDevice(null);
+            setSearchError(null);
+        }
+    };
+
+    const finalDeviceId = foundDevice?.id || 'device-id';
 
     const keygenCommandPart = keygenType === 'RSA' 
         ? `-newkey rsa:${keygenSpec}` 
         : `-newkey ec -pkeyopt ec_paramgen_curve:${keygenSpec}`;
     
-    const opensslCombinedCommand = `echo "Generating new key and CSR for re-enrollment..."\nopenssl req -new ${keygenCommandPart} -nodes -keyout ${deviceId}.new.key -out ${deviceId}.new.csr -subj "/CN=${deviceId}"\ncat ${deviceId}.new.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.new.stripped.csr`;
+    const opensslCombinedCommand = `echo "Generating new key and CSR for re-enrollment..."\nopenssl req -new ${keygenCommandPart} -nodes -keyout ${finalDeviceId}.new.key -out ${finalDeviceId}.new.csr -subj "/CN=${finalDeviceId}"\ncat ${finalDeviceId}.new.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${finalDeviceId}.new.stripped.csr`;
 
     const serverCertCommand = `echo "Fetching server root CA for validation..."\nLAMASSU_SERVER=lab.lamassu.io\nopenssl s_client -showcerts -servername $LAMASSU_SERVER -connect $LAMASSU_SERVER:443 2>/dev/null </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > root-ca.pem`;
     
     const curlValidationFlag = validateServerCert ? '--cacert root-ca.pem' : '-k';
     const finalReEnrollCommand = [
-      `echo "Performing re-enrollment..."\ncurl -v --cert ${deviceId}.existing.crt --key ${deviceId}.existing.key ${curlValidationFlag} -H "Content-Type: application/pkcs10" --data-binary @${deviceId}.new.stripped.csr -o ${deviceId}.new.p7 "${EST_API_BASE_URL}/${ra?.id}/simplereenroll"`,
-      `echo "Extracting new certificate..."\nopenssl base64 -d -in ${deviceId}.new.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${deviceId}.new.crt`,
-      `echo "Verifying new certificate..."\nopenssl x509 -text -noout -in ${deviceId}.new.crt`
+      `echo "Performing re-enrollment..."\ncurl -v --cert ${finalDeviceId}.existing.crt --key ${finalDeviceId}.existing.key ${curlValidationFlag} -H "Content-Type: application/pkcs10" --data-binary @${finalDeviceId}.new.stripped.csr -o ${finalDeviceId}.new.p7 "${EST_API_BASE_URL}/${ra?.id}/simplereenroll"`,
+      `echo "Extracting new certificate..."\nopenssl base64 -d -in ${finalDeviceId}.new.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${finalDeviceId}.new.crt`,
+      `echo "Verifying new certificate..."\nopenssl x509 -text -noout -in ${finalDeviceId}.new.crt`
     ].join('\n\n');
 
     return (
@@ -136,17 +183,39 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
                     
                     {step === 1 && (
                         <div className="space-y-4">
+                            <Label htmlFor="deviceId-search">Device ID</Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="deviceId-search" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="Enter Device ID to search..."/>
+                                <Button onClick={handleSearch} disabled={isSearching || !deviceId.trim()}>
+                                    {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
+                                    Search
+                                </Button>
+                            </div>
+                            {searchError && (
+                                <Alert variant="destructive" className="mt-2">
+                                    <AlertTriangle className="h-4 w-4"/>
+                                    <AlertTitle>Search Failed</AlertTitle>
+                                    <AlertDescUI>{searchError}</AlertDescUI>
+                                </Alert>
+                            )}
+                        </div>
+                    )}
+
+                    {step === 2 && foundDevice && (
+                         <div className="space-y-4">
                             <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertTitle>Prerequisites</AlertTitle>
+                                <Info className="h-4 w-4"/>
+                                <AlertTitle>Device Found</AlertTitle>
                                 <AlertDescUI>
-                                    This process assumes you have the device's current, valid certificate and private key (e.g., `{deviceId || 'device-id'}.existing.crt` and `{deviceId || 'device-id'}.existing.key`).
+                                    <div className="flex items-center gap-4 mt-2 p-2 border rounded-md bg-background">
+                                        <DeviceIcon type={foundDevice.icon} iconColor={foundDevice.icon_color.split('-')[0]} bgColor={foundDevice.icon_color.split('-')[1]} />
+                                        <div className="flex-grow">
+                                            <p className="font-semibold">{foundDevice.id}</p>
+                                            <p className="text-xs text-muted-foreground">Status: <StatusBadge status={foundDevice.status as any} /></p>
+                                        </div>
+                                    </div>
                                 </AlertDescUI>
                             </Alert>
-                            <div>
-                                <Label htmlFor="deviceId">Device ID (Common Name)</Label>
-                                <Input id="deviceId" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="Enter the device's CN" />
-                            </div>
                             <div>
                                 <Label>New Key Parameters</Label>
                                 <p className="text-xs text-muted-foreground mb-1">
@@ -179,12 +248,20 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
                             </div>
                         </div>
                     )}
-                    {step === 2 && (
+                    
+                    {step === 3 && foundDevice && (
                         <div className="space-y-4">
+                             <Alert>
+                                <Info className="h-4 w-4" />
+                                <AlertTitle>Prerequisites</AlertTitle>
+                                <AlertDescUI>
+                                    This process assumes you have the device's current, valid certificate and private key (e.g., `{finalDeviceId}.existing.crt` and `{finalDeviceId}.existing.key`).
+                                </AlertDescUI>
+                            </Alert>
                             <div>
                                 <Label>1. Generate New Key &amp; CSR</Label>
                                 <p className="text-xs text-muted-foreground mb-1">
-                                    Run this on your device to generate a new private key (`{deviceId}.new.key`) and CSR (`{deviceId}.new.csr`).
+                                    Run this on your device to generate a new private key (`{finalDeviceId}.new.key`) and CSR (`{finalDeviceId}.new.csr`).
                                 </p>
                                 <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
                             </div>
@@ -221,11 +298,12 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
                                     <ArrowLeft className="mr-2 h-4 w-4"/>Back
                                 </Button>
                             )}
-                            {step < 2 ? (
+                            {step === 2 && (
                                 <Button onClick={handleNext}>
                                     Generate Commands
                                 </Button>
-                            ) : (
+                            )}
+                             {step === 3 && (
                                 <Button onClick={() => onOpenChange(false)}>Finish</Button>
                             )}
                         </div>
