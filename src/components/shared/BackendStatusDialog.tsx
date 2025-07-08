@@ -17,6 +17,7 @@ import {
 } from '@/lib/api-domains';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
+import { format, parseISO } from 'date-fns';
 
 interface BackendStatusDialogProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ interface ServiceStatus {
     url: string;
     status: 'ok' | 'error' | 'loading';
     version?: string;
+    build?: string;
+    build_time?: string;
     errorDetails?: string;
 }
 
@@ -69,6 +72,8 @@ export const BackendStatusDialog: React.FC<BackendStatusDialogProps> = ({ isOpen
                         ...service,
                         status: 'error',
                         version: data.version || 'N/A',
+                        build: data.build,
+                        build_time: data.build_time,
                         errorDetails: 'Service reported as unhealthy',
                     };
                 }
@@ -76,7 +81,9 @@ export const BackendStatusDialog: React.FC<BackendStatusDialogProps> = ({ isOpen
                 return {
                     ...service,
                     status: 'ok',
-                    version: data.version || 'N/A'
+                    version: data.version || 'N/A',
+                    build: data.build,
+                    build_time: data.build_time
                 };
             } catch (error: any) {
                 return {
@@ -128,6 +135,11 @@ export const BackendStatusDialog: React.FC<BackendStatusDialogProps> = ({ isOpen
                                     <TableCell>
                                         <p className="font-medium">{service.name}</p>
                                         <p className="text-xs text-muted-foreground font-mono">{service.url}</p>
+                                        {service.build && (
+                                            <p className="text-xs text-muted-foreground font-mono mt-1" title={`Build Time: ${service.build_time}`}>
+                                                Build: {service.build.substring(0, 7)} ({service.build_time ? format(parseISO(service.build_time), 'PPp') : 'N/A'})
+                                            </p>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         {service.version ? <Badge variant={service.status === 'ok' ? 'secondary' : 'outline'}>{service.version}</Badge> : null}
