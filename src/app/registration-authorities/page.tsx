@@ -282,7 +282,7 @@ export default function RegistrationAuthoritiesPage() {
                                         <DropdownMenuSub>
                                             <DropdownMenuSubTrigger>
                                                 <TerminalSquare className="mr-2 h-4 w-4" />
-                                                <span>EST Actions</span>
+                                                <span>EST (RFC-7030)</span>
                                             </DropdownMenuSubTrigger>
                                             <DropdownMenuPortal>
                                                 <DropdownMenuSubContent>
