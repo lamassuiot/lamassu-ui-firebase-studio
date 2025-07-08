@@ -101,6 +101,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const [bootstrapValidity, setBootstrapValidity] = useState('1h');
     const [bootstrapCn, setBootstrapCn] = useState('');
     const [selectableSigners, setSelectableSigners] = useState<CA[]>([]);
+    const [bootstrapKeygenType, setBootstrapKeygenType] = useState('RSA');
+    const [bootstrapKeygenSpec, setBootstrapKeygenSpec] = useState('2048');
     
     // Step 4 state
     const [bootstrapCertificate, setBootstrapCertificate] = useState('');
@@ -120,6 +122,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setEnrollCommand('');
             setKeygenType('RSA');
             setKeygenSpec('2048');
+            setBootstrapKeygenType('RSA');
+            setBootstrapKeygenSpec('2048');
             
             // Auto-select CA based on RA config
             if (ra && availableCAs.length > 0) {
@@ -134,11 +138,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 const defaultSigner = signers.length > 0 ? signers[0] : null;
                 setBootstrapSigner(defaultSigner);
 
-                if (defaultSigner && defaultSigner.defaultIssuanceLifetime && !defaultSigner.defaultIssuanceLifetime.includes('T') && defaultSigner.defaultIssuanceLifetime !== 'Indefinite' && defaultSigner.defaultIssuanceLifetime !== 'Not Specified') {
-                    setBootstrapValidity(defaultSigner.defaultIssuanceLifetime);
-                } else {
-                    setBootstrapValidity('1h'); // Fallback for ISO dates, Indefinite, or unspecified
-                }
             } else {
                 setBootstrapSigner(null);
                 setSelectableSigners([]);
@@ -155,7 +154,17 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         }
     };
 
+    const handleBootstrapKeygenTypeChange = (type: string) => {
+        setBootstrapKeygenType(type);
+        if (type === 'RSA') {
+            setBootstrapKeygenSpec('2048');
+        } else { // EC
+            setBootstrapKeygenSpec('P-256');
+        }
+    };
+
     const currentKeySpecOptions = keygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
+    const currentBootstrapKeySpecOptions = bootstrapKeygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
     
     const handleNext = async () => {
         if (step === 1) { // --> Show CSR commands
@@ -188,9 +197,9 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setStep(4);
         } else if (step === 4) { // --> Generate Commands
             const command = `curl -v --cert-type PEM --cert bootstrap.cert \\ \n`+
-                            `  --key-type PEM --key device.key \\ \n`+
+                            `  --key-type PEM --key ${deviceId}.key \\ \n`+
                             `  -H "Content-Type: application/pkcs10" \\ \n`+
-                            `  --data-binary @device.csr \\ \n`+
+                            `  --data-binary @${deviceId}.csr \\ \n`+
                             `  "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`;
             setEnrollCommand(command);
             setStep(5);
@@ -285,6 +294,32 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                                 <Label htmlFor="bootstrap-cn">Bootstrap Common Name (CN)</Label>
                                 <Input id="bootstrap-cn" value={bootstrapCn} onChange={e => setBootstrapCn(e.target.value)} />
                             </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="bootstrap-keygen-type">Key Type</Label>
+                                    <Select value={bootstrapKeygenType} onValueChange={handleBootstrapKeygenTypeChange}>
+                                        <SelectTrigger id="bootstrap-keygen-type"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {KEY_TYPE_OPTIONS.map(opt => (
+                                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label htmlFor="bootstrap-keygen-spec">{bootstrapKeygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
+                                     <Select value={bootstrapKeygenSpec} onValueChange={setBootstrapKeygenSpec}>
+                                        <SelectTrigger id="bootstrap-keygen-spec"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {currentBootstrapKeySpecOptions.map(opt => (
+                                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
                             <div>
                                 <Label htmlFor="bootstrap-signer">Bootstrap Signer</Label>
                                 <p className="text-xs text-muted-foreground mb-2">
