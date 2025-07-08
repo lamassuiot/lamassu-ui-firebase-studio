@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { DurationInput } from './DurationInput';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { Alert } from '../ui/alert';
+import { Alert, AlertDescription } from '../ui/alert';
 import { CodeBlock } from './CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
 
@@ -232,9 +232,9 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                         <div className="space-y-4">
                             <Alert>
                                 <Info className="h-4 w-4" />
-                                <Alert.Description>
+                                <AlertDescription>
                                     Your private key (${deviceId}.key) was generated locally on your machine and is not shown here. Keep it safe.
-                                </Alert.Description>
+                                </AlertDescription>
                             </Alert>
                              <div>
                                 <Label>Bootstrap Certificate</Label>
