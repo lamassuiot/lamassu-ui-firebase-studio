@@ -38,6 +38,7 @@ import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
+import { EstReEnrollModal } from '@/components/shared/EstReEnrollModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchRegistrationAuthorities, updateRaMetadata, type ApiRaItem } from '@/lib/dms-api';
 import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
@@ -74,6 +75,9 @@ export default function RegistrationAuthoritiesPage() {
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [selectedRaForEnroll, setSelectedRaForEnroll] = useState<ApiRaItem | null>(null);
   
+  const [isReEnrollModalOpen, setIsReEnrollModalOpen] = useState(false);
+  const [selectedRaForReEnroll, setSelectedRaForReEnroll] = useState<ApiRaItem | null>(null);
+
   const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
   const [selectedRaForMetadata, setSelectedRaForMetadata] = useState<ApiRaItem | null>(null);
 
@@ -186,6 +190,11 @@ export default function RegistrationAuthoritiesPage() {
     setSelectedRaForEnroll(ra);
     setIsEnrollModalOpen(true);
   };
+  
+  const handleOpenReEnrollModal = (ra: ApiRaItem) => {
+    setSelectedRaForReEnroll(ra);
+    setIsReEnrollModalOpen(true);
+  };
 
   const handleShowMetadata = (ra: ApiRaItem) => {
     setSelectedRaForMetadata(ra);
@@ -293,6 +302,10 @@ export default function RegistrationAuthoritiesPage() {
                                         <DropdownMenuItem onClick={() => handleOpenEnrollModal(ra)}>
                                             <TerminalSquare className="mr-2 h-4 w-4" />
                                             <span>EST - Enroll: cURL Commands</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOpenReEnrollModal(ra)}>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            <span>EST - ReEnroll: cURL Commands</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => router.push(`/registration-authorities/cacerts?raId=${ra.id}`)}>
                                             <Landmark className="mr-2 h-4 w-4" />
@@ -446,6 +459,11 @@ export default function RegistrationAuthoritiesPage() {
           isLoadingCAs={isLoading}
           errorCAs={error}
           loadCAsAction={handleRefresh}
+      />
+      <EstReEnrollModal
+        isOpen={isReEnrollModalOpen}
+        onOpenChange={setIsReEnrollModalOpen}
+        ra={selectedRaForReEnroll}
       />
       <MetadataViewerModal
         isOpen={isMetadataModalOpen}
