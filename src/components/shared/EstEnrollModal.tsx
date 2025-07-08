@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, Check, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Check, Info, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
 import { findCaById } from '@/lib/ca-data';
@@ -99,7 +100,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     useEffect(() => {
         if(isOpen) {
             setStep(1);
-            setDeviceId('');
+            setDeviceId(crypto.randomUUID());
             setBootstrapValidity('1h');
             setBootstrapCertificate('');
             setEnrollCommand('');
@@ -184,7 +185,18 @@ cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CER
                     {step === 1 && (
                         <div className="space-y-2">
                             <Label htmlFor="deviceId">Device ID</Label>
-                            <Input id="deviceId" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="e.g., test-1, sensor-12345" />
+                            <div className="flex items-center gap-2">
+                                <Input id="deviceId" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="e.g., test-1, sensor-12345" />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setDeviceId(crypto.randomUUID())}
+                                    title="Generate random GUID"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     )}
                     {step === 2 && (
