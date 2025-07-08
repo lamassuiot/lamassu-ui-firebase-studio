@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -6,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Check, Info, RefreshCw, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, Check, RefreshCw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
 import { findCaById, signCertificate } from '@/lib/ca-data';
@@ -363,7 +362,7 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                                 </div>
                             </div>
                             <div>
-                                <Label>Generate Key & CSR</Label>
+                                <Label>Generate Key &amp; CSR</Label>
                                 <p className="text-xs text-muted-foreground mb-1">
                                     Run the following command on your device to generate a private key (`${deviceId}.key`) and a CSR (`${deviceId}.csr`).
                                 </p>
@@ -428,6 +427,14 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                                 )}
                             </div>
                             <DurationInput id="bootstrapValidity" label="Bootstrap Certificate Validity" value={bootstrapValidity} onChange={setBootstrapValidity} />
+                            
+                            <div className="relative pt-4">
+                                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                                <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or</span></div>
+                            </div>
+                            <p className="text-sm text-muted-foreground text-center">
+                                If you already have a valid bootstrap certificate and key, you can skip this step.
+                            </p>
                         </div>
                     )}
                     {step === 4 && (
@@ -469,10 +476,15 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                                     <ArrowLeft className="mr-2 h-4 w-4"/>Back
                                 </Button>
                             )}
+                             {step === 3 && (
+                                <Button variant="secondary" onClick={() => setStep(5)}>
+                                    Skip &amp; Use Existing
+                                </Button>
+                            )}
                             {step < 5 ? (
                                 <Button onClick={handleNext} disabled={isGenerating}>
                                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                                    Next
+                                    { step === 3 ? "Issue Bootstrap Cert" : step === 4 ? "Generate Commands" : "Next" }
                                 </Button>
                             ) : (
                                 <Button onClick={() => onOpenChange(false)}>Finish</Button>
