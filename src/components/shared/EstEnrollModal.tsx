@@ -123,19 +123,17 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             
             // Auto-select CA based on RA config
             if (ra && availableCAs.length > 0) {
-                const enrollmentCaId = ra.settings.enrollment_settings.enrollment_ca;
                 const validationCaIds = ra.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas || [];
-                const allSignerIds = new Set([enrollmentCaId, ...validationCaIds]);
                 
-                const signers = Array.from(allSignerIds)
+                const signers = validationCaIds
                     .map(id => findCaById(id, availableCAs))
-                    .filter((ca): ca is CA => !!ca); // Filter out nulls and type guard
+                    .filter((ca): ca is CA => !!ca);
 
                 setSelectableSigners(signers);
-                const defaultSigner = findCaById(enrollmentCaId, availableCAs);
-                setBootstrapSigner(defaultSigner || null);
+                
+                const defaultSigner = signers.length > 0 ? signers[0] : null;
+                setBootstrapSigner(defaultSigner);
 
-                // Pre-populate validity if it's a duration string
                 if (defaultSigner && defaultSigner.defaultIssuanceLifetime && !defaultSigner.defaultIssuanceLifetime.includes('T') && defaultSigner.defaultIssuanceLifetime !== 'Indefinite' && defaultSigner.defaultIssuanceLifetime !== 'Not Specified') {
                     setBootstrapValidity(defaultSigner.defaultIssuanceLifetime);
                 } else {
