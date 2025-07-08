@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Check, Info, RefreshCw as RefreshCwIcon, Search, AlertTriangle, Loader2, HelpCircle, ArrowRight } from "lucide-react";
+import { ArrowLeft, Info, RefreshCw as RefreshCwIcon, Search, AlertTriangle, Loader2, HelpCircle, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription as AlertDescUI, AlertTitle } from '../ui/alert';

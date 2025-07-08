@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Check, RefreshCw as RefreshCwIcon, AlertTriangle, Info } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw as RefreshCwIcon, AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
 import { findCaById, signCertificate, fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
@@ -30,7 +30,6 @@ import {
 import * as asn1js from "asn1js";
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Badge } from '../ui/badge';
-import { ScrollArea } from '../ui/scroll-area';
 import { Stepper } from './Stepper';
 
 // Re-defining RA type here to avoid complex imports, but ideally this would be shared
