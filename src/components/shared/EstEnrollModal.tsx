@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, Check, Info, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
-import { findCaById } from '@/lib/ca-data';
+import { findCaById, signCertificate } from '@/lib/ca-data';
 import { useToast } from '@/hooks/use-toast';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { DurationInput } from './DurationInput';
@@ -19,6 +19,14 @@ import { CodeBlock } from './CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  CertificationRequest,
+  AttributeTypeAndValue,
+  getCrypto,
+  setEngine,
+} from "pkijs";
+import * as asn1js from "asn1js";
 
 // Re-defining RA type here to avoid complex imports, but ideally this would be shared
 interface ApiRaItem {
@@ -86,8 +94,26 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
 
 const DURATION_REGEX = /^(?=.*\d)(\d+y)?(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$/;
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'PUBLIC KEY' | 'CERTIFICATE REQUEST' | 'CERTIFICATE'): string {
+  const header = `-----BEGIN ${type}-----`;
+  const footer = `-----END ${type}-----`;
+  const body = base64String.match(/.{1,64}/g)?.join('\n') || '';
+  return `${header}\n${body}\n${footer}`;
+}
+
+
 export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenChange, ra, availableCAs, allCryptoEngines }) => {
     const { toast } = useToast();
+    const { user } = useAuth();
     
     const [step, setStep] = useState(1);
     const [deviceId, setDeviceId] = useState('');
@@ -138,6 +164,9 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 
                 const defaultSigner = signers.length > 0 ? signers[0] : null;
                 setBootstrapSigner(defaultSigner);
+                if (defaultSigner?.defaultIssuanceLifetime && DURATION_REGEX.test(defaultSigner.defaultIssuanceLifetime)) {
+                    setBootstrapValidity(defaultSigner.defaultIssuanceLifetime);
+                }
 
             } else {
                 setBootstrapSigner(null);
@@ -145,6 +174,12 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             }
         }
     }, [isOpen, ra, availableCAs]);
+    
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.crypto) {
+            setEngine("webcrypto", getCrypto());
+        }
+    }, []);
 
     const handleKeygenTypeChange = (type: string) => {
         setKeygenType(type);
@@ -190,7 +225,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         } else if (step === 2) { // --> Define Props
             setStep(3);
         } else if (step === 3) { // --> Issue Bootstrap Cert
-             if (!bootstrapSigner) {
+             if (!bootstrapSigner || !user?.access_token) {
                 toast({ title: "Bootstrap Signer Required", description: "You must select a CA to sign the bootstrap certificate.", variant: "destructive" });
                 return;
             }
@@ -199,15 +234,45 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 return;
             }
             setIsGenerating(true);
-            // MOCK API call to issue bootstrap certificate (no CSR needed for this mock)
-            await new Promise(res => setTimeout(res, 800));
-            const mockCert = `-----BEGIN CERTIFICATE-----\n` +
-                `MOCK_BOOTSTRAP_CERT_FOR_CN_${bootstrapCn}_ISSUED_BY_${bootstrapSigner.name}\n` +
-                `${btoa(Date.now().toString())}\n` +
-                `-----END CERTIFICATE-----`;
-            setBootstrapCertificate(mockCert);
-            setIsGenerating(false);
-            setStep(4);
+            try {
+                // Generate temporary key pair for bootstrap CSR
+                const algorithm = bootstrapKeygenType === 'RSA' 
+                    ? { name: "RSASSA-PKCS1-v1_5", modulusLength: parseInt(bootstrapKeygenSpec, 10), publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }
+                    : { name: "ECDSA", namedCurve: bootstrapKeygenSpec };
+                const keyPair = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
+                
+                // Create CSR
+                const pkcs10 = new CertificationRequest({ version: 0 });
+                pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: bootstrapCn.trim() }) }));
+                await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
+                pkcs10.attributes = [];
+                await pkcs10.sign(keyPair.privateKey, "SHA-256");
+                const signedCsrPem = formatAsPem(arrayBufferToBase64(pkcs10.toSchema().toBER(false)), 'CERTIFICATE REQUEST');
+
+                // Prepare payload for signing API
+                const payload = {
+                    csr: window.btoa(signedCsrPem),
+                    profile: {
+                        key_usage: ["DigitalSignature", "KeyEncipherment"],
+                        honor_subject: true,
+                        honor_extensions: false,
+                        validity: { type: "Duration", duration: bootstrapValidity }
+                    }
+                };
+                
+                // Call signing API
+                const result = await signCertificate(bootstrapSigner.id, payload, user.access_token);
+                const issuedPem = result.certificate ? window.atob(result.certificate) : 'Error: Certificate not found in response.';
+                
+                setBootstrapCertificate(issuedPem);
+                setStep(4);
+
+            } catch (e: any) {
+                toast({ title: "Bootstrap Certificate Issuance Failed", description: e.message, variant: "destructive" });
+            } finally {
+                setIsGenerating(false);
+            }
+
         } else if (step === 4) { // --> Generate Commands
             const command = `curl -v --cert-type PEM --cert bootstrap.cert \\ \n`+
                             `  --key-type PEM --key ${deviceId}.key \\ \n`+
@@ -365,7 +430,7 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                             <Alert>
                                 <Info className="h-4 w-4" />
                                 <AlertDescUI>
-                                    Your private key (${deviceId}.key) was generated locally on your machine and is not shown here. Keep it safe.
+                                    The private key for this bootstrap certificate was temporary and has been discarded.
                                 </AlertDescUI>
                             </Alert>
                              <div>
