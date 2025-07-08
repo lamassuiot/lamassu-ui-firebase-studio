@@ -291,7 +291,19 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     };
     
     const handleBack = () => {
-        setStep(prev => prev > 1 ? prev - 1 : 1);
+        if (step === 5) {
+            // If we are at step 5 and there's no bootstrap certificate,
+            // it means we skipped step 4. Go back to step 3.
+            if (!bootstrapCertificate) {
+                setStep(3);
+            } else {
+                // Otherwise, we came from step 4. Go back to step 4.
+                setStep(4);
+            }
+        } else {
+            // For all other steps, just go back one step.
+            setStep(prev => (prev > 1 ? prev - 1 : 1));
+        }
     };
 
     let keygenCommandPart = '';
@@ -374,7 +386,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                             <div>
                                 <Label>Generate Key &amp; CSR</Label>
                                 <p className="text-xs text-muted-foreground mb-1">
-                                    Run the following command on your device to generate a private key (`${deviceId}.key`) and a CSR (`${deviceId}.csr`).
+                                    Run the following command on your device to generate a private key (`{deviceId}.key`) and a CSR (`{deviceId}.csr`).
                                 </p>
                                 <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
                             </div>
