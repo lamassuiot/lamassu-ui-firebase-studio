@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Check, RefreshCw, AlertTriangle, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Check, RefreshCw as RefreshCwIcon, AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
 import { findCaById, signCertificate } from '@/lib/ca-data';
@@ -28,6 +28,8 @@ import {
   setEngine,
 } from "pkijs";
 import * as asn1js from "asn1js";
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Badge } from '../ui/badge';
 
 // Re-defining RA type here to avoid complex imports, but ideally this would be shared
 interface ApiRaItem {
@@ -41,6 +43,9 @@ interface ApiRaItem {
             validation_cas: string[];
         }
       }
+    },
+    server_keygen_settings?: {
+        enabled: boolean;
     }
   }
 }
@@ -121,6 +126,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const [isGenerating, setIsGenerating] = useState(false);
     
     // Step 2 state
+    const [keygenMethod, setKeygenMethod] = useState<'device' | 'server'>('device');
     const [keygenType, setKeygenType] = useState('RSA');
     const [keygenSpec, setKeygenSpec] = useState('2048');
 
@@ -139,6 +145,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     // Step 5 state
     const [validateServerCert, setValidateServerCert] = useState(false);
 
+    const isServerKeygenSupported = ra?.settings.server_keygen_settings?.enabled === true;
 
     useEffect(() => {
         if(isOpen) {
@@ -148,6 +155,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setBootstrapCn(newDeviceId); // Default bootstrap CN to device ID
             setBootstrapValidity('1h');
             setBootstrapCertificate('');
+            setKeygenMethod('device');
             setKeygenType('RSA');
             setKeygenSpec('2048');
             setBootstrapKeygenType('RSA');
@@ -232,7 +240,11 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setBootstrapCn(deviceId.trim()); // Sync bootstrap CN with device ID when moving from step 1
             setStep(2);
         } else if (step === 2) { // --> Define Props
-            setStep(3);
+            if (keygenMethod === 'device') {
+                setStep(3);
+            } else { // server-side keygen skips CSR gen and goes straight to bootstrap
+                setStep(3);
+            }
         } else if (step === 3) { // --> Issue Bootstrap Cert
              if (!bootstrapSigner || !user?.access_token) {
                 toast({ title: "Bootstrap Signer Required", description: "You must select a CA to sign the bootstrap certificate.", variant: "destructive" });
@@ -300,6 +312,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 // Otherwise, we came from step 4. Go back to step 4.
                 setStep(4);
             }
+        } else if (step === 3 && keygenMethod === 'server') {
+            setStep(2); // Go back to method selection
         } else {
             // For all other steps, just go back one step.
             setStep(prev => (prev > 1 ? prev - 1 : 1));
@@ -317,11 +331,28 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const serverCertCommand = `LAMASSU_SERVER=lab.lamassu.io\nopenssl s_client -showcerts -servername $LAMASSU_SERVER -connect $LAMASSU_SERVER:443 2>/dev/null </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > root-ca.pem`;
     
     const curlValidationFlag = validateServerCert ? '--cacert root-ca.pem' : '-k';
+    
     const finalEnrollCommand = [
       `curl -v --cert bootstrap.cert --key bootstrap.key ${curlValidationFlag} -H "Content-Type: application/pkcs10" --data-binary @${deviceId}.stripped.csr   -o ${deviceId}.p7 "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`,
       `openssl base64 -d -in ${deviceId}.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${deviceId}.crt`,
       `openssl x509 -text -in ${deviceId}.crt`
     ].join('\n');
+
+    const serverKeygenCurlCommand = `curl -v --cert bootstrap.cert --key bootstrap.key ${curlValidationFlag} -X POST -H "Content-Type: application/json" -d '{"cn":"${deviceId}"}' -o ${deviceId}.multipart "${EST_API_BASE_URL}/${ra?.id}/serverkeygen"`;
+    
+    const serverKeygenParseCommands = [
+        `# 3. Extract Private Key`,
+        `#    Open ${deviceId}.multipart, find the section starting with "Content-Type: application/pkcs8",`,
+        `#    copy the base64 content into a new file named "key.b64". Then run:`,
+        `openssl base64 -d -in key.b64 | openssl pkcs8 -inform DER -outform PEM -out ${deviceId}.key`,
+        `\n# 4. Extract Certificate`,
+        `#    In ${deviceId}.multipart, find "Content-Type: application/pkcs7-mime",`,
+        `#    copy the base64 content into "cert.b64". Then run:`,
+        `openssl base64 -d -in cert.b64 | openssl pkcs7 -inform DER -print_certs -out ${deviceId}.crt`,
+        `\n# 5. Verify the new certificate`,
+        `openssl x509 -text -noout -in ${deviceId}.crt`
+    ].join('\n');
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -348,48 +379,74 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                                     onClick={() => setDeviceId(crypto.randomUUID())}
                                     title="Generate random GUID"
                                 >
-                                    <RefreshCw className="h-4 w-4" />
+                                    <RefreshCwIcon className="h-4 w-4" />
                                 </Button>
                             </div>
                         </div>
                     )}
                     {step === 2 && (
                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <Label>Key Generation Method</Label>
+                            <RadioGroup value={keygenMethod} onValueChange={(v) => setKeygenMethod(v as any)} className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <Label htmlFor="keygen-type">Key Type</Label>
-                                    <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
-                                        <SelectTrigger id="keygen-type">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {KEY_TYPE_OPTIONS.map(opt => (
-                                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <RadioGroupItem value="device" id="keygen-device" className="peer sr-only" />
+                                    <Label htmlFor="keygen-device" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                        Generate key on device
+                                    </Label>
                                 </div>
                                 <div>
-                                    <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
-                                     <Select value={keygenSpec} onValueChange={setKeygenSpec}>
-                                        <SelectTrigger id="keygen-spec">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {currentKeySpecOptions.map(opt => (
-                                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <RadioGroupItem value="server" id="keygen-server" className="peer sr-only" disabled={!isServerKeygenSupported} />
+                                    <Label htmlFor="keygen-server" className={cn(
+                                        "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4",
+                                        isServerKeygenSupported ? "hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary" : "cursor-not-allowed opacity-50"
+                                    )}>
+                                        Generate key on server
+                                        {!isServerKeygenSupported && <Badge variant="destructive" className="mt-2">Not Supported by RA</Badge>}
+                                    </Label>
                                 </div>
-                            </div>
-                            <div>
-                                <Label>Generate Key &amp; CSR</Label>
-                                <p className="text-xs text-muted-foreground mb-1">
-                                    Run the following command on your device to generate a private key (`{deviceId}.key`) and a CSR (`{deviceId}.csr`).
-                                </p>
-                                <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
-                            </div>
+                            </RadioGroup>
+
+                            {keygenMethod === 'device' && (
+                                <div className="space-y-4 pt-4 border-t">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="keygen-type">Key Type</Label>
+                                            <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
+                                                <SelectTrigger id="keygen-type"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {KEY_TYPE_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
+                                             <Select value={keygenSpec} onValueChange={setKeygenSpec}>
+                                                <SelectTrigger id="keygen-spec"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {currentKeySpecOptions.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label>Generate Key &amp; CSR</Label>
+                                        <p className="text-xs text-muted-foreground mb-1">
+                                            Run the following command on your device to generate a private key (`{deviceId}.key`) and a CSR (`{deviceId}.csr`).
+                                        </p>
+                                        <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {keygenMethod === 'server' && (
+                                <Alert className="mt-4">
+                                    <Info className="h-4 w-4" />
+                                    <AlertTitle>Server-Side Key Generation</AlertTitle>
+                                    <AlertDescUI>
+                                    A new private key will be generated securely on the server. The final command will return both the new private key and the signed certificate.
+                                    </AlertDescUI>
+                                </Alert>
+                            )}
                         </div>
                     )}
                     {step === 3 && (
@@ -496,11 +553,19 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                                 </div>
                             )}
                             <div>
-                                <Label>{validateServerCert ? '2. ' : ''}Enrollment Commands</Label>
-                                <CodeBlock content={finalEnrollCommand} textareaClassName="h-32" />
+                                <Label>{validateServerCert ? '2. ' : ''}Enrollment Command ({keygenMethod === 'device' ? 'Client' : 'Server'} Keygen)</Label>
+                                {keygenMethod === 'device' ? (
+                                    <CodeBlock content={finalEnrollCommand} textareaClassName="h-32" />
+                                ) : (
+                                    <>
+                                        <CodeBlock content={serverKeygenCurlCommand} textareaClassName="h-24" />
+                                        <Label className="mt-2 block">Parse Response</Label>
+                                        <CodeBlock content={serverKeygenParseCommands} textareaClassName="h-48" />
+                                    </>
+                                )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                               {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, \`${deviceId}.stripped.csr\`, and optionally \`root-ca.pem\`) in the same directory.`}
+                               {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, and if applicable, \`${deviceId}.stripped.csr\` and \`root-ca.pem\`) in the same directory.`}
                             </p>
                         </div>
                     )}
