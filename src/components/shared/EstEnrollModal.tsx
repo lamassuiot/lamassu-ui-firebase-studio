@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, Check, RefreshCw as RefreshCwIcon, AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
-import { findCaById, signCertificate } from '@/lib/ca-data';
+import { findCaById, signCertificate, fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import { useToast } from '@/hooks/use-toast';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { DurationInput } from './DurationInput';
@@ -54,11 +54,7 @@ interface EstEnrollModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   ra: ApiRaItem | null;
-  availableCAs: CA[];
-  allCryptoEngines: ApiCryptoEngine[];
-  isLoadingCAs: boolean;
-  errorCAs: string | null;
-  loadCAsAction: () => void;
+  initialDeviceId?: string;
 }
 
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
@@ -117,10 +113,16 @@ function formatAsPem(base64String: string, type: 'PRIVATE KEY' | 'PUBLIC KEY' | 
 }
 
 
-export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenChange, ra, availableCAs, allCryptoEngines }) => {
+export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenChange, ra, initialDeviceId }) => {
     const { toast } = useToast();
     const { user } = useAuth();
     
+    // Dependencies state
+    const [availableCAs, setAvailableCAs] = useState<CA[]>([]);
+    const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+    const [isLoadingDependencies, setIsLoadingDependencies] = useState(false);
+    const [errorDependencies, setErrorDependencies] = useState<string | null>(null);
+
     const [step, setStep] = useState(1);
     const [deviceId, setDeviceId] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -147,9 +149,34 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
 
     const isServerKeygenSupported = ra?.settings.server_keygen_settings?.enabled === true;
 
+    // Fetch dependencies when modal opens
+    useEffect(() => {
+        if (!isOpen || !user?.access_token) return;
+
+        const loadDependencies = async () => {
+            setIsLoadingDependencies(true);
+            setErrorDependencies(null);
+            try {
+                const [casData, enginesData] = await Promise.all([
+                    fetchAndProcessCAs(user.access_token),
+                    fetchCryptoEngines(user.access_token)
+                ]);
+                setAvailableCAs(casData);
+                setAllCryptoEngines(enginesData);
+            } catch (err: any) {
+                setErrorDependencies(err.message || "Failed to load required data.");
+            } finally {
+                setIsLoadingDependencies(false);
+            }
+        };
+
+        loadDependencies();
+    }, [isOpen, user?.access_token]);
+    
+
     useEffect(() => {
         if(isOpen) {
-            const newDeviceId = crypto.randomUUID();
+            const newDeviceId = initialDeviceId || crypto.randomUUID();
             setStep(1);
             setDeviceId(newDeviceId);
             setBootstrapCn(newDeviceId); // Default bootstrap CN to device ID
@@ -184,7 +211,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 setSelectableSigners([]);
             }
         }
-    }, [isOpen, ra, availableCAs]);
+    }, [isOpen, ra, availableCAs, initialDeviceId]);
     
     useEffect(() => {
         if (typeof window !== 'undefined' && window.crypto) {
@@ -379,13 +406,14 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                         <div className="space-y-2">
                             <Label htmlFor="deviceId">Device ID</Label>
                             <div className="flex items-center gap-2">
-                                <Input id="deviceId" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="e.g., test-1, sensor-12345" />
+                                <Input id="deviceId" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="e.g., test-1, sensor-12345" disabled={!!initialDeviceId}/>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="icon"
                                     onClick={() => setDeviceId(crypto.randomUUID())}
                                     title="Generate random GUID"
+                                    disabled={!!initialDeviceId}
                                 >
                                     <RefreshCwIcon className="h-4 w-4" />
                                 </Button>

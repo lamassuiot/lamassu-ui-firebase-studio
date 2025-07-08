@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HelpCircle, Eye, PlusCircle, MoreVertical, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10 } from "lucide-react";
+import { HelpCircle, Eye, PlusCircle, MoreVertical, Loader2, RefreshCw, ChevronRight, AlertCircle as AlertCircleIcon, ChevronLeft, Search, ChevronsUpDown, ArrowUpZA, ArrowDownAZ, ArrowUp01, ArrowDown10, TerminalSquare } from "lucide-react";
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +18,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { fetchDevices } from '@/lib/devices-api';
+import { useToast } from '@/hooks/use-toast';
+import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
+import { fetchRaById, type ApiRaItem } from '@/lib/dms-api';
 
 type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION' | 'DECOMMISSIONED';
 
@@ -98,6 +101,8 @@ export default function DevicesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
+
   const [devices, setDevices] = useState<DeviceData[]>([]);
   const [isLoadingApi, setIsLoadingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -119,6 +124,9 @@ export default function DevicesPage() {
 
   // Modal State
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+  const [raForEnrollModal, setRaForEnrollModal] = useState<ApiRaItem | null>(null);
+  const [deviceForEnrollModal, setDeviceForEnrollModal] = useState<DeviceData | null>(null);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -298,6 +306,27 @@ export default function DevicesPage() {
   const handleViewDetails = (deviceIdValue: string) => {
     router.push(`/devices/details?deviceId=${deviceIdValue}`);
   };
+
+  const handleOpenEnrollModal = async (device: DeviceData) => {
+    if (!user?.access_token) {
+        toast({ title: 'Authentication Error', description: 'You must be logged in.', variant: 'destructive' });
+        return;
+    }
+
+    setDeviceForEnrollModal(device);
+    setRaForEnrollModal(null); // Clear previous RA data
+    setIsEnrollModalOpen(true);
+
+    // Fetch RA details after opening the modal to show loading state inside
+    try {
+        const raData = await fetchRaById(device.deviceGroup, user.access_token);
+        setRaForEnrollModal(raData);
+    } catch (err: any) {
+        toast({ title: 'Error Fetching RA Details', description: err.message, variant: 'destructive' });
+        setIsEnrollModalOpen(false); // Close on error
+    }
+  };
+
 
   const handleRefresh = () => {
     if (currentPageIndex < bookmarkStack.length) {
@@ -495,6 +524,11 @@ export default function DevicesPage() {
                             <DropdownMenuItem onClick={() => handleViewDetails(device.id)}>
                               <Eye className="mr-2 h-4 w-4" /> View Details
                             </DropdownMenuItem>
+                            {device.status === 'NO_IDENTITY' && (
+                                <DropdownMenuItem onClick={() => handleOpenEnrollModal(device)}>
+                                    <TerminalSquare className="mr-2 h-4 w-4" /> EST Enroll...
+                                </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -568,6 +602,12 @@ export default function DevicesPage() {
         isOpen={isRegisterModalOpen}
         onOpenChange={setIsRegisterModalOpen}
         onDeviceRegistered={handleDeviceRegistered}
+      />
+      <EstEnrollModal
+        isOpen={isEnrollModalOpen}
+        onOpenChange={setIsEnrollModalOpen}
+        ra={raForEnrollModal}
+        initialDeviceId={deviceForEnrollModal?.id}
       />
     </div>
   );

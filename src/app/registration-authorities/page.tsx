@@ -34,12 +34,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
+import { findCaById } from '@/lib/ca-data';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import { EstReEnrollModal } from '@/components/shared/EstReEnrollModal';
-import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchRegistrationAuthorities, updateRaMetadata, type ApiRaItem } from '@/lib/dms-api';
 import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
 import { Label } from '@/components/ui/label';
@@ -62,7 +61,6 @@ export default function RegistrationAuthoritiesPage() {
   
   const [ras, setRas] = useState<ApiRaItem[]>([]);
   const [allCAs, setAllCAs] = useState<CA[]>([]);
-  const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -119,33 +117,26 @@ export default function RegistrationAuthoritiesPage() {
   }, [user?.access_token, isAuthenticated, authLoading, pageSize]);
 
 
-  const loadDependencies = useCallback(async () => {
-    if (!isAuthenticated() || !user?.access_token) {
-        return;
-    }
-    
-    // Only fetch if not already loaded
-    if(allCAs.length === 0 || allCryptoEngines.length === 0) {
-        try {
-            const [casData, enginesData] = await Promise.all([
-                fetchAndProcessCAs(user.access_token),
-                fetchCryptoEngines(user.access_token),
-            ]);
-            setAllCAs(casData);
-            setAllCryptoEngines(enginesData);
-        } catch (err: any) {
-            setError(prev => prev ? `${prev}\nFailed to load dependencies: ${err.message}` : `Failed to load dependencies: ${err.message}`);
+  const getCaNameById = (caId: string) => {
+    const findCa = (id: string, cas: CA[]): CA | undefined => {
+        for (const ca of cas) {
+            if (ca.id === id) return ca;
+            if (ca.children) {
+                const found = findCa(id, ca.children);
+                if (found) return found;
+            }
         }
+        return undefined;
     }
-  }, [user?.access_token, isAuthenticated, allCAs.length, allCryptoEngines.length]);
-
+    const ca = findCa(caId, allCAs);
+    return ca ? ca.name : caId;
+  };
 
   useEffect(() => {
     if (!authLoading && isAuthenticated()) {
       fetchRAs(bookmarkStack[currentPageIndex]);
-      loadDependencies();
     }
-  }, [authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchRAs, loadDependencies]);
+  }, [authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchRAs]);
 
   const handleNextPage = () => {
     if (isLoading || !nextTokenFromApi) return;
@@ -169,21 +160,6 @@ export default function RegistrationAuthoritiesPage() {
 
   const handleCreateNewRAClick = () => {
     router.push('/registration-authorities/new');
-  };
-  
-  const getCaNameById = (caId: string) => {
-    const findCa = (id: string, cas: CA[]): CA | undefined => {
-        for (const ca of cas) {
-            if (ca.id === id) return ca;
-            if (ca.children) {
-                const found = findCa(id, ca.children);
-                if (found) return found;
-            }
-        }
-        return undefined;
-    }
-    const ca = findCa(caId, allCAs);
-    return ca ? ca.name : caId;
   };
   
   const handleOpenEnrollModal = (ra: ApiRaItem) => {
@@ -454,11 +430,6 @@ export default function RegistrationAuthoritiesPage() {
           isOpen={isEnrollModalOpen}
           onOpenChange={setIsEnrollModalOpen}
           ra={selectedRaForEnroll}
-          availableCAs={allCAs}
-          allCryptoEngines={allCryptoEngines}
-          isLoadingCAs={isLoading}
-          errorCAs={error}
-          loadCAsAction={handleRefresh}
       />
       <EstReEnrollModal
         isOpen={isReEnrollModalOpen}
