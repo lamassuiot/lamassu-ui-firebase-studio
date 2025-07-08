@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -214,6 +215,20 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
 
     const currentKeySpecOptions = keygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
     const currentBootstrapKeySpecOptions = bootstrapKeygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
+
+    const generateEnrollmentCommands = () => {
+      const commands = [
+          `curl -v --cert bootstrap.cert --key bootstrap.key -k -H "Content-Type: application/pkcs10" --data-binary @${deviceId}.stripped.csr   -o ${deviceId}.p7 "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`,
+          `openssl base64 -d -in ${deviceId}.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${deviceId}.crt`,
+          `openssl x509 -text -in ${deviceId}.crt`
+      ].join('\n');
+      setEnrollCommand(commands);
+    };
+
+    const handleSkipBootstrap = () => {
+        generateEnrollmentCommands();
+        setStep(5);
+    };
     
     const handleNext = async () => {
         if (step === 1) { // --> Show CSR commands
@@ -278,12 +293,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             }
 
         } else if (step === 4) { // --> Generate Commands
-            const commands = [
-                `curl -v --cert bootstrap.cert --key bootstrap.key -k -H "Content-Type: application/pkcs10" --data-binary @${deviceId}.stripped.csr   -o ${deviceId}.p7 "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`,
-                `openssl base64 -d -in ${deviceId}.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${deviceId}.crt`,
-                `openssl x509 -text -in ${deviceId}.crt`
-            ].join('\n');
-            setEnrollCommand(commands);
+            generateEnrollmentCommands();
             setStep(5);
         }
     };
@@ -477,7 +487,7 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                                 </Button>
                             )}
                              {step === 3 && (
-                                <Button variant="secondary" onClick={() => setStep(5)}>
+                                <Button variant="secondary" onClick={handleSkipBootstrap}>
                                     Skip &amp; Use Existing
                                 </Button>
                             )}
