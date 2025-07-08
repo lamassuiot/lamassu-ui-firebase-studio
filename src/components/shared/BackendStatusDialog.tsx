@@ -52,7 +52,9 @@ export const BackendStatusDialog: React.FC<BackendStatusDialogProps> = ({ isOpen
 
         const statusPromises = servicesToCheck.map(async (service): Promise<ServiceStatus> => {
             try {
-                const response = await fetch(`${service.url}/health`, {
+                const healthCheckUrl = `${service.url.substring(0, service.url.lastIndexOf('/'))}/health`;
+                
+                const response = await fetch(healthCheckUrl, {
                     headers: { 'Authorization': `Bearer ${user.access_token}` },
                 });
                 
