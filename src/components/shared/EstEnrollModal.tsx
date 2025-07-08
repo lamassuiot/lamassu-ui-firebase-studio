@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Check, RefreshCw, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, Check, RefreshCw, AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
 import { findCaById, signCertificate } from '@/lib/ca-data';
@@ -218,6 +218,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const currentBootstrapKeySpecOptions = bootstrapKeygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
 
     const handleSkipBootstrap = () => {
+        setBootstrapCertificate('');
+        setBootstrapPrivateKey('');
         setStep(5);
     };
     
@@ -486,7 +488,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                                 <CodeBlock content={finalEnrollCommand} textareaClassName="h-32" />
                             </div>
                             <p className="text-sm text-muted-foreground">
-                               Note: This command assumes you have the required files (`bootstrap.cert`, `bootstrap.key`, `${deviceId}.stripped.csr`, and optionally `root-ca.pem`) in the same directory.
+                               {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, \`${deviceId}.stripped.csr\`, and optionally \`root-ca.pem\`) in the same directory.`}
                             </p>
                         </div>
                     )}
