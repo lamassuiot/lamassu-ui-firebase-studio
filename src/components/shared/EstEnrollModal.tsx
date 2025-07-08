@@ -167,7 +167,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     };
 
     const opensslCombinedCommand = `openssl req -new -newkey rsa:2048 -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN==${deviceId}"
-cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
+cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -204,7 +204,7 @@ cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CER
                             <div>
                                 <Label>Generate Key & CSR</Label>
                                 <p className="text-xs text-muted-foreground mb-1">
-                                    Run the following command on your device to generate a private key (`device.key`) and a CSR (`device.csr`).
+                                    Run the following command on your device to generate a private key (`${deviceId}.key`) and a CSR (`${deviceId}.csr`).
                                 </p>
                                 <CodeBlock content={opensslCombinedCommand}/>
                             </div>
@@ -233,7 +233,7 @@ cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CER
                             <Alert>
                                 <Info className="h-4 w-4" />
                                 <Alert.Description>
-                                    Your private key (device.key) was generated locally on your machine and is not shown here. Keep it safe.
+                                    Your private key (${deviceId}.key) was generated locally on your machine and is not shown here. Keep it safe.
                                 </Alert.Description>
                             </Alert>
                              <div>
@@ -249,7 +249,7 @@ cat aaa.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CER
                                 <CodeBlock content={enrollCommand} />
                             </div>
                             <p className="text-sm text-muted-foreground">
-                               Note: This command assumes you have saved the bootstrap certificate as `bootstrap.cert` and the key and CSR files (`device.key`, `device.csr`) are in the same directory.
+                               Note: This command assumes you have saved the bootstrap certificate as `bootstrap.cert` and the key and CSR files (`${deviceId}.key`, `${deviceId}.csr`) are in the same directory.
                             </p>
                         </div>
                     )}
