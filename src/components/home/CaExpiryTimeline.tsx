@@ -115,7 +115,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
   useEffect(() => {
     if (timelineRef.current) {
       const options = {
-        stack: false, // Changed for better layout
+        stack: true, // Changed for better layout
         width: '100%',
         height: '100%',
         margin: { item: { vertical: 10, horizontal: 5 }, axis: 20 },

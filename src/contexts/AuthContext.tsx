@@ -85,9 +85,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // logout();
     };
     const onUserSignedOut = () => {
-        console.log("AuthContext: User signed out (possibly from another tab/window)");
-        setUser(null); 
-        // router.push('/'); // Optionally redirect to home/login
+      console.log("AuthContext: User signed out (possibly from another tab/window)");
+      setUser(null);
+      // router.push('/'); // Optionally redirect to home/login
     };
 
     userManagerInstance.events.addUserLoaded(onUserLoaded);
@@ -104,6 +104,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       userManagerInstance.events.removeUserSignedOut(onUserSignedOut);
     };
   }, [userManagerInstance, router]); // Removed logout from deps as it's stable
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !userManagerInstance) {
+      return;
+    }
+
+    if (window.location.pathname === '/signin-callback') {
+      const handleCallback = async () => {
+        try {
+          console.log('AuthContext: Processing signin callback...');
+          await userManagerInstance.signinRedirectCallback();
+        } catch (error) {
+          console.error('AuthContext: Error processing signin callback:', error);
+        } finally {
+          router.push('/');
+        }
+      };
+      handleCallback();
+    }
+  }, [userManagerInstance, router]);
 
   const login = async () => {
     if (userManagerInstance) {
@@ -123,18 +143,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         // setIsLoading(true); // Handled by navigation or page state
         setUser(null); // Clear user immediately
-        if (await userManagerInstance.getUser()) { 
-            await userManagerInstance.signoutRedirect();
+        if (await userManagerInstance.getUser()) {
+          await userManagerInstance.signoutRedirect();
         } else {
-            // Already logged out or no user session
-            router.push('/');
-            setIsLoading(false); // Ensure loading state is false if no redirect happens
+          // Already logged out or no user session
+          router.push('/');
+          setIsLoading(false); // Ensure loading state is false if no redirect happens
         }
       } catch (error) {
         console.error("AuthContext: Logout redirect error:", error);
         setUser(null); // Ensure user is cleared
         await userManagerInstance.removeUser(); // Clean up OIDC storage
-        router.push('/'); 
+        router.push('/');
         setIsLoading(false); // Ensure loading state is false
       }
     }
@@ -143,12 +163,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = useCallback(() => {
     return !!user && !user.expired;
   }, [user]);
-  
+
   // This check is mostly for client-side robustness, server won't hit this for rendering page content.
   if (!userManagerInstance && typeof window !== 'undefined') {
     return <div>Error: Authentication system could not initialize. Please refresh.</div>;
   }
-  
+
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout, isAuthenticated, userManager: userManagerInstance }}>
       {children}
@@ -165,4 +185,3 @@ export const useAuth = () => {
 };
 
 export const getClientUserManager = createUserManager;
-    
