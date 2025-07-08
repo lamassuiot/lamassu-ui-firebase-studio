@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Check, Info, RefreshCw as RefreshCwIcon, Search, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Info, RefreshCw as RefreshCwIcon, Search, AlertTriangle, Loader2, HelpCircle, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription as AlertDescUI, AlertTitle } from '../ui/alert';
@@ -17,7 +17,8 @@ import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/l
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiDevice, fetchDevices } from '@/lib/devices-api';
-import { DeviceIcon, StatusBadge } from '@/app/devices/page';
+import { Badge } from '@/components/ui/badge';
+import { getLucideIconByName } from './DeviceIconSelectorModal';
 
 
 // RA type definition
@@ -65,6 +66,46 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
           </React.Fragment>
         );
       })}
+    </div>
+  );
+};
+
+// Local component copied from app/devices/page.tsx
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  let badgeClass = "";
+  const upperStatus = status.toUpperCase();
+  switch (upperStatus) {
+    case 'ACTIVE':
+      badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
+      break;
+    case 'NO_IDENTITY':
+      badgeClass = "bg-sky-100 text-sky-700 dark:bg-sky-700/30 dark:text-sky-300 border-sky-300 dark:border-sky-700";
+      break;
+    case 'INACTIVE':
+      badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
+      break;
+    case 'PENDING_ACTIVATION':
+      badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
+      break;
+    case 'DECOMMISSIONED':
+      badgeClass = "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400 border-gray-400 dark:border-gray-600";
+      break;
+    default:
+      badgeClass = "bg-muted text-muted-foreground border-border";
+  }
+  return <Badge variant="outline" className={cn("text-xs capitalize", badgeClass)}>{status.replace('_', ' ').toLowerCase()}</Badge>;
+};
+
+const DeviceIcon: React.FC<{ type: string; iconColor?: string; bgColor?: string; }> = ({ type, iconColor, bgColor }) => {
+  const IconComponent = getLucideIconByName(type);
+
+  return (
+    <div className={cn("p-1.5 rounded-md inline-flex items-center justify-center")} style={{ backgroundColor: bgColor || '#F0F8FF' }}>
+      {IconComponent ? (
+        <IconComponent className={cn("h-5 w-5")} style={{ color: iconColor || '#0f67ff' }} />
+      ) : (
+        <HelpCircle className={cn("h-5 w-5")} style={{ color: iconColor || '#0f67ff' }} />
+      )}
     </div>
   );
 };
@@ -126,7 +167,6 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
             const result = await fetchDevices(user.access_token, params);
             if (result.list && result.list.length > 0) {
                 setFoundDevice(result.list[0]);
-                setStep(2); // Move to next step on success
             } else {
                 setSearchError(`No device found with ID "${deviceId.trim()}" for this RA.`);
             }
@@ -185,12 +225,27 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
                                     Search
                                 </Button>
                             </div>
+                            {isSearching && (
+                                <div className="flex items-center text-muted-foreground text-sm pt-2"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Searching for device...</div>
+                            )}
                             {searchError && (
                                 <Alert variant="destructive" className="mt-2">
                                     <AlertTriangle className="h-4 w-4"/>
                                     <AlertTitle>Search Failed</AlertTitle>
                                     <AlertDescUI>{searchError}</AlertDescUI>
                                 </Alert>
+                            )}
+                            {foundDevice && (
+                                <div className="mt-4 p-4 border rounded-md bg-muted/30">
+                                    <h4 className="font-semibold mb-2">Device Found</h4>
+                                    <div className="flex items-center gap-4">
+                                        <DeviceIcon type={foundDevice.icon} iconColor={foundDevice.icon_color.split('-')[0]} bgColor={foundDevice.icon_color.split('-')[1]} />
+                                        <div>
+                                            <p className="font-mono">{foundDevice.id}</p>
+                                            <StatusBadge status={foundDevice.status as any} />
+                                        </div>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     )}
@@ -279,6 +334,11 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
                     <div className="w-full flex justify-between">
                         <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
                         <div className="flex space-x-2">
+                            {step === 1 && (
+                                <Button onClick={() => setStep(2)} disabled={!foundDevice}>
+                                    Next <ArrowRight className="ml-2 h-4 w-4"/>
+                                </Button>
+                            )}
                             {step === 2 && (
                                 <>
                                     <Button variant="outline" onClick={handleBack}>
