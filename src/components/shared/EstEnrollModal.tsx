@@ -84,6 +84,7 @@ const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
   );
 };
 
+const DURATION_REGEX = /^(?=.*\d)(\d+y)?(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$/;
 
 export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenChange, ra, availableCAs, allCryptoEngines }) => {
     const { toast } = useToast();
@@ -163,6 +164,18 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         }
     };
 
+    const handleBootstrapSignerChange = (caId: string) => {
+        const selected = selectableSigners.find(s => s.id === caId);
+        setBootstrapSigner(selected || null);
+
+        if (selected?.defaultIssuanceLifetime && DURATION_REGEX.test(selected.defaultIssuanceLifetime)) {
+            setBootstrapValidity(selected.defaultIssuanceLifetime);
+        } else {
+            // Fallback for Indefinite, date formats, or not specified
+            setBootstrapValidity('1h');
+        }
+    };
+
     const currentKeySpecOptions = keygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
     const currentBootstrapKeySpecOptions = bootstrapKeygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
     
@@ -216,7 +229,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     } else { // EC
         keygenCommandPart = `-newkey ec -pkeyopt ec_paramgen_curve:${keygenSpec}`;
     }
-    const opensslCombinedCommand = `openssl req -new ${keygenCommandPart} -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN=${deviceId}"
+    const opensslCombinedCommand = `openssl req -new ${keygenCommandPart} -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN==${deviceId}"
 cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
 
     return (
@@ -327,10 +340,7 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                                 </p>
                                 <Select 
                                     value={bootstrapSigner?.id}
-                                    onValueChange={(caId) => {
-                                        const selected = selectableSigners.find(s => s.id === caId);
-                                        setBootstrapSigner(selected || null);
-                                    }}
+                                    onValueChange={handleBootstrapSignerChange}
                                 >
                                     <SelectTrigger id="bootstrap-signer">
                                         <SelectValue placeholder="Select a signing CA..." />
