@@ -31,6 +31,7 @@ import * as asn1js from "asn1js";
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
+import { Stepper } from './Stepper';
 
 // Re-defining RA type here to avoid complex imports, but ideally this would be shared
 interface ApiRaItem {
@@ -57,43 +58,6 @@ interface EstEnrollModalProps {
   ra: ApiRaItem | null;
   initialDeviceId?: string;
 }
-
-const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Device", "CSR", "Bootstrap Options", "Bootstrap", "Commands"];
-  return (
-    <div className="flex items-center space-x-2 sm:space-x-4 mb-6 sm:mb-8">
-      {steps.map((label, index) => {
-        const stepNumber = index + 1;
-        const isCompleted = stepNumber < currentStep;
-        const isActive = stepNumber === currentStep;
-        return (
-          <React.Fragment key={stepNumber}>
-            <div className="flex flex-col items-center space-y-1">
-              <div className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center font-bold transition-colors text-xs sm:text-sm",
-                isCompleted ? "bg-primary text-primary-foreground" :
-                isActive ? "bg-primary/20 border-2 border-primary text-primary" :
-                "bg-muted border-2 border-border text-muted-foreground"
-              )}>
-                {isCompleted ? <Check className="h-5 w-5" /> : stepNumber}
-              </div>
-              <p className={cn(
-                "text-xs font-medium text-center",
-                isActive || isCompleted ? "text-primary" : "text-muted-foreground"
-              )}>{label}</p>
-            </div>
-            {index < steps.length - 1 && (
-              <div className={cn(
-                "flex-1 h-0.5 transition-colors mt-[-1rem]",
-                isCompleted ? "bg-primary" : "bg-border"
-              )}></div>
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-};
 
 const DURATION_REGEX = /^(?=.*\d)(\d+y)?(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$/;
 
@@ -396,7 +360,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
 
                 <div className="flex-grow my-2 -mr-6 overflow-y-auto pr-6">
                     <div className="pt-2">
-                        <Stepper currentStep={step}/>
+                        <Stepper currentStep={step} steps={["Device", "CSR", "Bootstrap Options", "Bootstrap", "Commands"]} />
                     </div>
                     
                     <div className="space-y-4">
@@ -649,5 +613,3 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         </Dialog>
     );
 };
-
-    

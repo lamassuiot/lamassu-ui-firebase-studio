@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ApiDevice, fetchDevices } from '@/lib/devices-api';
 import { Badge } from '@/components/ui/badge';
 import { getLucideIconByName } from './DeviceIconSelectorModal';
+import { Stepper } from './Stepper';
 
 
 // RA type definition
@@ -32,43 +33,6 @@ interface EstReEnrollModalProps {
   onOpenChange: (isOpen: boolean) => void;
   ra: ApiRaItem | null;
 }
-
-const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Search Device", "Commands"];
-  return (
-    <div className="flex items-center space-x-2 sm:space-x-4 mb-6 sm:mb-8">
-      {steps.map((label, index) => {
-        const stepNumber = index + 1;
-        const isCompleted = stepNumber < currentStep;
-        const isActive = stepNumber === currentStep;
-        return (
-          <React.Fragment key={stepNumber}>
-            <div className="flex flex-col items-center space-y-1">
-              <div className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center font-bold transition-colors text-xs sm:text-sm",
-                isCompleted ? "bg-primary text-primary-foreground" :
-                isActive ? "bg-primary/20 border-2 border-primary text-primary" :
-                "bg-muted border-2 border-border text-muted-foreground"
-              )}>
-                {isCompleted ? <Check className="h-5 w-5" /> : stepNumber}
-              </div>
-              <p className={cn(
-                "text-xs font-medium text-center",
-                isActive || isCompleted ? "text-primary" : "text-muted-foreground"
-              )}>{label}</p>
-            </div>
-            {index < steps.length - 1 && (
-              <div className={cn(
-                "flex-1 h-0.5 transition-colors mt-[-1rem]",
-                isCompleted ? "bg-primary" : "bg-border"
-              )}></div>
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-};
 
 // Local component copied from app/devices/page.tsx
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -215,7 +179,7 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
 
                 <div className="flex-grow my-2 -mr-6 overflow-y-auto pr-6">
                     <div className="py-4">
-                        <Stepper currentStep={step}/>
+                        <Stepper currentStep={step} steps={["Search Device", "Commands"]} />
                         
                         {step === 1 && (
                             <div className="space-y-4">
@@ -358,5 +322,3 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
         </Dialog>
     );
 };
-
-    
