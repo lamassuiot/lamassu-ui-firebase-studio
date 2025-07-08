@@ -167,7 +167,7 @@ export default function DevicesPage() {
       if (dmsOwnerFilter) {
           filtersToApply.push(`dms_owner[equal]${dmsOwnerFilter}`);
       }
-      if (filterTerm.trim() !== '' && !dmsOwnerFilter) {
+      if (filterTerm.trim() !== '') {
         filtersToApply.push(`${filterField}[contains]${filterTerm.trim()}`);
       }
       if (filterStatus !== 'ALL') {
@@ -387,14 +387,14 @@ export default function DevicesPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10"
-              disabled={isLoadingApi || authLoading || !!dmsOwnerFilter}
+              disabled={isLoadingApi || authLoading}
             />
           </div>
         </div>
 
         <div className="space-y-1">
           <Label htmlFor="searchFieldSelect">Search In</Label>
-          <Select value={searchField} onValueChange={(value: 'id' | 'tags') => setSearchField(value)} disabled={isLoadingApi || authLoading || !!dmsOwnerFilter}>
+          <Select value={searchField} onValueChange={(value: 'id' | 'tags') => setSearchField(value)} disabled={isLoadingApi || authLoading}>
             <SelectTrigger id="searchFieldSelect">
               <SelectValue />
             </SelectTrigger>
