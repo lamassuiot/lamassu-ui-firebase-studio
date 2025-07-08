@@ -756,7 +756,7 @@ export default function IssueCertificateFormClient() {
                     <>
                         <Button type="button" variant="outline" onClick={() => {
                             if (returnToDevice) {
-                                router.push(`/devices/details?deviceId=${returnToDevice}`);
+                                router.push(`/devices/details?deviceId=${returnToDevice}&action=assignIdentity`);
                             } else {
                                 router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`);
                             }

@@ -49,7 +49,7 @@ const getCertSubjectCommonName = (subject: string): string => {
 
 export default function DeviceDetailsClient() { 
   const searchParams = useSearchParams(); 
-  const router = useRouter();
+  const routerHook = useRouter();
   const deviceId = searchParams.get('deviceId'); 
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -146,6 +146,19 @@ export default function DeviceDetailsClient() {
   useEffect(() => {
     fetchDeviceDetails();
   }, [fetchDeviceDetails]);
+
+  // Effect to automatically open Assign Identity modal if query param is present
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'assignIdentity') {
+      setIsAssignIdentityModalOpen(true);
+      // Clean up the URL to prevent re-opening on refresh
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('action');
+      routerHook.replace(newUrl.toString(), { scroll: false });
+    }
+  }, [searchParams, routerHook]);
+
 
   // Effect to process raw events once when device data is available
   useEffect(() => {
@@ -469,7 +482,7 @@ export default function DeviceDetailsClient() {
             description: "Device has been successfully decommissioned.",
         });
         setIsDecommissionModalOpen(false);
-        router.push('/devices'); // Redirect to the list page
+        routerHook.push('/devices'); // Redirect to the list page
 
     } catch (e: any) {
         toast({
@@ -501,7 +514,7 @@ export default function DeviceDetailsClient() {
   if (errorDevice) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => router.back()} className="mb-4">
+         <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         <Alert variant="destructive">
@@ -516,7 +529,7 @@ export default function DeviceDetailsClient() {
   if (!device) {
     return (
       <div className="w-full space-y-4 p-4">
-         <Button variant="outline" onClick={() => router.back()} className="mb-4">
+         <Button variant="outline" onClick={() => routerHook.back()} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         <Alert>
@@ -535,7 +548,7 @@ export default function DeviceDetailsClient() {
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={() => routerHook.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
@@ -661,7 +674,7 @@ export default function DeviceDetailsClient() {
                             <Button
                                 variant="link"
                                 className="p-0 h-auto font-mono text-xs"
-                                onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
+                                onClick={() => routerHook.push(`/certificates/details?certificateId=${cert.serialNumber}`)}
                                 title={`View details for certificate ${cert.serialNumber}`}
                             >
                                 {cert.serialNumber}
@@ -692,7 +705,7 @@ export default function DeviceDetailsClient() {
                                 <Button
                                     variant="link"
                                     className="p-0 h-auto font-normal text-left whitespace-normal leading-tight"
-                                    onClick={() => router.push(`/certificate-authorities/details?caId=${cert.issuerCaId}`)}
+                                    onClick={() => routerHook.push(`/certificate-authorities/details?caId=${cert.issuerCaId}`)}
                                     title={`View details for CA ${cert.ca}`}
                                 >
                                     {cert.ca}
@@ -705,7 +718,7 @@ export default function DeviceDetailsClient() {
                           <TableCell className="hidden lg:table-cell">{format(parseISO(cert.validTo), 'dd/MM/yy HH:mm')}</TableCell>
                           <TableCell className="hidden md:table-cell">{cert.lifespan}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" title="View Certificate Details" onClick={() => router.push(`/certificates/details?certificateId=${cert.serialNumber}`)}>
+                            <Button variant="ghost" size="icon" title="View Certificate Details" onClick={() => routerHook.push(`/certificates/details?certificateId=${cert.serialNumber}`)}>
                               <ChevronRight className="h-4 w-4" />
                             </Button>
                           </TableCell>
