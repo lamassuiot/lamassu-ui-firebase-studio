@@ -35,7 +35,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { CA } from '@/lib/ca-data';
 import { findCaById, fetchAndProcessCAs } from '@/lib/ca-data';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import { EstReEnrollModal } from '@/components/shared/EstReEnrollModal';
@@ -279,18 +279,25 @@ export default function RegistrationAuthoritiesPage() {
                                             <span>Show/Edit Metadata</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => handleOpenEnrollModal(ra)}>
-                                            <TerminalSquare className="mr-2 h-4 w-4" />
-                                            <span>EST - Enroll: cURL Commands</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOpenReEnrollModal(ra)}>
-                                            <RefreshCw className="mr-2 h-4 w-4" />
-                                            <span>EST - ReEnroll: cURL Commands</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => router.push(`/registration-authorities/cacerts?raId=${ra.id}`)}>
-                                            <Landmark className="mr-2 h-4 w-4" />
-                                            <span>EST - CACerts</span>
-                                        </DropdownMenuItem>
+                                        <DropdownMenuSub>
+                                            <DropdownMenuSubTrigger>
+                                                <TerminalSquare className="mr-2 h-4 w-4" />
+                                                <span>EST Actions</span>
+                                            </DropdownMenuSubTrigger>
+                                            <DropdownMenuPortal>
+                                                <DropdownMenuSubContent>
+                                                    <DropdownMenuItem onClick={() => handleOpenEnrollModal(ra)}>
+                                                        <span>Enroll...</span>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleOpenReEnrollModal(ra)}>
+                                                        <span>Re-Enroll...</span>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => router.push(`/registration-authorities/cacerts?raId=${ra.id}`)}>
+                                                        <span>Get CA Certs</span>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuSubContent>
+                                            </DropdownMenuPortal>
+                                        </DropdownMenuSub>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
                                             onClick={() => alert(`Delete RA ${ra.name} (placeholder)`)}
@@ -446,3 +453,5 @@ export default function RegistrationAuthoritiesPage() {
     </>
   );
 }
+
+    
