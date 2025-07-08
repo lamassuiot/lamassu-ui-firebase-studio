@@ -63,6 +63,16 @@ export const BackendStatusDialog: React.FC<BackendStatusDialogProps> = ({ isOpen
                 }
 
                 const data = await response.json();
+
+                if (data.health === false) {
+                    return {
+                        ...service,
+                        status: 'error',
+                        version: data.version || 'N/A',
+                        errorDetails: 'Service reported as unhealthy',
+                    };
+                }
+                
                 return {
                     ...service,
                     status: 'ok',
@@ -120,8 +130,8 @@ export const BackendStatusDialog: React.FC<BackendStatusDialogProps> = ({ isOpen
                                         <p className="text-xs text-muted-foreground font-mono">{service.url}</p>
                                     </TableCell>
                                     <TableCell>
-                                        {service.status === 'ok' && <Badge variant="secondary">{service.version}</Badge>}
-                                        {service.status === 'error' && <Badge variant="destructive">Error</Badge>}
+                                        {service.version ? <Badge variant={service.status === 'ok' ? 'secondary' : 'outline'}>{service.version}</Badge> : null}
+                                        {service.status === 'error' && !service.version && <Badge variant="destructive">Error</Badge>}
                                     </TableCell>
                                 </TableRow>
                             ))}
