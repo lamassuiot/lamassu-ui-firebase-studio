@@ -270,6 +270,14 @@ export default function RegistrationAuthoritiesPage() {
                                             <Edit className="mr-2 h-4 w-4" />
                                             <span>Edit</span>
                                         </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/devices?dms_owner=${ra.id}`)}>
+                                            <RouterIcon className="mr-2 h-4 w-4" />
+                                            <span>Go to DMS owned devices</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleShowMetadata(ra)}>
+                                            <BookText className="mr-2 h-4 w-4" />
+                                            <span>Show/Edit Metadata</span>
+                                        </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => handleOpenEnrollModal(ra)}>
                                             <TerminalSquare className="mr-2 h-4 w-4" />
@@ -282,14 +290,6 @@ export default function RegistrationAuthoritiesPage() {
                                         <DropdownMenuItem onClick={() => router.push(`/registration-authorities/cacerts?raId=${ra.id}`)}>
                                             <Landmark className="mr-2 h-4 w-4" />
                                             <span>EST - CACerts</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => router.push(`/devices?dms_owner=${ra.id}`)}>
-                                            <RouterIcon className="mr-2 h-4 w-4" />
-                                            <span>Go to DMS owned devices</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleShowMetadata(ra)}>
-                                            <BookText className="mr-2 h-4 w-4" />
-                                            <span>Show/Edit Metadata</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
