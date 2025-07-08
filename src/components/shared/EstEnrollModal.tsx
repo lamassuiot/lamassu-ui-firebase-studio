@@ -30,6 +30,7 @@ import {
 import * as asn1js from "asn1js";
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
 
 // Re-defining RA type here to avoid complex imports, but ideally this would be shared
 interface ApiRaItem {
@@ -388,7 +389,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
+            <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>EST Enroll</DialogTitle>
                     <DialogDescription>
@@ -396,227 +397,231 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4">
+                <div className="pt-2">
                     <Stepper currentStep={step}/>
-                    
-                    {step === 1 && (
-                        <div className="space-y-2">
-                            <Label htmlFor="deviceId">Device ID</Label>
-                            <div className="flex items-center gap-2">
-                                <Input id="deviceId" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="e.g., test-1, sensor-12345" disabled={!!initialDeviceId}/>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setDeviceId(crypto.randomUUID())}
-                                    title="Generate random GUID"
-                                    disabled={!!initialDeviceId}
-                                >
-                                    <RefreshCwIcon className="h-4 w-4" />
-                                </Button>
+                </div>
+                
+                <ScrollArea className="flex-grow pr-6 -mr-6 my-2">
+                    <div className="space-y-4">
+                        {step === 1 && (
+                            <div className="space-y-2">
+                                <Label htmlFor="deviceId">Device ID</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input id="deviceId" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="e.g., test-1, sensor-12345" disabled={!!initialDeviceId}/>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setDeviceId(crypto.randomUUID())}
+                                        title="Generate random GUID"
+                                        disabled={!!initialDeviceId}
+                                    >
+                                        <RefreshCwIcon className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
-                    )}
-                    {step === 2 && (
-                         <div className="space-y-4">
-                            <Label>Key Generation Method</Label>
-                            <RadioGroup value={keygenMethod} onValueChange={(v) => setKeygenMethod(v as any)} className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <RadioGroupItem value="device" id="keygen-device" className="peer sr-only" />
-                                    <Label htmlFor="keygen-device" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                        Generate key on device
-                                    </Label>
-                                </div>
-                                <div>
-                                    <RadioGroupItem value="server" id="keygen-server" className="peer sr-only" disabled={!isServerKeygenSupported} />
-                                    <Label htmlFor="keygen-server" className={cn(
-                                        "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4",
-                                        isServerKeygenSupported ? "hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary" : "cursor-not-allowed opacity-50"
-                                    )}>
-                                        Generate key on server
-                                        {!isServerKeygenSupported && <Badge variant="destructive" className="mt-2">Not Supported by RA</Badge>}
-                                    </Label>
-                                </div>
-                            </RadioGroup>
-
-                            {keygenMethod === 'device' && (
-                                <div className="space-y-4 pt-4 border-t">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <Label htmlFor="keygen-type">Key Type</Label>
-                                            <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
-                                                <SelectTrigger id="keygen-type"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    {KEY_TYPE_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
-                                             <Select value={keygenSpec} onValueChange={setKeygenSpec}>
-                                                <SelectTrigger id="keygen-spec"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    {currentKeySpecOptions.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                        )}
+                        {step === 2 && (
+                             <div className="space-y-4">
+                                <Label>Key Generation Method</Label>
+                                <RadioGroup value={keygenMethod} onValueChange={(v) => setKeygenMethod(v as any)} className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <RadioGroupItem value="device" id="keygen-device" className="peer sr-only" />
+                                        <Label htmlFor="keygen-device" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                            Generate key on device
+                                        </Label>
                                     </div>
                                     <div>
-                                        <Label>Generate Key &amp; CSR</Label>
-                                        <p className="text-xs text-muted-foreground mb-1">
-                                            Run the following command on your device to generate a private key (`{finalDeviceId}.key`) and a CSR (`{finalDeviceId}.csr`).
-                                        </p>
-                                        <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
+                                        <RadioGroupItem value="server" id="keygen-server" className="peer sr-only" disabled={!isServerKeygenSupported} />
+                                        <Label htmlFor="keygen-server" className={cn(
+                                            "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4",
+                                            isServerKeygenSupported ? "hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary" : "cursor-not-allowed opacity-50"
+                                        )}>
+                                            Generate key on server
+                                            {!isServerKeygenSupported && <Badge variant="destructive" className="mt-2">Not Supported by RA</Badge>}
+                                        </Label>
                                     </div>
-                                </div>
-                            )}
+                                </RadioGroup>
 
-                            {keygenMethod === 'server' && (
-                                <Alert className="mt-4">
-                                    <Info className="h-4 w-4" />
-                                    <AlertTitle>Server-Side Key Generation</AlertTitle>
-                                    <AlertDescUI>
-                                    A new private key will be generated securely on the server. The final command will return both the new private key and the signed certificate.
-                                    </AlertDescUI>
-                                </Alert>
-                            )}
-                        </div>
-                    )}
-                    {step === 3 && (
-                        <div className="space-y-4">
-                            <div>
-                                <Label htmlFor="bootstrap-cn">Bootstrap Common Name (CN)</Label>
-                                <Input id="bootstrap-cn" value={bootstrapCn} onChange={e => setBootstrapCn(e.target.value)} />
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="bootstrap-keygen-type">Key Type</Label>
-                                    <Select value={bootstrapKeygenType} onValueChange={handleBootstrapKeygenTypeChange}>
-                                        <SelectTrigger id="bootstrap-keygen-type"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {KEY_TYPE_OPTIONS.map(opt => (
-                                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label htmlFor="bootstrap-keygen-spec">{bootstrapKeygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
-                                     <Select value={bootstrapKeygenSpec} onValueChange={setBootstrapKeygenSpec}>
-                                        <SelectTrigger id="bootstrap-keygen-spec"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {currentBootstrapKeySpecOptions.map(opt => (
-                                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
+                                {keygenMethod === 'device' && (
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label htmlFor="keygen-type">Key Type</Label>
+                                                <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
+                                                    <SelectTrigger id="keygen-type"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {KEY_TYPE_OPTIONS.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
+                                                 <Select value={keygenSpec} onValueChange={setKeygenSpec}>
+                                                    <SelectTrigger id="keygen-spec"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {currentKeySpecOptions.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <Label>Generate Key &amp; CSR</Label>
+                                            <p className="text-xs text-muted-foreground mb-1">
+                                                Run the following command on your device to generate a private key (`{finalDeviceId}.key`) and a CSR (`{finalDeviceId}.csr`).
+                                            </p>
+                                            <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
+                                        </div>
+                                    </div>
+                                )}
 
-                            <div>
-                                <Label htmlFor="bootstrap-signer">Bootstrap Signer</Label>
-                                <p className="text-xs text-muted-foreground mb-2">
-                                    Select a CA to sign the temporary bootstrap certificate.
-                                </p>
-                                <Select 
-                                    value={bootstrapSigner?.id}
-                                    onValueChange={handleBootstrapSignerChange}
-                                >
-                                    <SelectTrigger id="bootstrap-signer">
-                                        <SelectValue placeholder="Select a signing CA..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {selectableSigners.map(signer => (
-                                            <SelectItem key={signer.id} value={signer.id}>
-                                                {signer.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {bootstrapSigner && (
-                                    <div className="mt-2"><CaVisualizerCard ca={bootstrapSigner} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/></div>
+                                {keygenMethod === 'server' && (
+                                    <Alert className="mt-4">
+                                        <Info className="h-4 w-4" />
+                                        <AlertTitle>Server-Side Key Generation</AlertTitle>
+                                        <AlertDescUI>
+                                        A new private key will be generated securely on the server. The final command will return both the new private key and the signed certificate.
+                                        </AlertDescUI>
+                                    </Alert>
                                 )}
                             </div>
-                            <DurationInput id="bootstrapValidity" label="Bootstrap Certificate Validity" value={bootstrapValidity} onChange={setBootstrapValidity} />
-                            
-                            <div className="relative pt-4">
-                                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                                <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or</span></div>
-                            </div>
-                            <p className="text-sm text-muted-foreground text-center">
-                                If you already have a valid bootstrap certificate and key, you can skip this step.
-                            </p>
-                        </div>
-                    )}
-                    {step === 4 && (
-                        <div className="space-y-4">
-                            <div>
-                                <Label>Bootstrap Certificate</Label>
-                                <CodeBlock content={bootstrapCertificate} showDownload downloadFilename="bootstrap.cert" textareaClassName="h-48" />
-                            </div>
-                            <div>
-                                <Label>Bootstrap Private Key</Label>
-                                <Alert variant="warning" className="mb-2">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Save Your Private Key</AlertTitle>
-                                    <AlertDescUI>This is your only chance to save the private key. It will not be stored and cannot be recovered.</AlertDescUI>
-                                </Alert>
-                                <CodeBlock content={bootstrapPrivateKey} showDownload downloadFilename="bootstrap.key" textareaClassName="h-48"/>
-                            </div>
-                        </div>
-                    )}
-                     {step === 5 && (
-                        <div className="space-y-4">
-                            <div className="flex items-center space-x-2">
-                                <Switch
-                                    id="validate-server-cert"
-                                    checked={validateServerCert}
-                                    onCheckedChange={setValidateServerCert}
-                                />
-                                <Label htmlFor="validate-server-cert">Validate Server Certificate (Recommended)</Label>
-                            </div>
-                             {validateServerCert && (
+                        )}
+                        {step === 3 && (
+                            <div className="space-y-4">
                                 <div>
-                                    <Label>1. Obtain Server Root CA</Label>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                        First, obtain the root certificate used by the server and save it as `root-ca.pem`.
-                                    </p>
-                                    <CodeBlock content={serverCertCommand} textareaClassName="h-28" />
+                                    <Label htmlFor="bootstrap-cn">Bootstrap Common Name (CN)</Label>
+                                    <Input id="bootstrap-cn" value={bootstrapCn} onChange={e => setBootstrapCn(e.target.value)} />
                                 </div>
-                            )}
-                            
-                            {keygenMethod === 'device' ? (
-                                <div>
-                                    <Label>{validateServerCert ? '2. ' : '1. '}Enrollment Command</Label>
-                                    <CodeBlock content={finalEnrollCommand} textareaClassName="h-48" />
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="bootstrap-keygen-type">Key Type</Label>
+                                        <Select value={bootstrapKeygenType} onValueChange={handleBootstrapKeygenTypeChange}>
+                                            <SelectTrigger id="bootstrap-keygen-type"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {KEY_TYPE_OPTIONS.map(opt => (
+                                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="bootstrap-keygen-spec">{bootstrapKeygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
+                                         <Select value={bootstrapKeygenSpec} onValueChange={setBootstrapKeygenSpec}>
+                                            <SelectTrigger id="bootstrap-keygen-spec"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {currentBootstrapKeySpecOptions.map(opt => (
+                                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                            ) : (
-                                <>
-                                    <div>
-                                        <Label>{validateServerCert ? '2. ' : '1. '}Generate Dummy CSR</Label>
-                                        <p className="text-xs text-muted-foreground mb-1">
-                                            First, generate a temporary CSR. The private key will be discarded.
-                                        </p>
-                                        <CodeBlock content={dummyCombinedCommand} textareaClassName="h-28" />
-                                    </div>
-                                    <div>
-                                        <Label>3. Request Server-Side Key and Certificate</Label>
-                                        <CodeBlock content={serverKeygenCurlCommand} textareaClassName="h-24" />
-                                    </div>
-                                    <div>
-                                        <Label>4. Parse Response</Label>
-                                        <CodeBlock content={serverKeygenParseCommands} textareaClassName="h-48" />
-                                    </div>
-                                </>
-                            )}
 
-                            <p className="text-sm text-muted-foreground">
-                                {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, \`${finalDeviceId}.stripped.csr\`, and optionally \`root-ca.pem\`) in the same directory.`}
-                            </p>
-                        </div>
-                    )}
-                </div>
+                                <div>
+                                    <Label htmlFor="bootstrap-signer">Bootstrap Signer</Label>
+                                    <p className="text-xs text-muted-foreground mb-2">
+                                        Select a CA to sign the temporary bootstrap certificate.
+                                    </p>
+                                    <Select 
+                                        value={bootstrapSigner?.id}
+                                        onValueChange={handleBootstrapSignerChange}
+                                    >
+                                        <SelectTrigger id="bootstrap-signer">
+                                            <SelectValue placeholder="Select a signing CA..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {selectableSigners.map(signer => (
+                                                <SelectItem key={signer.id} value={signer.id}>
+                                                    {signer.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {bootstrapSigner && (
+                                        <div className="mt-2"><CaVisualizerCard ca={bootstrapSigner} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/></div>
+                                    )}
+                                </div>
+                                <DurationInput id="bootstrapValidity" label="Bootstrap Certificate Validity" value={bootstrapValidity} onChange={setBootstrapValidity} />
+                                
+                                <div className="relative pt-4">
+                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or</span></div>
+                                </div>
+                                <p className="text-sm text-muted-foreground text-center">
+                                    If you already have a valid bootstrap certificate and key, you can skip this step.
+                                </p>
+                            </div>
+                        )}
+                        {step === 4 && (
+                            <div className="space-y-4">
+                                <div>
+                                    <Label>Bootstrap Certificate</Label>
+                                    <CodeBlock content={bootstrapCertificate} showDownload downloadFilename="bootstrap.cert" textareaClassName="h-48" />
+                                </div>
+                                <div>
+                                    <Label>Bootstrap Private Key</Label>
+                                    <Alert variant="warning" className="mb-2">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <AlertTitle>Save Your Private Key</AlertTitle>
+                                        <AlertDescUI>This is your only chance to save the private key. It will not be stored and cannot be recovered.</AlertDescUI>
+                                    </Alert>
+                                    <CodeBlock content={bootstrapPrivateKey} showDownload downloadFilename="bootstrap.key" textareaClassName="h-48"/>
+                                </div>
+                            </div>
+                        )}
+                         {step === 5 && (
+                            <div className="space-y-4">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="validate-server-cert"
+                                        checked={validateServerCert}
+                                        onCheckedChange={setValidateServerCert}
+                                    />
+                                    <Label htmlFor="validate-server-cert">Validate Server Certificate (Recommended)</Label>
+                                </div>
+                                 {validateServerCert && (
+                                    <div>
+                                        <Label>1. Obtain Server Root CA</Label>
+                                        <p className="text-xs text-muted-foreground mb-1">
+                                            First, obtain the root certificate used by the server and save it as `root-ca.pem`.
+                                        </p>
+                                        <CodeBlock content={serverCertCommand} textareaClassName="h-28" />
+                                    </div>
+                                )}
+                                
+                                {keygenMethod === 'device' ? (
+                                    <div>
+                                        <Label>{validateServerCert ? '2. ' : '1. '}Enrollment Command</Label>
+                                        <CodeBlock content={finalEnrollCommand} textareaClassName="h-48" />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <Label>{validateServerCert ? '2. ' : '1. '}Generate Dummy CSR</Label>
+                                            <p className="text-xs text-muted-foreground mb-1">
+                                                First, generate a temporary CSR. The private key will be discarded.
+                                            </p>
+                                            <CodeBlock content={dummyCombinedCommand} textareaClassName="h-28" />
+                                        </div>
+                                        <div>
+                                            <Label>3. Request Server-Side Key and Certificate</Label>
+                                            <CodeBlock content={serverKeygenCurlCommand} textareaClassName="h-24" />
+                                        </div>
+                                        <div>
+                                            <Label>4. Parse Response</Label>
+                                            <CodeBlock content={serverKeygenParseCommands} textareaClassName="h-48" />
+                                        </div>
+                                    </>
+                                )}
+
+                                <p className="text-sm text-muted-foreground">
+                                    {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, \`${finalDeviceId}.stripped.csr\`, and optionally \`root-ca.pem\`) in the same directory.`}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
 
                 <DialogFooter>
                     <div className="w-full flex justify-between">
