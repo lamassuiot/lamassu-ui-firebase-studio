@@ -51,6 +51,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { BackendStatusDialog } from '@/components/shared/BackendStatusDialog';
 
 
 interface DecodedAccessToken {
@@ -129,6 +130,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
@@ -172,6 +174,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
             <Image
               src={LogoFullWhite}
               height={30}
+              width={140}
               alt="LamassuIoT Logo"
             />
           </div>
@@ -202,6 +205,10 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile / Token Claims</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setIsStatusModalOpen(true)}>
+                      <Info className="mr-2 h-4 w-4" />
+                      <span>Backend Services</span>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout}>
                       <LogOut className="mr-2 h-4 w-4" />
@@ -226,6 +233,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                   <Image
                     src={LogoFullBlue}
                     height={30}
+                    width={140}
                     alt="LamassuIoT Logo"
                   />
                 </div>
@@ -329,6 +337,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
             <Image
               src={LogoBlue}
               height={75}
+              width={75}
               alt="LamassuIoT Logo"
             />
             <h1 className="text-3xl font-bold mt-3 mb-3">Welcome to LamassuIoT</h1>
@@ -378,6 +387,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <BackendStatusDialog isOpen={isStatusModalOpen} onOpenChange={setIsStatusModalOpen} />
     </SidebarProvider>
   );
 };
