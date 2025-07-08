@@ -175,7 +175,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 
                 const defaultSigner = signers.length > 0 ? signers[0] : null;
                 setBootstrapSigner(defaultSigner);
-                if (defaultSigner?.defaultIssuanceLifetime && DURATION_REGEX.test(defaultSigner.defaultIssuanceLifetime)) {
+                if (defaultSigner?.defaultIssuanceLifetime && DURATION_REGEX.test(defaultSignuanceLifetime)) {
                     setBootstrapValidity(defaultSigner.defaultIssuanceLifetime);
                 }
 
@@ -320,37 +320,47 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         }
     };
 
+    const finalDeviceId = deviceId || 'device-id'; // Fallback for display
+
     let keygenCommandPart = '';
     if (keygenType === 'RSA') {
         keygenCommandPart = `-newkey rsa:${keygenSpec}`;
     } else { // EC
         keygenCommandPart = `-newkey ec -pkeyopt ec_paramgen_curve:${keygenSpec}`;
     }
-    const opensslCombinedCommand = `openssl req -new ${keygenCommandPart} -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN=${deviceId}"\ncat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
+    const opensslCombinedCommand = `openssl req -new ${keygenCommandPart} -nodes -keyout ${finalDeviceId}.key -out ${finalDeviceId}.csr -subj "/CN=${finalDeviceId}"\ncat ${finalDeviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${finalDeviceId}.stripped.csr`;
 
-    const serverCertCommand = `LAMASSU_SERVER=lab.lamassu.io\nopenssl s_client -showcerts -servername $LAMASSU_SERVER -connect $LAMASSU_SERVER:443 2>/dev/null </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > root-ca.pem`;
+    const serverCertCommand = `echo "Fetching server root CA for validation..."\nLAMASSU_SERVER=lab.lamassu.io\nopenssl s_client -showcerts -servername $LAMASSU_SERVER -connect $LAMASSU_SERVER:443 2>/dev/null </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > root-ca.pem`;
     
     const curlValidationFlag = validateServerCert ? '--cacert root-ca.pem' : '-k';
     
     const finalEnrollCommand = [
-      `curl -v --cert bootstrap.cert --key bootstrap.key ${curlValidationFlag} -H "Content-Type: application/pkcs10" --data-binary @${deviceId}.stripped.csr   -o ${deviceId}.p7 "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`,
-      `openssl base64 -d -in ${deviceId}.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${deviceId}.crt`,
-      `openssl x509 -text -in ${deviceId}.crt`
-    ].join('\n');
+      `echo "Performing enrollment..."`,
+      `curl -v --cert bootstrap.cert --key bootstrap.key ${curlValidationFlag} -H "Content-Type: application/pkcs10" --data-binary @${finalDeviceId}.stripped.csr   -o ${finalDeviceId}.p7 "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`,
+      `echo "Extracting new certificate..."`,
+      `openssl base64 -d -in ${finalDeviceId}.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${finalDeviceId}.crt`,
+      `echo "Verifying new certificate..."`,
+      `openssl x509 -text -in ${finalDeviceId}.crt`
+    ].join('\n\n');
 
-    const serverKeygenCurlCommand = `curl -v --cert bootstrap.cert --key bootstrap.key ${curlValidationFlag} -X POST -H "Content-Type: application/json" -d '{"cn":"${deviceId}"}' -o ${deviceId}.multipart "${EST_API_BASE_URL}/${ra?.id}/serverkeygen"`;
+    // New commands for server-side keygen
+    const dummyKeygenCommand = `openssl req -new -newkey rsa:2048 -nodes -keyout dummy.key -out dummy.csr -subj "/CN=${finalDeviceId}"`;
+    const dummyStripCommand = `cat dummy.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> dummy.stripped.csr`;
+    const dummyCombinedCommand = `${dummyKeygenCommand}\n\n# Strip header/footer from CSR for cURL\n${dummyStripCommand}`;
+    
+    const serverKeygenCurlCommand = `curl -v --cert bootstrap.cert --key bootstrap.key ${curlValidationFlag} -H "Content-Type: application/pkcs10" --data-binary @dummy.stripped.csr -o ${finalDeviceId}.multipart "${EST_API_BASE_URL}/${ra?.id}/serverkeygen"`;
     
     const serverKeygenParseCommands = [
         `# 3. Extract Private Key`,
-        `#    Open ${deviceId}.multipart, find the section starting with "Content-Type: application/pkcs8",`,
+        `#    Open ${finalDeviceId}.multipart, find the section starting with "Content-Type: application/pkcs8",`,
         `#    copy the base64 content into a new file named "key.b64". Then run:`,
-        `openssl base64 -d -in key.b64 | openssl pkcs8 -inform DER -outform PEM -out ${deviceId}.key`,
+        `openssl base64 -d -in key.b64 | openssl pkcs8 -inform DER -outform PEM -out ${finalDeviceId}.key`,
         `\n# 4. Extract Certificate`,
-        `#    In ${deviceId}.multipart, find "Content-Type: application/pkcs7-mime",`,
+        `#    In ${finalDeviceId}.multipart, find "Content-Type: application/pkcs7-mime",`,
         `#    copy the base64 content into "cert.b64". Then run:`,
-        `openssl base64 -d -in cert.b64 | openssl pkcs7 -inform DER -print_certs -out ${deviceId}.crt`,
+        `openssl base64 -d -in cert.b64 | openssl pkcs7 -inform DER -print_certs -out ${finalDeviceId}.crt`,
         `\n# 5. Verify the new certificate`,
-        `openssl x509 -text -noout -in ${deviceId}.crt`
+        `openssl x509 -text -noout -in ${finalDeviceId}.crt`
     ].join('\n');
 
 
@@ -431,7 +441,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                                     <div>
                                         <Label>Generate Key &amp; CSR</Label>
                                         <p className="text-xs text-muted-foreground mb-1">
-                                            Run the following command on your device to generate a private key (`{deviceId}.key`) and a CSR (`{deviceId}.csr`).
+                                            Run the following command on your device to generate a private key (`{finalDeviceId}.key`) and a CSR (`{finalDeviceId}.csr`).
                                         </p>
                                         <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
                                     </div>
@@ -552,20 +562,34 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                                     <CodeBlock content={serverCertCommand} textareaClassName="h-28" />
                                 </div>
                             )}
-                            <div>
-                                <Label>{validateServerCert ? '2. ' : ''}Enrollment Command ({keygenMethod === 'device' ? 'Client' : 'Server'} Keygen)</Label>
-                                {keygenMethod === 'device' ? (
-                                    <CodeBlock content={finalEnrollCommand} textareaClassName="h-32" />
-                                ) : (
-                                    <>
+                            
+                            {keygenMethod === 'device' ? (
+                                <div>
+                                    <Label>{validateServerCert ? '2. ' : '1. '}Enrollment Command</Label>
+                                    <CodeBlock content={finalEnrollCommand} textareaClassName="h-48" />
+                                </div>
+                            ) : (
+                                <>
+                                    <div>
+                                        <Label>{validateServerCert ? '2. ' : '1. '}Generate Dummy CSR</Label>
+                                        <p className="text-xs text-muted-foreground mb-1">
+                                            First, generate a temporary CSR. The private key will be discarded.
+                                        </p>
+                                        <CodeBlock content={dummyCombinedCommand} textareaClassName="h-28" />
+                                    </div>
+                                    <div>
+                                        <Label>3. Request Server-Side Key and Certificate</Label>
                                         <CodeBlock content={serverKeygenCurlCommand} textareaClassName="h-24" />
-                                        <Label className="mt-2 block">Parse Response</Label>
+                                    </div>
+                                    <div>
+                                        <Label>4. Parse Response</Label>
                                         <CodeBlock content={serverKeygenParseCommands} textareaClassName="h-48" />
-                                    </>
-                                )}
-                            </div>
+                                    </div>
+                                </>
+                            )}
+
                             <p className="text-sm text-muted-foreground">
-                               {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, and if applicable, \`${deviceId}.stripped.csr\` and \`root-ca.pem\`) in the same directory.`}
+                                {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, your CSR, and optionally \`root-ca.pem\`) in the same directory.`}
                             </p>
                         </div>
                     )}
@@ -600,3 +624,5 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         </Dialog>
     );
 };
+
+    
