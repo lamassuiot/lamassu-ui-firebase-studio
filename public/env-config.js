@@ -1,7 +1,7 @@
-// This file is loaded at application startup to provide runtime configuration.
-// You can edit this file to change backend API endpoints without rebuilding the application.
+// This file allows for runtime configuration of the application's API endpoints.
+// It is loaded by a <script> tag in the main layout before the application starts.
+// To point the app to a different backend, change the LAMASSU_API value below.
 
 window.lamassuConfig = {
-  // The base URL for all backend API services.
-  LAMASSU_API: 'https://lab.lamassu.io/api'
+  LAMASSU_API: 'https://lab.lamassu.io/api',
 };
