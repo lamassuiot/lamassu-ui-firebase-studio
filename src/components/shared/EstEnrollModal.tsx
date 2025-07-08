@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Check, Info, RefreshCw } from "lucide-react";
+import { Loader2, ArrowLeft, Check, Info, RefreshCw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
 import { findCaById, signCertificate } from '@/lib/ca-data';
@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { DurationInput } from './DurationInput';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { Alert, AlertDescription as AlertDescUI } from '../ui/alert';
+import { Alert, AlertDescription as AlertDescUI, AlertTitle } from '../ui/alert';
 import { CodeBlock } from './CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -133,6 +133,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     
     // Step 4 state
     const [bootstrapCertificate, setBootstrapCertificate] = useState('');
+    const [bootstrapPrivateKey, setBootstrapPrivateKey] = useState('');
 
     // Step 5 state
     const [enrollCommand, setEnrollCommand] = useState('');
@@ -151,6 +152,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setKeygenSpec('2048');
             setBootstrapKeygenType('RSA');
             setBootstrapKeygenSpec('2048');
+            setBootstrapPrivateKey('');
             
             // Auto-select CA based on RA config
             if (ra && availableCAs.length > 0) {
@@ -241,6 +243,9 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                     : { name: "ECDSA", namedCurve: bootstrapKeygenSpec };
                 const keyPair = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
                 
+                const privateKeyPem = formatAsPem(arrayBufferToBase64(await crypto.subtle.exportKey("pkcs8", keyPair.privateKey)), 'PRIVATE KEY');
+                setBootstrapPrivateKey(privateKeyPem);
+
                 // Create CSR
                 const pkcs10 = new CertificationRequest({ version: 0 });
                 pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({ type: "2.5.4.3", value: new asn1js.Utf8String({ value: bootstrapCn.trim() }) }));
@@ -427,15 +432,18 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                     )}
                     {step === 4 && (
                         <div className="space-y-4">
-                            <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertDescUI>
-                                    The private key for this bootstrap certificate was temporary and has been discarded.
-                                </AlertDescUI>
-                            </Alert>
-                             <div>
+                            <div>
                                 <Label>Bootstrap Certificate</Label>
-                                <CodeBlock content={bootstrapCertificate}/>
+                                <CodeBlock content={bootstrapCertificate} showDownload downloadFilename="bootstrap.cert" textareaClassName="h-48" />
+                            </div>
+                            <div>
+                                <Label>Bootstrap Private Key</Label>
+                                <Alert variant="warning" className="mb-2">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Save Your Private Key</AlertTitle>
+                                    <AlertDescUI>This is your only chance to save the private key. It will not be stored and cannot be recovered.</AlertDescUI>
+                                </Alert>
+                                <CodeBlock content={bootstrapPrivateKey} showDownload downloadFilename="bootstrap.key" textareaClassName="h-48"/>
                             </div>
                         </div>
                     )}
