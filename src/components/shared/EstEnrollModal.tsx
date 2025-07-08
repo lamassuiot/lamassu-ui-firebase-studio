@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,11 @@ interface ApiRaItem {
   settings: {
     enrollment_settings: {
       enrollment_ca: string;
+      est_rfc7030_settings?: {
+        client_certificate_settings?: {
+            validation_cas: string[];
+        }
+      }
     }
   }
 }
@@ -43,7 +48,7 @@ interface EstEnrollModalProps {
 }
 
 const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Device", "CSR", "Props", "Bootstrap", "Commands"];
+  const steps = ["Device", "CSR", "Bootstrap Options", "Bootstrap", "Commands"];
   return (
     <div className="flex items-center space-x-2 sm:space-x-4 mb-6 sm:mb-8">
       {steps.map((label, index) => {
@@ -94,6 +99,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     // Step 3 state
     const [bootstrapSigner, setBootstrapSigner] = useState<CA | null>(null);
     const [bootstrapValidity, setBootstrapValidity] = useState('1h');
+    const [bootstrapCn, setBootstrapCn] = useState('');
+    const [selectableSigners, setSelectableSigners] = useState<CA[]>([]);
     
     // Step 4 state
     const [bootstrapCertificate, setBootstrapCertificate] = useState('');
@@ -104,8 +111,10 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
 
     useEffect(() => {
         if(isOpen) {
+            const newDeviceId = crypto.randomUUID();
             setStep(1);
-            setDeviceId(crypto.randomUUID());
+            setDeviceId(newDeviceId);
+            setBootstrapCn(newDeviceId); // Default bootstrap CN to device ID
             setBootstrapValidity('1h');
             setBootstrapCertificate('');
             setEnrollCommand('');
@@ -115,21 +124,26 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             // Auto-select CA based on RA config
             if (ra && availableCAs.length > 0) {
                 const enrollmentCaId = ra.settings.enrollment_settings.enrollment_ca;
-                const signerCa = findCaById(enrollmentCaId, availableCAs);
+                const validationCaIds = ra.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas || [];
+                const allSignerIds = new Set([enrollmentCaId, ...validationCaIds]);
+                
+                const signers = Array.from(allSignerIds)
+                    .map(id => findCaById(id, availableCAs))
+                    .filter((ca): ca is CA => !!ca); // Filter out nulls and type guard
 
-                if (signerCa) {
-                    setBootstrapSigner(signerCa);
-                    // Pre-populate validity if it's a duration string
-                    if (signerCa.defaultIssuanceLifetime && !signerCa.defaultIssuanceLifetime.includes('T') && signerCa.defaultIssuanceLifetime !== 'Indefinite' && signerCa.defaultIssuanceLifetime !== 'Not Specified') {
-                        setBootstrapValidity(signerCa.defaultIssuanceLifetime);
-                    } else {
-                        setBootstrapValidity('1h'); // Fallback for ISO dates, Indefinite, or unspecified
-                    }
+                setSelectableSigners(signers);
+                const defaultSigner = findCaById(enrollmentCaId, availableCAs);
+                setBootstrapSigner(defaultSigner || null);
+
+                // Pre-populate validity if it's a duration string
+                if (defaultSigner && defaultSigner.defaultIssuanceLifetime && !defaultSigner.defaultIssuanceLifetime.includes('T') && defaultSigner.defaultIssuanceLifetime !== 'Indefinite' && defaultSigner.defaultIssuanceLifetime !== 'Not Specified') {
+                    setBootstrapValidity(defaultSigner.defaultIssuanceLifetime);
                 } else {
-                    setBootstrapSigner(null);
+                    setBootstrapValidity('1h'); // Fallback for ISO dates, Indefinite, or unspecified
                 }
             } else {
                 setBootstrapSigner(null);
+                setSelectableSigners([]);
             }
         }
     }, [isOpen, ra, availableCAs]);
@@ -151,19 +165,24 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 toast({ title: "Device ID required", variant: "destructive" });
                 return;
             }
+            setBootstrapCn(deviceId.trim()); // Sync bootstrap CN with device ID when moving from step 1
             setStep(2);
         } else if (step === 2) { // --> Define Props
             setStep(3);
         } else if (step === 3) { // --> Issue Bootstrap Cert
              if (!bootstrapSigner) {
-                toast({ title: "Bootstrap Signer Required", description: "The RA policy does not specify a valid enrollment CA for bootstrapping.", variant: "destructive" });
+                toast({ title: "Bootstrap Signer Required", description: "You must select a CA to sign the bootstrap certificate.", variant: "destructive" });
+                return;
+            }
+            if (!bootstrapCn.trim()) {
+                toast({ title: "Bootstrap CN Required", description: "The Common Name for the bootstrap certificate cannot be empty.", variant: "destructive" });
                 return;
             }
             setIsGenerating(true);
             // MOCK API call to issue bootstrap certificate (no CSR needed for this mock)
             await new Promise(res => setTimeout(res, 800));
             const mockCert = `-----BEGIN CERTIFICATE-----\n` +
-                `MOCK_BOOTSTRAP_CERT_FOR_${deviceId}_ISSUED_BY_${bootstrapSigner.name}\n` +
+                `MOCK_BOOTSTRAP_CERT_FOR_CN_${bootstrapCn}_ISSUED_BY_${bootstrapSigner.name}\n` +
                 `${btoa(Date.now().toString())}\n` +
                 `-----END CERTIFICATE-----`;
             setBootstrapCertificate(mockCert);
@@ -265,16 +284,34 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                     {step === 3 && (
                         <div className="space-y-4">
                             <div>
-                                <Label htmlFor="bootstrapSigner">Bootstrap signer</Label>
+                                <Label htmlFor="bootstrap-cn">Bootstrap Common Name (CN)</Label>
+                                <Input id="bootstrap-cn" value={bootstrapCn} onChange={e => setBootstrapCn(e.target.value)} />
+                            </div>
+                            <div>
+                                <Label htmlFor="bootstrap-signer">Bootstrap Signer</Label>
                                 <p className="text-xs text-muted-foreground mb-2">
-                                    The RA policy dictates that the bootstrap certificate must be signed by the following CA.
+                                    Select a CA to sign the temporary bootstrap certificate.
                                 </p>
-                                {bootstrapSigner ? (
+                                <Select 
+                                    value={bootstrapSigner?.id}
+                                    onValueChange={(caId) => {
+                                        const selected = selectableSigners.find(s => s.id === caId);
+                                        setBootstrapSigner(selected || null);
+                                    }}
+                                >
+                                    <SelectTrigger id="bootstrap-signer">
+                                        <SelectValue placeholder="Select a signing CA..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {selectableSigners.map(signer => (
+                                            <SelectItem key={signer.id} value={signer.id}>
+                                                {signer.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {bootstrapSigner && (
                                     <div className="mt-2"><CaVisualizerCard ca={bootstrapSigner} className="shadow-none border-border" allCryptoEngines={allCryptoEngines}/></div>
-                                ) : (
-                                    <div className="mt-2 p-4 text-center border rounded-md bg-muted/30 text-muted-foreground">
-                                        <p>No authorized enrollment CA found for this RA.</p>
-                                    </div>
                                 )}
                             </div>
                             <DurationInput id="bootstrapValidity" label="Bootstrap Certificate Validity" value={bootstrapValidity} onChange={setBootstrapValidity} />
