@@ -175,7 +175,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 
                 const defaultSigner = signers.length > 0 ? signers[0] : null;
                 setBootstrapSigner(defaultSigner);
-                if (defaultSigner?.defaultIssuanceLifetime && DURATION_REGEX.test(defaultSignuanceLifetime)) {
+                if (defaultSigner?.defaultIssuanceLifetime && DURATION_REGEX.test(defaultSigner.defaultIssuanceLifetime)) {
                     setBootstrapValidity(defaultSigner.defaultIssuanceLifetime);
                 }
 
@@ -589,7 +589,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                             )}
 
                             <p className="text-sm text-muted-foreground">
-                                {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, your CSR, and optionally \`root-ca.pem\`) in the same directory.`}
+                                {`Note: This command assumes you have the required files (\`bootstrap.cert\`, \`bootstrap.key\`, \`${finalDeviceId}.stripped.csr\`, and optionally \`root-ca.pem\`) in the same directory.`}
                             </p>
                         </div>
                     )}
@@ -624,5 +624,3 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         </Dialog>
     );
 };
-
-    
