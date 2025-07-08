@@ -268,7 +268,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setBootstrapCn(deviceId.trim()); // Sync bootstrap CN with device ID when moving from step 1
             setStep(2);
         } else if (step === 2) { // --> Define Props
-            // Both device and server keygen methods proceed to step 3 (Bootstrap Options)
             setStep(3);
         } else if (step === 3) { // --> Issue Bootstrap Cert
              if (!bootstrapSigner || !user?.access_token) {
@@ -337,8 +336,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                 // Otherwise, we came from step 4. Go back to step 4.
                 setStep(4);
             }
-        } else if (step === 3 && keygenMethod === 'server') {
-            setStep(2); // Go back to method selection
         } else {
             // For all other steps, just go back one step.
             setStep(prev => (prev > 1 ? prev - 1 : 1));
@@ -397,11 +394,11 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="pt-2">
-                    <Stepper currentStep={step}/>
-                </div>
-                
-                <ScrollArea className="flex-grow pr-6 -mr-6 my-2">
+                <div className="flex-grow my-2 -mr-6 overflow-y-auto pr-6">
+                    <div className="pt-2">
+                        <Stepper currentStep={step}/>
+                    </div>
+                    
                     <div className="space-y-4">
                         {step === 1 && (
                             <div className="space-y-2">
@@ -621,7 +618,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
                             </div>
                         )}
                     </div>
-                </ScrollArea>
+                </div>
 
                 <DialogFooter>
                     <div className="w-full flex justify-between">
@@ -652,3 +649,5 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         </Dialog>
     );
 };
+
+    

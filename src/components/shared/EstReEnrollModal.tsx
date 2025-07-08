@@ -205,131 +205,135 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
+            <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center"><RefreshCwIcon className="mr-2 h-6 w-6 text-primary"/>EST Re-Enroll</DialogTitle>
                     <DialogDescription>
                         Generate re-enrollment commands for RA: {ra?.name} ({ra?.id})
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
-                    <Stepper currentStep={step}/>
-                    
-                    {step === 1 && (
-                        <div className="space-y-4">
-                            <Label htmlFor="deviceId-search">Device ID</Label>
-                            <div className="flex items-center gap-2">
-                                <Input id="deviceId-search" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="Enter Device ID to search..."/>
-                                <Button onClick={handleSearch} disabled={isSearching || !deviceId.trim()}>
-                                    {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
-                                    Search
-                                </Button>
-                            </div>
-                            {isSearching && (
-                                <div className="flex items-center text-muted-foreground text-sm pt-2"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Searching for device...</div>
-                            )}
-                            {searchError && (
-                                <Alert variant="destructive" className="mt-2">
-                                    <AlertTriangle className="h-4 w-4"/>
-                                    <AlertTitle>Search Failed</AlertTitle>
-                                    <AlertDescUI>{searchError}</AlertDescUI>
-                                </Alert>
-                            )}
-                            {foundDevice && (
-                                <div className="mt-4 p-4 border rounded-md bg-muted/30">
-                                    <h4 className="font-semibold mb-2">Device Found</h4>
-                                    <div className="flex items-center gap-4">
-                                        <DeviceIcon type={foundDevice.icon} iconColor={foundDevice.icon_color.split('-')[0]} bgColor={foundDevice.icon_color.split('-')[1]} />
-                                        <div>
-                                            <p className="font-mono">{foundDevice.id}</p>
-                                            <StatusBadge status={foundDevice.status as any} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
 
-                    {step === 2 && foundDevice && (
-                        <div className="space-y-4">
-                             <Alert>
-                                <Info className="h-4 w-4"/>
-                                <AlertTitle>Prerequisites</AlertTitle>
-                                <AlertDescUI>
-                                    This process assumes you have the device's current, valid certificate and private key (e.g., `{finalDeviceId}.existing.crt` and `{finalDeviceId}.existing.key`).
-                                    {!rekey && ' The existing private key will be used to generate the new CSR.'}
-                                </AlertDescUI>
-                            </Alert>
-                            <div className="flex items-center space-x-2 my-2">
-                                <Switch
-                                    id="rekey-switch"
-                                    checked={rekey}
-                                    onCheckedChange={setRekey}
-                                />
-                                <Label htmlFor="rekey-switch">Generate New Key (Rekey)</Label>
-                            </div>
-
-                            {rekey && (
-                                <div>
-                                    <Label>New Key Parameters</Label>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <Label htmlFor="keygen-type">Key Type</Label>
-                                            <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
-                                                <SelectTrigger id="keygen-type"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    {KEY_TYPE_OPTIONS.map(opt => (
-                                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
-                                             <Select value={keygenSpec} onValueChange={setKeygenSpec}>
-                                                <SelectTrigger id="keygen-spec"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    {currentKeySpecOptions.map(opt => (
-                                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
+                <div className="flex-grow my-2 -mr-6 overflow-y-auto pr-6">
+                    <div className="py-4">
+                        <Stepper currentStep={step}/>
+                        
+                        {step === 1 && (
+                            <div className="space-y-4">
+                                <Label htmlFor="deviceId-search">Device ID</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input id="deviceId-search" value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="Enter Device ID to search..."/>
+                                    <Button onClick={handleSearch} disabled={isSearching || !deviceId.trim()}>
+                                        {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
+                                        Search
+                                    </Button>
                                 </div>
-                            )}
-                            
-                            <div>
-                                <Label>1. Generate CSR</Label>
-                                <p className="text-xs text-muted-foreground mb-1">
-                                    Run this on your device to generate a new CSR.
-                                </p>
-                                <CodeBlock content={opensslCombinedCommand} textareaClassName="h-32" />
-                            </div>
-
-                             <div>
-                                <Label>2. Run Re-enrollment Command</Label>
-                                <div className="flex items-center space-x-2 my-2">
-                                    <Switch
-                                        id="validate-server-cert-reenroll"
-                                        checked={validateServerCert}
-                                        onCheckedChange={setValidateServerCert}
-                                    />
-                                    <Label htmlFor="validate-server-cert-reenroll">Validate Server Certificate (Recommended)</Label>
-                                </div>
-                                {validateServerCert && (
-                                    <div className="mb-2">
-                                        <p className="text-xs text-muted-foreground mb-1">
-                                            First, obtain the server's root CA certificate.
-                                        </p>
-                                        <CodeBlock content={serverCertCommand} textareaClassName="h-28" />
+                                {isSearching && (
+                                    <div className="flex items-center text-muted-foreground text-sm pt-2"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Searching for device...</div>
+                                )}
+                                {searchError && (
+                                    <Alert variant="destructive" className="mt-2">
+                                        <AlertTriangle className="h-4 w-4"/>
+                                        <AlertTitle>Search Failed</AlertTitle>
+                                        <AlertDescUI>{searchError}</AlertDescUI>
+                                    </Alert>
+                                )}
+                                {foundDevice && (
+                                    <div className="mt-4 p-4 border rounded-md bg-muted/30">
+                                        <h4 className="font-semibold mb-2">Device Found</h4>
+                                        <div className="flex items-center gap-4">
+                                            <DeviceIcon type={foundDevice.icon} iconColor={foundDevice.icon_color.split('-')[0]} bgColor={foundDevice.icon_color.split('-')[1]} />
+                                            <div>
+                                                <p className="font-mono">{foundDevice.id}</p>
+                                                <StatusBadge status={foundDevice.status as any} />
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
-                                <CodeBlock content={finalReEnrollCommand} textareaClassName="h-40" />
                             </div>
-                        </div>
-                    )}
+                        )}
+
+                        {step === 2 && foundDevice && (
+                            <div className="space-y-4">
+                                 <Alert>
+                                    <Info className="h-4 w-4"/>
+                                    <AlertTitle>Prerequisites</AlertTitle>
+                                    <AlertDescUI>
+                                        This process assumes you have the device's current, valid certificate and private key (e.g., `{finalDeviceId}.existing.crt` and `{finalDeviceId}.existing.key`).
+                                        {!rekey && ' The existing private key will be used to generate the new CSR.'}
+                                    </AlertDescUI>
+                                </Alert>
+                                <div className="flex items-center space-x-2 my-2">
+                                    <Switch
+                                        id="rekey-switch"
+                                        checked={rekey}
+                                        onCheckedChange={setRekey}
+                                    />
+                                    <Label htmlFor="rekey-switch">Generate New Key (Rekey)</Label>
+                                </div>
+
+                                {rekey && (
+                                    <div>
+                                        <Label>New Key Parameters</Label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label htmlFor="keygen-type">Key Type</Label>
+                                                <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
+                                                    <SelectTrigger id="keygen-type"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {KEY_TYPE_OPTIONS.map(opt => (
+                                                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
+                                                 <Select value={keygenSpec} onValueChange={setKeygenSpec}>
+                                                    <SelectTrigger id="keygen-spec"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {currentKeySpecOptions.map(opt => (
+                                                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div>
+                                    <Label>1. Generate CSR</Label>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                        Run this on your device to generate a new CSR.
+                                    </p>
+                                    <CodeBlock content={opensslCombinedCommand} textareaClassName="h-32" />
+                                </div>
+
+                                 <div>
+                                    <Label>2. Run Re-enrollment Command</Label>
+                                    <div className="flex items-center space-x-2 my-2">
+                                        <Switch
+                                            id="validate-server-cert-reenroll"
+                                            checked={validateServerCert}
+                                            onCheckedChange={setValidateServerCert}
+                                        />
+                                        <Label htmlFor="validate-server-cert-reenroll">Validate Server Certificate (Recommended)</Label>
+                                    </div>
+                                    {validateServerCert && (
+                                        <div className="mb-2">
+                                            <p className="text-xs text-muted-foreground mb-1">
+                                                First, obtain the server's root CA certificate.
+                                            </p>
+                                            <CodeBlock content={serverCertCommand} textareaClassName="h-28" />
+                                        </div>
+                                    )}
+                                    <CodeBlock content={finalReEnrollCommand} textareaClassName="h-40" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
+
                 <DialogFooter>
                     <div className="w-full flex justify-between">
                         <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -354,3 +358,5 @@ export const EstReEnrollModal: React.FC<EstReEnrollModalProps> = ({ isOpen, onOp
         </Dialog>
     );
 };
+
+    
