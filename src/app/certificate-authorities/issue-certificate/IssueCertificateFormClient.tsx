@@ -143,6 +143,7 @@ export default function IssueCertificateFormClient() {
   const { user } = useAuth();
   const caId = searchParams.get('caId');
   const prefilledCn = searchParams.get('prefill_cn');
+  const returnToDevice = searchParams.get('returnToDevice');
   const [step, setStep] = useState(1);
   
   const [issuerCa, setIssuerCa] = useState<CA | null>(null);
@@ -753,7 +754,13 @@ export default function IssueCertificateFormClient() {
                 )}
                 {step === 3 && (
                     <>
-                        <Button type="button" variant="outline" onClick={() => router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`)}>
+                        <Button type="button" variant="outline" onClick={() => {
+                            if (returnToDevice) {
+                                router.push(`/devices/details?deviceId=${returnToDevice}`);
+                            } else {
+                                router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`);
+                            }
+                        }}>
                             Finish
                         </Button>
                         <Button type="button" onClick={() => router.push(`/certificates/details?certificateId=${issuedCertificate?.serial}`)} disabled={!issuedCertificate?.serial}>
