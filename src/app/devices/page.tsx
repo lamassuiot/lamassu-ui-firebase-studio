@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import { fetchRaById, type ApiRaItem } from '@/lib/dms-api';
 
-type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'INACTIVE' | 'PENDING_ACTIVATION' | 'DECOMMISSIONED';
+type DeviceStatus = 'ACTIVE' | 'NO_IDENTITY' | 'RENEWAL_PENDING' | 'EXPIRING_SOON' | 'EXPIRED' | 'REVOKED' | 'DECOMMISSIONED';
 
 interface DeviceData {
   id: string;
@@ -45,10 +45,12 @@ interface SortConfig {
 
 const statusSortOrder: Record<DeviceStatus, number> = {
   'ACTIVE': 0,
-  'PENDING_ACTIVATION': 1,
-  'INACTIVE': 2,
+  'EXPIRING_SOON': 1,
+  'RENEWAL_PENDING': 2,
   'NO_IDENTITY': 3,
-  'DECOMMISSIONED': 4,
+  'EXPIRED': 4,
+  'REVOKED': 5,
+  'DECOMMISSIONED': 6,
 };
 
 
@@ -58,14 +60,20 @@ export const StatusBadge: React.FC<{ status: DeviceStatus }> = ({ status }) => {
     case 'ACTIVE':
       badgeClass = "bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300 border-green-300 dark:border-green-700";
       break;
+    case 'RENEWAL_PENDING':
+        badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
+        break;
+    case 'EXPIRING_SOON':
+        badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
+        break;
+    case 'EXPIRED':
+        badgeClass = "bg-purple-100 text-purple-700 dark:bg-purple-700/30 dark:text-purple-300 border-purple-300 dark:border-purple-700";
+        break;
+    case 'REVOKED':
+        badgeClass = "bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300 border-red-300 dark:border-red-700";
+        break;
     case 'NO_IDENTITY':
       badgeClass = "bg-sky-100 text-sky-700 dark:bg-sky-700/30 dark:text-sky-300 border-sky-300 dark:border-sky-700";
-      break;
-    case 'INACTIVE':
-      badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-700/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
-      break;
-    case 'PENDING_ACTIVATION':
-      badgeClass = "bg-orange-100 text-orange-700 dark:bg-orange-700/30 dark:text-orange-300 border-orange-300 dark:border-orange-700";
       break;
     case 'DECOMMISSIONED':
       badgeClass = "bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400 border-gray-400 dark:border-gray-600";
@@ -444,8 +452,10 @@ export default function DevicesPage() {
               <SelectItem value="ALL">All Statuses</SelectItem>
               <SelectItem value="ACTIVE">Active</SelectItem>
               <SelectItem value="NO_IDENTITY">No Identity</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
-              <SelectItem value="PENDING_ACTIVATION">Pending Activation</SelectItem>
+              <SelectItem value="RENEWAL_PENDING">Renewal Pending</SelectItem>
+              <SelectItem value="EXPIRING_SOON">Expiring Soon</SelectItem>
+              <SelectItem value="EXPIRED">Expired</SelectItem>
+              <SelectItem value="REVOKED">Revoked</SelectItem>
               <SelectItem value="DECOMMISSIONED">Decommissioned</SelectItem>
             </SelectContent>
           </Select>
