@@ -279,12 +279,12 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             }
 
         } else if (step === 4) { // --> Generate Commands
-            const command = `curl -v --cert-type PEM --cert bootstrap.cert \\ \n`+
-                            `  --key-type PEM --key ${deviceId}.key \\ \n`+
-                            `  -H "Content-Type: application/pkcs10" \\ \n`+
-                            `  --data-binary @${deviceId}.csr \\ \n`+
-                            `  "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`;
-            setEnrollCommand(command);
+            const commands = [
+                `curl -v --cert bootstrap.cert --key bootstrap.key -k -H "Content-Type: application/pkcs10" --data-binary @${deviceId}.stripped.csr   -o ${deviceId}.p7 "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`,
+                `openssl base64 -d -in ${deviceId}.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${deviceId}.crt`,
+                `openssl x509 -text -in ${deviceId}.crt`
+            ].join('\n');
+            setEnrollCommand(commands);
             setStep(5);
         }
     };
@@ -451,7 +451,7 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                         <div className="space-y-4">
                             <div>
                                 <Label>Enrollment Command</Label>
-                                <CodeBlock content={enrollCommand} />
+                                <CodeBlock content={enrollCommand} textareaClassName="h-32" />
                             </div>
                             <p className="text-sm text-muted-foreground">
                                Note: This command assumes you have saved the bootstrap certificate as `bootstrap.cert` and the key and CSR files (`${deviceId}.key`, `${deviceId}.csr`) are in the same directory.
