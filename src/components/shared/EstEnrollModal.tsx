@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ArrowLeft, Check, Info, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CA } from '@/lib/ca-data';
@@ -18,6 +17,8 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Alert, AlertDescription } from '../ui/alert';
 import { CodeBlock } from './CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 
 // Re-defining RA type here to avoid complex imports, but ideally this would be shared
 interface ApiRaItem {
@@ -86,6 +87,10 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const [deviceId, setDeviceId] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     
+    // Step 2 state
+    const [keygenType, setKeygenType] = useState('RSA');
+    const [keygenSpec, setKeygenSpec] = useState('2048');
+
     // Step 3 state
     const [bootstrapSigner, setBootstrapSigner] = useState<CA | null>(null);
     const [bootstrapValidity, setBootstrapValidity] = useState('1h');
@@ -104,6 +109,8 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setBootstrapValidity('1h');
             setBootstrapCertificate('');
             setEnrollCommand('');
+            setKeygenType('RSA');
+            setKeygenSpec('2048');
             
             // Auto-select CA based on RA config
             if (ra && availableCAs.length > 0) {
@@ -127,6 +134,17 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         }
     }, [isOpen, ra, availableCAs]);
 
+    const handleKeygenTypeChange = (type: string) => {
+        setKeygenType(type);
+        if (type === 'RSA') {
+            setKeygenSpec('2048');
+        } else { // EC
+            setKeygenSpec('P-256');
+        }
+    };
+
+    const currentKeySpecOptions = keygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
+    
     const handleNext = async () => {
         if (step === 1) { // --> Show CSR commands
             if (!deviceId.trim()) {
@@ -166,7 +184,13 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
         setStep(prev => prev > 1 ? prev - 1 : 1);
     };
 
-    const opensslCombinedCommand = `openssl req -new -newkey rsa:2048 -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN==${deviceId}"
+    let keygenCommandPart = '';
+    if (keygenType === 'RSA') {
+        keygenCommandPart = `-newkey rsa:${keygenSpec}`;
+    } else { // EC
+        keygenCommandPart = `-newkey ec -pkeyopt ec_paramgen_curve:${keygenSpec}`;
+    }
+    const opensslCombinedCommand = `openssl req -new ${keygenCommandPart} -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN=${deviceId}"
 cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
 
     return (
@@ -201,6 +225,34 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                     )}
                     {step === 2 && (
                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="keygen-type">Key Type</Label>
+                                    <Select value={keygenType} onValueChange={handleKeygenTypeChange}>
+                                        <SelectTrigger id="keygen-type">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {KEY_TYPE_OPTIONS.map(opt => (
+                                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label htmlFor="keygen-spec">{keygenType === 'RSA' ? 'Key Size' : 'Curve'}</Label>
+                                     <Select value={keygenSpec} onValueChange={setKeygenSpec}>
+                                        <SelectTrigger id="keygen-spec">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {currentKeySpecOptions.map(opt => (
+                                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                             <div>
                                 <Label>Generate Key & CSR</Label>
                                 <p className="text-xs text-muted-foreground mb-1">
@@ -238,7 +290,7 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                             </Alert>
                              <div>
                                 <Label>Bootstrap Certificate</Label>
-                                <Textarea value={bootstrapCertificate} readOnly rows={8} className="font-mono bg-muted/50 mt-1"/>
+                                <CodeBlock content={bootstrapCertificate}/>
                             </div>
                         </div>
                     )}
