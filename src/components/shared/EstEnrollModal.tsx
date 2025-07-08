@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { DurationInput } from './DurationInput';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { Alert, AlertDescription } from '../ui/alert';
+import { Alert, AlertDescription as AlertDescUI } from '../ui/alert';
 import { CodeBlock } from './CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -258,7 +258,7 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                                 <p className="text-xs text-muted-foreground mb-1">
                                     Run the following command on your device to generate a private key (`${deviceId}.key`) and a CSR (`${deviceId}.csr`).
                                 </p>
-                                <CodeBlock content={opensslCombinedCommand}/>
+                                <CodeBlock content={opensslCombinedCommand} textareaClassName="h-28" />
                             </div>
                         </div>
                     )}
@@ -284,9 +284,9 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                         <div className="space-y-4">
                             <Alert>
                                 <Info className="h-4 w-4" />
-                                <AlertDescription>
+                                <AlertDescUI>
                                     Your private key (${deviceId}.key) was generated locally on your machine and is not shown here. Keep it safe.
-                                </AlertDescription>
+                                </AlertDescUI>
                             </Alert>
                              <div>
                                 <Label>Bootstrap Certificate</Label>

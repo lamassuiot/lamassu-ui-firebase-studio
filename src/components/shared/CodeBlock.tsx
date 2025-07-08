@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -15,6 +16,7 @@ interface CodeBlockProps {
   downloadFilename?: string;
   downloadMimeType?: string;
   className?: string;
+  textareaClassName?: string;
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = ({
@@ -24,6 +26,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
   downloadFilename = 'download.txt',
   downloadMimeType = 'text/plain',
   className,
+  textareaClassName,
 }) => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -64,7 +67,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({
         <Textarea
           readOnly
           value={content}
-          className="h-96 font-mono text-xs"
+          className={cn("h-96 font-mono text-xs", textareaClassName)}
         />
         <div className="flex flex-col gap-2">
           {showDownload && (
