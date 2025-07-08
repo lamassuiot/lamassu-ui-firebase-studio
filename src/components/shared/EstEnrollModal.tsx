@@ -20,6 +20,7 @@ import { EST_API_BASE_URL } from '@/lib/api-domains';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 import { useAuth } from '@/contexts/AuthContext';
+import { Switch } from '@/components/ui/switch';
 import {
   CertificationRequest,
   AttributeTypeAndValue,
@@ -136,7 +137,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const [bootstrapPrivateKey, setBootstrapPrivateKey] = useState('');
 
     // Step 5 state
-    const [enrollCommand, setEnrollCommand] = useState('');
+    const [validateServerCert, setValidateServerCert] = useState(false);
 
 
     useEffect(() => {
@@ -147,12 +148,12 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             setBootstrapCn(newDeviceId); // Default bootstrap CN to device ID
             setBootstrapValidity('1h');
             setBootstrapCertificate('');
-            setEnrollCommand('');
             setKeygenType('RSA');
             setKeygenSpec('2048');
             setBootstrapKeygenType('RSA');
             setBootstrapKeygenSpec('2048');
             setBootstrapPrivateKey('');
+            setValidateServerCert(false);
             
             // Auto-select CA based on RA config
             if (ra && availableCAs.length > 0) {
@@ -216,17 +217,7 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     const currentKeySpecOptions = keygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
     const currentBootstrapKeySpecOptions = bootstrapKeygenType === 'RSA' ? RSA_KEY_SIZE_OPTIONS : ECDSA_CURVE_OPTIONS;
 
-    const generateEnrollmentCommands = () => {
-      const commands = [
-          `curl -v --cert bootstrap.cert --key bootstrap.key -k -H "Content-Type: application/pkcs10" --data-binary @${deviceId}.stripped.csr   -o ${deviceId}.p7 "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`,
-          `openssl base64 -d -in ${deviceId}.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${deviceId}.crt`,
-          `openssl x509 -text -in ${deviceId}.crt`
-      ].join('\n');
-      setEnrollCommand(commands);
-    };
-
     const handleSkipBootstrap = () => {
-        generateEnrollmentCommands();
         setStep(5);
     };
     
@@ -293,7 +284,6 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
             }
 
         } else if (step === 4) { // --> Generate Commands
-            generateEnrollmentCommands();
             setStep(5);
         }
     };
@@ -308,8 +298,16 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     } else { // EC
         keygenCommandPart = `-newkey ec -pkeyopt ec_paramgen_curve:${keygenSpec}`;
     }
-    const opensslCombinedCommand = `openssl req -new ${keygenCommandPart} -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN==${deviceId}"
-cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
+    const opensslCombinedCommand = `openssl req -new ${keygenCommandPart} -nodes -keyout ${deviceId}.key -out ${deviceId}.csr -subj "/CN=${deviceId}"\ncat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/-----END CERTIFICATE REQUEST-----/d'> ${deviceId}.stripped.csr`;
+
+    const serverCertCommand = `LAMASSU_SERVER=lab.lamassu.io\nopenssl s_client -showcerts -servername $LAMASSU_SERVER -connect $LAMASSU_SERVER:443 2>/dev/null </dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > root-ca.pem`;
+    
+    const curlValidationFlag = validateServerCert ? '--cacert root-ca.pem' : '-k';
+    const finalEnrollCommand = [
+      `curl -v --cert bootstrap.cert --key bootstrap.key ${curlValidationFlag} -H "Content-Type: application/pkcs10" --data-binary @${deviceId}.stripped.csr   -o ${deviceId}.p7 "${EST_API_BASE_URL}/${ra?.id}/simpleenroll"`,
+      `openssl base64 -d -in ${deviceId}.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out ${deviceId}.crt`,
+      `openssl x509 -text -in ${deviceId}.crt`
+    ].join('\n');
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -466,12 +464,29 @@ cat ${deviceId}.csr | sed '/-----BEGIN CERTIFICATE REQUEST-----/d'  | sed '/----
                     )}
                      {step === 5 && (
                         <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="validate-server-cert"
+                                    checked={validateServerCert}
+                                    onCheckedChange={setValidateServerCert}
+                                />
+                                <Label htmlFor="validate-server-cert">Validate Server Certificate (Recommended)</Label>
+                            </div>
+                             {validateServerCert && (
+                                <div>
+                                    <Label>1. Obtain Server Root CA</Label>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                        First, obtain the root certificate used by the server and save it as `root-ca.pem`.
+                                    </p>
+                                    <CodeBlock content={serverCertCommand} textareaClassName="h-28" />
+                                </div>
+                            )}
                             <div>
-                                <Label>Enrollment Command</Label>
-                                <CodeBlock content={enrollCommand} textareaClassName="h-32" />
+                                <Label>{validateServerCert ? '2. ' : ''}Enrollment Commands</Label>
+                                <CodeBlock content={finalEnrollCommand} textareaClassName="h-32" />
                             </div>
                             <p className="text-sm text-muted-foreground">
-                               Note: This command assumes you have saved the bootstrap certificate as `bootstrap.cert` and the key and CSR files (`${deviceId}.key`, `${deviceId}.csr`) are in the same directory.
+                               Note: This command assumes you have the required files (`bootstrap.cert`, `bootstrap.key`, `${deviceId}.stripped.csr`, and optionally `root-ca.pem`) in the same directory.
                             </p>
                         </div>
                     )}
