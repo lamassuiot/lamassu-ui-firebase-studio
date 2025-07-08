@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -13,6 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { CodeBlock } from '@/components/shared/CodeBlock';
 import { EST_API_BASE_URL } from '@/lib/api-domains';
 import { fetchEstCaCerts } from '@/lib/est-api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 
 import * as asn1js from "asn1js";
 import { Certificate as PkijsCertificate, getCrypto, setEngine } from "pkijs";
@@ -137,15 +141,13 @@ export default function EstCaCertsPage() {
     }
     
     return (
-        <div className="space-y-6 w-full">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                    <FileText className="h-8 w-8 text-primary" />
-                    <h1 className="text-2xl font-headline font-semibold">CA Certificates for {raId}</h1>
-                </div>
-                <Button variant="outline" onClick={() => router.back()}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                </Button>
+        <div className="space-y-6 w-full pb-12">
+            <Button variant="outline" onClick={() => router.back()}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+            <div className="flex items-center space-x-3">
+                <FileText className="h-8 w-8 text-primary" />
+                <h1 className="text-2xl font-headline font-semibold">CA Certificates for {raId}</h1>
             </div>
             <p className="text-sm text-muted-foreground">
                 Obtain the list of trusted CAs that are configured for this DMS instance.
@@ -160,61 +162,80 @@ export default function EstCaCertsPage() {
             )}
 
             {!error && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle className="text-base">RAW PKCS7 CA CERTS</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertDescription>Obtain CACerts using cURL</AlertDescription>
-                                <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPkcs7}</pre>
-                            </Alert>
-                            <CodeBlock content={pkcs7Certs} />
-                        </CardContent>
-                    </Card>
-                    <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle className="text-base">PEM FORMAT CA CERTS</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                             <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertDescription>Obtain CACerts using cURL</AlertDescription>
-                                <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPem}</pre>
-                            </Alert>
-                            <CodeBlock content={pemCerts} />
-                        </CardContent>
-                    </Card>
-                     <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle className="text-base">PARSED CAs</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ScrollArea className="h-[42rem]">
-                                <div className="space-y-4">
-                                    {parsedCerts.map((cert, index) => (
-                                        <div key={index}>
-                                            <Alert>
-                                                <Info className="h-4 w-4" />
-                                                <AlertDescription>Decoded Certificate</AlertDescription>
-                                            </Alert>
-                                            <div className="p-3 border-x border-b rounded-b-md space-y-2">
-                                                <DetailItem label="Serial Number" value={cert.serialNumber} isMono />
-                                                <DetailItem label="Public Key Algorithm" value={<Badge variant="secondary">{cert.publicKeyAlgorithm}</Badge>} />
-                                                <DetailItem label="Subject" value={cert.subject} isMono />
-                                                <DetailItem label="Issuer" value={cert.issuer} isMono />
-                                                <DetailItem label="Valid From" value={cert.validFrom} />
-                                                <DetailItem label="Valid To" value={cert.validTo} />
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {parsedCerts.length === 0 && <p className="text-sm text-center text-muted-foreground p-4">No certificates to display.</p>}
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                    {/* Left Column - Parsed Certs */}
+                    <div className="lg:col-span-1">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Parsed Certificates</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ScrollArea className="h-[42rem]">
+                                    {parsedCerts.length > 0 ? (
+                                        <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
+                                            {parsedCerts.map((cert, index) => {
+                                                const cnMatch = cert.subject.match(/CN=([^,]+)/);
+                                                const commonName = cnMatch ? cnMatch[1] : `Certificate #${index + 1}`;
+                                                return (
+                                                    <AccordionItem value={`item-${index}`} key={index}>
+                                                        <AccordionTrigger>{commonName}</AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <div className="p-3 border-t space-y-2">
+                                                                <DetailItem label="Serial Number" value={cert.serialNumber} isMono />
+                                                                <DetailItem label="Public Key Algorithm" value={<Badge variant="secondary">{cert.publicKeyAlgorithm}</Badge>} />
+                                                                <DetailItem label="Subject" value={cert.subject} isMono />
+                                                                <DetailItem label="Issuer" value={cert.issuer} isMono />
+                                                                <DetailItem label="Valid From" value={cert.validFrom} />
+                                                                <DetailItem label="Valid To" value={cert.validTo} />
+                                                            </div>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                )
+                                            })}
+                                        </Accordion>
+                                    ) : (
+                                        <p className="text-sm text-center text-muted-foreground p-4">No certificates to display.</p>
+                                    )}
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Right Column - Tabs for Raw Data */}
+                    <div className="lg:col-span-1">
+                        <Tabs defaultValue="pem" className="w-full">
+                            <TabsList>
+                                <TabsTrigger value="pem">PEM Format</TabsTrigger>
+                                <TabsTrigger value="pkcs7">RAW PKCS7</TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="pem" className="mt-4">
+                                <Card>
+                                    <CardContent className="space-y-3 pt-6">
+                                        <Alert>
+                                            <Info className="h-4 w-4" />
+                                            <AlertDescription>Obtain CACerts using cURL</AlertDescription>
+                                            <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPem}</pre>
+                                        </Alert>
+                                        <CodeBlock content={pemCerts} />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value="pkcs7" className="mt-4">
+                                <Card>
+                                    <CardContent className="space-y-3 pt-6">
+                                        <Alert>
+                                            <Info className="h-4 w-4" />
+                                            <AlertDescription>Obtain CACerts using cURL</AlertDescription>
+                                            <pre className="text-xs mt-1 bg-muted p-2 rounded-md font-mono overflow-x-auto">{curlPkcs7}</pre>
+                                        </Alert>
+                                        <CodeBlock content={pkcs7Certs} />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
                 </div>
             )}
         </div>

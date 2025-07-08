@@ -29,6 +29,7 @@ import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 import { fetchAndProcessCAs, findCaById, signCertificate, type CA } from '@/lib/ca-data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Stepper } from '@/components/shared/Stepper';
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -97,44 +98,6 @@ interface SanEntry {
   value: string;
 }
 
-// --- Stepper Component ---
-const Stepper: React.FC<{ currentStep: number }> = ({ currentStep }) => {
-  const steps = ["Configure", "Issue", "Done"];
-  return (
-    <div className="flex items-center space-x-4 mb-8">
-      {steps.map((label, index) => {
-        const stepNumber = index + 1;
-        const isCompleted = stepNumber < currentStep;
-        const isActive = stepNumber === currentStep;
-        return (
-          <React.Fragment key={stepNumber}>
-            <div className="flex flex-col items-center space-y-1">
-              <div className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center font-bold transition-colors",
-                isCompleted ? "bg-primary text-primary-foreground" :
-                isActive ? "bg-primary/20 border-2 border-primary text-primary" :
-                "bg-muted border-2 border-border text-muted-foreground"
-              )}>
-                {isCompleted ? <Check className="h-5 w-5" /> : stepNumber}
-              </div>
-              <p className={cn(
-                "text-xs font-medium",
-                isActive || isCompleted ? "text-primary" : "text-muted-foreground"
-              )}>{label}</p>
-            </div>
-            {index < steps.length - 1 && (
-              <div className={cn(
-                "flex-1 h-0.5 transition-colors",
-                isCompleted ? "bg-primary" : "bg-border"
-              )}></div>
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-};
-
 
 export default function IssueCertificateFormClient() {
   const searchParams = useSearchParams();
@@ -143,6 +106,7 @@ export default function IssueCertificateFormClient() {
   const { user } = useAuth();
   const caId = searchParams.get('caId');
   const prefilledCn = searchParams.get('prefill_cn');
+  const returnToDevice = searchParams.get('returnToDevice');
   const [step, setStep] = useState(1);
   
   const [issuerCa, setIssuerCa] = useState<CA | null>(null);
@@ -496,7 +460,7 @@ export default function IssueCertificateFormClient() {
                 </div>
             ) : (
                 <>
-                    <Stepper currentStep={step} />
+                    <Stepper currentStep={step} steps={["Configure", "Issue", "Done"]} />
                     
                     {step === 1 && (
                         <div className="space-y-6 mt-6">
@@ -753,7 +717,13 @@ export default function IssueCertificateFormClient() {
                 )}
                 {step === 3 && (
                     <>
-                        <Button type="button" variant="outline" onClick={() => router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`)}>
+                        <Button type="button" variant="outline" onClick={() => {
+                            if (returnToDevice) {
+                                router.push(`/devices/details?deviceId=${returnToDevice}&action=assignIdentity`);
+                            } else {
+                                router.push(`/certificate-authorities/details?caId=${caId}&tab=issued`);
+                            }
+                        }}>
                             Finish
                         </Button>
                         <Button type="button" onClick={() => router.push(`/certificates/details?certificateId=${issuedCertificate?.serial}`)} disabled={!issuedCertificate?.serial}>

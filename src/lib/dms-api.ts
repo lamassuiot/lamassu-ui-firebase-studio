@@ -66,6 +66,7 @@ export interface ApiRaItem {
     name: string;
     settings: ApiRaSettings;
     creation_ts: string;
+    metadata: Record<string, any>;
 }
 export interface ApiRaListResponse {
   next: string | null;
@@ -80,8 +81,16 @@ export interface RaCreationPayload {
 
 // --- API Functions ---
 
-export async function fetchRegistrationAuthorities(accessToken: string): Promise<ApiRaListResponse> {
-    const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms?page_size=15`, {
+export async function fetchRegistrationAuthorities(accessToken: string, params?: URLSearchParams): Promise<ApiRaListResponse> {
+    const url = new URL(`${DMS_MANAGER_API_BASE_URL}/dms`);
+    if (params) {
+        params.forEach((value, key) => url.searchParams.append(key, value));
+    }
+    if (!url.searchParams.has('page_size')) {
+        url.searchParams.set('page_size', '9');
+    }
+    
+    const response = await fetch(url.toString(), {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     return handleApiError(response, 'Failed to fetch RAs');
@@ -147,4 +156,18 @@ export async function fetchDmsStats(accessToken: string): Promise<{ total: numbe
         headers: { 'Authorization': `Bearer ${accessToken}` } 
     });
     return handleApiError(response, 'Failed to fetch RA stats');
+}
+
+export async function updateRaMetadata(raId: string, metadata: object, accessToken: string): Promise<void> {
+    const currentRa = await fetchRaById(raId, accessToken);
+    
+    // The payload for createOrUpdateRa needs the full settings object.
+    const payload: RaCreationPayload = {
+      name: currentRa.name,
+      id: currentRa.id,
+      metadata: metadata, // The new metadata
+      settings: currentRa.settings, // Preserve existing settings
+    };
+
+    await createOrUpdateRa(payload, accessToken, true, raId);
 }

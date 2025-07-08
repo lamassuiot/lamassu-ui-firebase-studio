@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -141,7 +142,8 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   const handleContinueToIssue = () => {
     if (selectedCA) {
         onOpenChange(false); // Close the modal
-        router.push(`/certificate-authorities/issue-certificate?caId=${selectedCA.id}&prefill_cn=${deviceId}`);
+        // Add returnToDevice query param
+        router.push(`/certificate-authorities/issue-certificate?caId=${selectedCA.id}&prefill_cn=${deviceId}&returnToDevice=${deviceId}`);
     }
   };
 
