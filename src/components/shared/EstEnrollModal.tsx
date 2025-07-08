@@ -352,12 +352,10 @@ export const EstEnrollModal: React.FC<EstEnrollModalProps> = ({ isOpen, onOpenCh
     
     const serverKeygenParseCommands = [
         `# 3. Extract Private Key`,
-        `#    Open ${finalDeviceId}.multipart, find the section starting with "Content-Type: application/pkcs8",`,
-        `#    copy the base64 content into a new file named "key.b64". Then run:`,
+        `awk '/Content-Type: application\\/pkcs8/{f=1; next} /--boundary/{f=0} f' ${finalDeviceId}.multipart > key.b64`,
         `openssl base64 -d -in key.b64 | openssl pkcs8 -inform DER -outform PEM -out ${finalDeviceId}.key`,
         `\n# 4. Extract Certificate`,
-        `#    In ${finalDeviceId}.multipart, find "Content-Type: application/pkcs7-mime",`,
-        `#    copy the base64 content into "cert.b64". Then run:`,
+        `awk '/Content-Type: application\\/pkcs7-mime/{f=1; next} /--boundary/{f=0} f' ${finalDeviceId}.multipart > cert.b64`,
         `openssl base64 -d -in cert.b64 | openssl pkcs7 -inform DER -print_certs -out ${finalDeviceId}.crt`,
         `\n# 5. Verify the new certificate`,
         `openssl x509 -text -noout -in ${finalDeviceId}.crt`
