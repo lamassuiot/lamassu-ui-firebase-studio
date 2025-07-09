@@ -26,7 +26,7 @@ const awsPolicySchema = z.object({
 
 const awsIntegrationSchema = z.object({
   aws_iot_manager_instance: z.string().optional(),
-  registration_mode: z.enum(['AUTOMATIC_REGISTRATION', 'JITP_BY_CA']).default('AUTOMATIC_REGISTRATION'),
+  registration_mode: z.enum(['NONE', 'AUTOMATIC_REGISTRATION', 'JITP_BY_CA']).default('NONE'),
   groups: z.array(z.string()).optional(),
   policies: z.array(awsPolicySchema).optional(),
   shadow_config: z.object({
@@ -69,7 +69,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       
       form.reset({
         aws_iot_manager_instance: config.aws_iot_manager_instance || 'aws.iot',
-        registration_mode: config.registration_mode || 'AUTOMATIC_REGISTRATION',
+        registration_mode: config.registration_mode || 'NONE',
         groups: config.groups || [],
         policies: config.policies || [],
         shadow_config: {
@@ -86,6 +86,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
   const watchShadowEnable = form.watch('shadow_config.enable');
   const watchShadowType = form.watch('shadow_config.shadow_type');
+  const watchRegistrationMode = form.watch('registration_mode');
 
   const onSubmit = async (data: AwsIntegrationFormValues) => {
     if (!user?.access_token) {
@@ -154,35 +155,39 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                 name="registration_mode"
                 render={({ field }) => (
                     <FormItem>
+                        <FormLabel>Registration Mode</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                             <SelectContent>
+                                <SelectItem value="NONE">None</SelectItem>
                                 <SelectItem value="AUTOMATIC_REGISTRATION">Automatic Registration on Enrollment</SelectItem>
-                                <SelectItem value="JITP_BY_CA">Just-In-Time Provisioning by CA</SelectItem>
+                                <SelectItem value="JITP_BY_CA">JITP Template</SelectItem>
                             </SelectContent>
                         </Select>
                     </FormItem>
                 )}
             />
-            <Alert variant="warning">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="space-y-3">
-                    <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
-                    <div className="flex items-end gap-4">
-                         <div className="flex-grow">
-                             <Label>Register as Primary Account</Label>
-                             <Select defaultValue="owner">
-                                 <SelectTrigger><SelectValue/></SelectTrigger>
-                                 <SelectContent><SelectItem value="owner">Primary Account - Register as CA owner</SelectItem></SelectContent>
-                             </Select>
-                             <p className="text-xs text-muted-foreground mt-1">
-                                Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.
-                            </p>
-                         </div>
-                         <Button type="button" variant="outline" onClick={() => alert("Sync CA (placeholder)")}>Synchronize CA</Button>
-                    </div>
-                </AlertDescription>
-            </Alert>
+            {watchRegistrationMode === 'JITP_BY_CA' && (
+                <Alert variant="warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="space-y-3">
+                        <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
+                        <div className="flex items-end gap-4">
+                            <div className="flex-grow">
+                                <Label>Register as Primary Account</Label>
+                                <Select defaultValue="owner">
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent><SelectItem value="owner">Primary Account - Register as CA owner</SelectItem></SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.
+                                </p>
+                            </div>
+                            <Button type="button" variant="outline" onClick={() => alert("Sync CA (placeholder)")}>Synchronize CA</Button>
+                        </div>
+                    </AlertDescription>
+                </Alert>
+            )}
           </CardContent>
         </Card>
 
