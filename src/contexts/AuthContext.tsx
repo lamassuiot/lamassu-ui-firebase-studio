@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
@@ -25,7 +24,8 @@ const createUserManager = (): UserManager | null => {
       response_type: 'code',
       scope: 'openid profile email', // Standard scopes
       userStore: new WebStorageStateStore({ store: window.localStorage }), // Persist user session
-      // monitorSession: true, // Optional: for session management features like checkSessionChanged
+      automaticSilentRenew: true, // Proactively renew tokens
+      monitorSession: true, // Monitor for session changes with the IdP
     });
   }
   return null;
@@ -64,6 +64,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAuthMode(isEnabled ? 'enabled' : 'disabled');
   }, []);
   
+  const logout = useCallback(async () => {
+    if (userManagerInstance) {
+      try {
+        setUser(null);
+        if (await userManagerInstance.getUser()) {
+          await userManagerInstance.signoutRedirect();
+        } else {
+          router.push('/');
+        }
+      } catch (error) {
+        console.error("AuthContext: Logout redirect error:", error);
+        setUser(null);
+        await userManagerInstance.removeUser();
+        router.push('/');
+      }
+    }
+  }, [userManagerInstance, router]);
+  
   useEffect(() => {
     if (!userManagerInstance) {
       // If there's no user manager (because auth is disabled or we're loading),
@@ -89,31 +107,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const onUserLoaded = (loadedUser: User) => setUser(loadedUser);
     const onUserUnloaded = () => setUser(null);
-    const onAccessTokenExpired = () => {
-      console.log("AuthContext: Access token expired, attempting silent renew...");
-      userManagerInstance.signinSilent().catch((err) => {
-        console.error("AuthContext: Silent renew failed after token expired, logging out.", err);
-        logout();
-      });
-    };
     const onSilentRenewError = (error: Error) => { console.error("AuthContext: Silent renew error:", error); logout(); };
     const onUserSignedOut = () => setUser(null);
 
     userManagerInstance.events.addUserLoaded(onUserLoaded);
     userManagerInstance.events.addUserUnloaded(onUserUnloaded);
-    userManagerInstance.events.addAccessTokenExpired(onAccessTokenExpired);
     userManagerInstance.events.addSilentRenewError(onSilentRenewError);
     userManagerInstance.events.addUserSignedOut(onUserSignedOut);
 
     return () => {
       userManagerInstance.events.removeUserLoaded(onUserLoaded);
       userManagerInstance.events.removeUserUnloaded(onUserUnloaded);
-      userManagerInstance.events.removeAccessTokenExpired(onAccessTokenExpired);
       userManagerInstance.events.removeSilentRenewError(onSilentRenewError);
       userManagerInstance.events.removeUserSignedOut(onUserSignedOut);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userManagerInstance]);
+  }, [userManagerInstance, authMode, logout]);
   
   const login = useCallback(async () => {
     if (userManagerInstance) {
@@ -124,24 +132,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   }, [userManagerInstance]);
-
-  const logout = useCallback(async () => {
-    if (userManagerInstance) {
-      try {
-        setUser(null);
-        if (await userManagerInstance.getUser()) {
-          await userManagerInstance.signoutRedirect();
-        } else {
-          router.push('/');
-        }
-      } catch (error) {
-        console.error("AuthContext: Logout redirect error:", error);
-        setUser(null);
-        await userManagerInstance.removeUser();
-        router.push('/');
-      }
-    }
-  }, [userManagerInstance, router]);
 
   const isAuthenticated = useCallback(() => {
     return !!user && !user.expired;
