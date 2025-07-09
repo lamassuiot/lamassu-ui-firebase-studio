@@ -76,12 +76,12 @@ export default function RegistrationAuthoritiesPage() {
 
   const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
   const [selectedRaForMetadata, setSelectedRaForMetadata] = useState<ApiRaItem | null>(null);
-
   const [isClientMounted, setIsClientMounted] = useState(false);
 
   useEffect(() => {
     setIsClientMounted(true);
   }, []);
+
 
   // Reset pagination when page size changes
   useEffect(() => {
@@ -150,6 +150,12 @@ export default function RegistrationAuthoritiesPage() {
     return ca ? ca.name : caId;
   };
 
+  useEffect(() => {
+    if (isClientMounted && !authLoading && isAuthenticated()) {
+      fetchData(bookmarkStack[currentPageIndex]);
+    }
+  }, [isClientMounted, authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchData]);
+
   const handleNextPage = () => {
     if (isLoading || !nextTokenFromApi) return;
     const potentialNextPageIndex = currentPageIndex + 1;
@@ -197,7 +203,7 @@ export default function RegistrationAuthoritiesPage() {
     await updateRaMetadata(raId, metadata, user.access_token);
   };
 
-  if (isLoading || authLoading) {
+  if (!isClientMounted || authLoading || (isLoading && ras.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
