@@ -56,8 +56,7 @@ export default function IntegrationsPage() {
   }, [authLoading, loadIntegrations]);
 
   const handleCreateNewIntegration = () => {
-    // This would likely navigate to the RA list or a new integration wizard
-    alert('Navigate to Create New Integration form (placeholder)');
+    router.push('/integrations/new');
   };
 
   const handleViewRa = (raId: string) => {
