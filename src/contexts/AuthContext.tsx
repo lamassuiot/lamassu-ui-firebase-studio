@@ -168,11 +168,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return !!user && !user.expired;
   }, [user]);
 
-  // Render a loading state until we have determined the auth mode from the config.
-  if (authMode === 'loading') {
-    return <div></div>; // Or a full-screen loader component
-  }
-
   // If auth is disabled, provide the mock context.
   if (authMode === 'disabled') {
     const mockUser = new User({
@@ -204,7 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
   }
 
-  // If auth is enabled, provide the real OIDC context.
+  // If auth is enabled (or still loading), provide the real OIDC context.
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout, isAuthenticated, userManager: userManagerInstance }}>
       {children}
