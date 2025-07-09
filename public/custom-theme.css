@@ -1,8 +1,1 @@
-# Use this css to override default theme
-:root {
-    --background: 10 10% 10%; /* Your new background color */
-  }
-
-  .dark {
-     --background: 250 10% 10%; /* Your new dark background color */
-  }
+/* Using default theme. Place here theme var values, see _custom-theme.css */
