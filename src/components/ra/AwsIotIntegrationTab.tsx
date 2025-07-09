@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -97,28 +98,25 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   }, [watchShadowType, form]);
 
   useEffect(() => {
-    if (ra?.metadata && ra.metadata[AWS_IOT_METADATA_KEY]) {
-      const config = ra.metadata[AWS_IOT_METADATA_KEY];
-      const shadowType = config.shadow_config?.shadow_name ? 'Named' : 'Classic';
-      
-      form.reset({
-        aws_iot_manager_instance: config.aws_iot_manager_instance ?? defaultFormValues.aws_iot_manager_instance,
-        registration_mode: config.registration_mode ?? defaultFormValues.registration_mode,
-        groups: config.groups ?? defaultFormValues.groups,
-        policies: config.policies ?? defaultFormValues.policies,
+    if (ra) {
+      const config = ra.metadata?.[AWS_IOT_METADATA_KEY] || {};
+
+      const mergedValues = {
+        ...defaultFormValues,
+        ...config,
         shadow_config: {
-            enable: config.shadow_config?.enable ?? defaultFormValues.shadow_config.enable,
-            shadow_type: shadowType,
-            shadow_name: config.shadow_config?.shadow_name || '',
+          ...defaultFormValues.shadow_config,
+          ...(config.shadow_config || {}),
         },
         remediation_config: {
-            account_id: config.remediation_config?.account_id ?? defaultFormValues.remediation_config.account_id,
+          ...defaultFormValues.remediation_config,
+          ...(config.remediation_config || {}),
         },
-        registration: config.registration,
-      });
-    } else {
-        // If no config exists, ensure form is reset to defaults
-        form.reset(defaultFormValues);
+      };
+
+      mergedValues.shadow_config.shadow_type = config.shadow_config?.shadow_name ? 'Named' : 'Classic';
+
+      form.reset(mergedValues);
     }
   }, [ra, form]);
 
