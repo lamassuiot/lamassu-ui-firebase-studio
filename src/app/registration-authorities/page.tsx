@@ -77,60 +77,78 @@ export default function RegistrationAuthoritiesPage() {
   const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
   const [selectedRaForMetadata, setSelectedRaForMetadata] = useState<ApiRaItem | null>(null);
 
+  const [isClientMounted, setIsClientMounted] = useState(false);
+
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
+
   // Reset pagination when page size changes
   useEffect(() => {
     setCurrentPageIndex(0);
     setBookmarkStack([null]);
   }, [pageSize]);
 
-  const fetchData = useCallback(async (bookmarkToFetch: string | null) => {
-    if (!isAuthenticated() || !user?.access_token) {
-      if (!authLoading) setError("User not authenticated.");
-      setIsLoading(false);
+  useEffect(() => {
+    // Gate fetching until the component is mounted and auth is resolved
+    if (!isClientMounted || authLoading || !isAuthenticated() || !user?.access_token) {
+      if (!authLoading && !isAuthenticated() && isClientMounted) {
+        setError("User not authenticated.");
+      }
+      if(!authLoading) setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      params.append('sort_by', 'name');
-      params.append('sort_mode', 'asc');
-      params.append('page_size', pageSize);
-      if (bookmarkToFetch) {
-        params.append('bookmark', bookmarkToFetch);
-      }
-      
-      const [raData, caData] = await Promise.all([
-        fetchRegistrationAuthorities(user.access_token, params),
-        fetchAndProcessCAs(user.access_token)
-      ]);
+    const fetchData = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const params = new URLSearchParams();
+          params.append('sort_by', 'name');
+          params.append('sort_mode', 'asc');
+          params.append('page_size', pageSize);
+          
+          const bookmarkToFetch = bookmarkStack[currentPageIndex];
+          if (bookmarkToFetch) {
+            params.append('bookmark', bookmarkToFetch);
+          }
+          
+          // Fetch RAs and CAs in parallel, but only fetch CAs if the list is empty to optimize pagination.
+          const promises: [Promise<any>, Promise<CA[]>?] = [
+            fetchRegistrationAuthorities(user.access_token!, params)
+          ];
+          
+          if (allCAs.length === 0) {
+            promises.push(fetchAndProcessCAs(user.access_token!));
+          }
 
-      setRas(raData.list || []);
-      setNextTokenFromApi(raData.next || null);
-      setAllCAs(caData);
+          const [raData, caData] = await Promise.all(promises);
 
-    } catch (err: any) {
-      setError(err.message || 'An unknown error occurred while fetching data.');
-      setRas([]);
-      setNextTokenFromApi(null);
-      setAllCAs([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.access_token, isAuthenticated, authLoading, pageSize]);
+          setRas(raData.list || []);
+          setNextTokenFromApi(raData.next || null);
+          if (caData) { // Only update CAs if they were fetched
+            setAllCAs(caData);
+          }
+
+        } catch (err: any) {
+          setError(err.message || 'An unknown error occurred while fetching data.');
+          setRas([]);
+          setNextTokenFromApi(null);
+          // Don't clear CAs on RA fetch failure if we already have them
+          // setAllCAs([]); 
+        } finally {
+          setIsLoading(false);
+        }
+    };
+    
+    fetchData();
+  }, [isClientMounted, authLoading, isAuthenticated, user?.access_token, pageSize, currentPageIndex]);
 
 
   const getCaNameById = (caId: string) => {
     const ca = findCaById(caId, allCAs);
     return ca ? ca.name : caId;
   };
-
-  useEffect(() => {
-    if (!authLoading && isAuthenticated()) {
-      fetchData(bookmarkStack[currentPageIndex]);
-    }
-  }, [authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchData]);
 
   const handleNextPage = () => {
     if (isLoading || !nextTokenFromApi) return;
@@ -149,7 +167,8 @@ export default function RegistrationAuthoritiesPage() {
   };
   
   const handleRefresh = () => {
-    fetchData(bookmarkStack[currentPageIndex]);
+    // This will trigger the useEffect to refetch
+    setBookmarkStack(prev => [...prev]);
   };
 
   const handleCreateNewRAClick = () => {
@@ -178,7 +197,7 @@ export default function RegistrationAuthoritiesPage() {
     await updateRaMetadata(raId, metadata, user.access_token);
   };
 
-  if (authLoading || (isLoading && ras.length === 0)) {
+  if (isLoading || authLoading) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -452,4 +471,3 @@ export default function RegistrationAuthoritiesPage() {
   );
 }
 
-    

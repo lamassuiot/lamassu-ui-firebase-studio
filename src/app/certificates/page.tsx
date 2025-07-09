@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
-import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, Search, PlusCircle } from 'lucide-react';
+import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, Search, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAndProcessCAs, fetchCryptoEngines, type CA } from '@/lib/ca-data';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,11 +15,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 import { usePaginatedCertificateFetcher, type ApiStatusFilterValue } from '@/hooks/usePaginatedCertificateFetcher';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export type SortableCertColumn = 'commonName' | 'serialNumber' | 'expires' | 'status' | 'validFrom';
 export type SortDirection = 'asc' | 'desc';
@@ -30,10 +29,45 @@ export interface CertSortConfig {
   direction: SortDirection;
 }
 
+const CertificatesPageSkeleton = () => (
+  <div className="w-full space-y-6 pb-8">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="flex items-center space-x-3">
+        <FileText className="h-8 w-8 text-primary" />
+        <h1 className="text-2xl font-headline font-semibold">Issued Certificates</h1>
+      </div>
+      <div className="flex items-center space-x-2 self-start sm:self-center">
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-10 w-44" />
+      </div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+      <div className="space-y-1"><Skeleton className="h-5 w-24 mb-1.5" /><Skeleton className="h-10 w-full" /></div>
+      <div className="space-y-1"><Skeleton className="h-5 w-20 mb-1.5" /><Skeleton className="h-10 w-full" /></div>
+      <div className="space-y-1"><Skeleton className="h-5 w-16 mb-1.5" /><Skeleton className="h-10 w-full" /></div>
+    </div>
+    <div className="space-y-2">
+      <Skeleton className="h-12 w-full" />
+      {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+    </div>
+    <div className="flex justify-between items-center mt-4">
+      <Skeleton className="h-9 w-40" />
+      <div className="flex items-center space-x-2">
+        <Skeleton className="h-9 w-24" />
+        <Skeleton className="h-9 w-24" />
+      </div>
+    </div>
+  </div>
+);
+
+
 export default function CertificatesPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  
+  const [isClientMounted, setIsClientMounted] = useState(false);
+  useEffect(() => { setIsClientMounted(true); }, []);
 
   const {
     certificates,
@@ -66,8 +100,8 @@ export default function CertificatesPage() {
   const [errorCryptoEngines, setErrorCryptoEngines] = useState<string | null>(null);
 
   const loadPageDependencies = useCallback(async () => {
-    if (authLoading || !isAuthenticated() || !user?.access_token) {
-      if (!authLoading && !isAuthenticated()) {
+    if (!isClientMounted || authLoading || !isAuthenticated() || !user?.access_token) {
+      if (!authLoading && isAuthenticated() && isClientMounted) {
         setErrorCAs("User not authenticated. Please log in.");
         setErrorCryptoEngines("User not authenticated. Please log in.");
         setAllCAs([]);
@@ -110,7 +144,7 @@ export default function CertificatesPage() {
     } else {
         setIsLoadingCryptoEngines(false);
     }
-  }, [user?.access_token, isAuthenticated, authLoading, allCAs.length, allCryptoEngines.length]);
+  }, [user?.access_token, isAuthenticated, authLoading, allCAs.length, allCryptoEngines.length, isClientMounted]);
   
   useEffect(() => {
     loadPageDependencies();
@@ -141,6 +175,10 @@ export default function CertificatesPage() {
     setSelectedCertificate(certificate);
     setIsModalOpen(true);
   };
+  
+  if (!isClientMounted) {
+    return <CertificatesPageSkeleton />;
+  }
   
   const loadingText = authLoading 
       ? "Authenticating..." 
