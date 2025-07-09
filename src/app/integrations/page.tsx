@@ -63,6 +63,14 @@ export default function IntegrationsPage() {
     router.push(`/registration-authorities/new?raId=${raId}`);
   };
 
+  const handleConfigure = (integration: DiscoveredIntegration) => {
+    if (integration.type === 'AWS_IOT_CORE') {
+        router.push(`/integrations/configure?raId=${integration.raId}&configKey=${integration.configKey}`);
+    } else {
+        alert(`Configuration for ${integration.typeName} is not yet implemented.`);
+    }
+  };
+
   if (isLoading || authLoading) {
     return (
         <div className="flex flex-col items-center justify-center flex-1 p-8">
@@ -135,7 +143,7 @@ export default function IntegrationsPage() {
                     <Button variant="outline" size="sm" onClick={() => handleViewRa(integration.raId)}>
                         <Eye className="mr-2 h-4 w-4" /> View RA
                     </Button>
-                    <Button variant="default" size="sm" onClick={() => alert(`Configure ${integration.typeName}`)}>
+                    <Button variant="default" size="sm" onClick={() => handleConfigure(integration)}>
                         <Settings className="mr-2 h-4 w-4" /> Configure
                     </Button>
                 </div>
