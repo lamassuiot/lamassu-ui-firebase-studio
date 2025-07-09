@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -223,11 +222,25 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
             {(watchRegistrationMode === 'JITP_BY_CA' || watchRegistrationMode === 'AUTOMATIC_REGISTRATION') && (
                 registrationStatus === 'REQUESTED' ? (
-                  <Alert variant="default" className="bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800">
-                    <Info className="h-4 w-4 text-sky-500"/>
-                    <AlertTitle className="text-sky-700 dark:text-sky-300">Synchronization Pending</AlertTitle>
-                    <AlertDescription className="text-sky-600 dark:text-sky-400">
-                      A request to synchronize this CA was sent on {registrationTime ? format(parseISO(registrationTime), 'PPpp') : 'an unknown date'}. The status will update once processed by the backend.
+                  <Alert variant="warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription asChild>
+                      <div className="space-y-3">
+                        <p>
+                          Registering process underway. CA should be registered soon, click on 'Reload &amp; Check' periodically.
+                        </p>
+                        <div className="bg-gray-900 text-gray-200 font-mono text-xs p-4 rounded-md overflow-x-auto">
+                          <pre><code>{JSON.stringify({ registration: ra.metadata[AWS_IOT_METADATA_KEY].registration }, null, 2)}</code></pre>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="p-0 h-auto font-semibold"
+                          onClick={onUpdate}
+                        >
+                          Reload &amp; Check
+                        </Button>
+                      </div>
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -316,7 +329,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
             </CardContent>
         </Card>
 
-        <h3 className={sectionTitleStyle}>Shadows & Device Automation</h3>
+        <h3 className={sectionTitleStyle}>Shadows &amp; Device Automation</h3>
         <Card>
             <CardContent className="pt-6 space-y-4">
                  <FormField
