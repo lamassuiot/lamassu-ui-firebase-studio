@@ -19,7 +19,7 @@ import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
-import { findCaById, fetchAndProcessCAs, updateCaMetadata, type CA } from '@/lib/ca-data';
+import { findCaById, fetchAndProcessCAs, updateCaMetadata, type CA, type PatchOperation } from '@/lib/ca-data';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { cn } from '@/lib/utils';
 
@@ -179,9 +179,13 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         const existingCaMetadata = enrollmentCa.rawApiData?.metadata || {};
         const existingAwsConfig = existingCaMetadata[AWS_IOT_METADATA_KEY] || {};
         const newAwsConfig = { ...existingAwsConfig, registration: registrationPayload };
-        const updatedMetadata = { ...existingCaMetadata, [AWS_IOT_METADATA_KEY]: newAwsConfig };
+
+        const op: PatchOperation['op'] = existingCaMetadata[AWS_IOT_METADATA_KEY] ? 'replace' : 'add';
+        const path = `/${AWS_IOT_METADATA_KEY.replace(/\//g, '~1')}`;
         
-        await updateCaMetadata(enrollmentCa.id, updatedMetadata, user.access_token);
+        const patchOperations: PatchOperation[] = [{ op, path, value: newAwsConfig }];
+        
+        await updateCaMetadata(enrollmentCa.id, patchOperations, user.access_token);
         
         toast({ title: "Success", description: "CA synchronization request has been sent." });
         loadCaData(); // Refresh the CA data to get the new status

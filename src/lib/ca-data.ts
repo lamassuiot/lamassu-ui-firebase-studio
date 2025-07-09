@@ -623,14 +623,20 @@ export async function importCa(payload: ImportCaPayload, accessToken: string): P
   }
 }
 
-export async function updateCaMetadata(caId: string, metadata: object, accessToken: string): Promise<void> {
+export interface PatchOperation {
+  op: "add" | "remove" | "replace";
+  path: string;
+  value?: any;
+}
+
+export async function updateCaMetadata(caId: string, patchOperations: PatchOperation[], accessToken: string): Promise<void> {
   const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/metadata`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json-patch+json',
       'Authorization': `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(metadata),
+    body: JSON.stringify(patchOperations),
   });
 
   if (!response.ok) {

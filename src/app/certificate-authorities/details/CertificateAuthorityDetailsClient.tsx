@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { CA } from '@/lib/ca-data';
+import type { CA, PatchOperation } from '@/lib/ca-data';
 import { findCaById, fetchAndProcessCAs, fetchCryptoEngines, updateCaMetadata, fetchCaStats, revokeCa, deleteCa, parseCertificatePemDetails } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -263,11 +263,11 @@ export default function CertificateAuthorityDetailsClient() {
     }
   };
   
-  const handleUpdateCaMetadata = async (id: string, metadata: object) => {
+  const handleUpdateCaMetadata = async (id: string, patchOperations: PatchOperation[]) => {
     if (!user?.access_token) {
         throw new Error("User not authenticated.");
     }
-    await updateCaMetadata(id, metadata, user.access_token);
+    await updateCaMetadata(id, patchOperations, user.access_token);
   };
 
   if (authLoading || isLoadingCAs || isLoadingEngines) {
