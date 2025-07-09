@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +112,7 @@ export default function DevicesPage() {
   const { toast } = useToast();
 
   const [devices, setDevices] = useState<DeviceData[]>([]);
-  const [isLoadingApi, setIsLoadingApi] = useState(false);
+  const [isLoadingApi, setIsLoadingApi] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const dmsOwnerFilter = searchParams.get('dms_owner');
@@ -135,7 +135,10 @@ export default function DevicesPage() {
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [raForEnrollModal, setRaForEnrollModal] = useState<ApiRaItem | null>(null);
   const [deviceForEnrollModal, setDeviceForEnrollModal] = useState<DeviceData | null>(null);
+  
+  const isInitialLoad = useRef(true);
 
+  // Debounce search term
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -146,88 +149,88 @@ export default function DevicesPage() {
     };
   }, [searchTerm]);
 
+  // Reset pagination when filters change, but not on initial mount
   useEffect(() => {
+    if (isInitialLoad.current) {
+        return;
+    }
     setBookmarkStack([null]);
     setCurrentPageIndex(0);
   }, [debouncedSearchTerm, searchField, statusFilter, pageSize, dmsOwnerFilter]);
 
-
-  const fetchDevicesData = useCallback(async (
-    bookmarkToFetch: string | null,
-    filterTerm: string,
-    filterField: 'id' | 'tags',
-    filterStatus: DeviceStatus | 'ALL',
-    currentPageSize: string
-  ) => {
+  // Main data fetching effect
+  useEffect(() => {
     if (authLoading || !isAuthenticated() || !user?.access_token) {
-      if (!authLoading && !isAuthenticated()) {
+        if (!authLoading && !isAuthenticated()) {
+            setApiError("User not authenticated.");
+        }
+        setIsLoadingApi(false);
         setDevices([]);
         setNextTokenFromApi(null);
-      }
-      return;
+        return;
     }
 
-    setIsLoadingApi(true);
-    setApiError(null);
-    try {
-      const params = new URLSearchParams({
-        sort_by: 'creation_timestamp',
-        sort_mode: 'desc',
-        page_size: currentPageSize,
-      });
-      if (bookmarkToFetch) {
-        params.append('bookmark', bookmarkToFetch);
-      }
-      
-      const filtersToApply: string[] = [];
-      if (dmsOwnerFilter) {
-          filtersToApply.push(`dms_owner[equal]${dmsOwnerFilter}`);
-      }
-      if (filterTerm.trim() !== '') {
-        filtersToApply.push(`${filterField}[contains]${filterTerm.trim()}`);
-      }
-      if (filterStatus !== 'ALL') {
-        filtersToApply.push(`status[equal]${filterStatus}`);
-      }
-      filtersToApply.forEach(f => params.append('filter', f));
+    const fetchDevicesData = async () => {
+        setIsLoadingApi(true);
+        setApiError(null);
+        try {
+            const params = new URLSearchParams({
+                sort_by: 'creation_timestamp',
+                sort_mode: 'desc',
+                page_size: pageSize,
+            });
 
-      const data = await fetchDevices(user.access_token, params);
+            const bookmarkToFetch = bookmarkStack[currentPageIndex];
+            if (bookmarkToFetch) {
+                params.append('bookmark', bookmarkToFetch);
+            }
+            
+            const filtersToApply: string[] = [];
+            if (dmsOwnerFilter) {
+                filtersToApply.push(`dms_owner[equal]${dmsOwnerFilter}`);
+            }
+            if (debouncedSearchTerm.trim() !== '') {
+                filtersToApply.push(`${searchField}[contains]${debouncedSearchTerm.trim()}`);
+            }
+            if (statusFilter !== 'ALL') {
+                filtersToApply.push(`status[equal]${statusFilter}`);
+            }
+            filtersToApply.forEach(f => params.append('filter', f));
 
-      const transformedDevices: DeviceData[] = data.list.map(apiDevice => ({
-        id: apiDevice.id,
-        displayId: apiDevice.id,
-        iconType: mapApiIconToIconType(apiDevice.icon),
-        icon_color: apiDevice.icon_color,
-        status: apiDevice.status as DeviceStatus,
-        deviceGroup: apiDevice.dms_owner,
-        createdAt: apiDevice.creation_timestamp,
-        tags: apiDevice.tags || [],
-      }));
+            const data = await fetchDevices(user.access_token, params);
 
-      setDevices(transformedDevices);
-      setNextTokenFromApi(data.next);
-      setApiError(null);
-    } catch (error: any) {
-      console.error("Failed to fetch devices:", error);
-      setApiError(error.message || "An unknown error occurred while fetching devices.");
-      setDevices([]);
-      setNextTokenFromApi(null);
-    } finally {
-      setIsLoadingApi(false);
-    }
-  }, [user?.access_token, authLoading, isAuthenticated, dmsOwnerFilter]);
+            const transformedDevices: DeviceData[] = data.list.map(apiDevice => ({
+                id: apiDevice.id,
+                displayId: apiDevice.id,
+                iconType: mapApiIconToIconType(apiDevice.icon),
+                icon_color: apiDevice.icon_color,
+                status: apiDevice.status as DeviceStatus,
+                deviceGroup: apiDevice.dms_owner,
+                createdAt: apiDevice.creation_timestamp,
+                tags: apiDevice.tags || [],
+            }));
 
-  useEffect(() => {
-    if (bookmarkStack.length > 0 && currentPageIndex < bookmarkStack.length) {
-        fetchDevicesData(
-          bookmarkStack[currentPageIndex],
-          debouncedSearchTerm,
-          searchField,
-          statusFilter,
-          pageSize
-        );
-    }
-  }, [fetchDevicesData, currentPageIndex, bookmarkStack, debouncedSearchTerm, searchField, statusFilter, pageSize]);
+            setDevices(transformedDevices);
+            setNextTokenFromApi(data.next);
+        } catch (error: any) {
+            console.error("Failed to fetch devices:", error);
+            setApiError(error.message || "An unknown error occurred while fetching devices.");
+            setDevices([]);
+            setNextTokenFromApi(null);
+        } finally {
+            setIsLoadingApi(false);
+            if (isInitialLoad.current) {
+                isInitialLoad.current = false;
+            }
+        }
+    };
+
+    fetchDevicesData();
+  }, [
+      user, isAuthenticated, authLoading, 
+      currentPageIndex, bookmarkStack, 
+      debouncedSearchTerm, searchField, statusFilter, pageSize, dmsOwnerFilter
+  ]);
 
   const requestSort = (column: SortableColumn) => {
     let direction: SortDirection = 'asc';
@@ -337,15 +340,8 @@ export default function DevicesPage() {
 
 
   const handleRefresh = () => {
-    if (currentPageIndex < bookmarkStack.length) {
-        fetchDevicesData(
-          bookmarkStack[currentPageIndex],
-          debouncedSearchTerm,
-          searchField,
-          statusFilter,
-          pageSize
-        );
-    }
+    // Re-trigger the main data fetching useEffect by creating a new but identical bookmarkStack
+    setBookmarkStack([...bookmarkStack]);
   };
 
   const handleNextPage = () => {
@@ -622,3 +618,4 @@ export default function DevicesPage() {
     </div>
   );
 }
+
