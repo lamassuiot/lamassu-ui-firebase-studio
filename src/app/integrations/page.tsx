@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -5,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Blocks, PlusCircle, Loader2, AlertTriangle, Cloud, Settings, Eye } from "lucide-react";
+import { Blocks, PlusCircle, Loader2, AlertTriangle, Cloud, Settings, Eye, RefreshCw } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
@@ -79,9 +80,14 @@ export default function IntegrationsPage() {
           <Blocks className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-headline font-semibold">Platform Integrations</h1>
         </div>
-        <Button onClick={handleCreateNewIntegration}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Create New Integration
-        </Button>
+        <div className="flex items-center space-x-2">
+            <Button onClick={loadIntegrations} variant="outline" disabled={isLoading}>
+                <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} /> Refresh
+            </Button>
+            <Button onClick={handleCreateNewIntegration}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Create New Integration
+            </Button>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         Discovered integrations with IoT platforms based on Registration Authority metadata.
