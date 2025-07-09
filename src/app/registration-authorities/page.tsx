@@ -83,54 +83,55 @@ export default function RegistrationAuthoritiesPage() {
     setBookmarkStack([null]);
   }, [pageSize]);
 
-  const fetchData = useCallback(async (bookmarkToFetch: string | null) => {
-    if (!isAuthenticated() || !user?.access_token) {
-      if (!authLoading) setError("User not authenticated.");
+  useEffect(() => {
+    if (authLoading || !isAuthenticated() || !user?.access_token) {
+      if (!authLoading && !isAuthenticated()) setError("User not authenticated.");
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      params.append('sort_by', 'name');
-      params.append('sort_mode', 'asc');
-      params.append('page_size', pageSize);
-      if (bookmarkToFetch) {
-        params.append('bookmark', bookmarkToFetch);
-      }
-      
-      const [raData, caData] = await Promise.all([
-        fetchRegistrationAuthorities(user.access_token, params),
-        fetchAndProcessCAs(user.access_token)
-      ]);
+    const fetchData = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const params = new URLSearchParams();
+          params.append('sort_by', 'name');
+          params.append('sort_mode', 'asc');
+          params.append('page_size', pageSize);
+          
+          const bookmarkToFetch = bookmarkStack[currentPageIndex];
+          if (bookmarkToFetch) {
+            params.append('bookmark', bookmarkToFetch);
+          }
+          
+          const [raData, caData] = await Promise.all([
+            fetchRegistrationAuthorities(user.access_token, params),
+            fetchAndProcessCAs(user.access_token)
+          ]);
 
-      setRas(raData.list || []);
-      setNextTokenFromApi(raData.next || null);
-      setAllCAs(caData);
+          setRas(raData.list || []);
+          setNextTokenFromApi(raData.next || null);
+          setAllCAs(caData);
 
-    } catch (err: any) {
-      setError(err.message || 'An unknown error occurred while fetching data.');
-      setRas([]);
-      setNextTokenFromApi(null);
-      setAllCAs([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.access_token, isAuthenticated, authLoading, pageSize]);
+        } catch (err: any) {
+          setError(err.message || 'An unknown error occurred while fetching data.');
+          setRas([]);
+          setNextTokenFromApi(null);
+          setAllCAs([]);
+        } finally {
+          setIsLoading(false);
+        }
+    };
+    
+    fetchData();
+
+  }, [user?.access_token, isAuthenticated, authLoading, pageSize, currentPageIndex, bookmarkStack]);
 
 
   const getCaNameById = (caId: string) => {
     const ca = findCaById(caId, allCAs);
     return ca ? ca.name : caId;
   };
-
-  useEffect(() => {
-    if (!authLoading && isAuthenticated()) {
-      fetchData(bookmarkStack[currentPageIndex]);
-    }
-  }, [authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchData]);
 
   const handleNextPage = () => {
     if (isLoading || !nextTokenFromApi) return;
@@ -149,7 +150,7 @@ export default function RegistrationAuthoritiesPage() {
   };
   
   const handleRefresh = () => {
-    fetchData(bookmarkStack[currentPageIndex]);
+    setBookmarkStack([...bookmarkStack]);
   };
 
   const handleCreateNewRAClick = () => {
@@ -451,5 +452,3 @@ export default function RegistrationAuthoritiesPage() {
     </>
   );
 }
-
-    
