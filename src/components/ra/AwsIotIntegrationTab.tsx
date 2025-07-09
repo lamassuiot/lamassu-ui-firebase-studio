@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Info, Loader2, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
@@ -116,10 +116,18 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       }
     }
     
+    // Preserve registration info if it exists
+    const existingRegistration = ra.metadata?.[AWS_IOT_METADATA_KEY]?.registration;
+    
+    const newAwsConfig = { ...data };
+    if (existingRegistration) {
+        newAwsConfig.registration = existingRegistration;
+    }
+    
     if (updatedRaPayload.metadata) {
-        updatedRaPayload.metadata[AWS_IOT_METADATA_KEY] = data;
+        updatedRaPayload.metadata[AWS_IOT_METADATA_KEY] = newAwsConfig;
     } else {
-        updatedRaPayload.metadata = { [AWS_IOT_METADATA_KEY]: data };
+        updatedRaPayload.metadata = { [AWS_IOT_METADATA_KEY]: newAwsConfig };
     }
 
     try {
@@ -172,8 +180,34 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   };
   
   const sectionTitleStyle = "text-lg font-semibold";
-  const registrationStatus = ra?.metadata?.[AWS_IOT_METADATA_KEY]?.registration?.status;
-  const registrationTime = ra?.metadata?.[AWS_IOT_METADATA_KEY]?.registration?.registration_request_time;
+  const registrationInfo = ra?.metadata?.[AWS_IOT_METADATA_KEY]?.registration;
+
+  const getStatusContent = (regInfo: any) => {
+    switch(regInfo.status) {
+        case 'COMPLETED':
+            return {
+                Icon: CheckCircle,
+                variant: 'default',
+                title: 'CA Registration Status: COMPLETED',
+                message: `CA registration completed successfully at ${format(parseISO(regInfo.registration_request_time), 'PPpp')}.`,
+            };
+        case 'FAILED':
+             return {
+                Icon: XCircle,
+                variant: 'destructive',
+                title: 'CA Registration Status: FAILED',
+                message: `CA registration failed. Please check logs and try again.`,
+            };
+        case 'REQUESTED':
+        default:
+             return {
+                Icon: AlertTriangle,
+                variant: 'warning',
+                title: 'CA Registration Status: REQUESTED',
+                message: "Registering process underway. CA should be registered soon, click on 'Reload & Check' periodically.",
+            };
+    }
+  };
 
 
   return (
@@ -221,30 +255,28 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
             />
 
             {(watchRegistrationMode === 'JITP_BY_CA' || watchRegistrationMode === 'AUTOMATIC_REGISTRATION') && (
-                registrationStatus === 'REQUESTED' ? (
-                  <Alert variant="warning">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription asChild>
-                      <div className="space-y-3">
-                        <p>
-                          Registering process underway. CA should be registered soon, click on 'Reload &amp; Check' periodically.
-                        </p>
-                        <div className="bg-gray-900 text-gray-200 font-mono text-xs p-4 rounded-md overflow-x-auto">
-                          <pre><code>{JSON.stringify({ registration: ra.metadata[AWS_IOT_METADATA_KEY].registration }, null, 2)}</code></pre>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="p-0 h-auto font-semibold"
-                          onClick={onUpdate}
-                        >
-                          Reload &amp; Check
-                        </Button>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <Alert variant="warning">
+                <>
+                {registrationInfo ? (() => {
+                    const { Icon, variant, title, message } = getStatusContent(registrationInfo);
+                    return (
+                        <Alert variant={variant as any}>
+                            <Icon className="h-4 w-4" />
+                            <AlertTitle>{title}</AlertTitle>
+                            <AlertDescription asChild>
+                                <div className="space-y-3">
+                                    <p>{message}</p>
+                                    <div className="bg-gray-900 text-gray-200 font-mono text-xs p-4 rounded-md overflow-x-auto">
+                                        <pre><code>{JSON.stringify({ registration: registrationInfo }, null, 2)}</code></pre>
+                                    </div>
+                                    <Button type="button" variant="link" className="p-0 h-auto font-semibold" onClick={onUpdate}>
+                                        Reload & Check Status
+                                    </Button>
+                                </div>
+                            </AlertDescription>
+                        </Alert>
+                    )
+                })() : (
+                    <Alert variant="warning">
                       <AlertTriangle className="h-4 w-4" />
                       <AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
                       <AlertDescription asChild>
@@ -281,7 +313,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         </div>
                       </AlertDescription>
                   </Alert>
-                )
+                )}
+              </>
             )}
           </CardContent>
         </Card>
