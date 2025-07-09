@@ -8,5 +8,7 @@ window.lamassuConfig = {
     LAMASSU_AUTH_CLIENT_ID: "frontend",
     
     // API Gateway Base URL
-    LAMASSU_API: "https://lab.lamassu.io/api"
+    LAMASSU_API: "https://lab.lamassu.io/api",
+
+    LAMASSU_CLOUD_CONNECTORS: []
 };
