@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import Script from 'next/script';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams }
   from 'next/navigation';
@@ -120,10 +120,45 @@ const LoadingState = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
     <Loader2 className="h-16 w-16 animate-spin text-primary" />
     <p className="mt-6 text-lg text-muted-foreground">
-      Loading authentication status...
+      Loading application...
     </p>
   </div>
 );
+
+const CustomFooter = () => {
+  const [showFooter, setShowFooter] = useState(false);
+  const [footerContent, setFooterContent] = useState('');
+
+  useEffect(() => {
+    // This runs only on the client, after hydration
+    const footerEnabled = (window as any).lamassuConfig?.LAMASSU_FOOTER_ENABLED === true;
+    
+    if (footerEnabled) {
+      setShowFooter(true);
+      fetch('/footer.html')
+        .then(response => {
+          if (response.ok) return response.text();
+          throw new Error('Could not load footer content.');
+        })
+        .then(html => setFooterContent(html))
+        .catch(error => {
+          console.error("Footer load error:", error);
+          setFooterContent('<p style="color: red; text-align: center;">Error: footer.html not found or failed to load.</p>');
+        });
+    }
+  }, []); // Empty dependency array ensures this runs once after the initial render
+
+  if (!showFooter) {
+    return null;
+  }
+
+  return (
+    <footer
+      className="mt-auto"
+      dangerouslySetInnerHTML={{ __html: footerContent }}
+    />
+  );
+};
 
 const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, login, logout } = useAuth();
@@ -330,6 +365,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
             <SidebarInset className="flex-1 overflow-y-auto p-4 md:p-6">
               {breadcrumbItems.length > 1 && <Breadcrumbs items={breadcrumbItems} />}
               {children}
+              <CustomFooter />
             </SidebarInset>
           </div>
         ) : (
