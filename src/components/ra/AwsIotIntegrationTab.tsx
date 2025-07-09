@@ -167,24 +167,40 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                     </FormItem>
                 )}
             />
-            {watchRegistrationMode === 'JITP_BY_CA' && (
+
+            {(watchRegistrationMode === 'JITP_BY_CA' || watchRegistrationMode === 'AUTOMATIC_REGISTRATION') && (
                 <Alert variant="warning">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="space-y-3">
+                    <AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
+                    <AlertDescription asChild>
+                      <div className="space-y-3 mt-2">
                         <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
-                        <div className="flex items-end gap-4">
-                            <div className="flex-grow">
+                        <div className="flex items-end gap-4 pt-2">
+                            <div className="flex-grow space-y-1">
                                 <Label>Register as Primary Account</Label>
-                                <Select defaultValue="owner">
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent><SelectItem value="owner">Primary Account - Register as CA owner</SelectItem></SelectContent>
+                                <Select defaultValue="primary">
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select account type..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="primary">
+                                            <div className="flex flex-col items-start text-left py-1 whitespace-normal">
+                                                <p>Primary Account - Register as CA owner</p>
+                                                <p className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</p>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="secondary">
+                                            <div className="flex flex-col items-start text-left py-1 whitespace-normal">
+                                                <p>Secondary Account</p>
+                                                <p className="text-xs text-muted-foreground">No access to the CA private key is needed.</p>
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
                                 </Select>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.
-                                </p>
                             </div>
                             <Button type="button" variant="outline" onClick={() => alert("Sync CA (placeholder)")}>Synchronize CA</Button>
                         </div>
+                      </div>
                     </AlertDescription>
                 </Alert>
             )}
