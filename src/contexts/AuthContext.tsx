@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   if (authEnabled === false) {
     const mockUser = new User({
         id_token: 'mock_id_token',
-        access_token: 'mock_access_token',
+        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiYXBwLWFkbWluIiwib2ZmbGluZV9hY2Nlc3MiXX0sIm5hbWUiOiJEZXYgVXNlciJ9.mockSignature',
         scope: 'openid profile email',
         token_type: 'Bearer',
         profile: {
@@ -106,7 +106,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const onUserLoaded = (loadedUser: User) => setUser(loadedUser);
     const onUserUnloaded = () => setUser(null);
-    const onAccessTokenExpired = () => userManagerInstance.signinSilent().catch(() => logout());
+    const onAccessTokenExpired = () => {
+      console.log("AuthContext: Access token expired, attempting silent renew...");
+      userManagerInstance.signinSilent().catch((err) => {
+        console.error("AuthContext: Silent renew failed after token expired, logging out.", err);
+        logout();
+      });
+    };
     const onSilentRenewError = (error: Error) => { console.error("AuthContext: Silent renew error:", error); logout(); };
     const onUserSignedOut = () => setUser(null);
 
