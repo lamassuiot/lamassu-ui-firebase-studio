@@ -114,27 +114,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userManagerInstance]);
-
-  // DO NOT REMOVE: This is required to handle call-back avoiding cycling on signin-callback
-  useEffect(() => {
-    if (typeof window === 'undefined' || !userManagerInstance) {
-      return;
-    }
-
-    if (window.location.pathname === '/signin-callback') {
-      const handleCallback = async () => {
-        try {
-          console.log('AuthContext: Processing signin callback...');
-          await userManagerInstance.signinRedirectCallback();
-        } catch (error) {
-          console.error('AuthContext: Error processing signin callback:', error);
-        } finally {
-          router.push('/');
-        }
-      };
-      handleCallback();
-    }
-  }, [userManagerInstance, router]);
   
   const login = useCallback(async () => {
     if (userManagerInstance) {
