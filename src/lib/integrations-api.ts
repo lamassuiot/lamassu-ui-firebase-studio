@@ -1,7 +1,8 @@
+
 // src/lib/integrations-api.ts
 'use client';
 
-import { fetchAllRegistrationAuthorities, type ApiRaItem } from './dms-api';
+import { fetchAllRegistrationAuthorities } from './dms-api';
 
 export type IntegrationType = 'AWS_IOT_CORE' | 'UNKNOWN';
 

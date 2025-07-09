@@ -3,14 +3,34 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Blocks, PlusCircle, Loader2, AlertTriangle, Cloud, Settings, Eye, RefreshCw } from "lucide-react";
+import { Blocks, PlusCircle, Loader2, AlertTriangle, Cloud, Settings, Eye, RefreshCw, MoreVertical, Trash2 } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { discoverIntegrations, type DiscoveredIntegration } from '@/lib/integrations-api';
+import { deleteRaIntegration } from '@/lib/dms-api';
+import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 const IntegrationIcon: React.FC<{ type: DiscoveredIntegration['type'] }> = ({ type }) => {
     // For now, using a generic cloud icon. Can be expanded later.
@@ -25,10 +45,14 @@ const IntegrationIcon: React.FC<{ type: DiscoveredIntegration['type'] }> = ({ ty
 export default function IntegrationsPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   
   const [integrations, setIntegrations] = useState<DiscoveredIntegration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [integrationToDelete, setIntegrationToDelete] = useState<DiscoveredIntegration | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadIntegrations = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -59,15 +83,29 @@ export default function IntegrationsPage() {
     router.push('/integrations/new');
   };
 
-  const handleViewRa = (raId: string) => {
-    router.push(`/registration-authorities/new?raId=${raId}`);
-  };
-
   const handleConfigure = (integration: DiscoveredIntegration) => {
     if (integration.type === 'AWS_IOT_CORE') {
         router.push(`/integrations/configure?raId=${integration.raId}&configKey=${integration.configKey}`);
     } else {
         alert(`Configuration for ${integration.typeName} is not yet implemented.`);
+    }
+  };
+
+  const handleDeleteIntegration = async () => {
+    if (!integrationToDelete || !user?.access_token) {
+      toast({ title: "Error", description: "No integration selected or user not authenticated.", variant: "destructive" });
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteRaIntegration(integrationToDelete.raId, integrationToDelete.configKey, user.access_token);
+      toast({ title: "Success", description: "Integration has been deleted." });
+      setIntegrationToDelete(null); // Close the dialog
+      loadIntegrations(); // Refresh the list
+    } catch (err: any) {
+      toast({ title: "Deletion Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -81,6 +119,7 @@ export default function IntegrationsPage() {
   }
 
   return (
+    <>
     <div className="space-y-6 w-full pb-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -116,14 +155,41 @@ export default function IntegrationsPage() {
           {integrations.map((integration) => (
             <Card key={integration.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
               <CardHeader>
-                <div className="flex items-center space-x-4">
-                  <IntegrationIcon type={integration.type} />
-                  <div>
-                    <CardTitle>{integration.typeName}</CardTitle>
-                    <CardDescription>
-                      Linked to RA: <span className="font-semibold">{integration.raName}</span>
-                    </CardDescription>
+                <div className="flex items-start justify-between space-x-4">
+                  <div className="flex items-center space-x-4 flex-grow min-w-0">
+                    <IntegrationIcon type={integration.type} />
+                    <div className="flex-grow min-w-0">
+                      <CardTitle className="truncate" title={integration.typeName}>{integration.typeName}</CardTitle>
+                      <CardDescription className="truncate" title={`Linked to RA: ${integration.raName}`}>
+                        Linked to RA: <span className="font-semibold">{integration.raName}</span>
+                      </CardDescription>
+                    </div>
                   </div>
+                   <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                              <MoreVertical className="h-4 w-4" />
+                          </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleConfigure(integration)}>
+                              <Settings className="mr-2 h-4 w-4" />
+                              <span>Configure</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => router.push(`/registration-authorities/new?raId=${integration.raId}`)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              <span>View RA</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                              onClick={() => setIntegrationToDelete(integration)}
+                              className="text-destructive focus:text-destructive"
+                          >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Delete</span>
+                          </DropdownMenuItem>
+                      </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardHeader>
               <CardContent className="flex-grow">
@@ -138,16 +204,6 @@ export default function IntegrationsPage() {
                     </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-4">
-                 <div className="flex w-full justify-end space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => handleViewRa(integration.raId)}>
-                        <Eye className="mr-2 h-4 w-4" /> View RA
-                    </Button>
-                    <Button variant="default" size="sm" onClick={() => handleConfigure(integration)}>
-                        <Settings className="mr-2 h-4 w-4" /> Configure
-                    </Button>
-                </div>
-              </CardFooter>
             </Card>
           ))}
         </div>
@@ -165,5 +221,27 @@ export default function IntegrationsPage() {
         )
       )}
     </div>
+    <AlertDialog open={!!integrationToDelete} onOpenChange={(open) => !open && setIntegrationToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure you want to delete this integration?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently remove the integration configuration for <strong>{integrationToDelete?.typeName}</strong> from the Registration Authority "<strong>{integrationToDelete?.raName}</strong>". This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteIntegration}
+                  className={buttonVariants({ variant: "destructive" })}
+                  disabled={isDeleting}
+                >
+                  {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
