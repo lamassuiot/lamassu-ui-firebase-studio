@@ -57,7 +57,7 @@ const AWS_IOT_METADATA_KEY = 'lamassu.io/iot/aws.iot-core';
 const defaultFormValues: AwsIntegrationFormValues = {
     aws_iot_manager_instance: 'aws.iot',
     registration_mode: 'NONE',
-    groups: [],
+    groups: ['LAMASSU'],
     policies: [],
     shadow_config: {
         enable: false,
