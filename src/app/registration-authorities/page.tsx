@@ -77,6 +77,12 @@ export default function RegistrationAuthoritiesPage() {
   const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
   const [selectedRaForMetadata, setSelectedRaForMetadata] = useState<ApiRaItem | null>(null);
 
+  const [isClientMounted, setIsClientMounted] = useState(false);
+
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
+
   // Reset pagination when page size changes
   useEffect(() => {
     setCurrentPageIndex(0);
@@ -84,11 +90,13 @@ export default function RegistrationAuthoritiesPage() {
   }, [pageSize]);
 
   useEffect(() => {
-    // Guard against running before authentication is resolved.
-    if (!isAuthenticated() || !user?.access_token) {
-        if (!authLoading) setError("User not authenticated.");
-        setIsLoading(false);
-        return;
+    // Gate fetching until the component is mounted and auth is resolved
+    if (!isClientMounted || authLoading || !isAuthenticated() || !user?.access_token) {
+      if (!authLoading && !isAuthenticated() && isClientMounted) {
+        setError("User not authenticated.");
+      }
+      if(!authLoading) setIsLoading(false);
+      return;
     }
 
     const fetchData = async () => {
@@ -106,7 +114,7 @@ export default function RegistrationAuthoritiesPage() {
           }
           
           // Fetch RAs and CAs in parallel, but only fetch CAs if the list is empty to optimize pagination.
-          const promises: [Promise<ApiRaListResponse>, Promise<CA[]>?] = [
+          const promises: [Promise<any>, Promise<CA[]>?] = [
             fetchRegistrationAuthorities(user.access_token!, params)
           ];
           
@@ -126,16 +134,15 @@ export default function RegistrationAuthoritiesPage() {
           setError(err.message || 'An unknown error occurred while fetching data.');
           setRas([]);
           setNextTokenFromApi(null);
-          setAllCAs([]);
+          // Don't clear CAs on RA fetch failure if we already have them
+          // setAllCAs([]); 
         } finally {
           setIsLoading(false);
         }
     };
     
     fetchData();
-  // We only want to refetch when these specific user-driven values change.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.access_token, pageSize, currentPageIndex]);
+  }, [isClientMounted, authLoading, isAuthenticated, user?.access_token, pageSize, currentPageIndex]);
 
 
   const getCaNameById = (caId: string) => {
@@ -160,27 +167,8 @@ export default function RegistrationAuthoritiesPage() {
   };
   
   const handleRefresh = () => {
-    const fetchData = async () => {
-        if (!user?.access_token) return;
-        setIsLoading(true);
-        setError(null);
-        try {
-            const params = new URLSearchParams();
-            params.append('sort_by', 'name');
-            params.append('sort_mode', 'asc');
-            params.append('page_size', pageSize);
-            const bookmarkToFetch = bookmarkStack[currentPageIndex];
-            if (bookmarkToFetch) params.append('bookmark', bookmarkToFetch);
-            const raData = await fetchRegistrationAuthorities(user.access_token, params);
-            setRas(raData.list || []);
-            setNextTokenFromApi(raData.next || null);
-        } catch (err:any) {
-            setError(err.message || 'An unknown error occurred while fetching data.');
-        } finally {
-            setIsLoading(false);
-        }
-    }
-    fetchData();
+    // This will trigger the useEffect to refetch
+    setBookmarkStack(prev => [...prev]);
   };
 
   const handleCreateNewRAClick = () => {
@@ -209,7 +197,7 @@ export default function RegistrationAuthoritiesPage() {
     await updateRaMetadata(raId, metadata, user.access_token);
   };
 
-  if (authLoading || (isLoading && ras.length === 0)) {
+  if (isLoading || authLoading) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -482,3 +470,4 @@ export default function RegistrationAuthoritiesPage() {
     </>
   );
 }
+
