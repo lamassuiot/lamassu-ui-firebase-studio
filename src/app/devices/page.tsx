@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RegisterDeviceModal } from '@/components/devices/RegisterDeviceModal';
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
-import { fetchDevices } from '@/lib/devices-api';
+import { fetchDevices, type ApiDevice } from '@/lib/devices-api';
 import { useToast } from '@/hooks/use-toast';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import { fetchRaById, type ApiRaItem } from '@/lib/dms-api';
@@ -125,7 +125,7 @@ export default function DevicesPage() {
 
   // Sorting and pagination states
   const [pageSize, setPageSize] = useState<string>('10');
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>({column: 'createdAt', direction: 'desc'});
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [nextTokenFromApi, setNextTokenFromApi] = useState<string | null>(null);
@@ -141,22 +141,27 @@ export default function DevicesPage() {
   // Debounce search term
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
+        // Guard to prevent debounce from firing on initial mount with empty string
+        if (isInitialLoad.current && searchTerm === '') {
+            return;
+        }
+        setDebouncedSearchTerm(searchTerm);
     }, 500);
 
     return () => {
-      clearTimeout(handler);
+        clearTimeout(handler);
     };
   }, [searchTerm]);
 
-  // Reset pagination when filters change, but not on initial mount
-  useEffect(() => {
-    if (isInitialLoad.current) {
-        return;
-    }
-    setBookmarkStack([null]);
-    setCurrentPageIndex(0);
-  }, [debouncedSearchTerm, searchField, statusFilter, pageSize, dmsOwnerFilter]);
+  // Ref to store previous filter values to detect changes
+  const prevFiltersRef = useRef({
+      debouncedSearchTerm,
+      searchField,
+      statusFilter,
+      pageSize,
+      dmsOwnerFilter,
+      sortConfig,
+  });
 
   // Main data fetching effect
   useEffect(() => {
@@ -169,18 +174,47 @@ export default function DevicesPage() {
         setNextTokenFromApi(null);
         return;
     }
+    
+    // Check if filters have changed
+    const prevFilters = prevFiltersRef.current;
+    const filtersChanged =
+        prevFilters.debouncedSearchTerm !== debouncedSearchTerm ||
+        prevFilters.searchField !== searchField ||
+        prevFilters.statusFilter !== statusFilter ||
+        prevFilters.pageSize !== pageSize ||
+        prevFilters.dmsOwnerFilter !== dmsOwnerFilter ||
+        prevFilters.sortConfig?.column !== sortConfig?.column ||
+        prevFilters.sortConfig?.direction !== sortConfig?.direction;
 
     const fetchDevicesData = async () => {
         setIsLoadingApi(true);
         setApiError(null);
-        try {
-            const params = new URLSearchParams({
-                sort_by: 'creation_timestamp',
-                sort_mode: 'desc',
-                page_size: pageSize,
-            });
+        
+        let localPageIndex = currentPageIndex;
+        let localBookmarkStack = bookmarkStack;
 
-            const bookmarkToFetch = bookmarkStack[currentPageIndex];
+        // If filters changed, force fetch from the first page
+        if (filtersChanged && !isInitialLoad.current) {
+            localPageIndex = 0;
+            localBookmarkStack = [null];
+        }
+
+        try {
+            const params = new URLSearchParams();
+            
+            // Sorting
+            if (sortConfig) {
+                const apiSortColumn = sortConfig.column === 'deviceGroup' ? 'dms_owner' : sortConfig.column;
+                params.append('sort_by', apiSortColumn);
+                params.append('sort_mode', sortConfig.direction);
+            } else {
+                 params.append('sort_by', 'creation_timestamp');
+                 params.append('sort_mode', 'desc');
+            }
+            
+            params.append('page_size', pageSize);
+
+            const bookmarkToFetch = localBookmarkStack[localPageIndex];
             if (bookmarkToFetch) {
                 params.append('bookmark', bookmarkToFetch);
             }
@@ -197,7 +231,7 @@ export default function DevicesPage() {
             }
             filtersToApply.forEach(f => params.append('filter', f));
 
-            const data = await fetchDevices(user.access_token, params);
+            const data = await fetchDevices(user.access_token!, params);
 
             const transformedDevices: DeviceData[] = data.list.map(apiDevice => ({
                 id: apiDevice.id,
@@ -212,6 +246,16 @@ export default function DevicesPage() {
 
             setDevices(transformedDevices);
             setNextTokenFromApi(data.next);
+
+            // If filters changed, now we update the pagination state
+            if (filtersChanged && !isInitialLoad.current) {
+                setCurrentPageIndex(0);
+                setBookmarkStack([null]);
+            }
+            
+            // After a successful fetch, update the previous filters ref
+            prevFiltersRef.current = { debouncedSearchTerm, searchField, statusFilter, pageSize, dmsOwnerFilter, sortConfig };
+
         } catch (error: any) {
             console.error("Failed to fetch devices:", error);
             setApiError(error.message || "An unknown error occurred while fetching devices.");
@@ -228,9 +272,12 @@ export default function DevicesPage() {
     fetchDevicesData();
   }, [
       user, isAuthenticated, authLoading, 
-      currentPageIndex, bookmarkStack, 
-      debouncedSearchTerm, searchField, statusFilter, pageSize, dmsOwnerFilter
+      currentPageIndex, // Only pagination state should trigger this directly
+      bookmarkStack, 
+      // All filters are now handled internally by comparing to refs
+      debouncedSearchTerm, searchField, statusFilter, pageSize, dmsOwnerFilter, sortConfig
   ]);
+
 
   const requestSort = (column: SortableColumn) => {
     let direction: SortDirection = 'asc';
@@ -240,47 +287,9 @@ export default function DevicesPage() {
     setSortConfig({ column, direction });
   };
 
-  const sortedAndFilteredDevices = useMemo(() => {
-    let processed = [...devices];
-
-    if (sortConfig) {
-      processed.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-
-        switch (sortConfig.column) {
-          case 'id':
-            aValue = a.id.toLowerCase();
-            bValue = b.id.toLowerCase();
-            break;
-          case 'status':
-            aValue = statusSortOrder[a.status];
-            bValue = statusSortOrder[b.status];
-            break;
-          case 'deviceGroup':
-            aValue = a.deviceGroup.toLowerCase();
-            bValue = b.deviceGroup.toLowerCase();
-            break;
-          case 'createdAt':
-            aValue = parseISO(a.createdAt).getTime();
-            bValue = parseISO(b.createdAt).getTime();
-            break;
-          default:
-            return 0;
-        }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-    return processed;
-  }, [devices, sortConfig]);
-
+  const sortedDevices = useMemo(() => {
+    return [...devices];
+  }, [devices]);
 
   const SortableTableHeader: React.FC<{ column: SortableColumn; title: string; className?: string }> = ({ column, title, className }) => {
     const isSorted = sortConfig?.column === column;
@@ -341,7 +350,7 @@ export default function DevicesPage() {
 
   const handleRefresh = () => {
     // Re-trigger the main data fetching useEffect by creating a new but identical bookmarkStack
-    setBookmarkStack([...bookmarkStack]);
+    setBookmarkStack(prev => [...prev]);
   };
 
   const handleNextPage = () => {
@@ -364,7 +373,7 @@ export default function DevicesPage() {
     setCurrentPageIndex(prevIndex);
   };
 
-  if (authLoading && !sortedAndFilteredDevices.length) {
+  if (authLoading && !sortedDevices.length) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -458,7 +467,7 @@ export default function DevicesPage() {
         </div>
       </div>
 
-      {isLoadingApi && !sortedAndFilteredDevices.length && (
+      {isLoadingApi && !sortedDevices.length && (
          <div className="flex flex-col items-center justify-center flex-1 p-4 sm:p-8">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
             <p className="text-lg text-muted-foreground">Loading devices...</p>
@@ -473,9 +482,9 @@ export default function DevicesPage() {
         </Alert>
       )}
 
-      {!apiError && sortedAndFilteredDevices.length > 0 && (
+      {!apiError && sortedDevices.length > 0 && (
         <>
-          <div className={cn("overflow-x-auto transition-opacity duration-300", isLoadingApi && sortedAndFilteredDevices.length > 0 && "opacity-50 pointer-events-none")}>
+          <div className={cn("overflow-x-auto transition-opacity duration-300", isLoadingApi && sortedDevices.length > 0 && "opacity-50 pointer-events-none")}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -488,7 +497,7 @@ export default function DevicesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedAndFilteredDevices.map((device) => {
+                {sortedDevices.map((device) => {
                   const [iconColor, bgColor] = device.icon_color ? device.icon_color.split('-') : ['#0f67ff', '#F0F8FF'];
                   return (
                     <TableRow key={device.id}>
@@ -547,7 +556,7 @@ export default function DevicesPage() {
         </>
       )}
 
-      {!apiError && (sortedAndFilteredDevices.length > 0 || isLoadingApi || hasActiveFilters) && (
+      {!apiError && (sortedDevices.length > 0 || isLoadingApi || hasActiveFilters) && (
         <div className="flex justify-between items-center mt-4">
             <div className="flex items-center space-x-2">
               <Label htmlFor="pageSizeSelectBottom" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
@@ -587,7 +596,7 @@ export default function DevicesPage() {
         </div>
       )}
 
-      {!apiError && !isLoadingApi && sortedAndFilteredDevices.length === 0 && (
+      {!apiError && !isLoadingApi && sortedDevices.length === 0 && (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
           <h3 className="text-lg font-semibold text-muted-foreground">
             {hasActiveFilters ? "No Devices Found" : "No Devices Registered"}
@@ -618,4 +627,3 @@ export default function DevicesPage() {
     </div>
   );
 }
-
