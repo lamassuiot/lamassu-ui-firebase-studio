@@ -84,10 +84,11 @@ export default function RegistrationAuthoritiesPage() {
   }, [pageSize]);
 
   useEffect(() => {
-    if (authLoading || !isAuthenticated() || !user?.access_token) {
-      if (!authLoading && !isAuthenticated()) setError("User not authenticated.");
-      setIsLoading(false);
-      return;
+    // Guard against running before authentication is resolved.
+    if (!isAuthenticated() || !user?.access_token) {
+        if (!authLoading) setError("User not authenticated.");
+        setIsLoading(false);
+        return;
     }
 
     const fetchData = async () => {
@@ -104,14 +105,22 @@ export default function RegistrationAuthoritiesPage() {
             params.append('bookmark', bookmarkToFetch);
           }
           
-          const [raData, caData] = await Promise.all([
-            fetchRegistrationAuthorities(user.access_token, params),
-            fetchAndProcessCAs(user.access_token)
-          ]);
+          // Fetch RAs and CAs in parallel, but only fetch CAs if the list is empty to optimize pagination.
+          const promises: [Promise<ApiRaListResponse>, Promise<CA[]>?] = [
+            fetchRegistrationAuthorities(user.access_token!, params)
+          ];
+          
+          if (allCAs.length === 0) {
+            promises.push(fetchAndProcessCAs(user.access_token!));
+          }
+
+          const [raData, caData] = await Promise.all(promises);
 
           setRas(raData.list || []);
           setNextTokenFromApi(raData.next || null);
-          setAllCAs(caData);
+          if (caData) { // Only update CAs if they were fetched
+            setAllCAs(caData);
+          }
 
         } catch (err: any) {
           setError(err.message || 'An unknown error occurred while fetching data.');
@@ -124,8 +133,9 @@ export default function RegistrationAuthoritiesPage() {
     };
     
     fetchData();
-
-  }, [user?.access_token, isAuthenticated, authLoading, pageSize, currentPageIndex, bookmarkStack]);
+  // We only want to refetch when these specific user-driven values change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.access_token, pageSize, currentPageIndex]);
 
 
   const getCaNameById = (caId: string) => {
@@ -150,7 +160,27 @@ export default function RegistrationAuthoritiesPage() {
   };
   
   const handleRefresh = () => {
-    setBookmarkStack([...bookmarkStack]);
+    const fetchData = async () => {
+        if (!user?.access_token) return;
+        setIsLoading(true);
+        setError(null);
+        try {
+            const params = new URLSearchParams();
+            params.append('sort_by', 'name');
+            params.append('sort_mode', 'asc');
+            params.append('page_size', pageSize);
+            const bookmarkToFetch = bookmarkStack[currentPageIndex];
+            if (bookmarkToFetch) params.append('bookmark', bookmarkToFetch);
+            const raData = await fetchRegistrationAuthorities(user.access_token, params);
+            setRas(raData.list || []);
+            setNextTokenFromApi(raData.next || null);
+        } catch (err:any) {
+            setError(err.message || 'An unknown error occurred while fetching data.');
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchData();
   };
 
   const handleCreateNewRAClick = () => {
