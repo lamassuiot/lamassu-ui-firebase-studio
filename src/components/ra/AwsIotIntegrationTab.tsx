@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,11 +14,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Loader2, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
 import { useAuth } from '@/contexts/AuthContext';
+import { format, parseISO } from 'date-fns';
 
 const awsPolicySchema = z.object({
   name: z.string().min(1, 'Policy name is required.'),
@@ -37,6 +38,11 @@ const awsIntegrationSchema = z.object({
   remediation_config: z.object({
     account_id: z.string().optional(),
   }).optional(),
+  registration: z.object({
+      primary_account: z.boolean(),
+      registration_request_time: z.string(),
+      status: z.string(),
+  }).optional(),
 });
 
 type AwsIntegrationFormValues = z.infer<typeof awsIntegrationSchema>;
@@ -51,6 +57,9 @@ const AWS_IOT_METADATA_KEY = 'lamassu.io/iot/aws.iot-core';
 export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, onUpdate }) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  const [accountType, setAccountType] = useState<'primary' | 'secondary'>('primary');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const form = useForm<AwsIntegrationFormValues>({
     resolver: zodResolver(awsIntegrationSchema),
@@ -79,7 +88,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         },
         remediation_config: {
             account_id: config.remediation_config?.account_id || '',
-        }
+        },
+        registration: config.registration,
       });
     }
   }, [ra, form]);
@@ -121,8 +131,51 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         toast({ title: "Save Failed", description: e.message, variant: "destructive" });
     }
   };
+
+  const handleSyncCa = async () => {
+    if (!user?.access_token) {
+        toast({ title: 'Authentication Error', variant: 'destructive' });
+        return;
+    }
+    setIsSyncing(true);
+    try {
+        const updatedRaPayload: RaCreationPayload = JSON.parse(JSON.stringify({
+            id: ra.id,
+            name: ra.name,
+            metadata: ra.metadata,
+            settings: ra.settings,
+        }));
+
+        const awsConfig = form.getValues();
+        
+        const registrationPayload = {
+            primary_account: accountType === 'primary',
+            registration_request_time: new Date().toISOString(),
+            status: "REQUESTED"
+        };
+        
+        const newAwsConfig = { ...awsConfig, registration: registrationPayload };
+
+        if (updatedRaPayload.metadata) {
+            updatedRaPayload.metadata[AWS_IOT_METADATA_KEY] = newAwsConfig;
+        } else {
+            updatedRaPayload.metadata = { [AWS_IOT_METADATA_KEY]: newAwsConfig };
+        }
+        
+        await createOrUpdateRa(updatedRaPayload, user.access_token, true, ra.id);
+        toast({ title: "Success", description: "CA synchronization request has been sent." });
+        onUpdate();
+    } catch (e: any) {
+        toast({ title: "Sync Failed", description: e.message, variant: "destructive" });
+    } finally {
+        setIsSyncing(false);
+    }
+  };
   
   const sectionTitleStyle = "text-lg font-semibold";
+  const registrationStatus = ra?.metadata?.[AWS_IOT_METADATA_KEY]?.registration?.status;
+  const registrationTime = ra?.metadata?.[AWS_IOT_METADATA_KEY]?.registration?.registration_request_time;
+
 
   return (
     <Form {...form}>
@@ -169,40 +222,53 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
             />
 
             {(watchRegistrationMode === 'JITP_BY_CA' || watchRegistrationMode === 'AUTOMATIC_REGISTRATION') && (
-                <Alert variant="warning">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
-                    <AlertDescription asChild>
-                      <div className="space-y-3 mt-2">
-                        <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
-                        <div className="flex items-end gap-4 pt-2">
-                            <div className="flex-grow space-y-1">
-                                <Label>Register as Primary Account</Label>
-                                <Select defaultValue="primary">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select account type..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="primary">
-                                            <div className="flex flex-col items-start text-left py-1 whitespace-normal">
-                                                <p>Primary Account - Register as CA owner</p>
-                                                <p className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</p>
-                                            </div>
-                                        </SelectItem>
-                                        <SelectItem value="secondary">
-                                            <div className="flex flex-col items-start text-left py-1 whitespace-normal">
-                                                <p>Secondary Account</p>
-                                                <p className="text-xs text-muted-foreground">No access to the CA private key is needed.</p>
-                                            </div>
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Button type="button" variant="outline" onClick={() => alert("Sync CA (placeholder)")}>Synchronize CA</Button>
-                        </div>
-                      </div>
+                registrationStatus === 'REQUESTED' ? (
+                  <Alert variant="default" className="bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800">
+                    <Info className="h-4 w-4 text-sky-500"/>
+                    <AlertTitle className="text-sky-700 dark:text-sky-300">Synchronization Pending</AlertTitle>
+                    <AlertDescription className="text-sky-600 dark:text-sky-400">
+                      A request to synchronize this CA was sent on {registrationTime ? format(parseISO(registrationTime), 'PPpp') : 'an unknown date'}. The status will update once processed by the backend.
                     </AlertDescription>
-                </Alert>
+                  </Alert>
+                ) : (
+                  <Alert variant="warning">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
+                      <AlertDescription asChild>
+                        <div className="space-y-3 mt-2">
+                          <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
+                          <div className="flex items-end gap-4 pt-2">
+                              <div className="flex-grow space-y-1">
+                                  <Label>Register as</Label>
+                                  <Select value={accountType} onValueChange={(v) => setAccountType(v as any)} disabled={isSyncing}>
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Select account type..." />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                          <SelectItem value="primary">
+                                              <div className="flex flex-col items-start text-left py-1 whitespace-normal">
+                                                  <p>Primary Account - Register as CA owner</p>
+                                                  <p className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</p>
+                                              </div>
+                                          </SelectItem>
+                                          <SelectItem value="secondary">
+                                              <div className="flex flex-col items-start text-left py-1 whitespace-normal">
+                                                  <p>Secondary Account</p>
+                                                  <p className="text-xs text-muted-foreground">No access to the CA private key is needed.</p>
+                                              </div>
+                                          </SelectItem>
+                                      </SelectContent>
+                                  </Select>
+                              </div>
+                              <Button type="button" variant="outline" onClick={handleSyncCa} disabled={isSyncing}>
+                                {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                Synchronize CA
+                              </Button>
+                          </div>
+                        </div>
+                      </AlertDescription>
+                  </Alert>
+                )
             )}
           </CardContent>
         </Card>
