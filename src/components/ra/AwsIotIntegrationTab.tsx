@@ -92,17 +92,17 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       const shadowType = config.shadow_config?.shadow_name ? 'Named' : 'Classic';
       
       form.reset({
-        aws_iot_manager_instance: config.aws_iot_manager_instance || 'aws.iot',
-        registration_mode: config.registration_mode || 'NONE',
-        groups: config.groups || [],
-        policies: config.policies || [],
+        aws_iot_manager_instance: config.aws_iot_manager_instance ?? defaultFormValues.aws_iot_manager_instance,
+        registration_mode: config.registration_mode ?? defaultFormValues.registration_mode,
+        groups: config.groups ?? defaultFormValues.groups,
+        policies: config.policies ?? defaultFormValues.policies,
         shadow_config: {
-            enable: config.shadow_config?.enable ?? false,
+            enable: config.shadow_config?.enable ?? defaultFormValues.shadow_config.enable,
             shadow_type: shadowType,
-            shadow_name: config.shadow_config?.shadow_name || '',
+            shadow_name: config.shadow_config?.shadow_name ?? defaultFormValues.shadow_config.shadow_name,
         },
         remediation_config: {
-            account_id: config.remediation_config?.account_id || '',
+            account_id: config.remediation_config?.account_id ?? defaultFormValues.remediation_config.account_id,
         },
         registration: config.registration,
       });
