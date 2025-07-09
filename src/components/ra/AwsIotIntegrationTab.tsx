@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -86,6 +85,17 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     name: "policies",
   });
 
+  const watchShadowType = form.watch('shadow_config.shadow_type');
+
+  useEffect(() => {
+    if (watchShadowType === 'Named') {
+        const currentShadowName = form.getValues('shadow_config.shadow_name');
+        if (!currentShadowName) {
+            form.setValue('shadow_config.shadow_name', 'lamassu-identity');
+        }
+    }
+  }, [watchShadowType, form]);
+
   useEffect(() => {
     if (ra?.metadata && ra.metadata[AWS_IOT_METADATA_KEY]) {
       const config = ra.metadata[AWS_IOT_METADATA_KEY];
@@ -99,7 +109,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         shadow_config: {
             enable: config.shadow_config?.enable ?? defaultFormValues.shadow_config.enable,
             shadow_type: shadowType,
-            shadow_name: config.shadow_config?.shadow_name ?? defaultFormValues.shadow_config.shadow_name,
+            shadow_name: config.shadow_config?.shadow_name || '',
         },
         remediation_config: {
             account_id: config.remediation_config?.account_id ?? defaultFormValues.remediation_config.account_id,
@@ -113,7 +123,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   }, [ra, form]);
 
   const watchShadowEnable = form.watch('shadow_config.enable');
-  const watchShadowType = form.watch('shadow_config.shadow_type');
   const watchRegistrationMode = form.watch('registration_mode');
 
   const onSubmit = async (data: AwsIntegrationFormValues) => {
