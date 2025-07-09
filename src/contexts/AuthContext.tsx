@@ -9,14 +9,10 @@ import { useRouter } from 'next/navigation';
 Log.setLogger(console);
 Log.setLevel(Log.DEBUG);
 
-let authEnabled: boolean | undefined;
-if (typeof window !== 'undefined') {
-    authEnabled = (window as any).lamassuConfig?.LAMASSU_AUTH_ENABLED !== false; // default to true
-}
 
 const createUserManager = (): UserManager | null => {
-  if (typeof window !== 'undefined' && authEnabled) {
-    // Get config from window object with fallbacks to default values
+  // Check moved inside the function to be safe.
+  if (typeof window !== 'undefined' && (window as any).lamassuConfig?.LAMASSU_AUTH_ENABLED !== false) {
     const authority = (window as any).lamassuConfig?.LAMASSU_AUTH_AUTHORITY || 'https://lab.lamassu.io/auth/realms/lamassu';
     const clientId = (window as any).lamassuConfig?.LAMASSU_AUTH_CLIENT_ID || 'frontend';
 
@@ -48,46 +44,33 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
-  
-  // If auth is disabled, provide a mock context and return early.
-  if (authEnabled === false) {
-    const mockUser = new User({
-        id_token: 'mock_id_token',
-        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiYXBwLWFkbWluIiwib2ZmbGluZV9hY2Nlc3MiXX0sIm5hbWUiOiJEZXYgVXNlciJ9.mockSignature',
-        scope: 'openid profile email',
-        token_type: 'Bearer',
-        profile: {
-            sub: 'mock-user-id',
-            name: 'Dev User',
-            email: 'dev@lamassu.io',
-            iss: 'mock-issuer',
-            aud: 'mock-client',
-            exp: Math.floor(Date.now() / 1000) + 3600,
-            iat: Math.floor(Date.now() / 1000),
-        } as UserProfile,
-        expires_at: Math.floor(Date.now() / 1000) + 3600,
-        session_state: 'mock-session-state',
-    });
+  const [authMode, setAuthMode] = useState<'loading' | 'enabled' | 'disabled'>('loading');
 
-    const value: AuthContextType = {
-        user: mockUser,
-        isLoading: false,
-        login: async () => console.warn('Auth disabled: login action suppressed.'),
-        logout: async () => console.warn('Auth disabled: logout action suppressed.'),
-        isAuthenticated: () => true,
-        userManager: null,
-    };
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-  }
-  
-  // --- Original OIDC logic for when auth is enabled ---
-  const userManagerInstance = useMemo(() => createUserManager(), []);
+  // OIDC specific state that will only be used if authMode is 'enabled'
+  const userManagerInstance = useMemo(() => {
+    if (authMode === 'enabled') {
+      return createUserManager();
+    }
+    return null;
+  }, [authMode]);
+
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // This effect runs once on the client after the component mounts.
+    // By this time, `env-config.js` should have loaded and populated window.lamassuConfig.
+    const isEnabled = (window as any).lamassuConfig?.LAMASSU_AUTH_ENABLED !== false;
+    setAuthMode(isEnabled ? 'enabled' : 'disabled');
+  }, []);
+  
+  useEffect(() => {
     if (!userManagerInstance) {
-      if (typeof window !== 'undefined') setIsLoading(false);
+      // If there's no user manager (because auth is disabled or we're loading),
+      // we are not loading a real user.
+      if(authMode !== 'loading') {
+          setIsLoading(false);
+      }
       return;
     }
 
@@ -131,28 +114,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userManagerInstance]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !userManagerInstance) {
-      return;
-    }
-
-    if (window.location.pathname === '/signin-callback') {
-      const handleCallback = async () => {
-        try {
-          console.log('AuthContext: Processing signin callback...');
-          await userManagerInstance.signinRedirectCallback();
-        } catch (error) {
-          console.error('AuthContext: Error processing signin callback:', error);
-        } finally {
-          router.push('/');
-        }
-      };
-      handleCallback();
-    }
-  }, [userManagerInstance, router]);
   
-  const login = async () => {
+  const login = useCallback(async () => {
     if (userManagerInstance) {
       try {
         await userManagerInstance.signinRedirect();
@@ -160,9 +123,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("AuthContext: Login redirect error:", error);
       }
     }
-  };
+  }, [userManagerInstance]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (userManagerInstance) {
       try {
         setUser(null);
@@ -178,12 +141,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         router.push('/');
       }
     }
-  };
+  }, [userManagerInstance, router]);
 
   const isAuthenticated = useCallback(() => {
     return !!user && !user.expired;
   }, [user]);
 
+  // Render a loading state until we have determined the auth mode from the config.
+  if (authMode === 'loading') {
+    return <div></div>; // Or a full-screen loader component
+  }
+
+  // If auth is disabled, provide the mock context.
+  if (authMode === 'disabled') {
+    const mockUser = new User({
+        id_token: 'mock_id_token',
+        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiYXBwLWFkbWluIiwib2ZmbGluZV9hY2Nlc3MiXX0sIm5hbWUiOiJEZXYgVXNlciJ9.mockSignature',
+        scope: 'openid profile email',
+        token_type: 'Bearer',
+        profile: {
+            sub: 'mock-user-id',
+            name: 'Dev User',
+            email: 'dev@lamassu.io',
+            iss: 'mock-issuer',
+            aud: 'mock-client',
+            exp: Math.floor(Date.now() / 1000) + 3600,
+            iat: Math.floor(Date.now() / 1000),
+        } as UserProfile,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        session_state: 'mock-session-state',
+    });
+
+    const value: AuthContextType = {
+        user: mockUser,
+        isLoading: false,
+        login: async () => console.warn('Auth disabled: login action suppressed.'),
+        logout: async () => console.warn('Auth disabled: logout action suppressed.'),
+        isAuthenticated: () => true,
+        userManager: null,
+    };
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  }
+
+  // If auth is enabled, provide the real OIDC context.
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout, isAuthenticated, userManager: userManagerInstance }}>
       {children}
