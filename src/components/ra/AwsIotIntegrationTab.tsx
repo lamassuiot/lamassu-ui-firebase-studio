@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { TagInput } from '@/components/shared/TagInput';
 import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -27,12 +27,11 @@ const awsPolicySchema = z.object({
 
 const awsIntegrationSchema = z.object({
   aws_iot_manager_instance: z.string().optional(),
-  registration_mode: z.enum(['NONE', 'AUTOMATIC_REGISTRATION', 'JITP_BY_CA']).default('NONE'),
+  registration_mode: z.enum(['none', 'auto', 'jitp']).default('none'),
   groups: z.array(z.string()).optional(),
   policies: z.array(awsPolicySchema).optional(),
   shadow_config: z.object({
     enable: z.boolean().default(false),
-    shadow_type: z.enum(['Classic', 'Named']).default('Classic'),
     shadow_name: z.string().optional(),
   }).optional(),
   remediation_config: z.object({
@@ -56,12 +55,11 @@ const AWS_IOT_METADATA_KEY = 'lamassu.io/iot/aws.iot-core';
 
 const defaultFormValues: AwsIntegrationFormValues = {
     aws_iot_manager_instance: 'aws.iot',
-    registration_mode: 'NONE',
+    registration_mode: 'none',
     groups: ['LAMASSU'],
     policies: [],
     shadow_config: {
         enable: false,
-        shadow_type: 'Classic',
         shadow_name: '',
     },
     remediation_config: {
@@ -86,17 +84,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     name: "policies",
   });
 
-  const watchShadowType = form.watch('shadow_config.shadow_type');
-
-  useEffect(() => {
-    if (watchShadowType === 'Named') {
-        const currentShadowName = form.getValues('shadow_config.shadow_name');
-        if (!currentShadowName) {
-            form.setValue('shadow_config.shadow_name', 'lamassu-identity');
-        }
-    }
-  }, [watchShadowType, form]);
-
   useEffect(() => {
     if (ra) {
       const config = ra.metadata?.[AWS_IOT_METADATA_KEY] || {};
@@ -113,8 +100,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
           ...(config.remediation_config || {}),
         },
       };
-
-      mergedValues.shadow_config.shadow_type = config.shadow_config?.shadow_name ? 'Named' : 'Classic';
 
       form.reset(mergedValues);
     }
@@ -135,12 +120,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         metadata: ra.metadata,
         settings: ra.settings,
     }));
-    
-    if (data.shadow_config?.shadow_type === 'Classic') {
-      if (data.shadow_config.shadow_name) {
-        data.shadow_config.shadow_name = '';
-      }
-    }
     
     // Preserve registration info if it exists
     const existingRegistration = ra.metadata?.[AWS_IOT_METADATA_KEY]?.registration;
@@ -271,9 +250,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                             <SelectContent>
-                                <SelectItem value="NONE">None</SelectItem>
-                                <SelectItem value="AUTOMATIC_REGISTRATION">Automatic Registration on Enrollment</SelectItem>
-                                <SelectItem value="JITP_BY_CA">JITP Template</SelectItem>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="auto">Automatic Registration on Enrollment</SelectItem>
+                                <SelectItem value="jitp">JITP Template</SelectItem>
                             </SelectContent>
                         </Select>
                         <FormMessage />
@@ -281,7 +260,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                 )}
             />
 
-            {(watchRegistrationMode === 'JITP_BY_CA' || watchRegistrationMode === 'AUTOMATIC_REGISTRATION') && (
+            {(watchRegistrationMode === 'jitp' || watchRegistrationMode === 'auto') && (
                 <>
                 {registrationInfo ? (() => {
                     const { Icon, variant, title, message } = getStatusContent(registrationInfo);
@@ -407,32 +386,15 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                      <div className="pl-4 space-y-4 border-l ml-2 pt-2">
                         <FormField
                             control={form.control}
-                            name="shadow_config.shadow_type"
+                            name="shadow_config.shadow_name"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Shadow Type</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="Classic">Classic</SelectItem>
-                                        <SelectItem value="Named">Named</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                    <FormLabel>Shadow Name (optional)</FormLabel>
+                                    <Input {...field} placeholder="Leave empty for Classic shadow..."/>
+                                    <FormDescription>If provided, a Named shadow will be used. Otherwise, the Classic (unnamed) shadow is used.</FormDescription>
                                 </FormItem>
                             )}
                         />
-                         {watchShadowType === 'Named' && (
-                             <FormField
-                                control={form.control}
-                                name="shadow_config.shadow_name"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Shadow Name</FormLabel>
-                                        <Input {...field} placeholder="Enter named shadow..."/>
-                                    </FormItem>
-                                )}
-                            />
-                         )}
 
                         <Alert variant="warning">
                             <AlertTriangle className="h-4 w-4" />
