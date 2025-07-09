@@ -1,14 +1,12 @@
-// This file allows for runtime configuration of the Lamassu UI.
-// You can override these values in your deployment environment without rebuilding the app.
+// public/env-config.js
 window.lamassuConfig = {
-  // The base URL for all backend API services
-  LAMASSU_API: 'https://lab.lamassu.io/api',
-
-  // The OIDC authority URL for authentication
-  LAMASSU_AUTH_AUTHORITY: 'https://lab.lamassu.io/auth/realms/lamassu',
-  
-  // The OIDC client ID for this frontend application
-  LAMASSU_AUTH_CLIENT_ID: 'frontend'
-
-  
+    // Set this to false to disable authentication for local development
+    LAMASSU_AUTH_ENABLED: true,
+    
+    // Keycloak / OIDC settings
+    LAMASSU_AUTH_AUTHORITY: "https://lab.lamassu.io/auth/realms/lamassu",
+    LAMASSU_AUTH_CLIENT_ID: "frontend",
+    
+    // API Gateway Base URL
+    LAMASSU_API: "https://lab.lamassu.io/api"
 };
