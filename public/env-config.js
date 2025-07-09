@@ -1,14 +1,15 @@
-// public/env-config.js
 window.lamassuConfig = {
-    // Set this to false to disable authentication for local development
+    // Flag to enable or disable OIDC authentication.
+    // Set to false to use a mock user for development without a Keycloak instance.
     LAMASSU_AUTH_ENABLED: true,
-    
-    // Keycloak / OIDC settings
+
+    // OIDC provider details
     LAMASSU_AUTH_AUTHORITY: "https://lab.lamassu.io/auth/realms/lamassu",
     LAMASSU_AUTH_CLIENT_ID: "frontend",
-    
-    // API Gateway Base URL
+
+    // Base URL for the Lamassu API gateway
     LAMASSU_API: "https://lab.lamassu.io/api",
 
-    LAMASSU_CLOUD_CONNECTORS: []
+    // Flag to enable a custom footer from public/footer.html
+    LAMASSU_FOOTER_ENABLED: false,
 };

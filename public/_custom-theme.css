@@ -1,0 +1,174 @@
+/* Rename this file to `_custom-theme.css` to apply custom styles */
+:root {
+  /* --- Colors --- */
+
+  /* Base background color of the application */
+  --background: 0 0% 97%;
+  /* Base text color of the application */
+  --foreground: 0 0% 20%;
+
+  /* Background color for cards and containers */
+  --card: 0 0% 100%;
+  /* Text color for content within cards */
+  --card-foreground: 0 0% 20%;
+
+  /* Background color for popover elements (tooltips, dropdowns, etc.) */
+  --popover: 0 0% 100%;
+  /* Text color for content within popovers */
+  --popover-foreground: 0 0% 20%;
+
+  /* Primary brand color - matching the red header */
+  --primary: 0 0% 11.8%;
+  /* Text color for elements with the primary background */
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary color for less prominent elements */
+  --secondary: 0 0% 95%;
+  /* Text color for elements with the secondary background */
+  --secondary-foreground: 0 0% 20%;
+
+  /* Color for muted or subtle text and elements */
+  --muted: 0 0% 95%;
+  /* Text color for muted elements */
+  --muted-foreground: 0 0% 50%;
+
+  /* Accent color for highlighting key elements */
+  --accent: 0 0% 93%;
+  /* Text color for accent elements */
+  --accent-foreground: 0 0% 20%;
+
+  /* Color for destructive actions or elements (e.g., delete buttons) */
+  --destructive: 0 84% 60%;
+  /* Text color for destructive elements */
+  --destructive-foreground: 0 0% 100%;
+
+  /* Color for borders and dividers */
+  --border: 0 0% 88%;
+  /* Color for input fields */
+  --input: 0 0% 100%;
+  /* Color for focus rings or outlines */
+  --ring: 8 82% 57%;
+
+  /* Colors for chart elements */
+  --chart-1: 120 60% 50%;
+  --chart-2: 8 82% 57%;
+  --chart-3: 210 100% 50%;
+  --chart-4: 45 100% 50%;
+  --chart-5: 270 60% 50%;
+
+  /* Sidebar specific colors - white sidebar with subtle borders */
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 0 0% 30%;
+  --sidebar-primary: 8 82% 57%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 96%;
+  --sidebar-accent-foreground: 0 0% 30%;
+  --sidebar-border: 0 0% 92%;
+  --sidebar-ring: 8 82% 57%;
+
+  /* Header specific colors - red header bar */
+  --header-background: 8 82% 57%;
+  --header-foreground: 0 0% 100%;
+
+  /* Table specific colors - clean white table */
+  --table-header: 0 0% 100%;
+  --table-header-foreground: 0 0% 30%;
+  --table-row: 0 0% 100%;
+  --table-row-alt: 0 0% 99%;
+
+  /* Status colors */
+  --status-active: 120 70% 40%;
+  --status-active-foreground: 0 0% 100%;
+  --status-revoked: 0 84% 60%;
+  --status-revoked-foreground: 0 0% 100%;
+
+  /* --- Border Radius --- */
+
+  /* Base border radius for elements */
+  --radius: 0.375rem;
+}
+
+/* Dark theme overrides */
+.dark {
+  /* --- Colors --- */
+
+  /* Base background color for dark theme */
+  --background: 0 0% 9%;
+  /* Base text color for dark theme */
+  --foreground: 0 0% 92%;
+
+  /* Background color for cards and containers in dark theme */
+  --card: 0 0% 12%;
+  /* Text color for content within cards in dark theme */
+  --card-foreground: 0 0% 92%;
+
+  /* Background color for popover elements in dark theme */
+  --popover: 0 0% 12%;
+  /* Text color for content within popovers in dark theme */
+  --popover-foreground: 0 0% 92%;
+
+  /* Primary brand color for dark theme - slightly adjusted red */
+  --primary: 8 82% 62%;
+  /* Text color for elements with primary background in dark theme */
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary color for dark theme */
+  --secondary: 0 0% 16%;
+  /* Text color for elements with secondary background in dark theme */
+  --secondary-foreground: 0 0% 92%;
+
+  /* Color for muted or subtle text and elements in dark theme */
+  --muted: 0 0% 16%;
+  /* Text color for muted elements in dark theme */
+  --muted-foreground: 0 0% 62%;
+
+  /* Accent color for highlighting key elements in dark theme */
+  --accent: 0 0% 18%;
+  /* Text color for accent elements in dark theme */
+  --accent-foreground: 0 0% 92%;
+
+  /* Color for destructive actions or elements in dark theme */
+  --destructive: 0 84% 65%;
+  /* Text color for destructive elements in dark theme */
+  --destructive-foreground: 0 0% 100%;
+
+  /* Color for borders and dividers in dark theme */
+  --border: 0 0% 22%;
+  /* Color for input fields in dark theme */
+  --input: 0 0% 16%;
+  /* Color for focus rings or outlines in dark theme */
+  --ring: 8 82% 62%;
+
+   /* Colors for chart elements in dark theme */
+  --chart-1: 120 60% 55%;
+  --chart-2: 8 82% 62%;
+  --chart-3: 210 100% 55%;
+  --chart-4: 45 100% 55%;
+  --chart-5: 270 60% 55%;
+
+   /* Sidebar specific colors in dark theme */
+  --sidebar-background: 0 0% 7%;
+  --sidebar-foreground: 0 0% 82%;
+  --sidebar-primary: 8 82% 62%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 14%;
+  --sidebar-accent-foreground: 0 0% 82%;
+  --sidebar-border: 0 0% 20%;
+  --sidebar-ring: 8 82% 62%;
+
+  /* Header specific colors in dark theme */
+  --header-background: 8 82% 62%;
+  --header-foreground: 0 0% 100%;
+
+  /* Table specific colors in dark theme */
+  --table-header: 0 0% 12%;
+  --table-header-foreground: 0 0% 92%;
+  --table-row: 0 0% 12%;
+  --table-row-alt: 0 0% 10%;
+
+  /* Status colors for dark theme */
+  --status-active: 120 70% 45%;
+  --status-active-foreground: 0 0% 100%;
+  --status-revoked: 0 84% 65%;
+  --status-revoked-foreground: 0 0% 100%;
+}
