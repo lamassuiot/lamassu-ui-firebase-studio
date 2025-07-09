@@ -851,8 +851,7 @@ export async function fetchDevManagerStats(accessToken: string): Promise<{ total
     const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/stats`, { 
         headers: { 'Authorization': `Bearer ${accessToken}` } 
     });
-    if (!response.ok) throw new Error('Failed to fetch Device stats');
-    return response.json();
+    return handleApiError(response, 'Failed to fetch Device stats');
 }
 
 // --- Signing Profiles ---
