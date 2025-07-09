@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -53,6 +54,21 @@ interface AwsIotIntegrationTabProps {
 
 const AWS_IOT_METADATA_KEY = 'lamassu.io/iot/aws.iot-core';
 
+const defaultFormValues: AwsIntegrationFormValues = {
+    aws_iot_manager_instance: 'aws.iot',
+    registration_mode: 'NONE',
+    groups: [],
+    policies: [],
+    shadow_config: {
+        enable: false,
+        shadow_type: 'Classic',
+        shadow_name: '',
+    },
+    remediation_config: {
+        account_id: '',
+    },
+};
+
 export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, onUpdate }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -62,7 +78,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
   const form = useForm<AwsIntegrationFormValues>({
     resolver: zodResolver(awsIntegrationSchema),
-    defaultValues: {},
+    defaultValues: defaultFormValues,
   });
   
   const { fields, append, remove } = useFieldArray({
@@ -81,7 +97,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         groups: config.groups || [],
         policies: config.policies || [],
         shadow_config: {
-            enable: config.shadow_config?.enable || false,
+            enable: config.shadow_config?.enable ?? false,
             shadow_type: shadowType,
             shadow_name: config.shadow_config?.shadow_name || '',
         },
@@ -90,6 +106,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         },
         registration: config.registration,
       });
+    } else {
+        // If no config exists, ensure form is reset to defaults
+        form.reset(defaultFormValues);
     }
   }, [ra, form]);
 
@@ -250,6 +269,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                 <SelectItem value="JITP_BY_CA">JITP Template</SelectItem>
                             </SelectContent>
                         </Select>
+                        <FormMessage />
                     </FormItem>
                 )}
             />
