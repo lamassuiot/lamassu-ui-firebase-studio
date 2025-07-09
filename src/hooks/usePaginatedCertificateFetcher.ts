@@ -22,6 +22,9 @@ interface UsePaginatedCertificateFetcherParams {
 
 export function usePaginatedCertificateFetcher({ caId = null, initialPageSize = '10' }: UsePaginatedCertificateFetcherParams = {}) {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  
+  const [isClientMounted, setIsClientMounted] = useState(false);
+  useEffect(() => { setIsClientMounted(true); }, []);
 
   const [certificates, setCertificates] = useState<CertificateData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,8 +58,8 @@ export function usePaginatedCertificateFetcher({ caId = null, initialPageSize = 
   }, [pageSize, debouncedSearchTerm, searchField, statusFilter, sortConfig]);
 
   const loadCertificates = useCallback(async (bookmarkToFetch: string | null) => {
-    if (authLoading || !isAuthenticated() || !user?.access_token) {
-        if (!authLoading && !isAuthenticated()) {
+    if (!isClientMounted || authLoading || !isAuthenticated() || !user?.access_token) {
+        if (!authLoading && isAuthenticated() && isClientMounted) {
             setError("User not authenticated.");
         }
         setIsLoading(false);
@@ -116,15 +119,15 @@ export function usePaginatedCertificateFetcher({ caId = null, initialPageSize = 
         setIsLoading(false);
     }
   }, [
-    authLoading, isAuthenticated, user?.access_token, 
+    isClientMounted, authLoading, isAuthenticated, user?.access_token, 
     sortConfig, pageSize, statusFilter, debouncedSearchTerm, searchField, caId
   ]);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated()) {
+    if (isClientMounted && !authLoading && isAuthenticated()) {
       loadCertificates(bookmarkStack[currentPageIndex]);
     }
-  }, [authLoading, isAuthenticated, currentPageIndex, bookmarkStack, loadCertificates]);
+  }, [isClientMounted, authLoading, isAuthenticated, currentPageIndex, bookmarkStack, loadCertificates]);
 
   const handleNextPage = () => {
     if (isLoading) return;
