@@ -3,17 +3,16 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getClientUserManager } from '@/contexts/AuthContext'; // Helper to get UserManager instance
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function SigninCallbackPage() {
   const router = useRouter();
+  const { userManager } = useAuth();
 
   useEffect(() => {
-    const userManager = getClientUserManager();
     if (!userManager) {
-        console.error("SigninCallback: UserManager not available.");
-        router.push('/'); // Fallback redirect
+        console.log("SigninCallback: Waiting for UserManager...");
         return;
     }
 
@@ -22,15 +21,14 @@ export default function SigninCallbackPage() {
         console.log("SigninCallback: Processing callback...");
         await userManager.signinRedirectCallback();
         console.log("SigninCallback: Callback processed, redirecting to /.");
-        router.push('/'); // Changed redirect to /
+        router.push('/');
       } catch (error) {
         console.error('SigninCallback: Error processing signin callback:', error);
-        // Handle error, e.g., redirect to an error page or login
         router.push('/'); // Fallback to home/login
       }
     };
     processCallback();
-  }, [router]);
+  }, [userManager, router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">

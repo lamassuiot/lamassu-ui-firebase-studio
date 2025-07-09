@@ -4,6 +4,7 @@
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import Script from 'next/script';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -427,6 +428,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <Script src="/env-config.js" strategy="beforeInteractive" />
         <title>LamassuIoT Certificate Manager</title>
         <meta name="description" content="Manage and verify your X.509 certificates with LamassuIoT." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

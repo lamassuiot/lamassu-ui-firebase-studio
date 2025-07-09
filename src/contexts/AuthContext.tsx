@@ -2,18 +2,23 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
-import { User, UserManager, WebStorageStateStore, Log } from 'oidc-client-ts';
+import { User, UserManager, WebStorageStateStore, Log, UserProfile } from 'oidc-client-ts';
 import { useRouter } from 'next/navigation';
 
 // Optional: Configure oidc-client-ts logging
 Log.setLogger(console);
 Log.setLevel(Log.DEBUG);
 
+
 const createUserManager = (): UserManager | null => {
-  if (typeof window !== 'undefined') {
+  // Check moved inside the function to be safe.
+  if (typeof window !== 'undefined' && (window as any).lamassuConfig?.LAMASSU_AUTH_ENABLED !== false) {
+    const authority = (window as any).lamassuConfig?.LAMASSU_AUTH_AUTHORITY || 'https://lab.lamassu.io/auth/realms/lamassu';
+    const clientId = (window as any).lamassuConfig?.LAMASSU_AUTH_CLIENT_ID || 'frontend';
+
     return new UserManager({
-      authority: 'https://lab.lamassu.io/auth/realms/lamassu', // No .well-known needed here
-      client_id: 'frontend',
+      authority: authority,
+      client_id: clientId,
       redirect_uri: `${window.location.origin}/signin-callback`,
       silent_redirect_uri: `${window.location.origin}/silent-renew-callback`,
       post_logout_redirect_uri: `${window.location.origin}/signout-callback`,
@@ -38,22 +43,37 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const userManagerInstance = useMemo(() => createUserManager(), []);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Initialize isLoading to true for server and client
   const router = useRouter();
+  const [authMode, setAuthMode] = useState<'loading' | 'enabled' | 'disabled'>('loading');
+
+  // OIDC specific state that will only be used if authMode is 'enabled'
+  const userManagerInstance = useMemo(() => {
+    if (authMode === 'enabled') {
+      return createUserManager();
+    }
+    return null;
+  }, [authMode]);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // This effect runs once on the client after the component mounts.
+    // By this time, `env-config.js` should have loaded and populated window.lamassuConfig.
+    const isEnabled = (window as any).lamassuConfig?.LAMASSU_AUTH_ENABLED !== false;
+    setAuthMode(isEnabled ? 'enabled' : 'disabled');
+  }, []);
+  
+  useEffect(() => {
     if (!userManagerInstance) {
-      // This case implies we are on the server OR userManager failed to initialize on client.
-      // If on client and userManager failed, we should stop loading.
-      if (typeof window !== 'undefined') {
-        setIsLoading(false);
+      // If there's no user manager (because auth is disabled or we're loading),
+      // we are not loading a real user.
+      if(authMode !== 'loading') {
+          setIsLoading(false);
       }
       return;
     }
 
-    // Client-side logic since userManagerInstance exists.
     const loadUser = async () => {
       try {
         const loadedUser = await userManagerInstance.getUser();
@@ -61,34 +81,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("AuthContext: Error loading user:", error);
       } finally {
-        setIsLoading(false); // Set to false after attempt on client
+        setIsLoading(false);
       }
     };
 
     loadUser();
 
-    const onUserLoaded = (loadedUser: User) => {
-      console.log("AuthContext: User loaded", loadedUser);
-      setUser(loadedUser);
-    };
-    const onUserUnloaded = () => {
-      console.log("AuthContext: User unloaded");
-      setUser(null);
-    };
+    const onUserLoaded = (loadedUser: User) => setUser(loadedUser);
+    const onUserUnloaded = () => setUser(null);
     const onAccessTokenExpired = () => {
-      console.log("AuthContext: Access token expired, attempting silent renew or logout.");
-      // userManagerInstance.signinSilent().catch(() => logout()); // Example handling
+      console.log("AuthContext: Access token expired, attempting silent renew...");
+      userManagerInstance.signinSilent().catch((err) => {
+        console.error("AuthContext: Silent renew failed after token expired, logging out.", err);
+        logout();
+      });
     };
-    const onSilentRenewError = (error: Error) => {
-      console.error("AuthContext: Silent renew error:", error);
-      // Potentially trigger logout if silent renew fails critically
-      // logout();
-    };
-    const onUserSignedOut = () => {
-      console.log("AuthContext: User signed out (possibly from another tab/window)");
-      setUser(null);
-      // router.push('/'); // Optionally redirect to home/login
-    };
+    const onSilentRenewError = (error: Error) => { console.error("AuthContext: Silent renew error:", error); logout(); };
+    const onUserSignedOut = () => setUser(null);
 
     userManagerInstance.events.addUserLoaded(onUserLoaded);
     userManagerInstance.events.addUserUnloaded(onUserUnloaded);
@@ -103,72 +112,73 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       userManagerInstance.events.removeSilentRenewError(onSilentRenewError);
       userManagerInstance.events.removeUserSignedOut(onUserSignedOut);
     };
-  }, [userManagerInstance, router]); // Removed logout from deps as it's stable
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !userManagerInstance) {
-      return;
-    }
-
-    if (window.location.pathname === '/signin-callback') {
-      const handleCallback = async () => {
-        try {
-          console.log('AuthContext: Processing signin callback...');
-          await userManagerInstance.signinRedirectCallback();
-        } catch (error) {
-          console.error('AuthContext: Error processing signin callback:', error);
-        } finally {
-          router.push('/');
-        }
-      };
-      handleCallback();
-    }
-  }, [userManagerInstance, router]);
-
-  const login = async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userManagerInstance]);
+  
+  const login = useCallback(async () => {
     if (userManagerInstance) {
       try {
-        // setIsLoading(true); // isLoading is already true or managed by page navigation
-        console.log("AuthContext: Initiating login redirect");
         await userManagerInstance.signinRedirect();
       } catch (error) {
         console.error("AuthContext: Login redirect error:", error);
-        setIsLoading(false); // Ensure loading stops on error
       }
     }
-  };
+  }, [userManagerInstance]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (userManagerInstance) {
       try {
-        // setIsLoading(true); // Handled by navigation or page state
-        setUser(null); // Clear user immediately
+        setUser(null);
         if (await userManagerInstance.getUser()) {
           await userManagerInstance.signoutRedirect();
         } else {
-          // Already logged out or no user session
           router.push('/');
-          setIsLoading(false); // Ensure loading state is false if no redirect happens
         }
       } catch (error) {
         console.error("AuthContext: Logout redirect error:", error);
-        setUser(null); // Ensure user is cleared
-        await userManagerInstance.removeUser(); // Clean up OIDC storage
+        setUser(null);
+        await userManagerInstance.removeUser();
         router.push('/');
-        setIsLoading(false); // Ensure loading state is false
       }
     }
-  };
+  }, [userManagerInstance, router]);
 
   const isAuthenticated = useCallback(() => {
     return !!user && !user.expired;
   }, [user]);
 
-  // This check is mostly for client-side robustness, server won't hit this for rendering page content.
-  if (!userManagerInstance && typeof window !== 'undefined') {
-    return <div>Error: Authentication system could not initialize. Please refresh.</div>;
+  // If auth is disabled, provide the mock context.
+  if (authMode === 'disabled') {
+    const mockUser = new User({
+        id_token: 'mock_id_token',
+        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiYXBwLWFkbWluIiwib2ZmbGluZV9hY2Nlc3MiXX0sIm5hbWUiOiJEZXYgVXNlciJ9.mockSignature',
+        scope: 'openid profile email',
+        token_type: 'Bearer',
+        profile: {
+            sub: 'mock-user-id',
+            name: 'Dev User',
+            email: 'dev@lamassu.io',
+            iss: 'mock-issuer',
+            aud: 'mock-client',
+            exp: Math.floor(Date.now() / 1000) + 3600,
+            iat: Math.floor(Date.now() / 1000),
+        } as UserProfile,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        session_state: 'mock-session-state',
+    });
+
+    const value: AuthContextType = {
+        user: mockUser,
+        isLoading: false,
+        login: async () => console.warn('Auth disabled: login action suppressed.'),
+        logout: async () => console.warn('Auth disabled: logout action suppressed.'),
+        isAuthenticated: () => true,
+        userManager: null,
+    };
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
   }
 
+  // If auth is enabled (or still loading), provide the real OIDC context.
   return (
     <AuthContext.Provider value={{ user, isLoading, login, logout, isAuthenticated, userManager: userManagerInstance }}>
       {children}
