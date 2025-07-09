@@ -9,4 +9,6 @@ window.lamassuConfig = {
   
   // The OIDC client ID for this frontend application
   LAMASSU_AUTH_CLIENT_ID: 'frontend'
+
+  
 };
