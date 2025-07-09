@@ -11,9 +11,13 @@ Log.setLevel(Log.DEBUG);
 
 const createUserManager = (): UserManager | null => {
   if (typeof window !== 'undefined') {
+    // Get config from window object with fallbacks to default values
+    const authority = (window as any).lamassuConfig?.LAMASSU_AUTH_AUTHORITY || 'https://lab.lamassu.io/auth/realms/lamassu';
+    const clientId = (window as any).lamassuConfig?.LAMASSU_AUTH_CLIENT_ID || 'frontend';
+
     return new UserManager({
-      authority: 'https://lab.lamassu.io/auth/realms/lamassu', // No .well-known needed here
-      client_id: 'frontend',
+      authority: authority,
+      client_id: clientId,
       redirect_uri: `${window.location.origin}/signin-callback`,
       silent_redirect_uri: `${window.location.origin}/silent-renew-callback`,
       post_logout_redirect_uri: `${window.location.origin}/signout-callback`,
