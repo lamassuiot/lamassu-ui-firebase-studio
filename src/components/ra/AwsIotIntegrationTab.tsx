@@ -135,7 +135,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         setShadowType('disabled');
       }
     }
-  }, [ra, form, loadCaData]);
+  }, [ra, loadCaData]);
   
   const onSubmit = async (data: AwsIntegrationFormValues) => {
     if (!user?.access_token) {
@@ -179,7 +179,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     try {
         let patchOperations: PatchOperation[] = [];
         
-        // JSON Pointers must escape '~' as '~0' and '/' as '~1'.
         const awsConfigPointer = `/${AWS_IOT_METADATA_KEY.replace(/~/g, '~0').replace(/\//g, '~1')}`;
         
         if (isRetry) {
