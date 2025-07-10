@@ -103,5 +103,9 @@ export function policyBuilder (accountID: string, shadowName: string) {
       ]
   };
 
-  return JSON.stringify(str).replaceAll("ACCOUNTID", accountID).replaceAll("SHADOWID", shadowReplacer);
+  const jsonString = JSON.stringify(str, null, 2)
+    .replaceAll("ACCOUNTID", accountID)
+    .replaceAll("SHADOWID", shadowReplacer);
+
+  return jsonString;
 }
