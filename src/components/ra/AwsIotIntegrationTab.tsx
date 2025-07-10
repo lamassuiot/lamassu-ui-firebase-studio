@@ -78,6 +78,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [shadowType, setShadowType] = useState<'disabled' | 'classic' | 'named'>('disabled');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPrimaryAccount, setIsPrimaryAccount] = useState(true);
+  const [lastSavedValues, setLastSavedValues] = useState<AwsIntegrationFormValues | null>(null);
 
 
 
@@ -110,8 +111,11 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }
   }, [user?.access_token, ra]);
 
+
+
   useEffect(() => {
-    if (ra) {
+    if (ra && ra.id !== lastRaId) {
+      setLastRaId(ra.id);
       loadCaData();
 
       const config = ra.metadata?.[AWS_IOT_METADATA_KEY] || {};
@@ -129,7 +133,10 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         },
       };
       
-      form.reset(mergedValues);
+      // Only reset form if we don't have recently saved values or if the data actually changed
+      if (!lastSavedValues || JSON.stringify(mergedValues) !== JSON.stringify(lastSavedValues)) {
+        form.reset(mergedValues);
+      }
 
       if (mergedValues.shadow_config?.enable) {
         setShadowType(mergedValues.shadow_config.shadow_name ? 'named' : 'classic');
@@ -137,7 +144,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         setShadowType('disabled');
       }
     }
-  }, [ra, loadCaData, form]);
+  }, [ra, lastRaId, loadCaData, lastSavedValues]);
 
 
   
@@ -168,6 +175,10 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     try {
         await createOrUpdateRa(updatedRaPayload, user.access_token, true, ra.id);
         toast({ title: "Success", description: "AWS IoT integration settings saved." });
+        
+        // Store the saved values to prevent unnecessary form resets
+        setLastSavedValues(transformedData);
+        
         onUpdate();
     } catch (e: any) {
         toast({ title: "Save Failed", description: e.message, variant: "destructive" });
