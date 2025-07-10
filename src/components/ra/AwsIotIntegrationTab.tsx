@@ -22,6 +22,8 @@ import { CaVisualizerCard } from '../CaVisualizerCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { Switch } from '@/components/ui/switch';
 import { AwsPolicyEditorModal } from './AwsPolicyEditorModal';
+import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 
 const awsPolicySchema = z.object({
