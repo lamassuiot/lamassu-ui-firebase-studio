@@ -94,9 +94,8 @@ export const AwsPolicyEditorModal: React.FC<AwsPolicyEditorModalProps> = ({
             Define the policy name and its corresponding JSON document. Use AWS variables like `${'${iot:Connection.Thing.ThingName}'}` as needed.
           </DialogDescription>
         </DialogHeader>
-
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 flex-grow flex flex-col min-h-[300px]">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 flex flex-col flex-grow min-h-0">
             <FormField
               control={form.control}
               name="policy_name"
@@ -110,15 +109,14 @@ export const AwsPolicyEditorModal: React.FC<AwsPolicyEditorModalProps> = ({
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
               name="policy_document"
               render={({ field }) => (
                 <FormItem className="flex-grow flex flex-col">
                   <FormLabel>Policy Document</FormLabel>
-                  <FormControl className="flex-grow">
-                     <div className="border rounded-md overflow-hidden h-full">
+                  <FormControl>
+                     <div className="border rounded-md overflow-hidden h-[24rem]">
                         <Editor
                             height="100%"
                             defaultLanguage="json"
@@ -133,7 +131,7 @@ export const AwsPolicyEditorModal: React.FC<AwsPolicyEditorModalProps> = ({
                 </FormItem>
               )}
             />
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-2">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit">{isEditing ? 'Save Changes' : 'Add Policy'}</Button>
             </DialogFooter>
