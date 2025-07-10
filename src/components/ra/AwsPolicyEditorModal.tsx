@@ -16,7 +16,7 @@ import type { AwsPolicy } from './AwsIotIntegrationTab';
 const Editor = dynamic(
     () => import('@monaco-editor/react'), 
     { ssr: false, loading: () => <div className="h-full w-full flex items-center justify-center bg-muted/30 rounded-md"><Loader2 className="h-8 w-8 animate-spin"/></div> }
-);
+)
 
 interface AwsPolicyEditorModalProps {
   isOpen: boolean;
@@ -91,7 +91,7 @@ export const AwsPolicyEditorModal: React.FC<AwsPolicyEditorModalProps> = ({
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit' : 'Add'} AWS IoT Policy</DialogTitle>
           <DialogDescription>
-            Define the policy name and its corresponding JSON document. Use AWS variables like `${iot:Connection.Thing.ThingName}` as needed.
+            Define the policy name and its corresponding JSON document. Use AWS variables like `${'${iot:Connection.Thing.ThingName}'}` as needed.
           </DialogDescription>
         </DialogHeader>
 
