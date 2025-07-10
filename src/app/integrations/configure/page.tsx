@@ -5,10 +5,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, ArrowLeft, Settings } from 'lucide-react';
+import { Loader2, AlertTriangle, ArrowLeft, Settings, BookText } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AwsIotIntegrationTab } from '@/components/ra/AwsIotIntegrationTab';
-import { fetchRaById, type ApiRaItem } from '@/lib/dms-api';
+import { fetchRaById, type ApiRaItem, createOrUpdateRa } from '@/lib/dms-api';
+import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
 
 const AWS_IOT_METADATA_KEY = 'lamassu.io/iot/aws.iot-core';
 
@@ -23,6 +24,7 @@ export default function ConfigureIntegrationPage() {
     const [raData, setRaData] = useState<ApiRaItem | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
     
     const fetchRaDetails = useCallback(async () => {
         if (!raId || !isAuthenticated() || !user?.access_token) {
@@ -47,6 +49,20 @@ export default function ConfigureIntegrationPage() {
     useEffect(() => {
         fetchRaDetails();
     }, [fetchRaDetails]);
+
+    const handleUpdateRaMetadata = async (id: string, metadata: object) => {
+        if (!user?.access_token) {
+            throw new Error("User not authenticated.");
+        }
+        const currentRa = await fetchRaById(id, user.access_token);
+        const payload = {
+            name: currentRa.name,
+            id: currentRa.id,
+            metadata: metadata,
+            settings: currentRa.settings
+        };
+        await createOrUpdateRa(payload, user.access_token, true, id);
+    };
     
     if (isLoading || authLoading) {
         return (
@@ -106,9 +122,14 @@ export default function ConfigureIntegrationPage() {
 
     return (
         <div className="w-full space-y-6 mb-8">
-            <Button variant="outline" onClick={() => router.push('/integrations')}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Integrations
-            </Button>
+            <div className="flex justify-between items-center">
+                <Button variant="outline" onClick={() => router.push('/integrations')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Integrations
+                </Button>
+                 <Button variant="outline" onClick={() => setIsMetadataModalOpen(true)}>
+                    <BookText className="mr-2 h-4 w-4" /> View RA Metadata
+                </Button>
+            </div>
             <div className="flex items-center space-x-3">
                 <Settings className="h-8 w-8 text-primary" />
                 <div>
@@ -117,6 +138,18 @@ export default function ConfigureIntegrationPage() {
                 </div>
             </div>
             {ConfigComponent}
+
+            <MetadataViewerModal
+                isOpen={isMetadataModalOpen}
+                onOpenChange={setIsMetadataModalOpen}
+                title={`Metadata for ${raData.name}`}
+                description={`Raw metadata object for the Registration Authority.`}
+                data={raData.metadata || null}
+                isEditable={true}
+                itemId={raData.id}
+                onSave={handleUpdateRaMetadata}
+                onUpdateSuccess={fetchRaDetails}
+            />
         </div>
     );
 }
