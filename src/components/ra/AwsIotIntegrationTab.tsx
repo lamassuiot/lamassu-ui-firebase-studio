@@ -114,7 +114,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
       const config = ra.metadata?.[AWS_IOT_METADATA_KEY] || {};
       const mergedValues = {
-        ...defaultFormValues, ...config,
+        ...defaultFormValues,
+        ...config,
         shadow_config: { ...defaultFormValues.shadow_config, ...(config.shadow_config || {}) },
         remediation_config: { ...defaultFormValues.remediation_config, ...(config.remediation_config || {}) },
       };
@@ -173,12 +174,11 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         let patchOperations: PatchOperation[] = [];
         
         // JSON Pointers must escape '~' as '~0' and '/' as '~1'.
-        const awsConfigPath = `/${AWS_IOT_METADATA_KEY.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+        const awsConfigPointer = `/${AWS_IOT_METADATA_KEY.replace(/~/g, '~0').replace(/\//g, '~1')}`;
         
         if (isRetry) {
-             // For retry, we only patch the status field.
-             const statusPath = `${awsConfigPath}/registration/status`;
-             patchOperations.push({ op: 'replace', path: statusPath, value: 'REQUESTED' });
+             const statusPointer = `${awsConfigPointer}/registration/status`;
+             patchOperations.push({ op: 'replace', path: statusPointer, value: 'REQUESTED' });
         } else {
             const registrationPayload = {
                 primary_account: isPrimaryAccount,
@@ -188,7 +188,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
             const newAwsConfig = { ...existingAwsConfig, registration: registrationPayload };
             const op: PatchOperation['op'] = existingCaMetadata[AWS_IOT_METADATA_KEY] ? 'replace' : 'add';
-            patchOperations.push({ op, path: awsConfigPath, value: newAwsConfig });
+            patchOperations.push({ op, path: awsConfigPointer, value: newAwsConfig });
         }
         
         await updateCaMetadata(enrollmentCa.id, patchOperations, user.access_token);
