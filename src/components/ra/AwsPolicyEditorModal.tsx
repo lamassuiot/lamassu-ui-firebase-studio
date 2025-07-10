@@ -16,7 +16,7 @@ import type { AwsPolicy } from './AwsIotIntegrationTab';
 const Editor = dynamic(
     () => import('@monaco-editor/react'), 
     { ssr: false, loading: () => <div className="h-full w-full flex items-center justify-center bg-muted/30 rounded-md"><Loader2 className="h-8 w-8 animate-spin"/></div> }
-)
+);
 
 interface AwsPolicyEditorModalProps {
   isOpen: boolean;
