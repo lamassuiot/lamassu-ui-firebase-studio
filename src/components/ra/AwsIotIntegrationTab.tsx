@@ -78,10 +78,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [shadowType, setShadowType] = useState<'disabled' | 'classic' | 'named'>('disabled');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPrimaryAccount, setIsPrimaryAccount] = useState(true);
-  const [lastSavedValues, setLastSavedValues] = useState<AwsIntegrationFormValues | null>(null);
-
+  
   const [lastRaId, setLastRaId] = useState<string | null>(null);
-
 
   const form = useForm<AwsIntegrationFormValues>({
     resolver: zodResolver(awsIntegrationSchema),
@@ -112,31 +110,29 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }
   }, [user?.access_token, ra]);
 
-
-
   useEffect(() => {
+    // This effect populates the form when the `ra` prop changes to a new RA.
+    // It avoids resetting the form on every re-render or data refresh for the same RA.
     if (ra && ra.id !== lastRaId) {
       setLastRaId(ra.id);
       loadCaData();
 
       const config = ra.metadata?.[AWS_IOT_METADATA_KEY] || {};
+      
       const mergedValues: AwsIntegrationFormValues = {
-        aws_iot_manager_instance: config.aws_iot_manager_instance || defaultFormValues.aws_iot_manager_instance,
-        registration_mode: config.registration_mode || defaultFormValues.registration_mode,
-        groups: config.groups || defaultFormValues.groups,
-        policies: config.policies || defaultFormValues.policies,
-        shadow_config: { 
-            enable: config.shadow_config?.enable ?? defaultFormValues.shadow_config!.enable, 
-            shadow_name: config.shadow_config?.shadow_name ?? defaultFormValues.shadow_config!.shadow_name,
+        ...defaultFormValues, // Start with defaults
+        ...config, // Override with saved config
+        shadow_config: { // Deep merge shadow_config
+            ...defaultFormValues.shadow_config,
+            ...(config.shadow_config || {}),
         },
-        remediation_config: { 
-            account_id: config.remediation_config?.account_id ?? defaultFormValues.remediation_config!.account_id 
+        remediation_config: { // Deep merge remediation_config
+            ...defaultFormValues.remediation_config,
+            ...(config.remediation_config || {}),
         },
       };
-      
-      if (!lastSavedValues || JSON.stringify(mergedValues) !== JSON.stringify(lastSavedValues)) {
-        form.reset(mergedValues);
-      }
+
+      form.reset(mergedValues);
 
       if (mergedValues.shadow_config?.enable) {
         setShadowType(mergedValues.shadow_config.shadow_name ? 'named' : 'classic');
@@ -144,8 +140,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         setShadowType('disabled');
       }
     }
-  }, [ra, lastRaId, loadCaData, lastSavedValues, form]);
-
+  }, [ra, lastRaId, loadCaData, form]);
 
   
   const onSubmit = async (data: AwsIntegrationFormValues) => {
@@ -175,10 +170,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     try {
         await createOrUpdateRa(updatedRaPayload, user.access_token, true, ra.id);
         toast({ title: "Success", description: "AWS IoT integration settings saved." });
-        
-        // Store the saved values to prevent unnecessary form resets
-        setLastSavedValues(transformedData);
-        
         onUpdate();
     } catch (e: any) {
         toast({ title: "Save Failed", description: e.message, variant: "destructive" });
