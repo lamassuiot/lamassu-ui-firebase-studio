@@ -80,6 +80,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [isPrimaryAccount, setIsPrimaryAccount] = useState(true);
   const [lastSavedValues, setLastSavedValues] = useState<AwsIntegrationFormValues | null>(null);
 
+  const [lastRaId, setLastRaId] = useState<string | null>(null);
 
 
   const form = useForm<AwsIntegrationFormValues>({
@@ -133,7 +134,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         },
       };
       
-      // Only reset form if we don't have recently saved values or if the data actually changed
       if (!lastSavedValues || JSON.stringify(mergedValues) !== JSON.stringify(lastSavedValues)) {
         form.reset(mergedValues);
       }
@@ -144,7 +144,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         setShadowType('disabled');
       }
     }
-  }, [ra, lastRaId, loadCaData, lastSavedValues]);
+  }, [ra, lastRaId, loadCaData, lastSavedValues, form]);
 
 
   
@@ -255,7 +255,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                 return (
                                     <Alert variant={variant as any}>
                                         <Icon className="h-4 w-4" /> <AlertTitle>{title}</AlertTitle>
-                                        <AlertDescription asChild>
+                                        <AlertDescription>
                                             <div className="space-y-3">
                                                 <p>{message}</p>
                                                 {registrationInfo.status === 'FAILED' ? (
@@ -282,7 +282,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                             })() : (
                                 <Alert variant="warning">
                                   <AlertTriangle className="h-4 w-4"/><AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
-                                  <AlertDescription asChild>
+                                  <AlertDescription>
                                     <div className="space-y-3 mt-2">
                                       <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
                                       <div className="space-y-2 pt-2">
