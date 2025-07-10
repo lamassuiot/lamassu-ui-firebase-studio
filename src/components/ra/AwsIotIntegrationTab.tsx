@@ -113,12 +113,20 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       loadCaData();
 
       const config = ra.metadata?.[AWS_IOT_METADATA_KEY] || {};
-      const mergedValues = {
-        ...defaultFormValues,
-        ...config,
-        shadow_config: { ...defaultFormValues.shadow_config, ...(config.shadow_config || {}) },
-        remediation_config: { ...defaultFormValues.remediation_config, ...(config.remediation_config || {}) },
+      const mergedValues: AwsIntegrationFormValues = {
+        aws_iot_manager_instance: config.aws_iot_manager_instance || defaultFormValues.aws_iot_manager_instance,
+        registration_mode: config.registration_mode || defaultFormValues.registration_mode,
+        groups: config.groups || defaultFormValues.groups,
+        policies: config.policies || defaultFormValues.policies,
+        shadow_config: { 
+            enable: config.shadow_config?.enable ?? defaultFormValues.shadow_config!.enable, 
+            shadow_name: config.shadow_config?.shadow_name ?? defaultFormValues.shadow_config!.shadow_name,
+        },
+        remediation_config: { 
+            account_id: config.remediation_config?.account_id ?? defaultFormValues.remediation_config!.account_id 
+        },
       };
+      
       form.reset(mergedValues);
 
       if (mergedValues.shadow_config?.enable) {
@@ -169,8 +177,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }
     setIsSyncing(true);
     try {
-        const existingCaMetadata = enrollmentCa.rawApiData?.metadata || {};
-        const existingAwsConfig = existingCaMetadata[AWS_IOT_METADATA_KEY] || {};
         let patchOperations: PatchOperation[] = [];
         
         // JSON Pointers must escape '~' as '~0' and '/' as '~1'.
@@ -180,6 +186,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
              const statusPointer = `${awsConfigPointer}/registration/status`;
              patchOperations.push({ op: 'replace', path: statusPointer, value: 'REQUESTED' });
         } else {
+            const existingCaMetadata = enrollmentCa.rawApiData?.metadata || {};
+            const existingAwsConfig = existingCaMetadata[AWS_IOT_METADATA_KEY] || {};
+
             const registrationPayload = {
                 primary_account: isPrimaryAccount,
                 registration_request_time: new Date().toISOString(),
