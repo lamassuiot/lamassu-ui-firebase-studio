@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { TagInput } from '@/components/shared/TagInput';
 import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,7 @@ import { format, parseISO } from 'date-fns';
 import { findCaById, fetchAndProcessCAs, updateCaMetadata, type CA, type PatchOperation } from '@/lib/ca-data';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { cn } from '@/lib/utils';
+import { CaVisualizerCard } from '../CaVisualizerCard';
 
 const awsPolicySchema = z.object({
   name: z.string().min(1, 'Policy name is required.'),
@@ -38,11 +39,6 @@ const awsIntegrationSchema = z.object({
   }).optional(),
   remediation_config: z.object({
     account_id: z.string().optional(),
-  }).optional(),
-  registration: z.object({
-      primary_account: z.boolean(),
-      registration_request_time: z.string(),
-      status: z.string(),
   }).optional(),
 });
 
@@ -129,8 +125,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       }
     }
   }, [ra, form, loadCaData]);
-
-  const watchRegistrationMode = form.watch('registration_mode');
   
   const onSubmit = async (data: AwsIntegrationFormValues) => {
     if (!user?.access_token) {
@@ -165,7 +159,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }
   };
 
-  const handleSyncCa = async () => {
+  const handleSyncCa = async (isRetry = false) => {
     if (!user?.access_token || !enrollmentCa) {
         toast({ title: 'Error', description: 'Enrollment CA not found or user not authenticated.', variant: 'destructive' });
         return;
@@ -173,7 +167,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     setIsSyncing(true);
     try {
         const registrationPayload = {
-            primary_account: isPrimaryAccount,
+            primary_account: isRetry ? enrollmentCa.rawApiData?.metadata?.[AWS_IOT_METADATA_KEY]?.registration?.primary_account : isPrimaryAccount,
             registration_request_time: new Date().toISOString(),
             status: "REQUESTED"
         };
@@ -187,7 +181,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         
         const patchOperations: PatchOperation[] = [{ op, path, value: newAwsConfig }];
         
-        await updateCaMetadata(enrollmentCa.id, patchOperations, user.access_token);
+        await updateCaMetadata(enrollmentCa.id, { "patches": patchOperations }, user.access_token);
         
         toast({ title: "Success", description: "CA synchronization request has been sent." });
         loadCaData(); // Refresh the CA data to get the new status
@@ -204,144 +198,158 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
   const getStatusContent = (regInfo: any) => {
     switch(regInfo.status) {
-        case 'COMPLETED': return { Icon: CheckCircle, variant: 'default', title: 'CA Registration Status: COMPLETED', message: `CA registration completed successfully at ${format(parseISO(regInfo.registration_request_time), 'PPpp')}.` };
+        case 'SUCCEEDED': return { Icon: CheckCircle, variant: 'default', title: 'CA Registration Status: SUCCEEDED', message: `CA registration completed successfully at ${format(parseISO(regInfo.registration_request_time), 'PPpp')}.` };
         case 'FAILED': return { Icon: XCircle, variant: 'destructive', title: 'CA Registration Status: FAILED', message: `CA registration failed. Please check logs and try again.` };
         case 'REQUESTED': default: return { Icon: AlertTriangle, variant: 'warning', title: 'CA Registration Status: REQUESTED', message: "Registration process underway. Click 'Reload & Check' periodically." };
     }
   };
+  
+  const isIntegrationEnabled = registrationInfo && registrationInfo.status === 'SUCCEEDED';
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         
-        <h3 className={sectionTitleStyle}>Thing Provisioning</h3>
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-             <FormField
-                control={form.control} name="registration_mode"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Registration Mode</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                <SelectItem value="auto">Automatic Registration on Enrollment</SelectItem>
-                                <SelectItem value="jitp">JITP Template</SelectItem>
-                            </SelectContent>
-                        </Select><FormMessage />
-                    </FormItem>
-                )}
-            />
-            {(watchRegistrationMode === 'jitp' || watchRegistrationMode === 'auto') && (
-                <>
-                {isLoadingCa ? <Loader2 className="animate-spin" /> : errorCa ? <Alert variant="destructive"><AlertTitle>Error loading CA</AlertTitle><AlertDescription>{errorCa}</AlertDescription></Alert> : registrationInfo ? (() => {
-                    const { Icon, variant, title, message } = getStatusContent(registrationInfo);
-                    return (
-                        <Alert variant={variant as any}>
-                            <Icon className="h-4 w-4" /> <AlertTitle>{title}</AlertTitle>
-                            <AlertDescription asChild>
-                                <div className="space-y-3">
-                                    <p>{message}</p>
-                                    <div className="bg-gray-900 text-gray-200 font-mono text-xs p-4 rounded-md overflow-x-auto">
-                                        <pre><code>{JSON.stringify({ registration: registrationInfo }, null, 2)}</code></pre>
-                                    </div>
-                                    <Button type="button" variant="link" className="p-0 h-auto font-semibold" onClick={loadCaData}>Reload & Check Status</Button>
-                                </div>
-                            </AlertDescription>
-                        </Alert>
-                    )
-                })() : (
-                    <Alert variant="warning">
-                      <AlertTriangle className="h-4 w-4" /><AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
-                      <AlertDescription asChild>
-                        <div className="space-y-3 mt-2">
-                          <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
-                          <div className="space-y-2 pt-2">
-                              <Label htmlFor="account-type-select">Register as Primary Account</Label>
-                              <Select onValueChange={(value) => setIsPrimaryAccount(value === 'primary')} defaultValue={isPrimaryAccount ? 'primary' : 'secondary'}>
-                                  <SelectTrigger id="account-type-select">
-                                      <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="primary">
-                                          <div className="flex flex-col">
-                                              <span className="font-semibold">Primary Account - Register as CA owner</span>
-                                              <span className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</span>
-                                          </div>
-                                      </SelectItem>
-                                      <SelectItem value="secondary">
-                                           <div className="flex flex-col">
-                                              <span className="font-semibold">Secondary Account</span>
-                                              <span className="text-xs text-muted-foreground">No access to the CA private key is needed.</span>
-                                          </div>
-                                      </SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                          <div className="flex justify-end pt-2">
-                              <Button type="button" variant="outline" onClick={handleSyncCa} disabled={isSyncing}>
-                                {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                                Synchronize CA with AWS
-                              </Button>
-                          </div>
-                        </div>
-                      </AlertDescription>
-                  </Alert>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <h3 className={sectionTitleStyle}>AWS Thing Groups</h3>
-        <Card><CardContent className="pt-6"><FormField control={form.control} name="groups" render={({ field }) => (<FormItem><FormControl><TagInput {...field} placeholder="Add thing groups..."/></FormControl></FormItem>)}/></CardContent></Card>
-        
-        <h3 className={sectionTitleStyle}>AWS IoT Core Policies</h3>
-        <Card>
-            <CardContent className="pt-6 space-y-2">
-                 {fields.map((item, index) => (
-                    <div key={item.id} className="flex items-center gap-2 mb-2">
-                        <FormField control={form.control} name={`policies.${index}.name`} render={({ field }) => (<FormItem className="flex-grow"><Input {...field} placeholder="Enter policy name"/><FormMessage /></FormItem>)}/>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="flex-shrink-0"><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                    </div>
-                 ))}
-                 <Button type="button" variant="default" size="sm" onClick={() => append({ name: '' })}>Add Policy</Button>
-            </CardContent>
-        </Card>
-
-        <h3 className={sectionTitleStyle}>Shadows &amp; Device Automation</h3>
+        <h3 className={sectionTitleStyle}>1. AWS CA Registration</h3>
         <Card>
             <CardContent className="pt-6 space-y-4">
-                <RadioGroup value={shadowType} onValueChange={(v) => setShadowType(v as any)} className="space-y-2">
-                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="disabled" id="shadow-disabled"/></FormControl><FormLabel className="font-normal">Disabled</FormLabel></FormItem>
-                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="classic" id="shadow-classic"/></FormControl><FormLabel className="font-normal">Use Classic (unnamed) Shadow</FormLabel></FormItem>
-                    <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="named" id="shadow-named"/></FormControl><FormLabel className="font-normal">Use Named Shadow</FormLabel></FormItem>
-                </RadioGroup>
-                
-                {shadowType === 'named' && (
-                    <div className="pl-8 pt-2">
-                        <FormField control={form.control} name="shadow_config.shadow_name" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Shadow Name</FormLabel>
-                                <Input {...field} placeholder="Enter the named shadow..."/>
-                                <FormMessage/>
-                            </FormItem>
-                        )}/>
-                    </div>
-                )}
-                
-                {shadowType !== 'disabled' && (
-                    <Alert variant="warning">
-                        <AlertTriangle className="h-4 w-4" /><AlertTitle>Policy Required</AlertTitle>
-                        <AlertDescription>Make sure to add a policy allowing access to shadow topics.</AlertDescription>
-                    </Alert>
-                )}
+                <p className="text-sm text-muted-foreground">The Enrollment CA for this RA must be synchronized with AWS IoT Core for this integration to function.</p>
+                {isLoadingCa ? <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div> : 
+                 errorCa ? <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{errorCa}</AlertDescription></Alert> :
+                 !enrollmentCa ? <Alert variant="destructive"><AlertTitle>Configuration Error</AlertTitle><AlertDescription>No Enrollment CA found for this RA.</AlertDescription></Alert> :
+                 (
+                    <>
+                        <CaVisualizerCard ca={enrollmentCa} allCryptoEngines={[]} />
+                        <div className="pt-4">
+                             {registrationInfo ? (() => {
+                                const { Icon, variant, title, message } = getStatusContent(registrationInfo);
+                                return (
+                                    <Alert variant={variant as any}>
+                                        <Icon className="h-4 w-4" /> <AlertTitle>{title}</AlertTitle>
+                                        <AlertDescription asChild>
+                                            <div className="space-y-3">
+                                                <p>{message}</p>
+                                                {registrationInfo.status === 'FAILED' ? (
+                                                  <Button type="button" variant="outline" size="sm" onClick={() => handleSyncCa(true)} disabled={isSyncing}>
+                                                    {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Retry Synchronization
+                                                  </Button>
+                                                ) : (
+                                                  <Button type="button" variant="link" className="p-0 h-auto font-semibold" onClick={loadCaData}>Reload & Check Status</Button>
+                                                )}
+                                            </div>
+                                        </AlertDescription>
+                                    </Alert>
+                                )
+                            })() : (
+                                <Alert variant="warning">
+                                  <AlertTriangle className="h-4 w-4" /><AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
+                                  <AlertDescription asChild>
+                                    <div className="space-y-3 mt-2">
+                                      <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
+                                      <div className="space-y-2 pt-2">
+                                          <Label htmlFor="account-type-select">Register as Primary Account</Label>
+                                          <Select onValueChange={(value) => setIsPrimaryAccount(value === 'primary')} defaultValue={isPrimaryAccount ? 'primary' : 'secondary'}>
+                                              <SelectTrigger id="account-type-select"><SelectValue /></SelectTrigger>
+                                              <SelectContent>
+                                                  <SelectItem value="primary">
+                                                      <div className="flex flex-col"><span className="font-semibold">Primary Account - Register as CA owner</span><span className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</span></div>
+                                                  </SelectItem>
+                                                  <SelectItem value="secondary">
+                                                       <div className="flex flex-col"><span className="font-semibold">Secondary Account</span><span className="text-xs text-muted-foreground">No access to the CA private key is needed.</span></div>
+                                                  </SelectItem>
+                                              </SelectContent>
+                                          </Select>
+                                      </div>
+                                      <div className="flex justify-end pt-2">
+                                          <Button type="button" variant="outline" onClick={() => handleSyncCa(false)} disabled={isSyncing}>
+                                            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                            Synchronize CA with AWS
+                                          </Button>
+                                      </div>
+                                    </div>
+                                  </AlertDescription>
+                              </Alert>
+                            )}
+                        </div>
+                    </>
+                 )}
             </CardContent>
         </Card>
+
+        <div className={cn("space-y-6", !isIntegrationEnabled && "opacity-50 pointer-events-none")}>
+            {!isIntegrationEnabled && <Alert variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Configuration Disabled</AlertTitle><AlertDescription>You must successfully register the CA with AWS before configuring the options below.</AlertDescription></Alert>}
+            
+            <h3 className={sectionTitleStyle}>2. Thing Provisioning</h3>
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                 <FormField
+                    control={form.control} name="registration_mode"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Registration Mode</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="none">None</SelectItem>
+                                    <SelectItem value="auto">Automatic Registration on Enrollment</SelectItem>
+                                    <SelectItem value="jitp">JITP Template</SelectItem>
+                                </SelectContent>
+                            </Select><FormMessage />
+                        </FormItem>
+                    )}
+                />
+              </CardContent>
+            </Card>
+
+            <h3 className={sectionTitleStyle}>3. AWS Thing Groups</h3>
+            <Card><CardContent className="pt-6"><FormField control={form.control} name="groups" render={({ field }) => (<FormItem><FormControl><TagInput {...field} placeholder="Add thing groups..."/></FormControl></FormItem>)}/></CardContent></Card>
+            
+            <h3 className={sectionTitleStyle}>4. AWS IoT Core Policies</h3>
+            <Card>
+                <CardContent className="pt-6 space-y-2">
+                     {fields.map((item, index) => (
+                        <div key={item.id} className="flex items-center gap-2 mb-2">
+                            <FormField control={form.control} name={`policies.${index}.name`} render={({ field }) => (<FormItem className="flex-grow"><Input {...field} placeholder="Enter policy name"/><FormMessage /></FormItem>)}/>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="flex-shrink-0"><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                        </div>
+                     ))}
+                     <Button type="button" variant="default" size="sm" onClick={() => append({ name: '' })}>Add Policy</Button>
+                </CardContent>
+            </Card>
+
+            <h3 className={sectionTitleStyle}>5. Shadows &amp; Device Automation</h3>
+            <Card>
+                <CardContent className="pt-6 space-y-4">
+                    <RadioGroup value={shadowType} onValueChange={(v) => setShadowType(v as any)} className="space-y-2">
+                        <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="disabled" id="shadow-disabled"/></FormControl><FormLabel className="font-normal">Disabled</FormLabel></FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="classic" id="shadow-classic"/></FormControl><FormLabel className="font-normal">Use Classic (unnamed) Shadow</FormLabel></FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0"><FormControl><RadioGroupItem value="named" id="shadow-named"/></FormControl><FormLabel className="font-normal">Use Named Shadow</FormLabel></FormItem>
+                    </RadioGroup>
+                    
+                    {shadowType === 'named' && (
+                        <div className="pl-8 pt-2">
+                            <FormField control={form.control} name="shadow_config.shadow_name" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Shadow Name</FormLabel>
+                                    <Input {...field} placeholder="Enter the named shadow..."/>
+                                    <FormMessage/>
+                                </FormItem>
+                            )}/>
+                        </div>
+                    )}
+                    
+                    {shadowType !== 'disabled' && (
+                        <Alert variant="warning">
+                            <AlertTriangle className="h-4 w-4" /><AlertTitle>Policy Required</AlertTitle>
+                            <AlertDescription>Make sure to add a policy allowing access to shadow topics.</AlertDescription>
+                        </Alert>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
         
         <div className="flex justify-end pt-4">
-            <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+            <Button type="submit" size="lg" disabled={form.formState.isSubmitting || !isIntegrationEnabled}>
                 {form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
                 Update DMS
             </Button>
