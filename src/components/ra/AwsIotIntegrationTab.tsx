@@ -23,6 +23,8 @@ import { findCaById, fetchAndProcessCAs, updateCaMetadata, type CA, type PatchOp
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { cn } from '@/lib/utils';
 import { CaVisualizerCard } from '../CaVisualizerCard';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+
 
 const awsPolicySchema = z.object({
   name: z.string().min(1, 'Policy name is required.'),
@@ -236,6 +238,16 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                                 ) : (
                                                   <Button type="button" variant="link" className="p-0 h-auto font-semibold" onClick={loadCaData}>Reload & Check Status</Button>
                                                 )}
+                                                <Accordion type="single" collapsible className="w-full">
+                                                    <AccordionItem value="item-1" className="border-t">
+                                                        <AccordionTrigger className="text-xs pt-3">View Raw Metadata</AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto mt-1">
+                                                                {JSON.stringify(registrationInfo, null, 2)}
+                                                            </pre>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                </Accordion>
                                             </div>
                                         </AlertDescription>
                                     </Alert>
