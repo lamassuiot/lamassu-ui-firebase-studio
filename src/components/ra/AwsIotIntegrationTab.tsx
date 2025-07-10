@@ -191,7 +191,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
             patchOperations.push({ op, path: awsConfigPath, value: newAwsConfig });
         }
         
-        await updateCaMetadata(enrollmentCa.id, { "patches": patchOperations }, user.access_token);
+        await updateCaMetadata(enrollmentCa.id, patchOperations, user.access_token);
         
         toast({ title: "Success", description: "CA synchronization request has been sent." });
         loadCaData(); // Refresh the CA data to get the new status
