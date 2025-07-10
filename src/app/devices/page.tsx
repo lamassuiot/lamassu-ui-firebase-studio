@@ -137,6 +137,7 @@ export default function DevicesPage() {
   const [deviceForEnrollModal, setDeviceForEnrollModal] = useState<DeviceData | null>(null);
   
   const isInitialLoad = useRef(true);
+  const lastFetchKeyRef = useRef<string | null>(null);
 
   // Debounce search term
   useEffect(() => {
@@ -185,6 +186,21 @@ export default function DevicesPage() {
         prevFilters.dmsOwnerFilter !== dmsOwnerFilter ||
         prevFilters.sortConfig?.column !== sortConfig?.column ||
         prevFilters.sortConfig?.direction !== sortConfig?.direction;
+
+    const fetchKey = JSON.stringify({
+          page: currentPageIndex,
+          bookmark: bookmarkStack[currentPageIndex] || null,
+          debouncedSearchTerm,
+          searchField,
+          statusFilter,
+          pageSize,
+          dmsOwnerFilter,
+          sortConfig,
+      });
+      if (lastFetchKeyRef.current === fetchKey) {
+          return; // Prevent duplicate fetches with identical params
+      }
+      lastFetchKeyRef.current = fetchKey;
 
     const fetchDevicesData = async () => {
         setIsLoadingApi(true);
