@@ -636,7 +636,7 @@ export async function updateCaMetadata(caId: string, patchOperations: PatchOpera
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(patchOperations),
+    body: JSON.stringify({ patches: patchOperations }),
   });
 
   if (!response.ok) {
