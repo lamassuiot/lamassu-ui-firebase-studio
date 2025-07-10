@@ -362,7 +362,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                 <AccordionItem value="provisioning" className="border rounded-md shadow-sm">
                     <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning</AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
-                         <DetailItem label="AWS IoT Manager Instance" value={iotManagerInstance} isMono/>
                          <FormField control={form.control} name="registration_mode" render={({ field }) => (
                             <FormItem><FormLabel>Registration Mode</FormLabel>
                                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>

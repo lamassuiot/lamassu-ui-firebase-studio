@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AwsIotIntegrationTab } from '@/components/ra/AwsIotIntegrationTab';
 import { fetchRaById, type ApiRaItem, createOrUpdateRa } from '@/lib/dms-api';
 import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
+import { Badge } from '@/components/ui/badge';
 
 const AWS_IOT_METADATA_KEY = 'lamassu.io/iot/aws.iot-core';
 
@@ -63,6 +64,13 @@ export default function ConfigureIntegrationPage() {
         };
         await createOrUpdateRa(payload, user.access_token, true, id);
     };
+
+    const awsIotManagerInstance = useMemo(() => {
+        if (raData?.metadata?.[AWS_IOT_METADATA_KEY]?.aws_iot_manager_instance) {
+            return raData.metadata[AWS_IOT_METADATA_KEY].aws_iot_manager_instance;
+        }
+        return 'Not configured';
+    }, [raData]);
     
     if (isLoading || authLoading) {
         return (
@@ -134,7 +142,12 @@ export default function ConfigureIntegrationPage() {
                 <Settings className="h-8 w-8 text-primary" />
                 <div>
                     <h1 className="text-2xl font-headline font-semibold">{pageTitle}</h1>
-                    <p className="text-sm text-muted-foreground">RA ID: <span className="font-mono text-xs">{raData.id}</span></p>
+                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                        <p>RA ID: <span className="font-mono text-xs">{raData.id}</span></p>
+                        {configKey === AWS_IOT_METADATA_KEY && (
+                            <p>IoT Manager Instance: <Badge variant="secondary" className="font-mono text-xs">{awsIotManagerInstance}</Badge></p>
+                        )}
+                    </div>
                 </div>
             </div>
             {ConfigComponent}
