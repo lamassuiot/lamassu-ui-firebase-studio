@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { TagInput } from '@/components/shared/TagInput';
 import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,7 @@ import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { cn } from '@/lib/utils';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { Switch } from '@/components/ui/switch';
 
 
 const awsPolicySchema = z.object({
@@ -165,19 +166,19 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     setIsSyncing(true);
     try {
         let patchOperations: PatchOperation[] = [];
-        
         const awsConfigPointer = `/lamassu.io~1iot~1aws.iot-core`;
         
         if (isRetry) {
+             // For retry, we only need to patch the status back to REQUESTED.
              const statusPointer = `${awsConfigPointer}/registration/status`;
              patchOperations.push({ op: 'replace', path: statusPointer, value: 'REQUESTED' });
         } else {
+            // For a new registration, we set the whole registration object.
             const registrationPayload = {
                 primary_account: isPrimaryAccount,
                 registration_request_time: new Date().toISOString(),
                 status: "REQUESTED"
             };
-
             const registrationPointer = `${awsConfigPointer}/registration`;
             patchOperations.push({ op: 'replace', path: registrationPointer, value: registrationPayload });
         }
