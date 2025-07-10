@@ -124,6 +124,12 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const shadowEnabled = useWatch({ control: form.control, name: "shadow_config.enable" });
   const shadowName = useWatch({ control: form.control, name: "shadow_config.shadow_name" });
   const iotManagerInstance = useWatch({ control: form.control, name: "aws_iot_manager_instance" });
+  const currentPolicies = useWatch({ control: form.control, name: "policies" });
+
+  const hasRemediationPolicy = useMemo(() => {
+      return currentPolicies?.some(p => p.policy_name === 'lms-remediation-access');
+  }, [currentPolicies]);
+
 
   useEffect(() => {
     const accountIdMatch = iotManagerInstance?.match(/\.([\d]{12})$/);
@@ -351,7 +357,10 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
                 <AccordionItem value="provisioning" className="border rounded-md shadow-sm">
                     <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning</AccordionTrigger>
-                    <AccordionContent className="p-4 pt-2">
+                    <AccordionContent className="p-4 pt-2 space-y-4">
+                         <FormField control={form.control} name="aws_iot_manager_instance" render={({ field }) => (
+                            <FormItem><FormLabel>AWS IoT Manager Instance</FormLabel><FormControl><Input {...field} placeholder="e.g., aws.iot.eu-west-1.123456789012"/></FormControl><FormDescription>The AWS instance identifier, typically including region and account ID.</FormDescription><FormMessage/></FormItem>
+                         )}/>
                          <FormField control={form.control} name="registration_mode" render={({ field }) => (
                             <FormItem><FormLabel>Registration Mode</FormLabel>
                                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
@@ -374,28 +383,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         <div className="space-y-2">
                              <div className="flex justify-between items-center">
                                  <FormLabel>IoT Policies</FormLabel>
-                                 <AlertDialog>
-                                     <AlertDialogTrigger asChild>
-                                        <Button type="button" variant="outline" size="sm"><Plus className="mr-2 h-4 w-4"/>Add Remediation Policy</Button>
-                                     </AlertDialogTrigger>
-                                     <AlertDialogContent>
-                                         <AlertDialogHeader>
-                                             <AlertDialogTitle>Add Remediation Policy</AlertDialogTitle>
-                                             <AlertDialogDescription>
-                                                 Confirm the AWS Account ID to generate the 'lms-remediation-access' policy. This policy allows Lamassu to manage device certificates and shadows.
-                                             </AlertDialogDescription>
-                                         </AlertDialogHeader>
-                                         <div className="space-y-2 py-2">
-                                            <Label htmlFor="aws-account-id">AWS Account ID</Label>
-                                            <Input id="aws-account-id" value={remediationAccountId} onChange={(e) => setRemediationAccountId(e.target.value)} />
-                                            <p className="text-xs text-muted-foreground">Extracted from IoT Manager Instance. Verify it's correct.</p>
-                                         </div>
-                                         <AlertDialogFooter>
-                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                             <AlertDialogAction onClick={handleAddRemediationPolicy}>Add Policy</AlertDialogAction>
-                                         </AlertDialogFooter>
-                                     </AlertDialogContent>
-                                 </AlertDialog>
+                                 <Button type="button" variant="default" size="sm" onClick={() => handleOpenPolicyModal()}>Add Custom Policy</Button>
                              </div>
                              <Card className="p-3">
                                 <ul className="space-y-2">
@@ -414,7 +402,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                     {fields.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">No policies added.</p>}
                                 </ul>
                              </Card>
-                             <Button type="button" variant="default" size="sm" onClick={() => handleOpenPolicyModal()}>Add Custom Policy</Button>
                         </div>
                     </AccordionContent>
                 </AccordionItem>
@@ -436,6 +423,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                           )}
                         />
                         {shadowEnabled && (
+                          <div className="space-y-4">
                             <FormField
                                 control={form.control}
                                 name="shadow_config.shadow_name"
@@ -448,12 +436,43 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                     </FormItem>
                                 )}
                             />
-                        )}
-                         {shadowEnabled && (
-                            <Alert variant="warning">
-                                <AlertTriangle className="h-4 w-4" /><AlertTitle>Policy Required</AlertTitle>
-                                <AlertDescription>Make sure to add a policy allowing access to shadow topics.</AlertDescription>
-                            </Alert>
+
+                            {shadowEnabled && !hasRemediationPolicy && (
+                                <Alert variant="warning">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Policy Required</AlertTitle>
+                                    <AlertDescription>
+                                        <div className="flex flex-col gap-3">
+                                            <span>To enable shadow and remediation features, you must add the 'lms-remediation-access' policy.</span>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button type="button" variant="outline" size="sm" className="self-start">
+                                                        <Plus className="mr-2 h-4 w-4"/>Add Remediation Policy
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Add Remediation Policy</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Confirm the AWS Account ID to generate the 'lms-remediation-access' policy. This policy allows Lamassu to manage device certificates and shadows.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <div className="space-y-2 py-2">
+                                                        <Label htmlFor="aws-account-id">AWS Account ID</Label>
+                                                        <Input id="aws-account-id" value={remediationAccountId} onChange={(e) => setRemediationAccountId(e.target.value)} />
+                                                        <p className="text-xs text-muted-foreground">Extracted from IoT Manager Instance. Verify it's correct.</p>
+                                                    </div>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={handleAddRemediationPolicy}>Add Policy</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                          </div>
                         )}
                     </AccordionContent>
                 </AccordionItem>
