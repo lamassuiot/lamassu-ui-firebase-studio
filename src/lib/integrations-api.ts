@@ -48,3 +48,60 @@ export async function discoverIntegrations(accessToken: string): Promise<Discove
 
   return integrations;
 }
+
+
+export function policyBuilder (accountID: string, shadowName: string) {
+  let shadowReplacer = "";
+  if (shadowName !== "") {
+      shadowReplacer = `name/${shadowName}/`;
+  }
+
+  const str = {
+      Version: "2012-10-17",
+      Statement: [
+          {
+              Effect: "Allow",
+              Action: [
+                  "iot:Connect"
+              ],
+              Resource: [
+                  "arn:aws:iot:eu-west-1:ACCOUNTID:client/${iot:Connection.Thing.ThingName}"
+              ]
+          },
+          {
+              Effect: "Allow",
+              Action: [
+                  "iot:Publish"
+              ],
+              Resource: [
+                  "arn:aws:iot:eu-west-1:ACCOUNTID:topic/$aws/things/${iot:Connection.Thing.ThingName}",
+                  "arn:aws:iot:eu-west-1:ACCOUNTID:topic/$aws/things/${iot:Connection.Thing.ThingName}/shadow/SHADOWID*"
+              ]
+          },
+          {
+              Effect: "Allow",
+              Action: [
+                  "iot:Subscribe"
+              ],
+              Resource: [
+                  // "arn:aws:iot:eu-west-1:ACCOUNTID:topicfilter/dt/lms/well-known/cacerts",
+                  "arn:aws:iot:eu-west-1:ACCOUNTID:topicfilter/$aws/things/${iot:Connection.Thing.ThingName}",
+                  "arn:aws:iot:eu-west-1:ACCOUNTID:topicfilter/$aws/things/${iot:Connection.Thing.ThingName}/shadow/SHADOWID*"
+              ]
+          },
+          {
+              Effect: "Allow",
+              Action: [
+                  "iot:Receive"
+              ],
+              Resource: [
+                  // "arn:aws:iot:eu-west-1:ACCOUNTID:topic/dt/lms/well-known/cacerts",
+                  "arn:aws:iot:eu-west-1:ACCOUNTID:topic/$aws/things/${iot:Connection.Thing.ThingName}",
+                  "arn:aws:iot:eu-west-1:ACCOUNTID:topic/$aws/things/${iot:Connection.Thing.ThingName}/shadow/SHADOWID*"
+              ]
+          }
+      ]
+  };
+
+  return JSON.stringify(str).replaceAll("ACCOUNTID", accountID).replaceAll("SHADOWID", shadowReplacer);
+}

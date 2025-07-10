@@ -1,34 +1,39 @@
 
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2 } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2, Edit, BookOpenCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { findCaById, fetchAndProcessCAs, updateCaMetadata, type CA, type PatchOperation } from '@/lib/ca-data';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { cn } from '@/lib/utils';
 import { CaVisualizerCard } from '../CaVisualizerCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { Switch } from '@/components/ui/switch';
+import { AwsPolicyEditorModal } from './AwsPolicyEditorModal';
 
 
 const awsPolicySchema = z.object({
-  name: z.string().min(1, 'Policy name is required.'),
+  policy_name: z.string().min(1, 'Policy name is required.'),
+  policy_document: z.string().refine((val) => {
+    try {
+      JSON.parse(val);
+      return true;
+    } catch {
+      return false;
+    }
+  }, { message: 'Policy document must be a valid JSON string.'}),
 });
 
 const awsIntegrationSchema = z.object({
@@ -45,6 +50,7 @@ const awsIntegrationSchema = z.object({
   }).optional(),
 });
 
+export type AwsPolicy = z.infer<typeof awsPolicySchema>;
 type AwsIntegrationFormValues = z.infer<typeof awsIntegrationSchema>;
 
 interface AwsIotIntegrationTabProps {
@@ -83,9 +89,12 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPrimaryAccount, setIsPrimaryAccount] = useState(true);
+
+  // State for the policy modal
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [editingPolicyIndex, setEditingPolicyIndex] = useState<number | null>(null);
   
   // Memoize the default values to prevent re-initializing the form on every render.
-  // This will only re-compute when the `ra` prop itself changes.
   const memoizedDefaultValues = useMemo(() => getDefaultFormValues(ra), [ra]);
 
   const form = useForm<AwsIntegrationFormValues>({
@@ -95,10 +104,10 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
   // When new `ra` data comes in, we reset the form with the new default values.
   useEffect(() => {
-    form.reset(getDefaultFormValues(ra));
-  }, [ra, form]);
+    form.reset(memoizedDefaultValues);
+  }, [ra, memoizedDefaultValues, form]);
   
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "policies",
   });
@@ -169,18 +178,16 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         const awsConfigPointer = `/lamassu.io~1iot~1aws.iot-core`;
         
         if (isRetry) {
-             // For retry, we only need to patch the status back to REQUESTED.
              const statusPointer = `${awsConfigPointer}/registration/status`;
              patchOperations.push({ op: 'replace', path: statusPointer, value: 'REQUESTED' });
         } else {
-            // For a new registration, we set the whole registration object.
             const registrationPayload = {
                 primary_account: isPrimaryAccount,
                 registration_request_time: new Date().toISOString(),
                 status: "REQUESTED"
             };
             const registrationPointer = `${awsConfigPointer}/registration`;
-            patchOperations.push({ op: 'replace', path: registrationPointer, value: registrationPayload });
+            patchOperations.push({ op: 'add', path: registrationPointer, value: registrationPayload });
         }
         
         await updateCaMetadata(enrollmentCa.id, patchOperations, user.access_token);
@@ -195,6 +202,19 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }
   };
   
+  const handleOpenPolicyModal = (index?: number) => {
+    setEditingPolicyIndex(typeof index === 'number' ? index : null);
+    setIsPolicyModalOpen(true);
+  };
+
+  const handleSavePolicy = (policy: AwsPolicy) => {
+    if (editingPolicyIndex !== null) {
+      update(editingPolicyIndex, policy);
+    } else {
+      append(policy);
+    }
+  };
+
   const registrationInfo = enrollmentCa?.rawApiData?.metadata?.[AWS_IOT_METADATA_KEY]?.registration;
 
   const getStatusContent = (regInfo: any) => {
@@ -209,6 +229,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
 
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <Accordion type="multiple" defaultValue={['ca-registration']} className="w-full space-y-3">
@@ -316,13 +337,24 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         
                         <div className="space-y-2">
                              <FormLabel>IoT Policies</FormLabel>
-                             {fields.map((item, index) => (
-                                <div key={item.id} className="flex items-center gap-2">
-                                    <FormField control={form.control} name={`policies.${index}.name`} render={({ field }) => (<FormItem className="flex-grow"><FormControl><Input {...field} placeholder="Enter policy name"/></FormControl><FormMessage /></FormItem>)}/>
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="flex-shrink-0"><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                </div>
-                             ))}
-                             <Button type="button" variant="default" size="sm" onClick={() => append({ name: '' })}>Add Policy</Button>
+                             <Card className="p-3">
+                                <ul className="space-y-2">
+                                    {fields.map((item, index) => (
+                                        <li key={item.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                                            <div className="flex items-center gap-2">
+                                                <BookOpenCheck className="h-4 w-4 text-primary"/>
+                                                <span className="font-mono text-sm">{item.policy_name}</span>
+                                            </div>
+                                            <div className="space-x-1">
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenPolicyModal(index)}><Edit className="h-4 w-4"/></Button>
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                    {fields.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">No policies added.</p>}
+                                </ul>
+                             </Card>
+                             <Button type="button" variant="default" size="sm" onClick={() => handleOpenPolicyModal()}>Add Policy</Button>
                         </div>
                     </AccordionContent>
                 </AccordionItem>
@@ -350,7 +382,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                 render={({ field }) => (
                                     <FormItem className="pl-6">
                                         <FormLabel>Named Shadow (Optional)</FormLabel>
-                                        <Input {...field} placeholder="Enter named shadow (e.g., 'config')..."/>
+                                        <FormControl><Input {...field} placeholder="Enter named shadow (e.g., 'config')..."/></FormControl>
                                         <FormDescription>Leave blank to use the classic, unnamed shadow.</FormDescription>
                                         <FormMessage/>
                                     </FormItem>
@@ -377,5 +409,12 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         </div>
       </form>
     </Form>
+    <AwsPolicyEditorModal
+        isOpen={isPolicyModalOpen}
+        onOpenChange={setIsPolicyModalOpen}
+        onSave={handleSavePolicy}
+        existingPolicy={editingPolicyIndex !== null ? fields[editingPolicyIndex] : undefined}
+    />
+    </>
   );
 };
