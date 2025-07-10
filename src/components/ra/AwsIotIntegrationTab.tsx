@@ -168,20 +168,28 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }
     setIsSyncing(true);
     try {
-        const registrationPayload = {
-            primary_account: isRetry ? enrollmentCa.rawApiData?.metadata?.[AWS_IOT_METADATA_KEY]?.registration?.primary_account : isPrimaryAccount,
-            registration_request_time: new Date().toISOString(),
-            status: "REQUESTED"
-        };
-        
         const existingCaMetadata = enrollmentCa.rawApiData?.metadata || {};
         const existingAwsConfig = existingCaMetadata[AWS_IOT_METADATA_KEY] || {};
-        const newAwsConfig = { ...existingAwsConfig, registration: registrationPayload };
-
-        const op: PatchOperation['op'] = existingCaMetadata[AWS_IOT_METADATA_KEY] ? 'replace' : 'add';
-        const path = `/${AWS_IOT_METADATA_KEY.replace(/\//g, '~1')}`;
+        let patchOperations: PatchOperation[] = [];
         
-        const patchOperations: PatchOperation[] = [{ op, path, value: newAwsConfig }];
+        // JSON Pointers must escape '~' as '~0' and '/' as '~1'.
+        const awsConfigPath = `/${AWS_IOT_METADATA_KEY.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+        
+        if (isRetry) {
+             // For retry, we only patch the status field.
+             const statusPath = `${awsConfigPath}/registration/status`;
+             patchOperations.push({ op: 'replace', path: statusPath, value: 'REQUESTED' });
+        } else {
+            const registrationPayload = {
+                primary_account: isPrimaryAccount,
+                registration_request_time: new Date().toISOString(),
+                status: "REQUESTED"
+            };
+
+            const newAwsConfig = { ...existingAwsConfig, registration: registrationPayload };
+            const op: PatchOperation['op'] = existingCaMetadata[AWS_IOT_METADATA_KEY] ? 'replace' : 'add';
+            patchOperations.push({ op, path: awsConfigPath, value: newAwsConfig });
+        }
         
         await updateCaMetadata(enrollmentCa.id, { "patches": patchOperations }, user.access_token);
         
