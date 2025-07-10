@@ -79,6 +79,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
   const [shadowType, setShadowType] = useState<'disabled' | 'classic' | 'named'>('disabled');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPrimaryAccount, setIsPrimaryAccount] = useState(true);
 
   const form = useForm<AwsIntegrationFormValues>({
     resolver: zodResolver(awsIntegrationSchema),
@@ -172,6 +173,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     setIsSyncing(true);
     try {
         const registrationPayload = {
+            primary_account: isPrimaryAccount,
             registration_request_time: new Date().toISOString(),
             status: "REQUESTED"
         };
@@ -185,7 +187,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         
         const patchOperations: PatchOperation[] = [{ op, path, value: newAwsConfig }];
         
-        await updateCaMetadata(enrollmentCa.id, patchOperations, user.access_token);
+        await updateCaMetadata(enrollmentCa.id, { patches: patchOperations }, user.access_token);
         
         toast({ title: "Success", description: "CA synchronization request has been sent." });
         loadCaData(); // Refresh the CA data to get the new status
@@ -255,6 +257,28 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                       <AlertDescription asChild>
                         <div className="space-y-3 mt-2">
                           <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
+                          <div className="space-y-2 pt-2">
+                              <Label htmlFor="account-type-select">Register as Primary Account</Label>
+                              <Select onValueChange={(value) => setIsPrimaryAccount(value === 'primary')} defaultValue={isPrimaryAccount ? 'primary' : 'secondary'}>
+                                  <SelectTrigger id="account-type-select">
+                                      <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="primary">
+                                          <div className="flex flex-col">
+                                              <span className="font-semibold">Primary Account - Register as CA owner</span>
+                                              <span className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</span>
+                                          </div>
+                                      </SelectItem>
+                                      <SelectItem value="secondary">
+                                           <div className="flex flex-col">
+                                              <span className="font-semibold">Secondary Account</span>
+                                              <span className="text-xs text-muted-foreground">No access to the CA private key is needed.</span>
+                                          </div>
+                                      </SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
                           <div className="flex justify-end pt-2">
                               <Button type="button" variant="outline" onClick={handleSyncCa} disabled={isSyncing}>
                                 {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
