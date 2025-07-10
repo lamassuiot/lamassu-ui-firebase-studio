@@ -631,9 +631,9 @@ export interface PatchOperation {
 
 export async function updateCaMetadata(caId: string, patchOperations: PatchOperation[], accessToken: string): Promise<void> {
   const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/metadata`, {
-    method: 'PATCH',
+    method: 'PUT',
     headers: {
-      'Content-Type': 'application/json-patch+json',
+      'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
     body: JSON.stringify(patchOperations),
