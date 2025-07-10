@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { policyBuilder } from '@/lib/integrations-api';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Label } from '../ui/label';
+import { DetailItem } from '../shared/DetailItem';
 
 
 const awsPolicySchema = z.object({
@@ -361,9 +362,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                 <AccordionItem value="provisioning" className="border rounded-md shadow-sm">
                     <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning</AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
-                         <FormField control={form.control} name="aws_iot_manager_instance" render={({ field }) => (
-                            <FormItem><FormLabel>AWS IoT Manager Instance</FormLabel><FormControl><Input {...field} placeholder="e.g., aws.iot.eu-west-1.123456789012"/></FormControl><FormDescription>The AWS instance identifier, typically including region and account ID.</FormDescription><FormMessage/></FormItem>
-                         )}/>
+                         <DetailItem label="AWS IoT Manager Instance" value={iotManagerInstance} isMono/>
                          <FormField control={form.control} name="registration_mode" render={({ field }) => (
                             <FormItem><FormLabel>Registration Mode</FormLabel>
                                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
@@ -499,4 +498,3 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     </>
   );
 };
-
