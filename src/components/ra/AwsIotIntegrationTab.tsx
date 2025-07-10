@@ -79,6 +79,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPrimaryAccount, setIsPrimaryAccount] = useState(true);
 
+  // State to explicitly control the registration mode selector
+  const [registrationMode, setRegistrationMode] = useState<AwsIntegrationFormValues['registration_mode']>('none');
+
   const form = useForm<AwsIntegrationFormValues>({
     resolver: zodResolver(awsIntegrationSchema),
     defaultValues: defaultFormValues,
@@ -128,6 +131,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       };
       
       form.reset(mergedValues);
+      setRegistrationMode(mergedValues.registration_mode); // Sync the separate state
 
       if (mergedValues.shadow_config?.enable) {
         setShadowType(mergedValues.shadow_config.shadow_name ? 'named' : 'classic');
@@ -135,7 +139,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         setShadowType('disabled');
       }
     }
-  }, [ra, loadCaData]);
+  }, [ra, loadCaData, form]);
   
   const onSubmit = async (data: AwsIntegrationFormValues) => {
     if (!user?.access_token) {
@@ -179,24 +183,20 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     try {
         let patchOperations: PatchOperation[] = [];
         
-        const awsConfigPointer = `/${AWS_IOT_METADATA_KEY.replace(/~/g, '~0').replace(/\//g, '~1')}`;
+        const awsConfigPointer = `/lamassu.io~1iot~1aws.iot-core`;
         
         if (isRetry) {
              const statusPointer = `${awsConfigPointer}/registration/status`;
              patchOperations.push({ op: 'replace', path: statusPointer, value: 'REQUESTED' });
         } else {
-            const existingCaMetadata = enrollmentCa.rawApiData?.metadata || {};
-            const existingAwsConfig = existingCaMetadata[AWS_IOT_METADATA_KEY] || {};
-
             const registrationPayload = {
                 primary_account: isPrimaryAccount,
                 registration_request_time: new Date().toISOString(),
                 status: "REQUESTED"
             };
 
-            const newAwsConfig = { ...existingAwsConfig, registration: registrationPayload };
-            const op: PatchOperation['op'] = existingCaMetadata[AWS_IOT_METADATA_KEY] ? 'replace' : 'add';
-            patchOperations.push({ op, path: awsConfigPointer, value: newAwsConfig });
+            const registrationPointer = `${awsConfigPointer}/registration`;
+            patchOperations.push({ op: 'replace', path: registrationPointer, value: registrationPayload });
         }
         
         await updateCaMetadata(enrollmentCa.id, patchOperations, user.access_token);
@@ -270,7 +270,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                 )
                             })() : (
                                 <Alert variant="warning">
-                                  <AlertTriangle className="h-4 w-4" /><AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
+                                  <AlertTriangle className="h-4 w-4"/><AlertTitle>Enrollment CA Not Synchronized</AlertTitle>
                                   <AlertDescription asChild>
                                     <div className="space-y-3 mt-2">
                                       <p>The selected Enrollment CA is not registered in AWS. Make sure to synchronize it first.</p>
@@ -315,7 +315,13 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Registration Mode</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                             <Select 
+                                onValueChange={(value) => {
+                                    field.onChange(value);
+                                    setRegistrationMode(value as AwsIntegrationFormValues['registration_mode']);
+                                }} 
+                                value={registrationMode}
+                            >
                                 <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="none">None</SelectItem>
