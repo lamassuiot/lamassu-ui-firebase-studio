@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2, Edit, BookOpenCheck } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2, Edit, BookOpenCheck, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
@@ -24,6 +24,8 @@ import { Switch } from '@/components/ui/switch';
 import { AwsPolicyEditorModal } from './AwsPolicyEditorModal';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { policyBuilder } from '@/lib/integrations-api';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 
 
 const awsPolicySchema = z.object({
@@ -95,6 +97,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   // State for the policy modal
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const [editingPolicyIndex, setEditingPolicyIndex] = useState<number | null>(null);
+
+  // State for remediation policy dialog
+  const [remediationAccountId, setRemediationAccountId] = useState('');
   
   // Memoize the default values to prevent re-initializing the form on every render.
   const memoizedDefaultValues = useMemo(() => getDefaultFormValues(ra), [ra]);
@@ -114,11 +119,16 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     name: "policies",
   });
   
-  // Use useWatch to reactively get the value of shadow_config.enable
-  const shadowEnabled = useWatch({
-    control: form.control,
-    name: "shadow_config.enable",
-  });
+  // Use useWatch to reactively get form values
+  const shadowEnabled = useWatch({ control: form.control, name: "shadow_config.enable" });
+  const shadowName = useWatch({ control: form.control, name: "shadow_config.shadow_name" });
+  const iotManagerInstance = useWatch({ control: form.control, name: "aws_iot_manager_instance" });
+
+  useEffect(() => {
+    const accountIdMatch = iotManagerInstance?.match(/\.([\d]{12})$/);
+    setRemediationAccountId(accountIdMatch ? accountIdMatch[1] : '');
+  }, [iotManagerInstance]);
+
 
   const loadCaData = useCallback(async () => {
     if (!user?.access_token || !ra?.settings.enrollment_settings.enrollment_ca) return;
@@ -216,6 +226,29 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       append(policy);
     }
   };
+
+  const handleAddRemediationPolicy = () => {
+    if (!remediationAccountId) {
+        toast({ title: "Error", description: "AWS Account ID is required.", variant: 'destructive'});
+        return;
+    }
+    const policyDocString = policyBuilder(remediationAccountId, shadowName || '');
+    const newPolicy: AwsPolicy = {
+        policy_name: 'lms-remediation-access',
+        policy_document: policyDocString,
+    };
+
+    // Check if policy already exists
+    const existingIndex = fields.findIndex(p => p.policy_name === 'lms-remediation-access');
+    if (existingIndex > -1) {
+        update(existingIndex, newPolicy);
+        toast({ title: "Policy Updated", description: "'lms-remediation-access' policy has been updated with the new account ID."});
+    } else {
+        append(newPolicy);
+        toast({ title: "Policy Added", description: "'lms-remediation-access' policy has been added."});
+    }
+  };
+
 
   const registrationInfo = enrollmentCa?.rawApiData?.metadata?.[AWS_IOT_METADATA_KEY]?.registration;
 
@@ -338,7 +371,31 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         <FormField control={form.control} name="groups" render={({ field }) => (<FormItem><FormLabel>Thing Groups</FormLabel><FormControl><TagInput {...field} placeholder="Add thing groups..."/></FormControl></FormItem>)}/>
                         
                         <div className="space-y-2">
-                             <FormLabel>IoT Policies</FormLabel>
+                             <div className="flex justify-between items-center">
+                                 <FormLabel>IoT Policies</FormLabel>
+                                 <AlertDialog>
+                                     <AlertDialogTrigger asChild>
+                                        <Button type="button" variant="outline" size="sm"><Plus className="mr-2 h-4 w-4"/>Add Remediation Policy</Button>
+                                     </AlertDialogTrigger>
+                                     <AlertDialogContent>
+                                         <AlertDialogHeader>
+                                             <AlertDialogTitle>Add Remediation Policy</AlertDialogTitle>
+                                             <AlertDialogDescription>
+                                                 Confirm the AWS Account ID to generate the 'lms-remediation-access' policy. This policy allows Lamassu to manage device certificates and shadows.
+                                             </AlertDialogDescription>
+                                         </AlertDialogHeader>
+                                         <div className="space-y-2 py-2">
+                                            <Label htmlFor="aws-account-id">AWS Account ID</Label>
+                                            <Input id="aws-account-id" value={remediationAccountId} onChange={(e) => setRemediationAccountId(e.target.value)} />
+                                            <p className="text-xs text-muted-foreground">Extracted from IoT Manager Instance. Verify it's correct.</p>
+                                         </div>
+                                         <AlertDialogFooter>
+                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                             <AlertDialogAction onClick={handleAddRemediationPolicy}>Add Policy</AlertDialogAction>
+                                         </AlertDialogFooter>
+                                     </AlertDialogContent>
+                                 </AlertDialog>
+                             </div>
                              <Card className="p-3">
                                 <ul className="space-y-2">
                                     {fields.map((item, index) => (
@@ -356,7 +413,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                     {fields.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">No policies added.</p>}
                                 </ul>
                              </Card>
-                             <Button type="button" variant="default" size="sm" onClick={() => handleOpenPolicyModal()}>Add Policy</Button>
+                             <Button type="button" variant="default" size="sm" onClick={() => handleOpenPolicyModal()}>Add Custom Policy</Button>
                         </div>
                     </AccordionContent>
                 </AccordionItem>
