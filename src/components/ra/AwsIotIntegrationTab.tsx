@@ -79,8 +79,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPrimaryAccount, setIsPrimaryAccount] = useState(true);
 
-  // State to explicitly control the registration mode selector
-  const [registrationMode, setRegistrationMode] = useState<AwsIntegrationFormValues['registration_mode']>('none');
+
 
   const form = useForm<AwsIntegrationFormValues>({
     resolver: zodResolver(awsIntegrationSchema),
@@ -131,7 +130,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       };
       
       form.reset(mergedValues);
-      setRegistrationMode(mergedValues.registration_mode); // Sync the separate state
 
       if (mergedValues.shadow_config?.enable) {
         setShadowType(mergedValues.shadow_config.shadow_name ? 'named' : 'classic');
@@ -140,6 +138,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       }
     }
   }, [ra, loadCaData, form]);
+
+
   
   const onSubmit = async (data: AwsIntegrationFormValues) => {
     if (!user?.access_token) {
@@ -316,11 +316,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         <FormItem>
                             <FormLabel>Registration Mode</FormLabel>
                              <Select 
-                                onValueChange={(value) => {
-                                    field.onChange(value);
-                                    setRegistrationMode(value as AwsIntegrationFormValues['registration_mode']);
-                                }} 
-                                value={registrationMode}
+                                onValueChange={field.onChange}
+                                value={field.value}
                             >
                                 <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                 <SelectContent>
