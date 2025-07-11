@@ -477,18 +477,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         />
                         {shadowEnabled && (
                           <div className="space-y-4">
-                            {!hasRemediationPolicy && (
-                                <Alert variant="warning">
-                                  <AlertTriangle className="h-4 w-4"/>
-                                  <AlertTitle>Policy Required</AlertTitle>
-                                  <AlertDescription>
-                                      For Lamassu to manage device shadows, a policy named '{LmsRemediationPolicyName}' must be attached.
-                                      <Button type="button" variant="link" className="p-0 h-auto ml-2 text-amber-800 dark:text-amber-300 font-semibold" onClick={() => setIsRemediationModalOpen(true)}>
-                                          Add Remediation Access Policy
-                                      </Button>
-                                  </AlertDescription>
-                                </Alert>
-                            )}
                             <FormField
                                 control={form.control}
                                 name="shadow_config.shadow_name"
@@ -501,6 +489,18 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                     </FormItem>
                                 )}
                             />
+                            {!hasRemediationPolicy && (
+                                <Alert variant="warning">
+                                  <AlertTriangle className="h-4 w-4"/>
+                                  <AlertTitle>Policy Required</AlertTitle>
+                                  <AlertDescription>
+                                      For Lamassu to manage device shadows, a policy named '{LmsRemediationPolicyName}' must be attached.
+                                      <Button type="button" variant="link" className="p-0 h-auto ml-2 text-amber-800 dark:text-amber-300 font-semibold" onClick={() => setIsRemediationModalOpen(true)}>
+                                          Add Remediation Access Policy
+                                      </Button>
+                                  </AlertDescription>
+                                </Alert>
+                            )}
                           </div>
                         )}
                     </AccordionContent>
