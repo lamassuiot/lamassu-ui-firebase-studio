@@ -65,7 +65,7 @@ export default function ConfigureIntegrationPage() {
         await createOrUpdateRa(payload, user.access_token, true, id);
     };
 
-    const awsIotManagerInstance = useMemo(() => {
+    const connectorInstance = useMemo(() => {
         if (raData?.metadata?.[AWS_IOT_METADATA_KEY]?.aws_iot_manager_instance) {
             return raData.metadata[AWS_IOT_METADATA_KEY].aws_iot_manager_instance;
         }
@@ -145,7 +145,7 @@ export default function ConfigureIntegrationPage() {
                     <div className="text-sm text-muted-foreground mt-1 space-y-1">
                         <p>RA ID: <span className="font-mono text-xs">{raData.id}</span></p>
                         {configKey === AWS_IOT_METADATA_KEY && (
-                            <p>IoT Manager Instance: <Badge variant="secondary" className="font-mono text-xs">{awsIotManagerInstance}</Badge></p>
+                            <p>Connector Instance: <span className="font-mono text-xs">{connectorInstance}</span></p>
                         )}
                     </div>
                 </div>
