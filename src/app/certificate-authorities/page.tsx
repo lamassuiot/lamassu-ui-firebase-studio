@@ -15,7 +15,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { MultiSelectDropdown } from '@/components/shared/MultiSelectDropdown';
+
 
 const CaFilesystemView = dynamic(() => 
   import('@/components/ca/CaFilesystemView').then(mod => mod.CaFilesystemView), 
@@ -57,7 +58,13 @@ const CaGraphView = dynamic(() =>
 );
 
 type ViewMode = 'list' | 'hierarchy' | 'graph';
+type CaStatus = 'active' | 'expired' | 'revoked' | 'unknown';
 
+const STATUS_OPTIONS: { value: CaStatus; label: string }[] = [
+    { value: 'active', label: 'Active' },
+    { value: 'expired', label: 'Expired' },
+    { value: 'revoked', label: 'Revoked' },
+];
 
 export default function CertificateAuthoritiesPage() {
   const router = useRouter(); 
@@ -69,7 +76,7 @@ export default function CertificateAuthoritiesPage() {
 
   // Filtering state
   const [filterText, setFilterText] = useState('');
-  const [showRevoked, setShowRevoked] = useState(false);
+  const [selectedStatuses, setSelectedStatuses] = useState<CaStatus[]>(['active', 'expired']);
 
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingCryptoEngines, setIsLoadingCryptoEngines] = useState(true);
@@ -122,23 +129,16 @@ export default function CertificateAuthoritiesPage() {
     const filterCaList = (caList: CA[]): CA[] => {
       return caList
         .map(ca => {
-          // Recursively filter children first
           const filteredChildren = ca.children ? filterCaList(ca.children) : [];
-          
-          // Create a new CA object with filtered children
           const newCa = { ...ca, children: filteredChildren };
           
-          // Check if the current CA matches the filters
-          const matchesRevoked = showRevoked || ca.status !== 'revoked';
+          const matchesStatus = selectedStatuses.includes(ca.status);
           const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
           
-          if (matchesText && matchesRevoked) {
+          if (matchesText && matchesStatus) {
             return newCa;
           }
           
-          // If the CA itself doesn't match, it can still be included if it has matching descendants
-          // This is implicitly handled because we've already filtered its children.
-          // However, we must ensure it doesn't appear as an empty parent if no children match.
           if (filteredChildren.length > 0) {
               return newCa;
           }
@@ -149,7 +149,7 @@ export default function CertificateAuthoritiesPage() {
     };
 
     return filterCaList(cas);
-  }, [cas, filterText, showRevoked]);
+  }, [cas, filterText, selectedStatuses]);
 
 
   const handleCreateNewCAClick = () => {
@@ -216,11 +216,15 @@ export default function CertificateAuthoritiesPage() {
                     />
                 </div>
             </div>
-            <div className="flex items-center space-x-2">
-                <Checkbox id="show-revoked" checked={showRevoked} onCheckedChange={(checked) => setShowRevoked(Boolean(checked))} />
-                <Label htmlFor="show-revoked" className="font-normal whitespace-nowrap">
-                    Show revoked CAs
-                </Label>
+            <div className="space-y-1.5">
+                 <Label htmlFor="status-filter">Filter by Status</Label>
+                 <MultiSelectDropdown
+                    id="status-filter"
+                    options={STATUS_OPTIONS}
+                    selectedValues={selectedStatuses}
+                    onChange={setSelectedStatuses}
+                    buttonText="Filter by status..."
+                 />
             </div>
           </div>
           
@@ -267,9 +271,9 @@ export default function CertificateAuthoritiesPage() {
           ) : (
             !errorCas && !(viewMode === 'list' && errorCryptoEngines) && (
               <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-                <h3 className="text-lg font-semibold text-muted-foreground">{filterText || !showRevoked ? 'No Matching CAs Found' : 'No Certification Authorities Configured'}</h3>
+                <h3 className="text-lg font-semibold text-muted-foreground">{filterText || selectedStatuses.length > 0 ? 'No Matching CAs Found' : 'No Certification Authorities Configured'}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {filterText || !showRevoked ? 'Try adjusting your filters.' : 'There are no CAs in the system yet.'}
+                  {filterText || selectedStatuses.length > 0 ? 'Try adjusting your filters.' : 'There are no CAs in the system yet.'}
                 </p>
               </div>
             )

@@ -13,8 +13,15 @@ import { SelectableCaTreeItem } from './SelectableCaTreeItem';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { MultiSelectDropdown } from './MultiSelectDropdown';
 
+type CaStatus = 'active' | 'expired' | 'revoked' | 'unknown';
+
+const STATUS_OPTIONS: { value: CaStatus; label: string }[] = [
+    { value: 'active', label: 'Active' },
+    { value: 'expired', label: 'Expired' },
+    { value: 'revoked', label: 'Revoked' },
+];
 
 interface CaSelectorModalProps {
   isOpen: boolean;
@@ -48,28 +55,22 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
   allCryptoEngines,
 }) => {
   const [filterText, setFilterText] = useState('');
-  const [showRevoked, setShowRevoked] = useState(false);
+  const [selectedStatuses, setSelectedStatuses] = useState<CaStatus[]>(['active', 'expired']);
 
   const filteredCAs = useMemo(() => {
     const filterCaList = (caList: CA[]): CA[] => {
       return caList
         .map(ca => {
-          // Recursively filter children first
           const filteredChildren = ca.children ? filterCaList(ca.children) : [];
-          
-          // Create a new CA object with filtered children
           const newCa = { ...ca, children: filteredChildren };
           
-          // Check if the current CA matches the filters
-          const matchesRevoked = showRevoked || ca.status !== 'revoked';
+          const matchesStatus = selectedStatuses.includes(ca.status);
           const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
           
-          // The CA should be included if it matches the filters directly
-          if (matchesText && matchesRevoked) {
+          if (matchesText && matchesStatus) {
             return newCa;
           }
           
-          // Or if it has any descendants that match the filters
           if (filteredChildren.length > 0) {
               return newCa;
           }
@@ -80,7 +81,7 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
     };
 
     return filterCaList(availableCAs);
-  }, [availableCAs, filterText, showRevoked]);
+  }, [availableCAs, filterText, selectedStatuses]);
 
 
   return (
@@ -108,11 +109,15 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
                         />
                     </div>
                 </div>
-                <div className="flex items-center space-x-2 pb-1">
-                    <Checkbox id="modal-show-revoked" checked={showRevoked} onCheckedChange={(checked) => setShowRevoked(Boolean(checked))} />
-                    <Label htmlFor="modal-show-revoked" className="font-normal whitespace-nowrap">
-                        Show revoked CAs
-                    </Label>
+                 <div className="space-y-1.5">
+                    <Label htmlFor="modal-status-filter">Filter by Status</Label>
+                    <MultiSelectDropdown
+                        id="modal-status-filter"
+                        options={STATUS_OPTIONS}
+                        selectedValues={selectedStatuses}
+                        onChange={setSelectedStatuses}
+                        buttonText="Filter by status..."
+                    />
                 </div>
             </div>
 
@@ -149,7 +154,7 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
             )}
             {!isLoadingCAs && !isAuthLoading && !errorCAs && filteredCAs.length === 0 && (
               <p className="text-muted-foreground text-center my-4 p-4 border rounded-md bg-muted/20">
-                {filterText ? "No CAs match your search." : "No Certification Authorities available to select."}
+                {filterText || selectedStatuses.length > 0 ? "No CAs match your search." : "No Certification Authorities available to select."}
               </p>
             )}
             <DialogFooter>
