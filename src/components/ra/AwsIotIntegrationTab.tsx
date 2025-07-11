@@ -25,6 +25,7 @@ import { AwsPolicyEditorModal } from './AwsPolicyEditorModal';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { policyBuilder } from '@/lib/integrations-api';
+import { AwsRemediationPolicyModal } from './AwsRemediationPolicyModal';
 
 const awsPolicySchema = z.object({
   policy_name: z.string().min(1, 'Policy name is required.'),
@@ -59,12 +60,6 @@ const awsIntegrationSchema = z.object({
 
 export type AwsPolicy = z.infer<typeof awsPolicySchema>;
 type AwsIntegrationFormValues = z.infer<typeof awsIntegrationSchema>;
-
-interface AwsIotIntegrationTabProps {
-  ra: ApiRaItem;
-  configKey: string;
-  onUpdate: () => void;
-}
 
 // This function now defines the complete default state.
 const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationFormValues => {
@@ -103,8 +98,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPrimaryAccount, setIsPrimaryAccount] = useState(true);
 
-  // State for the policy modal
+  // State for the policy modals
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [isRemediationModalOpen, setIsRemediationModalOpen] = useState(false);
   const [editingPolicyIndex, setEditingPolicyIndex] = useState<number | null>(null);
   
   // Memoize the default values to prevent re-initializing the form on every render.
@@ -231,18 +227,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }
   };
   
-  const handleAddRemediationPolicy = () => {
-    const configParts = configKey.split('.');
-    const defaultAccountId = configParts.length > 2 ? configParts[configParts.length -1] : '';
-
-    const accountId = prompt("Please enter your AWS Account ID:", defaultAccountId);
-    if (!accountId || accountId.trim().length === 0) {
-      toast({ title: "Action Cancelled", description: "AWS Account ID is required to generate the policy.", variant: "default"});
-      return;
-    }
-    
+  const handleAddRemediationPolicy = (accountId: string) => {
     const shadowName = form.getValues("shadow_config.shadow_name") || "";
-    const policyDoc = policyBuilder(accountId.trim(), shadowName);
+    const policyDoc = policyBuilder(accountId, shadowName);
     
     append({
         policy_name: LMS_REMEDIATION_POLICY_NAME,
@@ -284,6 +271,11 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const defaultAccordionValue = isIntegrationEnabled ? ['thing-provisioning'] : ['ca-registration', 'thing-provisioning'];
 
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
+
+  const awsAccountId = useMemo(() => {
+    const parts = configKey.split('.');
+    return parts.length > 2 ? parts[parts.length -1] : '';
+  }, [configKey]);
 
   return (
     <>
@@ -476,7 +468,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                   <AlertTitle>Policy Required</AlertTitle>
                                   <AlertDescription>
                                       For Lamassu to manage device shadows, the 'lms-remediation-access' policy must be attached.
-                                      <Button type="button" variant="link" className="p-0 h-auto ml-2 text-amber-800 dark:text-amber-300 font-semibold" onClick={handleAddRemediationPolicy}>
+                                      <Button type="button" variant="link" className="p-0 h-auto ml-2 text-amber-800 dark:text-amber-300 font-semibold" onClick={() => setIsRemediationModalOpen(true)}>
                                           Add Remediation Access Policy
                                       </Button>
                                   </AlertDescription>
@@ -539,6 +531,12 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         onOpenChange={setIsPolicyModalOpen}
         onSave={handleSavePolicy}
         existingPolicy={editingPolicyIndex !== null ? fields[editingPolicyIndex] : undefined}
+    />
+    <AwsRemediationPolicyModal
+        isOpen={isRemediationModalOpen}
+        onOpenChange={setIsRemediationModalOpen}
+        onConfirm={handleAddRemediationPolicy}
+        defaultAccountId={awsAccountId}
     />
     </>
   );
