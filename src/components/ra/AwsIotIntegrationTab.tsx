@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { policyBuilder } from '@/lib/integrations-api';
 import { AwsRemediationPolicyModal } from './AwsRemediationPolicyModal';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 interface AwsIotIntegrationTabProps {
   ra: ApiRaItem;
@@ -112,30 +113,21 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   }, [configKey]);
 
   const connectorIdUniquePart = useMemo(() => {
-      const prefix = "aws.iot.";
-      if (connectorId.startsWith(prefix)) {
-          return connectorId.substring(prefix.length);
-      }
-      return connectorId;
+    const parts = connectorId.split('.');
+    return parts.length > 2 ? parts.slice(2).join('.') : connectorId;
   }, [connectorId]);
 
   const LmsRemediationPolicyName = useMemo(() => `${connectorIdUniquePart}.lms-remediation-access`, [connectorIdUniquePart]);
 
-
-  // Memoize the default values to prevent re-initializing the form on every render.
-  const memoizedDefaultValues = useMemo(() => getDefaultFormValues(ra, configKey), [ra, configKey]);
-
   const form = useForm<AwsIntegrationFormValues>({
     resolver: zodResolver(awsIntegrationSchema),
-    defaultValues: memoizedDefaultValues,
+    defaultValues: getDefaultFormValues(ra, configKey),
   });
 
-  // When new `ra` data comes in, we reset the form with the new default values.
   useEffect(() => {
-    const newDefaults = getDefaultFormValues(ra, configKey);
-    form.reset(newDefaults);
-    // Sync the shadow type selector based on the loaded data
-    if (newDefaults.shadow_config?.shadow_name) {
+    form.reset(getDefaultFormValues(ra, configKey));
+    const shadowName = form.getValues('shadow_config.shadow_name');
+    if (shadowName) {
         setShadowType('named');
     } else {
         setShadowType('classic');
@@ -270,7 +262,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     if (value === 'classic') {
         form.setValue('shadow_config.shadow_name', '');
     } else {
-        // Only set the default if the field is currently empty
         if (!form.getValues('shadow_config.shadow_name')) {
             form.setValue('shadow_config.shadow_name', 'lamassu-identity');
         }
