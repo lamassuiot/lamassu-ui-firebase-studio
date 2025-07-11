@@ -55,7 +55,7 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         <Button
           id={id}
           variant="outline"
-          className={cn("w-full justify-between font-normal", className)}
+          className={cn("w-full justify-between font-normal h-auto min-h-10", className)}
         >
           <div className="flex flex-wrap gap-1 items-center">
             {selectedLabels.length > 0 ? (
