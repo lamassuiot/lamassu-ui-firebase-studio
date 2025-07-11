@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2, Edit, BookOpenCheck, Plus } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2, Edit, BookOpenCheck, Plus, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
@@ -270,18 +270,45 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
         case 'REQUESTED': default: return { Icon: AlertTriangle, variant: 'warning', title: 'CA Registration Status: REQUESTED', message: "Registration process underway. Click 'Reload & Check' periodically." };
     }
   };
+
+  const RegistrationStatusBadge: React.FC<{ info: any }> = ({ info }) => {
+    if (!info) return null;
+    const { status } = info;
+    const variant = status === 'SUCCEEDED' ? 'default' : status === 'FAILED' ? 'destructive' : 'secondary';
+    const Icon = status === 'SUCCEEDED' ? CheckCircle : status === 'FAILED' ? XCircle : Loader2;
+    const text = status === 'SUCCEEDED' ? 'Synced' : status === 'FAILED' ? 'Failed' : 'Syncing';
+
+    return (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Icon className={cn("h-4 w-4", status === 'REQUESTED' && "animate-spin", {
+                'text-green-500': status === 'SUCCEEDED',
+                'text-red-500': status === 'FAILED',
+                'text-yellow-500': status === 'REQUESTED',
+            })} />
+            <span>{text}</span>
+        </div>
+    );
+  };
   
   const isIntegrationEnabled = registrationInfo && registrationInfo.status === 'SUCCEEDED';
+
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
+
+  const defaultAccordionValue = isIntegrationEnabled ? ['provisioning-policies'] : ['ca-registration', 'provisioning-policies'];
 
   return (
     <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <Accordion type="multiple" defaultValue={['ca-registration']} className="w-full space-y-3">
+        <Accordion type="multiple" defaultValue={defaultAccordionValue} className="w-full space-y-3">
             
             <AccordionItem value="ca-registration" className="border rounded-md shadow-sm">
-                <AccordionTrigger className={accordionTriggerStyle}><Settings2 className="mr-2 h-5 w-5" /> 1. AWS CA Registration</AccordionTrigger>
+                <AccordionTrigger className={accordionTriggerStyle}>
+                    <div className="flex items-center justify-between w-full">
+                        <span className="flex items-center"><Settings2 className="mr-2 h-5 w-5" /> 1. AWS CA Registration</span>
+                        <RegistrationStatusBadge info={registrationInfo} />
+                    </div>
+                </AccordionTrigger>
                 <AccordionContent className="p-4 pt-2">
                     <p className="text-sm text-muted-foreground mb-4">The Enrollment CA for this RA must be synchronized with AWS IoT Core for this integration to function.</p>
                      {isLoadingCa ? <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div> : 
@@ -360,7 +387,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                 {!isIntegrationEnabled && <Alert variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Configuration Disabled</AlertTitle><AlertDescription>You must successfully register the CA with AWS before configuring the options below.</AlertDescription></Alert>}
                 
                 <AccordionItem value="provisioning-policies" className="border rounded-md shadow-sm">
-                    <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning &amp; Policies</AccordionTrigger>
+                    <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning & Policies</AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
                         <FormField control={form.control} name="registration_mode" render={({ field }) => (
                             <FormItem>
