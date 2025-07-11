@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2, Edit, BookOpenCheck, Plus, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2, Edit, BookOpenCheck, Plus, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
@@ -27,8 +27,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { policyBuilder } from '@/lib/integrations-api';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Label } from '../ui/label';
-import { DetailItem } from '../shared/DetailItem';
-
 
 const awsPolicySchema = z.object({
   policy_name: z.string().min(1, 'Policy name is required.'),
@@ -61,14 +59,13 @@ type AwsIntegrationFormValues = z.infer<typeof awsIntegrationSchema>;
 
 interface AwsIotIntegrationTabProps {
   ra: ApiRaItem;
+  configKey: string;
   onUpdate: () => void;
 }
 
-const AWS_IOT_METADATA_KEY = 'lamassu.io/iot/aws.iot-core';
-
 // This function now defines the complete default state.
-const getDefaultFormValues = (ra?: ApiRaItem | null): AwsIntegrationFormValues => {
-  const config = ra?.metadata?.[AWS_IOT_METADATA_KEY] || {};
+const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationFormValues => {
+  const config = ra?.metadata?.[configKey] || {};
   
   return {
     aws_iot_manager_instance: config.aws_iot_manager_instance || 'aws.iot',
@@ -85,7 +82,7 @@ const getDefaultFormValues = (ra?: ApiRaItem | null): AwsIntegrationFormValues =
   };
 };
 
-export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, onUpdate }) => {
+export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, configKey, onUpdate }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -104,7 +101,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [remediationAccountId, setRemediationAccountId] = useState('');
   
   // Memoize the default values to prevent re-initializing the form on every render.
-  const memoizedDefaultValues = useMemo(() => getDefaultFormValues(ra), [ra]);
+  const memoizedDefaultValues = useMemo(() => getDefaultFormValues(ra, configKey), [ra, configKey]);
 
   const form = useForm<AwsIntegrationFormValues>({
     resolver: zodResolver(awsIntegrationSchema),
@@ -175,9 +172,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }));
     
     if (updatedRaPayload.metadata) {
-        updatedRaPayload.metadata[AWS_IOT_METADATA_KEY] = data;
+        updatedRaPayload.metadata[configKey] = data;
     } else {
-        updatedRaPayload.metadata = { [AWS_IOT_METADATA_KEY]: data };
+        updatedRaPayload.metadata = { [configKey]: data };
     }
 
     try {
@@ -197,7 +194,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     setIsSyncing(true);
     try {
         let patchOperations: PatchOperation[] = [];
-        const awsConfigPointer = `/lamassu.io~1iot~1aws.iot-core`;
+        const awsConfigPointer = `/${configKey.replace(/\//g, '~1')}`;
         
         if (isRetry) {
              const statusPointer = `${awsConfigPointer}/registration/status`;
@@ -261,7 +258,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   };
 
 
-  const registrationInfo = enrollmentCa?.rawApiData?.metadata?.[AWS_IOT_METADATA_KEY]?.registration;
+  const registrationInfo = enrollmentCa?.rawApiData?.metadata?.[configKey]?.registration;
 
   const getStatusContent = (regInfo: any) => {
     switch(regInfo.status) {
@@ -384,8 +381,10 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
             <div className={cn("space-y-3", !isIntegrationEnabled && "opacity-50 pointer-events-none")}>
                 {!isIntegrationEnabled && <Alert variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Configuration Disabled</AlertTitle><AlertDescription>You must successfully register the CA with AWS before configuring the options below.</AlertDescription></Alert>}
                 
-                 <AccordionItem value="provisioning-policies" className="border rounded-md shadow-sm">
-                    <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning &amp; Policies</AccordionTrigger>
+                <AccordionItem value="provisioning-policies" className="border rounded-md shadow-sm">
+                    <AccordionTrigger className={accordionTriggerStyle}>
+                        <div className="flex items-center"><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning &amp; Policies</div>
+                    </AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
                         <FormField control={form.control} name="registration_mode" render={({ field }) => (
                             <FormItem>

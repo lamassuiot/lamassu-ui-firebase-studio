@@ -10,9 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AwsIotIntegrationTab } from '@/components/ra/AwsIotIntegrationTab';
 import { fetchRaById, type ApiRaItem, createOrUpdateRa } from '@/lib/dms-api';
 import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
-import { Badge } from '@/components/ui/badge';
+import { DetailItem } from '@/components/shared/DetailItem';
 
-const AWS_IOT_METADATA_KEY = 'lamassu.io/iot/aws.iot-core';
 
 export default function ConfigureIntegrationPage() {
     const router = useRouter();
@@ -66,11 +65,11 @@ export default function ConfigureIntegrationPage() {
     };
 
     const connectorInstance = useMemo(() => {
-        if (raData?.metadata?.[AWS_IOT_METADATA_KEY]?.aws_iot_manager_instance) {
-            return raData.metadata[AWS_IOT_METADATA_KEY].aws_iot_manager_instance;
+        if (configKey && raData?.metadata?.[configKey]?.aws_iot_manager_instance) {
+            return raData.metadata[configKey].aws_iot_manager_instance;
         }
-        return 'Not configured';
-    }, [raData]);
+        return null;
+    }, [raData, configKey]);
     
     if (isLoading || authLoading) {
         return (
@@ -114,9 +113,10 @@ export default function ConfigureIntegrationPage() {
     // Determine which configuration component to render
     let ConfigComponent = null;
     let pageTitle = "Configure Integration";
+    let isAwsIntegration = configKey.includes('aws');
 
-    if (configKey === AWS_IOT_METADATA_KEY) {
-        ConfigComponent = <AwsIotIntegrationTab ra={raData} onUpdate={fetchRaDetails} />;
+    if (isAwsIntegration) {
+        ConfigComponent = <AwsIotIntegrationTab ra={raData} configKey={configKey} onUpdate={fetchRaDetails} />;
         pageTitle = `Configure AWS IoT Core for ${raData.name}`;
     } else {
         ConfigComponent = (
@@ -143,10 +143,8 @@ export default function ConfigureIntegrationPage() {
                 <div>
                     <h1 className="text-2xl font-headline font-semibold">{pageTitle}</h1>
                     <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                        <p>RA ID: <span className="font-mono text-xs">{raData.id}</span></p>
-                        {configKey === AWS_IOT_METADATA_KEY && (
-                            <p>Connector Instance: <span className="font-mono text-xs">{connectorInstance}</span></p>
-                        )}
+                        <DetailItem label="RA ID" value={raData.id} className="py-0"/>
+                        {connectorInstance && <DetailItem label="Connector Instance" value={connectorInstance} className="py-0"/>}
                     </div>
                 </div>
             </div>
