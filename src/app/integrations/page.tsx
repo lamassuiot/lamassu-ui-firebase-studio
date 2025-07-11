@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Blocks, PlusCircle, Loader2, AlertTriangle, Cloud, Settings, Eye, RefreshCw, MoreVertical, Trash2 } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,7 +37,7 @@ import AwsIcon from '../aws.svg';
 const IntegrationIcon: React.FC<{ type: DiscoveredIntegration['type'] }> = ({ type }) => {
     switch (type) {
         case 'AWS_IOT_CORE':
-            return <Image src={AwsIcon} alt="AWS IoT Core Icon" className="h-6 w-6" />;
+            return <Image src={AwsIcon} alt="AWS IoT Core Icon" className="h-6 w-6" width={24} height={24} />;
         default:
             return <Blocks className="h-6 w-6 text-primary" />;
     }
@@ -181,10 +181,6 @@ export default function IntegrationsPage() {
                           </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleConfigure(integration)}>
-                              <Settings className="mr-2 h-4 w-4" />
-                              <span>Configure</span>
-                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => router.push(`/registration-authorities/new?raId=${integration.raId}`)}>
                               <Eye className="mr-2 h-4 w-4" />
                               <span>View RA</span>
@@ -220,6 +216,12 @@ export default function IntegrationsPage() {
                     </div>
                 </div>
               </CardContent>
+              <CardFooter>
+                 <Button onClick={() => handleConfigure(integration)} className="w-full">
+                    <Settings className="mr-2 h-4 w-4"/>
+                    Configure Integration
+                </Button>
+              </CardFooter>
             </Card>
           ))}
         </div>
@@ -261,3 +263,4 @@ export default function IntegrationsPage() {
     </>
   );
 }
+
