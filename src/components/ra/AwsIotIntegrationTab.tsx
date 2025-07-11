@@ -27,6 +27,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { policyBuilder } from '@/lib/integrations-api';
 import { AwsRemediationPolicyModal } from './AwsRemediationPolicyModal';
 
+interface AwsIotIntegrationTabProps {
+  ra: ApiRaItem;
+  configKey: string;
+  onUpdate: () => void;
+}
+
 const awsPolicySchema = z.object({
   policy_name: z.string().min(1, 'Policy name is required.'),
   policy_document: z.string().refine((val) => {
@@ -85,8 +91,6 @@ const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationF
   };
 };
 
-const LMS_REMEDIATION_POLICY_NAME = 'lms-remediation-access';
-
 export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, configKey, onUpdate }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -103,6 +107,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [isRemediationModalOpen, setIsRemediationModalOpen] = useState(false);
   const [editingPolicyIndex, setEditingPolicyIndex] = useState<number | null>(null);
   
+  const LmsRemediationPolicyName = `${configKey}.lms-remediation-access`;
+
   // Memoize the default values to prevent re-initializing the form on every render.
   const memoizedDefaultValues = useMemo(() => getDefaultFormValues(ra, configKey), [ra, configKey]);
 
@@ -127,8 +133,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const currentPolicies = useWatch({ control: form.control, name: "policies" });
 
   const hasRemediationPolicy = useMemo(() => {
-    return currentPolicies?.some(p => p.policy_name === LMS_REMEDIATION_POLICY_NAME);
-  }, [currentPolicies]);
+    return currentPolicies?.some(p => p.policy_name === LmsRemediationPolicyName);
+  }, [currentPolicies, LmsRemediationPolicyName]);
 
   const loadCaData = useCallback(async () => {
     if (!user?.access_token || !ra?.settings.enrollment_settings.enrollment_ca) return;
@@ -232,11 +238,11 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     const policyDoc = policyBuilder(accountId, shadowName);
     
     append({
-        policy_name: LMS_REMEDIATION_POLICY_NAME,
+        policy_name: LmsRemediationPolicyName,
         policy_document: policyDoc,
     });
 
-    toast({ title: "Policy Added", description: `${LMS_REMEDIATION_POLICY_NAME} has been added to the list. Remember to save the integration settings.` });
+    toast({ title: "Policy Added", description: `${LmsRemediationPolicyName} has been added. Remember to save changes.` });
   };
 
   const registrationInfo = enrollmentCa?.rawApiData?.metadata?.[configKey]?.registration;
@@ -268,7 +274,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   };
   
   const isIntegrationEnabled = registrationInfo && registrationInfo.status === 'SUCCEEDED';
-  const defaultAccordionValue = isIntegrationEnabled ? ['thing-provisioning'] : ['ca-registration', 'thing-provisioning'];
+  const defaultAccordionValue = isIntegrationEnabled ? ['thing-provisioning'] : ['ca-registration'];
 
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
 
@@ -337,7 +343,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                           <div className="space-y-2 pt-2">
                                               <Label htmlFor="account-type-select">Register as Primary Account</Label>
                                               <Select onValueChange={(value) => setIsPrimaryAccount(value === 'primary')} defaultValue={isPrimaryAccount ? 'primary' : 'secondary'}>
-                                                  <SelectTrigger id="account-type-select"><SelectValue/></SelectTrigger>
+                                                  <SelectTrigger id="account-type-select" className="items-start"><SelectValue/></SelectTrigger>
                                                   <SelectContent>
                                                       <SelectItem value="primary">
                                                           <div className="flex flex-col"><span className="font-semibold">Primary Account - Register as CA owner</span><span className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</span></div>
@@ -467,7 +473,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                   <AlertTriangle className="h-4 w-4"/>
                                   <AlertTitle>Policy Required</AlertTitle>
                                   <AlertDescription>
-                                      For Lamassu to manage device shadows, the 'lms-remediation-access' policy must be attached.
+                                      For Lamassu to manage device shadows, a policy named '{LmsRemediationPolicyName}' must be attached.
                                       <Button type="button" variant="link" className="p-0 h-auto ml-2 text-amber-800 dark:text-amber-300 font-semibold" onClick={() => setIsRemediationModalOpen(true)}>
                                           Add Remediation Access Policy
                                       </Button>
