@@ -24,7 +24,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import { FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Info, User } from 'lucide-react';
+import { FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, ServerCog, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Info, User, Blocks } from 'lucide-react';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,6 +73,7 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'keys': "Keys",
   'devices': "Devices",
   'device-groups': "Device Groups",
+  'integrations': "Platform Integrations",
   'crypto-engines': "Crypto Engines",
   'requests': "CA Requests",
   'alerts': "Alerts",
@@ -195,6 +196,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const iotItems = [
     { href: '/devices', label: 'Devices', icon: Router },
     { href: '/device-groups', label: 'Device Groups', icon: ServerCog },
+    { href: '/integrations', label: 'Platform Integrations', icon: Blocks },
   ];
   const notificationItems = [
     { href: '/alerts', label: 'Alerts', icon: Info },

@@ -1,3 +1,4 @@
+
 // src/lib/dms-api.ts
 
 import { DMS_MANAGER_API_BASE_URL, handleApiError } from './api-domains';
@@ -96,6 +97,30 @@ export async function fetchRegistrationAuthorities(accessToken: string, params?:
     return handleApiError(response, 'Failed to fetch RAs');
 }
 
+export async function fetchAllRegistrationAuthorities(accessToken: string): Promise<ApiRaItem[]> {
+    let allRas: ApiRaItem[] = [];
+    let nextBookmark: string | null = null;
+    let hasNextPage = true;
+
+    while (hasNextPage) {
+        const params = new URLSearchParams({ page_size: '100' }); // Fetch in chunks of 100
+        if (nextBookmark) {
+            params.set('bookmark', nextBookmark);
+        }
+
+        const response: ApiRaListResponse = await fetchRegistrationAuthorities(accessToken, params);
+        
+        if (response.list) {
+            allRas = allRas.concat(response.list);
+        }
+        
+        nextBookmark = response.next;
+        hasNextPage = !!nextBookmark;
+    }
+
+    return allRas;
+}
+
 export async function fetchRaById(raId: string, accessToken: string): Promise<ApiRaItem> {
     const response = await fetch(`${DMS_MANAGER_API_BASE_URL}/dms/${raId}`, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
@@ -169,5 +194,30 @@ export async function updateRaMetadata(raId: string, metadata: object, accessTok
       settings: currentRa.settings, // Preserve existing settings
     };
 
+    await createOrUpdateRa(payload, accessToken, true, raId);
+}
+
+export async function deleteRaIntegration(raId: string, integrationKey: string, accessToken: string): Promise<void> {
+    // 1. Fetch the current RA data
+    const currentRa = await fetchRaById(raId, accessToken);
+    
+    // 2. Check if metadata and the key exist
+    if (!currentRa.metadata || !currentRa.metadata[integrationKey]) {
+        throw new Error("Integration key not found in RA metadata.");
+    }
+    
+    // 3. Create a new metadata object without the specified key
+    const newMetadata = { ...currentRa.metadata };
+    delete newMetadata[integrationKey];
+    
+    // 4. Create the payload for the update call, preserving other details
+    const payload: RaCreationPayload = {
+        name: currentRa.name,
+        id: currentRa.id,
+        metadata: newMetadata,
+        settings: currentRa.settings,
+    };
+    
+    // 5. Call the existing update function to save the modified RA
     await createOrUpdateRa(payload, accessToken, true, raId);
 }

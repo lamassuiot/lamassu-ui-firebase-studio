@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -8,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Copy, Check, Edit, Save, X, Loader2 } from "lucide-react";
 import type { ToastProps } from '@/components/ui/toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import type { PatchOperation } from '@/lib/ca-data';
 
 const Editor = dynamic(() => import('@monaco-editor/react'), { ssr: false, loading: () => <div className="h-96 w-full flex items-center justify-center bg-muted/30 rounded-md"><Loader2 className="h-8 w-8 animate-spin"/></div> });
 
@@ -18,7 +20,7 @@ interface MetadataTabContentProps {
   toast: ({ title, description, variant }: Omit<ToastProps, 'id'> & { title?: React.ReactNode; description?: React.ReactNode }) => void;
   isEditable?: boolean;
   itemId?: string;
-  onSave?: (itemId: string, content: object) => Promise<void>;
+  onSave?: (itemId: string, patchOperations: PatchOperation[]) => Promise<void>;
   onUpdateSuccess?: () => void;
 }
 
@@ -85,7 +87,8 @@ export const MetadataTabContent: React.FC<MetadataTabContentProps> = ({
 
     setIsSaving(true);
     try {
-      await onSave(itemId, parsedContent);
+      const patch: PatchOperation[] = [{ op: 'replace', path: '', value: parsedContent }];
+      await onSave(itemId, patch);
       toast({ title: "Success!", description: "Metadata updated successfully." });
       setIsEditing(false);
       onUpdateSuccess?.();

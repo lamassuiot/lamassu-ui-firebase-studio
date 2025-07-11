@@ -623,14 +623,20 @@ export async function importCa(payload: ImportCaPayload, accessToken: string): P
   }
 }
 
-export async function updateCaMetadata(caId: string, metadata: object, accessToken: string): Promise<void> {
+export interface PatchOperation {
+  op: "add" | "remove" | "replace";
+  path: string;
+  value?: any;
+}
+
+export async function updateCaMetadata(caId: string, patchOperations: PatchOperation[], accessToken: string): Promise<void> {
   const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/metadata`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
-    body: JSON.stringify(metadata),
+    body: JSON.stringify({ patches: patchOperations }),
   });
 
   if (!response.ok) {
@@ -851,8 +857,7 @@ export async function fetchDevManagerStats(accessToken: string): Promise<{ total
     const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/stats`, { 
         headers: { 'Authorization': `Bearer ${accessToken}` } 
     });
-    if (!response.ok) throw new Error('Failed to fetch Device stats');
-    return response.json();
+    return handleApiError(response, 'Failed to fetch Device stats');
 }
 
 // --- Signing Profiles ---
