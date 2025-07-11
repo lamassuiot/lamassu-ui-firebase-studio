@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, BookOpenCheck, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
@@ -342,7 +342,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                 
                 <AccordionItem value="provisioning-policies" className="border rounded-md shadow-sm">
                     <AccordionTrigger className={accordionTriggerStyle}>
-                        <div className="flex items-center"><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning &amp; Policies</div>
+                        <div className="flex items-center"><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning & Policies</div>
                     </AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
                         <FormField control={form.control} name="registration_mode" render={({ field }) => (
