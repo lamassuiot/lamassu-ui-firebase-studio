@@ -358,35 +358,31 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
             <div className={cn("space-y-3", !isIntegrationEnabled && "opacity-50 pointer-events-none")}>
                 {!isIntegrationEnabled && <Alert variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Configuration Disabled</AlertTitle><AlertDescription>You must successfully register the CA with AWS before configuring the options below.</AlertDescription></Alert>}
-
-                <AccordionItem value="provisioning" className="border rounded-md shadow-sm">
-                    <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning</AccordionTrigger>
+                
+                <AccordionItem value="provisioning-policies" className="border rounded-md shadow-sm">
+                    <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning &amp; Policies</AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
-                         <FormField control={form.control} name="aws_iot_manager_instance" render={({ field }) => (
+                        <FormField control={form.control} name="registration_mode" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>IoT Manager Instance</FormLabel>
-                                <FormControl><Input {...field} placeholder="e.g., aws.iot.eu-west-1.123456789012" /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                         )}/>
-                         <FormField control={form.control} name="registration_mode" render={({ field }) => (
-                            <FormItem><FormLabel>Registration Mode</FormLabel>
-                                 <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                <FormLabel>Registration Mode</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="none">None</SelectItem>
                                         <SelectItem value="auto">Automatic Registration on Enrollment</SelectItem>
                                         <SelectItem value="jitp">JITP Template</SelectItem>
                                     </SelectContent>
-                                </Select><FormMessage />
+                                </Select>
+                                <FormMessage />
                             </FormItem>
-                         )}/>
-                    </AccordionContent>
-                </AccordionItem>
-                
-                <AccordionItem value="groups-policies" className="border rounded-md shadow-sm">
-                    <AccordionTrigger className={accordionTriggerStyle}><Users2 className="mr-2 h-5 w-5" /> 3. AWS Thing Groups &amp; Policies</AccordionTrigger>
-                    <AccordionContent className="p-4 pt-2 space-y-4">
-                        <FormField control={form.control} name="groups" render={({ field }) => (<FormItem><FormLabel>Thing Groups</FormLabel><FormControl><TagInput {...field} placeholder="Add thing groups..."/></FormControl></FormItem>)}/>
+                        )}/>
+
+                        <FormField control={form.control} name="groups" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Thing Groups</FormLabel>
+                                <FormControl><TagInput {...field} placeholder="Add thing groups..."/></FormControl>
+                            </FormItem>
+                        )}/>
                         
                         <div className="space-y-2">
                              <div className="flex justify-between items-center">
@@ -415,7 +411,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                 </AccordionItem>
 
                 <AccordionItem value="shadow" className="border rounded-md shadow-sm">
-                    <AccordionTrigger className={accordionTriggerStyle}><Server className="mr-2 h-5 w-5" /> 4. Device Shadow &amp; Automation</AccordionTrigger>
+                    <AccordionTrigger className={accordionTriggerStyle}><Server className="mr-2 h-5 w-5" /> 3. Device Shadow &amp; Automation</AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
                         <FormField
                           control={form.control}
