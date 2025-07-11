@@ -274,12 +274,11 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const RegistrationStatusBadge: React.FC<{ info: any }> = ({ info }) => {
     if (!info) return null;
     const { status } = info;
-    const variant = status === 'SUCCEEDED' ? 'default' : status === 'FAILED' ? 'destructive' : 'secondary';
     const Icon = status === 'SUCCEEDED' ? CheckCircle : status === 'FAILED' ? XCircle : Loader2;
     const text = status === 'SUCCEEDED' ? 'Synced' : status === 'FAILED' ? 'Failed' : 'Syncing';
 
     return (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-4">
             <Icon className={cn("h-4 w-4", status === 'REQUESTED' && "animate-spin", {
                 'text-green-500': status === 'SUCCEEDED',
                 'text-red-500': status === 'FAILED',
@@ -291,10 +290,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   };
   
   const isIntegrationEnabled = registrationInfo && registrationInfo.status === 'SUCCEEDED';
+  const defaultAccordionValue = isIntegrationEnabled ? ['provisioning-policies'] : ['ca-registration', 'provisioning-policies'];
 
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
-
-  const defaultAccordionValue = isIntegrationEnabled ? ['provisioning-policies'] : ['ca-registration', 'provisioning-policies'];
 
   return (
     <>
