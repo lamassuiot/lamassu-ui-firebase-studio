@@ -2,15 +2,19 @@
 
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { CA } from '@/lib/ca-data';
 import { SelectableCaTreeItem } from './SelectableCaTreeItem';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 interface CaSelectorModalProps {
   isOpen: boolean;
@@ -43,6 +47,42 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
   children,
   allCryptoEngines,
 }) => {
+  const [filterText, setFilterText] = useState('');
+  const [showRevoked, setShowRevoked] = useState(false);
+
+  const filteredCAs = useMemo(() => {
+    const filterCaList = (caList: CA[]): CA[] => {
+      return caList
+        .map(ca => {
+          // Recursively filter children first
+          const filteredChildren = ca.children ? filterCaList(ca.children) : [];
+          
+          // Create a new CA object with filtered children
+          const newCa = { ...ca, children: filteredChildren };
+          
+          // Check if the current CA matches the filters
+          const matchesRevoked = showRevoked || ca.status !== 'revoked';
+          const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
+          
+          // The CA should be included if it matches the filters directly
+          if (matchesText && matchesRevoked) {
+            return newCa;
+          }
+          
+          // Or if it has any descendants that match the filters
+          if (filteredChildren.length > 0) {
+              return newCa;
+          }
+
+          return null;
+        })
+        .filter((ca): ca is CA => ca !== null);
+    };
+
+    return filterCaList(availableCAs);
+  }, [availableCAs, filterText, showRevoked]);
+
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl">
@@ -54,6 +94,28 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
           children
         ) : (
           <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end py-2">
+                <div className="flex-grow space-y-1.5">
+                    <Label htmlFor="modal-ca-filter">Filter by Name</Label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            id="modal-ca-filter"
+                            placeholder="e.g., My Root CA..."
+                            value={filterText}
+                            onChange={(e) => setFilterText(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center space-x-2 pb-1">
+                    <Checkbox id="modal-show-revoked" checked={showRevoked} onCheckedChange={(checked) => setShowRevoked(Boolean(checked))} />
+                    <Label htmlFor="modal-show-revoked" className="font-normal whitespace-nowrap">
+                        Show revoked CAs
+                    </Label>
+                </div>
+            </div>
+
             {(isLoadingCAs || isAuthLoading) && (
               <div className="flex items-center justify-center h-72">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -69,10 +131,10 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
                 </AlertDescription>
               </Alert>
             )}
-            {!isLoadingCAs && !isAuthLoading && !errorCAs && availableCAs.length > 0 && (
+            {!isLoadingCAs && !isAuthLoading && !errorCAs && filteredCAs.length > 0 && (
               <ScrollArea className="h-72 my-4 border rounded-md">
                 <ul className="space-y-0.5 p-2">
-                  {availableCAs.map((ca) => (
+                  {filteredCAs.map((ca) => (
                     <SelectableCaTreeItem
                       key={ca.id}
                       ca={ca}
@@ -85,9 +147,9 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
                 </ul>
               </ScrollArea>
             )}
-            {!isLoadingCAs && !isAuthLoading && !errorCAs && availableCAs.length === 0 && (
+            {!isLoadingCAs && !isAuthLoading && !errorCAs && filteredCAs.length === 0 && (
               <p className="text-muted-foreground text-center my-4 p-4 border rounded-md bg-muted/20">
-                No Certification Authorities available to select.
+                {filterText ? "No CAs match your search." : "No Certification Authorities available to select."}
               </p>
             )}
             <DialogFooter>
