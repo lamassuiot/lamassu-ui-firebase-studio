@@ -84,7 +84,7 @@ const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationF
         enable_template: config.jitp_config?.enable_template ?? false,
         provisioning_role_arn: config.jitp_config?.provisioning_role_arn || '',
     },
-    remediation_config: {
+     remediation_config: {
       enable: config.remediation_config?.enable ?? false,
       role_arn: config.remediation_config?.role_arn || '',
     },
@@ -107,7 +107,24 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [isRemediationModalOpen, setIsRemediationModalOpen] = useState(false);
   const [editingPolicyIndex, setEditingPolicyIndex] = useState<number | null>(null);
   
-  const LmsRemediationPolicyName = `${configKey}.lms-remediation-access`;
+  const connectorId = useMemo(() => {
+    const prefix = "lamassu.io/iot/";
+    if(configKey.startsWith(prefix)) {
+      return configKey.substring(prefix.length);
+    }
+    return configKey;
+  }, [configKey]);
+
+  const connectorIdUniquePart = useMemo(() => {
+      const prefix = "aws.";
+      if (connectorId.startsWith(prefix)) {
+          return connectorId.substring(prefix.length);
+      }
+      return connectorId;
+  }, [connectorId]);
+
+  const LmsRemediationPolicyName = useMemo(() => `${connectorIdUniquePart}.lms-remediation-access`, [connectorIdUniquePart]);
+
 
   // Memoize the default values to prevent re-initializing the form on every render.
   const memoizedDefaultValues = useMemo(() => getDefaultFormValues(ra, configKey), [ra, configKey]);
@@ -343,7 +360,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                           <div className="space-y-2 pt-2">
                                               <Label htmlFor="account-type-select">Register as Primary Account</Label>
                                               <Select onValueChange={(value) => setIsPrimaryAccount(value === 'primary')} defaultValue={isPrimaryAccount ? 'primary' : 'secondary'}>
-                                                  <SelectTrigger id="account-type-select" className="items-start"><SelectValue/></SelectTrigger>
+                                                  <SelectTrigger id="account-type-select" className="items-start h-auto"><SelectValue/></SelectTrigger>
                                                   <SelectContent>
                                                       <SelectItem value="primary">
                                                           <div className="flex flex-col"><span className="font-semibold">Primary Account - Register as CA owner</span><span className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</span></div>
