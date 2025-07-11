@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, Users2, Edit, BookOpenCheck, Plus, ExternalLink } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
@@ -25,8 +25,6 @@ import { AwsPolicyEditorModal } from './AwsPolicyEditorModal';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { policyBuilder } from '@/lib/integrations-api';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { Label } from '../ui/label';
 
 const awsPolicySchema = z.object({
   policy_name: z.string().min(1, 'Policy name is required.'),
@@ -48,6 +46,10 @@ const awsIntegrationSchema = z.object({
   shadow_config: z.object({
     enable: z.boolean().default(false),
     shadow_name: z.string().optional(),
+  }).optional(),
+  jitp_config: z.object({
+      enable_template: z.boolean().default(false),
+      provisioning_role_arn: z.string().optional(),
   }).optional(),
 });
 
@@ -73,6 +75,10 @@ const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationF
         enable: config.shadow_config?.enable ?? false,
         shadow_name: config.shadow_config?.shadow_name || '',
     },
+    jitp_config: {
+        enable_template: config.jitp_config?.enable_template ?? false,
+        provisioning_role_arn: config.jitp_config?.provisioning_role_arn || '',
+    },
   };
 };
 
@@ -90,9 +96,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   // State for the policy modal
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const [editingPolicyIndex, setEditingPolicyIndex] = useState<number | null>(null);
-
-  // State for remediation policy dialog
-  const [remediationAccountId, setRemediationAccountId] = useState('');
   
   // Memoize the default values to prevent re-initializing the form on every render.
   const memoizedDefaultValues = useMemo(() => getDefaultFormValues(ra, configKey), [ra, configKey]);
@@ -114,21 +117,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   
   // Use useWatch to reactively get form values
   const shadowEnabled = useWatch({ control: form.control, name: "shadow_config.enable" });
-  const shadowName = useWatch({ control: form.control, name: "shadow_config.shadow_name" });
-  const iotManagerInstance = useWatch({ control: form.control, name: "aws_iot_manager_instance" });
-  const currentPolicies = useWatch({ control: form.control, name: "policies" });
-
-  const hasRemediationPolicy = useMemo(() => {
-    const policyName = `${ra.id}.lms-remediation-access`;
-    return currentPolicies?.some(p => p.policy_name === policyName);
-  }, [currentPolicies, ra.id]);
-
-
-  useEffect(() => {
-    // Extracts the 12-digit account ID from the instance string.
-    const accountIdMatch = iotManagerInstance?.match(/\.([\d]{12})$/);
-    setRemediationAccountId(accountIdMatch ? accountIdMatch[1] : '');
-  }, [iotManagerInstance]);
+  const registrationMode = useWatch({ control: form.control, name: "registration_mode" });
 
 
   const loadCaData = useCallback(async () => {
@@ -228,30 +217,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
     }
   };
 
-  const handleAddRemediationPolicy = () => {
-    if (!remediationAccountId) {
-        toast({ title: "Error", description: "AWS Account ID is required.", variant: 'destructive'});
-        return;
-    }
-    const policyDocString = policyBuilder(remediationAccountId, shadowName || '');
-    const policyName = `${ra.id}.lms-remediation-access`;
-    
-    const newPolicy: AwsPolicy = {
-        policy_name: policyName,
-        policy_document: policyDocString,
-    };
-
-    const existingIndex = fields.findIndex(p => p.policy_name === policyName);
-    if (existingIndex > -1) {
-        update(existingIndex, newPolicy);
-        toast({ title: "Policy Updated", description: `'${policyName}' policy has been updated.`});
-    } else {
-        append(newPolicy);
-        toast({ title: "Policy Added", description: `'${policyName}' policy has been added.`});
-    }
-  };
-
-
   const registrationInfo = enrollmentCa?.rawApiData?.metadata?.[configKey]?.registration;
 
   const getStatusContent = (regInfo: any) => {
@@ -345,7 +310,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                           <div className="space-y-2 pt-2">
                                               <Label htmlFor="account-type-select">Register as Primary Account</Label>
                                               <Select onValueChange={(value) => setIsPrimaryAccount(value === 'primary')} defaultValue={isPrimaryAccount ? 'primary' : 'secondary'}>
-                                                  <SelectTrigger id="account-type-select"><SelectValue /></SelectTrigger>
+                                                  <SelectTrigger id="account-type-select"><SelectValue/></SelectTrigger>
                                                   <SelectContent>
                                                       <SelectItem value="primary">
                                                           <div className="flex flex-col"><span className="font-semibold">Primary Account - Register as CA owner</span><span className="text-xs text-muted-foreground">Only one account can be registered as the CA owner within the same AWS Region. It is required to have access to the CA private key.</span></div>
@@ -394,6 +359,27 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                 <FormMessage />
                             </FormItem>
                         )}/>
+
+                         {registrationMode === 'jitp' && (
+                            <Card className="bg-muted/50 p-4 space-y-4">
+                                <FormField control={form.control} name="jitp_config.enable_template" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border bg-background p-3 shadow-sm">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Enable JITP Template</FormLabel>
+                                        </div>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    </FormItem>
+                                )}/>
+                                <FormField control={form.control} name="jitp_config.provisioning_role_arn" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Provisioning Role ARN</FormLabel>
+                                        <FormControl><Input {...field} placeholder="arn:aws:iam::123456789012:role/JITP-Role"/></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                            </Card>
+                        )}
+
 
                         <FormField control={form.control} name="groups" render={({ field }) => (
                             <FormItem>
@@ -458,41 +444,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                     </FormItem>
                                 )}
                             />
-                             {shadowEnabled && !hasRemediationPolicy && (
-                                <Alert variant="warning">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Policy Required</AlertTitle>
-                                    <AlertDescription>
-                                        <div className="flex flex-col gap-3">
-                                            <span>To enable shadow and remediation features, you must add the remediation policy.</span>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button type="button" variant="outline" size="sm" className="self-start">
-                                                        <Plus className="mr-2 h-4 w-4"/>Add Remediation Policy
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Add Remediation Policy</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Confirm the AWS Account ID to generate the policy. This policy allows Lamassu to manage device certificates and shadows.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <div className="space-y-2 py-2">
-                                                      <Label htmlFor="aws-account-id">AWS Account ID</Label>
-                                                      <Input id="aws-account-id" value={remediationAccountId} onChange={(e) => setRemediationAccountId(e.target.value)} />
-                                                      <p className="text-xs text-muted-foreground">Extracted from IoT Manager Instance. Verify it's correct.</p>
-                                                   </div>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={handleAddRemediationPolicy}>Add Policy</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </AlertDescription>
-                                </Alert>
-                            )}
                           </div>
                         )}
                     </AccordionContent>
