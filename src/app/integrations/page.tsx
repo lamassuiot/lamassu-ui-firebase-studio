@@ -109,6 +109,14 @@ export default function IntegrationsPage() {
       setIsDeleting(false);
     }
   };
+  
+  const getConnectorId = (configKey: string) => {
+      const prefix = "lamassu.io/iot/";
+      if (configKey.startsWith(prefix)) {
+          return configKey.substring(prefix.length);
+      }
+      return configKey;
+  };
 
   if (isLoading || authLoading) {
     return (
@@ -196,8 +204,8 @@ export default function IntegrationsPage() {
               <CardContent className="flex-grow">
                 <div className="space-y-2 text-sm">
                     <div>
-                        <p className="text-xs font-medium text-muted-foreground">Config Key</p>
-                        <Badge variant="outline" className="font-mono text-xs">{integration.configKey}</Badge>
+                        <p className="text-xs font-medium text-muted-foreground">Connector ID</p>
+                        <Badge variant="outline" className="font-mono text-xs">{getConnectorId(integration.configKey)}</Badge>
                     </div>
                      <div>
                         <p className="text-xs font-medium text-muted-foreground">RA ID</p>
