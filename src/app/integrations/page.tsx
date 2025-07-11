@@ -201,7 +201,14 @@ export default function IntegrationsPage() {
                     </div>
                      <div>
                         <p className="text-xs font-medium text-muted-foreground">RA ID</p>
-                        <p className="font-mono text-xs">{integration.raId}</p>
+                        <Button
+                            variant="link"
+                            className="p-0 h-auto font-mono text-xs"
+                            onClick={() => router.push(`/registration-authorities/new?raId=${integration.raId}`)}
+                            title={`Edit RA ${integration.raId}`}
+                        >
+                            {integration.raId}
+                        </Button>
                     </div>
                 </div>
               </CardContent>
