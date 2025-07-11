@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TagInput } from '@/components/shared/TagInput';
-import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, BookOpenCheck, Edit } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, Save, Trash2, CheckCircle, XCircle, Settings2, UserPlus, Server, BookOpenCheck, Edit, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiRaItem, RaCreationPayload } from '@/lib/dms-api';
 import { createOrUpdateRa } from '@/lib/dms-api';
@@ -51,6 +51,10 @@ const awsIntegrationSchema = z.object({
       enable_template: z.boolean().default(false),
       provisioning_role_arn: z.string().optional(),
   }).optional(),
+  remediation_config: z.object({
+    enable: z.boolean().default(false),
+    role_arn: z.string().optional(),
+  }).optional(),
 });
 
 export type AwsPolicy = z.infer<typeof awsPolicySchema>;
@@ -79,8 +83,14 @@ const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationF
         enable_template: config.jitp_config?.enable_template ?? false,
         provisioning_role_arn: config.jitp_config?.provisioning_role_arn || '',
     },
+    remediation_config: {
+      enable: config.remediation_config?.enable ?? false,
+      role_arn: config.remediation_config?.role_arn || '',
+    },
   };
 };
+
+const LMS_REMEDIATION_POLICY_NAME = 'lms-remediation-access';
 
 export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, configKey, onUpdate }) => {
   const { toast } = useToast();
@@ -118,7 +128,11 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   // Use useWatch to reactively get form values
   const shadowEnabled = useWatch({ control: form.control, name: "shadow_config.enable" });
   const registrationMode = useWatch({ control: form.control, name: "registration_mode" });
+  const currentPolicies = useWatch({ control: form.control, name: "policies" });
 
+  const hasRemediationPolicy = useMemo(() => {
+    return currentPolicies?.some(p => p.policy_name === LMS_REMEDIATION_POLICY_NAME);
+  }, [currentPolicies]);
 
   const loadCaData = useCallback(async () => {
     if (!user?.access_token || !ra?.settings.enrollment_settings.enrollment_ca) return;
@@ -216,6 +230,27 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
       append(policy);
     }
   };
+  
+  const handleAddRemediationPolicy = () => {
+    const configParts = configKey.split('.');
+    const defaultAccountId = configParts.length > 2 ? configParts[configParts.length -1] : '';
+
+    const accountId = prompt("Please enter your AWS Account ID:", defaultAccountId);
+    if (!accountId || accountId.trim().length === 0) {
+      toast({ title: "Action Cancelled", description: "AWS Account ID is required to generate the policy.", variant: "default"});
+      return;
+    }
+    
+    const shadowName = form.getValues("shadow_config.shadow_name") || "";
+    const policyDoc = policyBuilder(accountId.trim(), shadowName);
+    
+    append({
+        policy_name: LMS_REMEDIATION_POLICY_NAME,
+        policy_document: policyDoc,
+    });
+
+    toast({ title: "Policy Added", description: `${LMS_REMEDIATION_POLICY_NAME} has been added to the list. Remember to save the integration settings.` });
+  };
 
   const registrationInfo = enrollmentCa?.rawApiData?.metadata?.[configKey]?.registration;
 
@@ -246,7 +281,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   };
   
   const isIntegrationEnabled = registrationInfo && registrationInfo.status === 'SUCCEEDED';
-  const defaultAccordionValue = isIntegrationEnabled ? ['provisioning-policies'] : ['ca-registration', 'provisioning-policies'];
+  const defaultAccordionValue = isIntegrationEnabled ? ['thing-provisioning'] : ['ca-registration', 'thing-provisioning'];
 
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
 
@@ -340,9 +375,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
             <div className={cn("space-y-3", !isIntegrationEnabled && "opacity-50 pointer-events-none")}>
                 {!isIntegrationEnabled && <Alert variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Configuration Disabled</AlertTitle><AlertDescription>You must successfully register the CA with AWS before configuring the options below.</AlertDescription></Alert>}
                 
-                <AccordionItem value="provisioning-policies" className="border rounded-md shadow-sm">
+                <AccordionItem value="thing-provisioning" className="border rounded-md shadow-sm">
                     <AccordionTrigger className={accordionTriggerStyle}>
-                        <div className="flex items-center"><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning & Policies</div>
+                        <div className="flex items-center"><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning &amp; Policies</div>
                     </AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
                         <FormField control={form.control} name="registration_mode" render={({ field }) => (
@@ -391,7 +426,10 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         <div className="space-y-2">
                              <div className="flex justify-between items-center">
                                  <FormLabel>IoT Policies</FormLabel>
-                                 <Button type="button" variant="default" size="sm" onClick={() => handleOpenPolicyModal()}>Add Custom Policy</Button>
+                                 <Button type="button" variant="default" size="sm" onClick={() => handleOpenPolicyModal()}>
+                                     <PlusCircle className="mr-2 h-4 w-4"/>
+                                     Add Custom Policy
+                                </Button>
                              </div>
                              <Card className="p-3">
                                 <ul className="space-y-2">
@@ -432,6 +470,18 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                         />
                         {shadowEnabled && (
                           <div className="space-y-4">
+                            {!hasRemediationPolicy && (
+                                <Alert variant="warning">
+                                  <AlertTriangle className="h-4 w-4"/>
+                                  <AlertTitle>Policy Required</AlertTitle>
+                                  <AlertDescription>
+                                      For Lamassu to manage device shadows, the 'lms-remediation-access' policy must be attached.
+                                      <Button type="button" variant="link" className="p-0 h-auto ml-2 text-amber-800 dark:text-amber-300 font-semibold" onClick={handleAddRemediationPolicy}>
+                                          Add Remediation Access Policy
+                                      </Button>
+                                  </AlertDescription>
+                                </Alert>
+                            )}
                             <FormField
                                 control={form.control}
                                 name="shadow_config.shadow_name"
@@ -441,6 +491,30 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                         <FormControl><Input {...field} placeholder="Enter named shadow (e.g., 'config')..."/></FormControl>
                                         <FormDescription>Leave blank to use the classic, unnamed shadow.</FormDescription>
                                         <FormMessage/>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="remediation_config.enable"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50 mt-4">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Enable Remediation</FormLabel>
+                                            <FormDescription>Allow Lamassu to perform automated remediation actions.</FormDescription>
+                                        </div>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="remediation_config.role_arn"
+                                render={({ field }) => (
+                                    <FormItem className="pl-6">
+                                        <FormLabel>Remediation Role ARN</FormLabel>
+                                        <FormControl><Input {...field} placeholder="arn:aws:iam::..." /></FormControl>
+                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />
