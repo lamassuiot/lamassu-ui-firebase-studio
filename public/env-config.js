@@ -12,4 +12,6 @@ window.lamassuConfig = {
 
     // Flag to enable a custom footer from public/footer.html
     LAMASSU_FOOTER_ENABLED: false,
+
+    LAMASSU_CONNECTORS: [ 'aws.iot-core','aws.iot.eu-west-1.123456789012']
 };

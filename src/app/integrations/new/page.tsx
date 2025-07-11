@@ -13,13 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Alert, AlertDescription as AlertDescUI, AlertTitle } from "@/components/ui/alert";
 import { fetchAllRegistrationAuthorities, updateRaMetadata, type ApiRaItem } from '@/lib/dms-api';
 
-const mockedConnectors = [
-  'aws.iot-core',
-  'aws.iot.eu-west-1.123456789012',
-  'azure.iot-hub',
-  'gcp.iot-core',
-];
-
 export default function CreateIntegrationPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -29,9 +22,25 @@ export default function CreateIntegrationPage() {
   const [isLoadingRas, setIsLoadingRas] = useState(true);
   const [errorRas, setErrorRas] = useState<string | null>(null);
 
+  const [connectors, setConnectors] = useState<string[]>([]);
   const [selectedRaId, setSelectedRaId] = useState<string>('');
   const [selectedConnectorId, setSelectedConnectorId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    // This effect runs on the client after hydration, so `window` is available.
+    if (typeof window !== 'undefined') {
+        const configConnectors = (window as any).lamassuConfig?.LAMASSU_CONNECTORS;
+        if (Array.isArray(configConnectors)) {
+            setConnectors(configConnectors);
+        } else {
+            const envConnectors = process.env.NEXT_PUBLIC_CONNECTORS;
+            if (typeof envConnectors === 'string') {
+                setConnectors(envConnectors.split(',').map(c => c.trim()));
+            }
+        }
+    }
+  }, []);
 
   const loadRAs = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) return;
@@ -140,7 +149,7 @@ export default function CreateIntegrationPage() {
                   <Select value={selectedConnectorId} onValueChange={setSelectedConnectorId} disabled={isSubmitting}>
                       <SelectTrigger id="connector-select"><SelectValue placeholder="Select a connector type..."/></SelectTrigger>
                       <SelectContent>
-                          {mockedConnectors.map(connectorId => <SelectItem key={connectorId} value={connectorId}>{connectorId}</SelectItem>)}
+                          {connectors.map(connectorId => <SelectItem key={connectorId} value={connectorId}>{connectorId}</SelectItem>)}
                       </SelectContent>
                   </Select>
               </div>
