@@ -30,13 +30,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import Image from 'next/image';
+import AwsIcon from './aws.svg';
 
 
 const IntegrationIcon: React.FC<{ type: DiscoveredIntegration['type'] }> = ({ type }) => {
-    // For now, using a generic cloud icon. Can be expanded later.
     switch (type) {
         case 'AWS_IOT_CORE':
-            return <Cloud className="h-6 w-6 text-orange-500" />;
+            return <Image src={AwsIcon} alt="AWS IoT Core Icon" className="h-6 w-6" />;
         default:
             return <Blocks className="h-6 w-6 text-primary" />;
     }
