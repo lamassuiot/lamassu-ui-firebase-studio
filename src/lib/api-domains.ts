@@ -1,10 +1,14 @@
 // src/lib/api-domains.ts
 const getApiBaseUrl = (): string => {
-    // Check if the configuration is available on the window object
+    // 1. Check for configuration from env-config.js on the window object
     if (typeof window !== 'undefined' && (window as any).lamassuConfig?.LAMASSU_API) {
         return (window as any).lamassuConfig.LAMASSU_API;
     }
-    // Fallback to a default value if not configured or in a server environment
+    // 2. Fallback to the Next.js public environment variable
+    if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+        return process.env.NEXT_PUBLIC_API_BASE_URL;
+    }
+    // 3. Last resort fallback to a hardcoded default value
     return 'https://lab.lamassu.io/api';
 };
 
