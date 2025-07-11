@@ -58,10 +58,6 @@ const awsIntegrationSchema = z.object({
       enable_template: z.boolean().default(false),
       provisioning_role_arn: z.string().optional(),
   }).optional(),
-  remediation_config: z.object({
-    enable: z.boolean().default(false),
-    role_arn: z.string().optional(),
-  }).optional(),
 });
 
 export type AwsPolicy = z.infer<typeof awsPolicySchema>;
@@ -83,10 +79,6 @@ const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationF
     jitp_config: {
         enable_template: config.jitp_config?.enable_template ?? false,
         provisioning_role_arn: config.jitp_config?.provisioning_role_arn || '',
-    },
-     remediation_config: {
-      enable: config.remediation_config?.enable ?? false,
-      role_arn: config.remediation_config?.role_arn || '',
     },
   };
 };
@@ -506,30 +498,6 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                         <FormControl><Input {...field} placeholder="Enter named shadow (e.g., 'config')..."/></FormControl>
                                         <FormDescription>Leave blank to use the classic, unnamed shadow.</FormDescription>
                                         <FormMessage/>
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="remediation_config.enable"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/50 mt-4">
-                                        <div className="space-y-0.5">
-                                            <FormLabel>Enable Remediation</FormLabel>
-                                            <FormDescription>Allow Lamassu to perform automated remediation actions.</FormDescription>
-                                        </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="remediation_config.role_arn"
-                                render={({ field }) => (
-                                    <FormItem className="pl-6">
-                                        <FormLabel>Remediation Role ARN</FormLabel>
-                                        <FormControl><Input {...field} placeholder="arn:aws:iam::..." /></FormControl>
-                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />
