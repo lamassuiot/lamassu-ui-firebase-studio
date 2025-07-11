@@ -2,10 +2,10 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, List, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, PlusCircle, FileSignature } from "lucide-react";
+import { Landmark, List, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, PlusCircle, FileSignature, Search } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import dynamic from 'next/dynamic';
@@ -13,6 +13,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const CaFilesystemView = dynamic(() => 
   import('@/components/ca/CaFilesystemView').then(mod => mod.CaFilesystemView), 
@@ -64,6 +67,10 @@ export default function CertificateAuthoritiesPage() {
   const [errorCas, setErrorCas] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
+  // Filtering state
+  const [filterText, setFilterText] = useState('');
+  const [showRevoked, setShowRevoked] = useState(false);
+
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingCryptoEngines, setIsLoadingCryptoEngines] = useState(true);
   const [errorCryptoEngines, setErrorCryptoEngines] = useState<string | null>(null);
@@ -111,6 +118,39 @@ export default function CertificateAuthoritiesPage() {
     }
   }, [loadData, authLoading]);
 
+  const filteredCAs = useMemo(() => {
+    const filterCaList = (caList: CA[]): CA[] => {
+      return caList
+        .map(ca => {
+          // Recursively filter children first
+          const filteredChildren = ca.children ? filterCaList(ca.children) : [];
+          
+          // Create a new CA object with filtered children
+          const newCa = { ...ca, children: filteredChildren };
+          
+          // Check if the current CA matches the filters
+          const matchesRevoked = showRevoked || ca.status !== 'revoked';
+          const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
+          
+          if (matchesText && matchesRevoked) {
+            return newCa;
+          }
+          
+          // If the CA itself doesn't match, it can still be included if it has matching descendants
+          // This is implicitly handled because we've already filtered its children.
+          // However, we must ensure it doesn't appear as an empty parent if no children match.
+          if (filteredChildren.length > 0) {
+              return newCa;
+          }
+
+          return null;
+        })
+        .filter((ca): ca is CA => ca !== null);
+    };
+
+    return filterCaList(cas);
+  }, [cas, filterText, showRevoked]);
+
 
   const handleCreateNewCAClick = () => {
     router.push('/certificate-authorities/new');
@@ -146,26 +186,12 @@ export default function CertificateAuthoritiesPage() {
     <div className="space-y-6 w-full pb-8">
       <div className="p-0"> 
         <div className="p-0"> 
-          <div className="flex items-center justify-between mb-4"> 
+          <div className="flex items-center justify-between mb-2"> 
             <div className="flex items-center space-x-3">
               <Landmark className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-headline font-semibold">Certification Authorities</h1> 
             </div>
             <div className="flex items-center space-x-2">
-              <ToggleGroup type="single" value={viewMode} onValueChange={handleViewModeChange} variant="outline" aria-label="View mode">
-                <ToggleGroupItem value="list" aria-label="List view">
-                  <List className="h-4 w-4 mr-0 sm:mr-2" />
-                  <span className="hidden sm:inline">List</span>
-                </ToggleGroupItem>
-                <ToggleGroupItem value="hierarchy" aria-label="Hierarchy view">
-                  <Network className="h-4 w-4 mr-0 sm:mr-2" />
-                   <span className="hidden sm:inline">Hierarchy</span>
-                </ToggleGroupItem>
-                 <ToggleGroupItem value="graph" aria-label="Graph view">
-                  <GitFork className="h-4 w-4 mr-0 sm:mr-2" />
-                   <span className="hidden sm:inline">Graph</span>
-                </ToggleGroupItem>
-              </ToggleGroup>
               <Button variant="outline" onClick={() => router.push('/certificate-authorities/requests')}>
                 <FileSignature className="mr-2 h-4 w-4" /> Manage CA Requests
               </Button>
@@ -174,7 +200,46 @@ export default function CertificateAuthoritiesPage() {
               </Button>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">Currently viewing CAs in: <span className="font-semibold">{currentViewTitle}</span>. Manage your Certification Authority configurations and trust stores.</p> 
+          <p className="text-sm text-muted-foreground mb-4">Manage your Certification Authority configurations and trust stores.</p> 
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mb-4 p-4 border rounded-lg bg-muted/30">
+            <div className="flex-grow space-y-1.5">
+                <Label htmlFor="ca-filter">Filter by Name</Label>
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="ca-filter"
+                        placeholder="e.g., My Root CA..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="pl-10"
+                    />
+                </div>
+            </div>
+            <div className="flex items-center space-x-2">
+                <Checkbox id="show-revoked" checked={showRevoked} onCheckedChange={(checked) => setShowRevoked(Boolean(checked))} />
+                <Label htmlFor="show-revoked" className="font-normal whitespace-nowrap">
+                    Show revoked CAs
+                </Label>
+            </div>
+          </div>
+          
+          <div className="flex justify-end">
+             <ToggleGroup type="single" value={viewMode} onValueChange={handleViewModeChange} variant="outline" aria-label="View mode">
+              <ToggleGroupItem value="list" aria-label="List view">
+                <List className="h-4 w-4 mr-0 sm:mr-2" />
+                <span className="hidden sm:inline">List</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="hierarchy" aria-label="Hierarchy view">
+                <Network className="h-4 w-4 mr-0 sm:mr-2" />
+                  <span className="hidden sm:inline">Hierarchy</span>
+              </ToggleGroupItem>
+                <ToggleGroupItem value="graph" aria-label="Graph view">
+                <GitFork className="h-4 w-4 mr-0 sm:mr-2" />
+                  <span className="hidden sm:inline">Graph</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
         <div className="pt-6"> 
           {(errorCas || (viewMode === 'list' && errorCryptoEngines)) && (
@@ -187,20 +252,27 @@ export default function CertificateAuthoritiesPage() {
             </Alert>
           )}
           
-          {!(errorCas || (viewMode === 'list' && errorCryptoEngines)) && cas.length > 0 ? (
+          {!(errorCas || (viewMode === 'list' && errorCryptoEngines)) && filteredCAs.length > 0 ? (
             <>
               {viewMode === 'list' && (
-                <CaFilesystemView cas={cas} router={router} allCAs={cas} allCryptoEngines={allCryptoEngines} />
+                <CaFilesystemView cas={filteredCAs} router={router} allCAs={cas} allCryptoEngines={allCryptoEngines} />
               )}
               {viewMode === 'hierarchy' && (
-                <CaHierarchyView cas={cas} router={router} allCAs={cas} allCryptoEngines={allCryptoEngines} />
+                <CaHierarchyView cas={filteredCAs} router={router} allCAs={cas} allCryptoEngines={allCryptoEngines} />
               )}
               {viewMode === 'graph' && (
-                <CaGraphView cas={cas} allCryptoEngines={allCryptoEngines} router={router} />
+                <CaGraphView cas={filteredCAs} allCryptoEngines={allCryptoEngines} router={router} />
               )}
             </>
           ) : (
-            !errorCas && !(viewMode === 'list' && errorCryptoEngines) && <p className="text-muted-foreground">No Certification Authorities configured or found.</p>
+            !errorCas && !(viewMode === 'list' && errorCryptoEngines) && (
+              <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
+                <h3 className="text-lg font-semibold text-muted-foreground">{filterText || !showRevoked ? 'No Matching CAs Found' : 'No Certification Authorities Configured'}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {filterText || !showRevoked ? 'Try adjusting your filters.' : 'There are no CAs in the system yet.'}
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>
