@@ -49,9 +49,6 @@ const awsIntegrationSchema = z.object({
     enable: z.boolean().default(false),
     shadow_name: z.string().optional(),
   }).optional(),
-  remediation_config: z.object({
-    account_id: z.string().optional(),
-  }).optional(),
 });
 
 export type AwsPolicy = z.infer<typeof awsPolicySchema>;
@@ -75,9 +72,6 @@ const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationF
     shadow_config: {
         enable: config.shadow_config?.enable ?? false,
         shadow_name: config.shadow_config?.shadow_name || '',
-    },
-    remediation_config: {
-        account_id: config.remediation_config?.account_id || '',
     },
   };
 };
