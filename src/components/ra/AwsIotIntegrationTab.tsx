@@ -308,7 +308,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                                     )}
                                                     <Accordion type="single" collapsible className="w-full">
                                                         <AccordionItem value="item-1" className="border-t">
-                                                            <AccordionTrigger className="text-xs pt-3">View Raw Metadata</AccordionTrigger>
+                                                            <AccordionTrigger className="text-xs pt-3">Details</AccordionTrigger>
                                                             <AccordionContent>
                                                                 <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto mt-1">
                                                                     {JSON.stringify(registrationInfo, null, 2)}
@@ -362,6 +362,13 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                 <AccordionItem value="provisioning" className="border rounded-md shadow-sm">
                     <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning</AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
+                         <FormField control={form.control} name="aws_iot_manager_instance" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>IoT Manager Instance</FormLabel>
+                                <FormControl><Input {...field} placeholder="e.g., aws.iot.eu-west-1.123456789012" /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                         )}/>
                          <FormField control={form.control} name="registration_mode" render={({ field }) => (
                             <FormItem><FormLabel>Registration Mode</FormLabel>
                                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
