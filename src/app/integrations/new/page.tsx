@@ -14,10 +14,10 @@ import { Alert, AlertDescription as AlertDescUI, AlertTitle } from "@/components
 import { fetchAllRegistrationAuthorities, updateRaMetadata, type ApiRaItem } from '@/lib/dms-api';
 
 const mockedConnectors = [
-  { id: 'aws.iot-core', name: 'AWS IoT Core' },
-  { id: 'aws.iot.eu-west-1.123456789012', name: 'AWS IoT Core (eu-west-1)' },
-  { id: 'azure.iot-hub', name: 'Azure IoT Hub' },
-  { id: 'gcp.iot-core', name: 'Google Cloud IoT Core' },
+  'aws.iot-core',
+  'aws.iot.eu-west-1.123456789012',
+  'azure.iot-hub',
+  'gcp.iot-core',
 ];
 
 export default function CreateIntegrationPage() {
@@ -140,7 +140,7 @@ export default function CreateIntegrationPage() {
                   <Select value={selectedConnectorId} onValueChange={setSelectedConnectorId} disabled={isSubmitting}>
                       <SelectTrigger id="connector-select"><SelectValue placeholder="Select a connector type..."/></SelectTrigger>
                       <SelectContent>
-                          {mockedConnectors.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          {mockedConnectors.map(connectorId => <SelectItem key={connectorId} value={connectorId}>{connectorId}</SelectItem>)}
                       </SelectContent>
                   </Select>
               </div>
