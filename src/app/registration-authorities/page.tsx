@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -82,6 +82,45 @@ export default function RegistrationAuthoritiesPage() {
     setIsClientMounted(true);
   }, []);
 
+  const fetchData = useCallback(async (bookmarkToFetch: string | null) => {
+    if (!isAuthenticated() || !user?.access_token) {
+        if (!authLoading) setError("User not authenticated.");
+        setIsLoading(false);
+        return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+        const params = new URLSearchParams();
+        params.append('sort_by', 'name');
+        params.append('sort_mode', 'asc');
+        params.append('page_size', pageSize);
+
+        if (bookmarkToFetch) {
+            params.append('bookmark', bookmarkToFetch);
+        }
+
+        const [raData, caData] = await Promise.all([
+            fetchRegistrationAuthorities(user.access_token, params),
+            allCAs.length === 0 ? fetchAndProcessCAs(user.access_token) : Promise.resolve(null),
+        ]);
+
+        setRas(raData.list || []);
+        setNextTokenFromApi(raData.next || null);
+        if (caData) {
+            setAllCAs(caData);
+        }
+
+    } catch (err: any) {
+        setError(err.message || 'An unknown error occurred while fetching data.');
+        setRas([]);
+        setNextTokenFromApi(null);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [user, isAuthenticated, authLoading, pageSize, allCAs.length]);
+
 
   // Reset pagination when page size changes
   useEffect(() => {
@@ -91,70 +130,15 @@ export default function RegistrationAuthoritiesPage() {
 
   useEffect(() => {
     // Gate fetching until the component is mounted and auth is resolved
-    if (!isClientMounted || authLoading || !isAuthenticated() || !user?.access_token) {
-      if (!authLoading && !isAuthenticated() && isClientMounted) {
-        setError("User not authenticated.");
-      }
-      if(!authLoading) setIsLoading(false);
-      return;
+    if (isClientMounted && !authLoading && isAuthenticated()) {
+      fetchData(bookmarkStack[currentPageIndex]);
     }
-
-    const fetchData = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const params = new URLSearchParams();
-          params.append('sort_by', 'name');
-          params.append('sort_mode', 'asc');
-          params.append('page_size', pageSize);
-          
-          const bookmarkToFetch = bookmarkStack[currentPageIndex];
-          if (bookmarkToFetch) {
-            params.append('bookmark', bookmarkToFetch);
-          }
-          
-          // Fetch RAs and CAs in parallel, but only fetch CAs if the list is empty to optimize pagination.
-          const promises: [Promise<any>, Promise<CA[]>?] = [
-            fetchRegistrationAuthorities(user.access_token!, params)
-          ];
-          
-          if (allCAs.length === 0) {
-            promises.push(fetchAndProcessCAs(user.access_token!));
-          }
-
-          const [raData, caData] = await Promise.all(promises);
-
-          setRas(raData.list || []);
-          setNextTokenFromApi(raData.next || null);
-          if (caData) { // Only update CAs if they were fetched
-            setAllCAs(caData);
-          }
-
-        } catch (err: any) {
-          setError(err.message || 'An unknown error occurred while fetching data.');
-          setRas([]);
-          setNextTokenFromApi(null);
-          // Don't clear CAs on RA fetch failure if we already have them
-          // setAllCAs([]); 
-        } finally {
-          setIsLoading(false);
-        }
-    };
-    
-    fetchData();
-  }, [isClientMounted, authLoading, isAuthenticated, user?.access_token, pageSize, currentPageIndex]);
-
+  }, [isClientMounted, authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchData]);
 
   const getCaNameById = (caId: string) => {
     const ca = findCaById(caId, allCAs);
     return ca ? ca.name : caId;
   };
-
-  useEffect(() => {
-    if (isClientMounted && !authLoading && isAuthenticated()) {
-      fetchData(bookmarkStack[currentPageIndex]);
-    }
-  }, [isClientMounted, authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchData]);
 
   const handleNextPage = () => {
     if (isLoading || !nextTokenFromApi) return;
@@ -476,4 +460,3 @@ export default function RegistrationAuthoritiesPage() {
     </>
   );
 }
-
