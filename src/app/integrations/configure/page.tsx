@@ -65,11 +65,12 @@ export default function ConfigureIntegrationPage() {
     };
 
     const connectorInstance = useMemo(() => {
-        if (configKey && raData?.metadata?.[configKey]?.aws_iot_manager_instance) {
-            return raData.metadata[configKey].aws_iot_manager_instance;
+        const prefix = "lamassu.io/iot/";
+        if (configKey && configKey.startsWith(prefix)) {
+            return configKey.substring(prefix.length);
         }
-        return null;
-    }, [raData, configKey]);
+        return configKey; // return the key itself as a fallback
+    }, [configKey]);
     
     if (isLoading || authLoading) {
         return (

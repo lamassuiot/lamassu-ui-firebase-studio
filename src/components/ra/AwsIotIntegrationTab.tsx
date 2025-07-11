@@ -27,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { policyBuilder } from '@/lib/integrations-api';
 import { AwsRemediationPolicyModal } from './AwsRemediationPolicyModal';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { Label } from '@/components/ui/label';
+import { Label } from '../ui/label';
 
 interface AwsIotIntegrationTabProps {
   ra: ApiRaItem;
@@ -48,7 +48,6 @@ const awsPolicySchema = z.object({
 });
 
 const awsIntegrationSchema = z.object({
-  aws_iot_manager_instance: z.string().optional(),
   registration_mode: z.enum(['none', 'auto', 'jitp']).default('none'),
   groups: z.array(z.string()).optional(),
   policies: z.array(awsPolicySchema).optional(),
@@ -60,6 +59,10 @@ const awsIntegrationSchema = z.object({
       enable_template: z.boolean().default(false),
       provisioning_role_arn: z.string().optional(),
   }).optional(),
+  remediation_config: z.object({
+      enable: z.boolean().default(false),
+      remediation_role_arn: z.string().optional(),
+  }).optional(),
 });
 
 export type AwsPolicy = z.infer<typeof awsPolicySchema>;
@@ -70,7 +73,6 @@ const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationF
   const config = ra?.metadata?.[configKey] || {};
   
   return {
-    aws_iot_manager_instance: config.aws_iot_manager_instance || 'aws.iot',
     registration_mode: config.registration_mode || 'none',
     groups: config.groups || ['LAMASSU'],
     policies: config.policies || [],
@@ -81,6 +83,10 @@ const getDefaultFormValues = (ra: ApiRaItem, configKey: string): AwsIntegrationF
     jitp_config: {
         enable_template: config.jitp_config?.enable_template ?? false,
         provisioning_role_arn: config.jitp_config?.provisioning_role_arn || '',
+    },
+    remediation_config: {
+        enable: config.remediation_config?.enable ?? false,
+        remediation_role_arn: config.remediation_config?.remediation_role_arn || '',
     },
   };
 };
@@ -536,6 +542,26 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                 </div>
                           </div>
                         )}
+                         <FormField
+                          control={form.control}
+                          name="remediation_config.enable"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm mt-4">
+                              <div className="space-y-0.5">
+                                <FormLabel className="text-base">Enable Remediation</FormLabel>
+                                <FormDescription>Allow Lamassu to perform automated remediation actions on devices.</FormDescription>
+                              </div>
+                              <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            </FormItem>
+                          )}
+                        />
+                         <FormField control={form.control} name="remediation_config.remediation_role_arn" render={({ field }) => (
+                            <FormItem className="pl-6">
+                                <FormLabel>Remediation Role ARN</FormLabel>
+                                <FormControl><Input {...field} placeholder="arn:aws:iam::123456789012:role/Lamassu-Remediation-Role"/></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
                     </AccordionContent>
                 </AccordionItem>
             </div>
