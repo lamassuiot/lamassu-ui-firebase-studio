@@ -37,7 +37,7 @@ import AwsIcon from '../aws.svg';
 const IntegrationIcon: React.FC<{ type: DiscoveredIntegration['type'] }> = ({ type }) => {
     switch (type) {
         case 'AWS_IOT_CORE':
-            return <AwsIcon className="h-6 w-6" />;
+            return <Image src={AwsIcon} alt="AWS IoT Core Icon" className="h-6 w-6" />;
         default:
             return <Blocks className="h-6 w-6 text-primary" />;
     }
