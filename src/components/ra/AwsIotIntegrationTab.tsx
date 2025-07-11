@@ -386,8 +386,8 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
             <div className={cn("space-y-3", !isIntegrationEnabled && "opacity-50 pointer-events-none")}>
                 {!isIntegrationEnabled && <Alert variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Configuration Disabled</AlertTitle><AlertDescription>You must successfully register the CA with AWS before configuring the options below.</AlertDescription></Alert>}
                 
-                <AccordionItem value="provisioning-policies" className="border rounded-md shadow-sm">
-                    <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning & Policies</AccordionTrigger>
+                 <AccordionItem value="provisioning-policies" className="border rounded-md shadow-sm">
+                    <AccordionTrigger className={accordionTriggerStyle}><UserPlus className="mr-2 h-5 w-5" /> 2. Thing Provisioning &amp; Policies</AccordionTrigger>
                     <AccordionContent className="p-4 pt-2 space-y-4">
                         <FormField control={form.control} name="registration_mode" render={({ field }) => (
                             <FormItem>
