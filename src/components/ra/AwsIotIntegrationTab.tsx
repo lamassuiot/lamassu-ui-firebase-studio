@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useForm, useWatch, useFieldArray } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { policyBuilder } from '@/lib/integrations-api';
 import { AwsRemediationPolicyModal } from './AwsRemediationPolicyModal';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 interface AwsIotIntegrationTabProps {
   ra: ApiRaItem;
@@ -99,6 +100,9 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   const [isRemediationModalOpen, setIsRemediationModalOpen] = useState(false);
   const [editingPolicyIndex, setEditingPolicyIndex] = useState<number | null>(null);
   
+  // State for shadow type selector
+  const [shadowType, setShadowType] = useState<'classic' | 'named'>('classic');
+
   const connectorId = useMemo(() => {
     const prefix = "lamassu.io/iot/";
     if(configKey.startsWith(prefix)) {
@@ -108,7 +112,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
   }, [configKey]);
 
   const connectorIdUniquePart = useMemo(() => {
-      const prefix = "aws.";
+      const prefix = "aws.iot.";
       if (connectorId.startsWith(prefix)) {
           return connectorId.substring(prefix.length);
       }
@@ -128,8 +132,15 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
   // When new `ra` data comes in, we reset the form with the new default values.
   useEffect(() => {
-    form.reset(memoizedDefaultValues);
-  }, [ra, memoizedDefaultValues, form]);
+    const newDefaults = getDefaultFormValues(ra, configKey);
+    form.reset(newDefaults);
+    // Sync the shadow type selector based on the loaded data
+    if (newDefaults.shadow_config?.shadow_name) {
+        setShadowType('named');
+    } else {
+        setShadowType('classic');
+    }
+  }, [ra, configKey, form]);
   
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
@@ -253,6 +264,19 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
 
     toast({ title: "Policy Added", description: `${LmsRemediationPolicyName} has been added. Remember to save changes.` });
   };
+  
+  const handleShadowTypeChange = (value: 'classic' | 'named') => {
+    setShadowType(value);
+    if (value === 'classic') {
+        form.setValue('shadow_config.shadow_name', '');
+    } else {
+        // Only set the default if the field is currently empty
+        if (!form.getValues('shadow_config.shadow_name')) {
+            form.setValue('shadow_config.shadow_name', 'lamassu-identity');
+        }
+    }
+  };
+
 
   const registrationInfo = enrollmentCa?.rawApiData?.metadata?.[configKey]?.registration;
 
@@ -476,31 +500,48 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                           )}
                         />
                         {shadowEnabled && (
-                          <div className="space-y-4">
-                            <FormField
-                                control={form.control}
-                                name="shadow_config.shadow_name"
-                                render={({ field }) => (
-                                    <FormItem className="pl-6">
-                                        <FormLabel>Named Shadow (Optional)</FormLabel>
-                                        <FormControl><Input {...field} placeholder="Enter named shadow (e.g., 'config')..."/></FormControl>
-                                        <FormDescription>Leave blank to use the classic, unnamed shadow.</FormDescription>
-                                        <FormMessage/>
-                                    </FormItem>
+                            <div className="space-y-4 pl-6">
+                                <RadioGroup value={shadowType} onValueChange={handleShadowTypeChange} className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <RadioGroupItem value="classic" id="shadow-classic" className="peer sr-only" />
+                                        <Label htmlFor="shadow-classic" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                            Classic Shadow
+                                        </Label>
+                                    </div>
+                                    <div>
+                                        <RadioGroupItem value="named" id="shadow-named" className="peer sr-only" />
+                                        <Label htmlFor="shadow-named" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                            Named Shadow
+                                        </Label>
+                                    </div>
+                                </RadioGroup>
+
+                                {shadowType === 'named' && (
+                                     <FormField
+                                        control={form.control}
+                                        name="shadow_config.shadow_name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Shadow Name</FormLabel>
+                                                <FormControl><Input {...field} placeholder="e.g., config, state..."/></FormControl>
+                                                <FormMessage/>
+                                            </FormItem>
+                                        )}
+                                    />
                                 )}
-                            />
-                            {!hasRemediationPolicy && (
-                                <Alert variant="warning">
-                                  <AlertTriangle className="h-4 w-4"/>
-                                  <AlertTitle>Policy Required</AlertTitle>
-                                  <AlertDescription>
-                                      For Lamassu to manage device shadows, a policy named '{LmsRemediationPolicyName}' must be attached.
-                                      <Button type="button" variant="link" className="p-0 h-auto ml-2 text-amber-800 dark:text-amber-300 font-semibold" onClick={() => setIsRemediationModalOpen(true)}>
-                                          Add Remediation Access Policy
-                                      </Button>
-                                  </AlertDescription>
-                                </Alert>
-                            )}
+                               
+                                {!hasRemediationPolicy && (
+                                    <Alert variant="warning">
+                                      <AlertTriangle className="h-4 w-4"/>
+                                      <AlertTitle>Policy Required</AlertTitle>
+                                      <AlertDescription>
+                                          For Lamassu to manage device shadows, a policy named '{LmsRemediationPolicyName}' must be attached.
+                                          <Button type="button" variant="link" className="p-0 h-auto ml-2 text-amber-800 dark:text-amber-300 font-semibold" onClick={() => setIsRemediationModalOpen(true)}>
+                                              Add Remediation Access Policy
+                                          </Button>
+                                      </AlertDescription>
+                                    </Alert>
+                                )}
                           </div>
                         )}
                     </AccordionContent>
