@@ -9,7 +9,7 @@ import { SummaryStatsCard } from '@/components/home/SummaryStatsCard';
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines, fetchCaStatsSummary } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, AlertTriangle, RefreshCw, HomeIcon } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -144,11 +144,7 @@ export default function HomePage() {
 
   return (
     <div className="w-full space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-            <HomeIcon className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold">Dashboard</h1>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={loadInitialData} variant="outline" disabled={isReloading}>
             <RefreshCw className={cn("mr-2 h-4 w-4", isReloading && "animate-spin")} /> Refresh All
         </Button>
