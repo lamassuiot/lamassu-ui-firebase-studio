@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from "@/components/ui/button";
@@ -515,7 +515,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                         </Label>
                                     </div>
                                 </RadioGroup>
-
+                                <div className="space-y-2">
                                 {shadowType === 'named' && (
                                      <FormField
                                         control={form.control}
@@ -542,6 +542,7 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
                                       </AlertDescription>
                                     </Alert>
                                 )}
+                                </div>
                           </div>
                         )}
                     </AccordionContent>
