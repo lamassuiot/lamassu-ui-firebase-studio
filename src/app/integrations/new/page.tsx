@@ -15,6 +15,7 @@ import { fetchAllRegistrationAuthorities, updateRaMetadata, type ApiRaItem } fro
 
 const mockedConnectors = [
   { id: 'aws.iot-core', name: 'AWS IoT Core' },
+  { id: 'aws.iot.eu-west-1.123456789012', name: 'AWS IoT Core (eu-west-1)' },
   { id: 'azure.iot-hub', name: 'Azure IoT Hub' },
   { id: 'gcp.iot-core', name: 'Google Cloud IoT Core' },
 ];
