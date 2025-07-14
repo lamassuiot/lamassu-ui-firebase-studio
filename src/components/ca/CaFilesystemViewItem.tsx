@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import type { CA } from '@/lib/ca-data';
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, ChevronRight, FileSearch, FilePlus2, KeyRound, FolderTree } from 'lucide-react';
+import { ShieldAlert, ChevronRight, FileSearch, FilePlus2, KeyRound, FolderTree, UploadCloud, FileText } from 'lucide-react';
 import { formatDistanceToNowStrict, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
@@ -96,7 +96,11 @@ export const CaFilesystemViewItem: React.FC<CaFilesystemViewItemProps> = ({ ca, 
         {IconComponent}
         
         <div className="flex-grow min-w-0">
-          <p className="text-sm font-medium truncate">{ca.name}</p>
+          <div className="flex items-center space-x-2">
+            <p className="text-sm font-medium truncate">{ca.name}</p>
+            {ca.caType === 'IMPORTED' && <UploadCloud className="h-4 w-4 text-muted-foreground flex-shrink-0" title="Imported CA with Private Key" />}
+            {ca.caType === 'EXTERNAL_PUBLIC' && <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" title="External Public CA (Certificate Only)" />}
+          </div>
           <p className={cn("text-xs truncate", isCritical ? "text-destructive" : "text-muted-foreground")}>{statusText}</p>
         </div>
 

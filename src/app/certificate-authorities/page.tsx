@@ -59,18 +59,11 @@ const CaGraphView = dynamic(() =>
 
 type ViewMode = 'list' | 'hierarchy' | 'graph';
 type CaStatus = 'active' | 'expired' | 'revoked' | 'unknown';
-type CaType = 'MANAGED' | 'IMPORTED' | 'EXTERNAL_PUBLIC';
 
 const STATUS_OPTIONS: { value: CaStatus; label: string }[] = [
     { value: 'active', label: 'Active' },
     { value: 'expired', label: 'Expired' },
     { value: 'revoked', label: 'Revoked' },
-];
-
-const TYPE_OPTIONS: { value: CaType; label: string }[] = [
-    { value: 'MANAGED', label: 'Managed' },
-    { value: 'IMPORTED', label: 'Imported' },
-    { value: 'EXTERNAL_PUBLIC', label: 'External Public' },
 ];
 
 
@@ -85,7 +78,6 @@ export default function CertificateAuthoritiesPage() {
   // Filtering state
   const [filterText, setFilterText] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<CaStatus[]>(['active', 'expired']);
-  const [selectedTypes, setSelectedTypes] = useState<CaType[]>(['MANAGED', 'IMPORTED']);
 
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingCryptoEngines, setIsLoadingCryptoEngines] = useState(true);
@@ -142,10 +134,9 @@ export default function CertificateAuthoritiesPage() {
           const newCa = { ...ca, children: filteredChildren };
           
           const matchesStatus = selectedStatuses.includes(ca.status);
-          const matchesType = selectedTypes.includes(ca.caType as CaType); // Type assertion
           const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
           
-          if (matchesText && matchesStatus && matchesType) {
+          if (matchesText && matchesStatus) {
             return newCa;
           }
           
@@ -159,7 +150,7 @@ export default function CertificateAuthoritiesPage() {
     };
 
     return filterCaList(cas);
-  }, [cas, filterText, selectedStatuses, selectedTypes]);
+  }, [cas, filterText, selectedStatuses]);
 
 
   const handleCreateNewCAClick = () => {
@@ -234,16 +225,6 @@ export default function CertificateAuthoritiesPage() {
                     selectedValues={selectedStatuses}
                     onChange={setSelectedStatuses as (selected: string[]) => void}
                     buttonText="Filter by status..."
-                 />
-            </div>
-            <div className="w-full md:w-auto md:min-w-[200px] space-y-1.5">
-                 <Label htmlFor="type-filter">Filter by Type</Label>
-                 <MultiSelectDropdown
-                    id="type-filter"
-                    options={TYPE_OPTIONS}
-                    selectedValues={selectedTypes}
-                    onChange={setSelectedTypes as (selected: string[]) => void}
-                    buttonText="Filter by type..."
                  />
             </div>
           </div>
