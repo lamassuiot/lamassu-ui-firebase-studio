@@ -212,8 +212,8 @@ export default function CertificateAuthoritiesPage() {
           </div>
           <p className="text-sm text-muted-foreground mb-4">Manage your Certification Authority configurations and trust stores.</p> 
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-4 p-4 border rounded-lg bg-muted/30">
-            <div className="flex-grow space-y-1.5 md:col-span-1">
+          <div className="flex flex-col md:flex-row gap-4 items-end mb-4 p-4 border rounded-lg bg-muted/30">
+            <div className="flex-grow w-full space-y-1.5">
                 <Label htmlFor="ca-filter">Filter by Name</Label>
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -226,7 +226,7 @@ export default function CertificateAuthoritiesPage() {
                     />
                 </div>
             </div>
-            <div className="space-y-1.5">
+            <div className="w-full md:w-auto md:min-w-[200px] space-y-1.5">
                  <Label htmlFor="status-filter">Filter by Status</Label>
                  <MultiSelectDropdown
                     id="status-filter"
@@ -236,7 +236,7 @@ export default function CertificateAuthoritiesPage() {
                     buttonText="Filter by status..."
                  />
             </div>
-            <div className="space-y-1.5">
+            <div className="w-full md:w-auto md:min-w-[200px] space-y-1.5">
                  <Label htmlFor="type-filter">Filter by Type</Label>
                  <MultiSelectDropdown
                     id="type-filter"
@@ -303,4 +303,3 @@ export default function CertificateAuthoritiesPage() {
     </div>
   );
 }
-
