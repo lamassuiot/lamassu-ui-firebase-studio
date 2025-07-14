@@ -59,12 +59,20 @@ const CaGraphView = dynamic(() =>
 
 type ViewMode = 'list' | 'hierarchy' | 'graph';
 type CaStatus = 'active' | 'expired' | 'revoked' | 'unknown';
+type CaType = 'MANAGED' | 'IMPORTED' | 'EXTERNAL_PUBLIC';
 
 const STATUS_OPTIONS: { value: CaStatus; label: string }[] = [
     { value: 'active', label: 'Active' },
     { value: 'expired', label: 'Expired' },
     { value: 'revoked', label: 'Revoked' },
 ];
+
+const TYPE_OPTIONS: { value: CaType; label: string }[] = [
+    { value: 'MANAGED', label: 'Managed' },
+    { value: 'IMPORTED', label: 'Imported' },
+    { value: 'EXTERNAL_PUBLIC', label: 'External Public' },
+];
+
 
 export default function CertificateAuthoritiesPage() {
   const router = useRouter(); 
@@ -77,6 +85,7 @@ export default function CertificateAuthoritiesPage() {
   // Filtering state
   const [filterText, setFilterText] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<CaStatus[]>(['active', 'expired']);
+  const [selectedTypes, setSelectedTypes] = useState<CaType[]>(['MANAGED', 'IMPORTED']);
 
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingCryptoEngines, setIsLoadingCryptoEngines] = useState(true);
@@ -133,9 +142,10 @@ export default function CertificateAuthoritiesPage() {
           const newCa = { ...ca, children: filteredChildren };
           
           const matchesStatus = selectedStatuses.includes(ca.status);
+          const matchesType = selectedTypes.includes(ca.caType as CaType); // Type assertion
           const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
           
-          if (matchesText && matchesStatus) {
+          if (matchesText && matchesStatus && matchesType) {
             return newCa;
           }
           
@@ -149,7 +159,7 @@ export default function CertificateAuthoritiesPage() {
     };
 
     return filterCaList(cas);
-  }, [cas, filterText, selectedStatuses]);
+  }, [cas, filterText, selectedStatuses, selectedTypes]);
 
 
   const handleCreateNewCAClick = () => {
@@ -202,8 +212,8 @@ export default function CertificateAuthoritiesPage() {
           </div>
           <p className="text-sm text-muted-foreground mb-4">Manage your Certification Authority configurations and trust stores.</p> 
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mb-4 p-4 border rounded-lg bg-muted/30">
-            <div className="flex-grow space-y-1.5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-4 p-4 border rounded-lg bg-muted/30">
+            <div className="flex-grow space-y-1.5 md:col-span-1">
                 <Label htmlFor="ca-filter">Filter by Name</Label>
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -222,8 +232,18 @@ export default function CertificateAuthoritiesPage() {
                     id="status-filter"
                     options={STATUS_OPTIONS}
                     selectedValues={selectedStatuses}
-                    onChange={setSelectedStatuses}
+                    onChange={setSelectedStatuses as (selected: string[]) => void}
                     buttonText="Filter by status..."
+                 />
+            </div>
+            <div className="space-y-1.5">
+                 <Label htmlFor="type-filter">Filter by Type</Label>
+                 <MultiSelectDropdown
+                    id="type-filter"
+                    options={TYPE_OPTIONS}
+                    selectedValues={selectedTypes}
+                    onChange={setSelectedTypes as (selected: string[]) => void}
+                    buttonText="Filter by type..."
                  />
             </div>
           </div>
@@ -283,3 +303,4 @@ export default function CertificateAuthoritiesPage() {
     </div>
   );
 }
+
