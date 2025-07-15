@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 
 // --- Zlint Types and Interfaces ---
@@ -28,10 +29,20 @@ interface ZlintResult {
   details?: string;
 }
 
+interface ZlintProfile {
+    Name: string;
+    Source: string;
+    Description: string;
+    Citation: string;
+    EffectiveDate: string;
+    IneffectiveDate: string;
+}
+
 declare global {
   interface Window {
     Go: any;
     zlintCertificateSimple: (pem: string) => { results: Record<string, { result: string, details?: string }>, success: boolean };
+    zlintGetProfiles: () => Record<string, ZlintProfile>;
   }
 }
 
@@ -97,6 +108,7 @@ export default function CertificateAnalysisPage() {
 
   // --- Linter State ---
   const [lintResults, setLintResults] = useState<ZlintResult[]>([]);
+  const [lintProfiles, setLintProfiles] = useState<Record<string, ZlintProfile> | null>(null);
   const [isScriptReady, setIsScriptReady] = useState(false);
   const [isWasmReady, setIsWasmReady] = useState(false);
   const [isLinting, setIsLinting] = useState(false);
@@ -128,6 +140,13 @@ export default function CertificateAnalysisPage() {
       .then(result => {
         goInstance.current.run(result.instance);
         setIsWasmReady(true);
+        // Fetch profiles once WASM is ready
+        if (typeof window.zlintGetProfiles === 'function') {
+            const profiles = window.zlintGetProfiles();
+            setLintProfiles(profiles);
+        } else {
+            console.warn("`zlintGetProfiles` function not found on WASM module.");
+        }
       })
       .catch(err => {
         console.error("WASM instantiation failed:", err);
@@ -374,13 +393,19 @@ export default function CertificateAnalysisPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {paginatedLintResults.map((result, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell><Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize"><ResultStatusIcon status={result.status} /><span className="ml-1.5">{result.status}</span></Badge></TableCell>
-                                                <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
-                                                <TableCell>{result.details}</TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {paginatedLintResults.map((result, index) => {
+                                            const profile = lintProfiles ? lintProfiles[result.lint_name] : null;
+                                            return (
+                                                <TableRow key={index}>
+                                                    <TableCell><Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize"><ResultStatusIcon status={result.status} /><span className="ml-1.5">{result.status}</span></Badge></TableCell>
+                                                    <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
+                                                    <TableCell className="text-sm">
+                                                        {result.details && <p className="font-semibold">{result.details}</p>}
+                                                        {profile?.Description && <p className="text-muted-foreground text-xs">{profile.Description}</p>}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })}
                                     </TableBody>
                                 </Table>
                                 {totalLinterPages > 1 && (
