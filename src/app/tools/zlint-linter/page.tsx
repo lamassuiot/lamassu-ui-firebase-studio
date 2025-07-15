@@ -26,6 +26,17 @@ declare global {
   }
 }
 
+const statusSortOrder: Record<ZlintResult['status'], number> = {
+    fatal: 0,
+    error: 1,
+    warn: 2,
+    info: 3,
+    pass: 4,
+    NE: 5,
+    NA: 6,
+};
+
+
 export default function ZlintLinterPage() {
   const { toast } = useToast();
   const [pem, setPem] = useState('');
@@ -95,8 +106,13 @@ export default function ZlintLinterPage() {
                     status: lintData.result as ZlintResult['status'],
                     details: lintData.details,
                 }));
-                setResults(transformedResults);
-                toast({ title: "Linting Complete", description: `Found ${transformedResults.filter(r => r.status !== 'pass' && r.status !== 'NA' && r.status !== 'NE').length} issues.` });
+                
+                const filteredAndSortedResults = transformedResults
+                    .filter(result => result.status !== 'NA' && result.status !== 'NE')
+                    .sort((a, b) => statusSortOrder[a.status] - statusSortOrder[b.status]);
+
+                setResults(filteredAndSortedResults);
+                toast({ title: "Linting Complete", description: `Found ${filteredAndSortedResults.filter(r => r.status !== 'pass').length} issues.` });
             } else {
                  throw new Error("The linting function did not return a valid result object.");
             }
