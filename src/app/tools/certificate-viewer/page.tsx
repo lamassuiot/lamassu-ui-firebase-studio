@@ -49,34 +49,36 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
 const Asn1Tree: React.FC<{ node: asn1js.BaseBlock<any> }> = ({ node }) => {
     const Asn1Node: React.FC<{ node: asn1js.BaseBlock<any>; level: number }> = ({ node, level }) => {
         const isConstructed = node.idBlock.isConstructed;
-        const value = isConstructed ? (node.valueBlock as any).value : (node.valueBlock as any).valueHex;
+        const valueBlock = node.valueBlock as any;
+        const value = isConstructed ? valueBlock.value : valueBlock.valueHex;
 
         let nodeType = 'Unknown';
-        // A simple map for common tags, you can expand this
         const tagMap: { [key: number]: string } = {
-            2: 'INTEGER',
-            3: 'BIT STRING',
-            4: 'OCTET STRING',
-            5: 'NULL',
-            6: 'OBJECT IDENTIFIER',
-            12: 'UTF8String',
-            16: 'SEQUENCE',
-            17: 'SET',
-            19: 'PrintableString',
-            22: 'IA5String',
-            23: 'UTCTime',
-            24: 'GeneralizedTime',
+            1: 'BOOLEAN', 2: 'INTEGER', 3: 'BIT STRING', 4: 'OCTET STRING', 5: 'NULL',
+            6: 'OBJECT IDENTIFIER', 12: 'UTF8String', 16: 'SEQUENCE', 17: 'SET',
+            19: 'PrintableString', 22: 'IA5String', 23: 'UTCTime', 24: 'GeneralizedTime',
         };
         
         if (node.idBlock.tagClass === 1) { // UNIVERSAL
             nodeType = tagMap[node.idBlock.tagNumber] || `Tag ${node.idBlock.tagNumber}`;
         }
 
+        const renderPrimitiveValue = () => {
+            if (value) {
+                return Buffer.from(value).toString('hex');
+            }
+            // Fallback for types that might not have valueHex (like OBJECT IDENTIFIER)
+            if (valueBlock.value) {
+                return valueBlock.value;
+            }
+            return 'N/A';
+        };
+
         return (
-            <div style={{ marginLeft: `${level * 20}px` }} className="font-mono text-xs border-l border-dashed pl-2 py-0.5">
+            <div style={{ marginLeft: `${level * 16}px` }} className="font-mono text-xs border-l border-dashed pl-2 py-0.5">
                 <span className="font-semibold text-primary/80">{nodeType}:</span>
                 {!isConstructed && (
-                     <span className="text-muted-foreground ml-2 break-all">{Buffer.from(value).toString('hex')}</span>
+                     <span className="text-muted-foreground ml-2 break-all">{renderPrimitiveValue()}</span>
                 )}
                 {isConstructed && value && Array.isArray(value) && value.map((childNode, index) => (
                     <Asn1Node key={index} node={childNode} level={level + 1} />
@@ -105,6 +107,7 @@ export default function CertificateViewerPage() {
   const handleParse = async () => {
     if(pem.trim() === '') {
         setParsedDetails(null);
+        setAsn1Root(null);
         setError("PEM input cannot be empty.");
         return;
     }
@@ -255,4 +258,3 @@ export default function CertificateViewerPage() {
     </div>
   );
 }
-
