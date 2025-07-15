@@ -64,12 +64,14 @@ const Asn1Tree: React.FC<{ node: asn1js.BaseBlock<any> }> = ({ node }) => {
         }
 
         const renderPrimitiveValue = () => {
+            if (nodeType === "OBJECT IDENTIFIER") {
+                return valueBlock.value; // OIDs have a string value
+            }
+            if (nodeType === "UTCTime" || nodeType === "GeneralizedTime") {
+                return valueBlock.toDate().toISOString();
+            }
             if (value) {
                 return Buffer.from(value).toString('hex');
-            }
-            // Fallback for types that might not have valueHex (like OBJECT IDENTIFIER)
-            if (valueBlock.value) {
-                return valueBlock.value;
             }
             return 'N/A';
         };
