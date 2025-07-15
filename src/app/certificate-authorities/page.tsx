@@ -153,13 +153,6 @@ export default function CertificateAuthoritiesPage() {
     }
   };
   
-  let currentViewTitle = "List View";
-  if (viewMode === 'hierarchy') {
-    currentViewTitle = "Hierarchy View";
-  } else if (viewMode === 'graph') {
-    currentViewTitle = "Graph View";
-  }
-
   if (authLoading || (isLoadingCas && cas.length === 0) || (isLoadingCryptoEngines && viewMode === 'list')) {
     let loadingText = "Authenticating...";
     if (!authLoading && isLoadingCas) loadingText = "Loading Certification Authorities...";
