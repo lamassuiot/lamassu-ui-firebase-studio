@@ -44,6 +44,7 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
 
 export default function CertificateViewerPage() {
   const [pem, setPem] = useState('');
+  const [debouncedPem, setDebouncedPem] = useState('');
   const [parsedDetails, setParsedDetails] = useState<ParsedPemDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,34 +54,47 @@ export default function CertificateViewerPage() {
       setEngine("webcrypto", getCrypto());
     }
   }, []);
+  
+  // Debounce effect to trigger parsing automatically
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        setDebouncedPem(pem);
+    }, 500); // 500ms delay
 
-  const handleParse = async () => {
-    if (!pem.trim()) {
-      setError('Please paste a certificate in PEM format.');
-      setParsedDetails(null);
-      return;
+    return () => {
+        clearTimeout(handler);
+    };
+  }, [pem]);
+  
+  useEffect(() => {
+    if(debouncedPem.trim() === '') {
+        setParsedDetails(null);
+        setError(null);
+        return;
     }
-    
-    setIsLoading(true);
-    setError(null);
-    setParsedDetails(null);
 
-    // Short delay to show loading state, as parsing is very fast
-    await new Promise(res => setTimeout(res, 200));
+    const handleParse = async () => {
+        setIsLoading(true);
+        setError(null);
+        setParsedDetails(null);
 
-    try {
-        const details = await parseCertificatePemDetails(pem);
-        if (details.signatureAlgorithm === 'N/A' && details.keyUsage.length === 0 && details.sans.length === 0) {
-            // This is a heuristic to check if parsing failed inside the utility
-            throw new Error("Could not parse the provided text as a valid PEM certificate.");
+        try {
+            const details = await parseCertificatePemDetails(debouncedPem);
+            if (details.signatureAlgorithm === 'N/A' && details.keyUsage.length === 0 && details.sans.length === 0) {
+                // This is a heuristic to check if parsing failed inside the utility
+                throw new Error("Could not parse the provided text as a valid PEM certificate.");
+            }
+            setParsedDetails(details);
+        } catch (e: any) {
+            setError(e.message || "An unknown error occurred during parsing.");
+        } finally {
+            setIsLoading(false);
         }
-        setParsedDetails(details);
-    } catch (e: any) {
-        setError(e.message || "An unknown error occurred during parsing.");
-    } finally {
-        setIsLoading(false);
-    }
-  };
+    };
+    
+    handleParse();
+
+  }, [debouncedPem]);
 
   return (
     <div className="space-y-6 w-full pb-8">
@@ -89,7 +103,7 @@ export default function CertificateViewerPage() {
         <h1 className="text-2xl font-headline font-semibold">Certificate Viewer</h1>
       </div>
       <p className="text-sm text-muted-foreground">
-        Paste a single X.509 certificate in PEM format below to parse and view its details.
+        Paste a single X.509 certificate in PEM format below to parse and view its details. Parsing will begin automatically.
       </p>
 
       <Card>
@@ -107,14 +121,17 @@ export default function CertificateViewerPage() {
             className="font-mono h-64"
             disabled={isLoading}
           />
-          <Button onClick={handleParse} disabled={isLoading || !pem.trim()}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Parse Certificate
-          </Button>
         </CardContent>
       </Card>
 
-      {error && (
+      {isLoading && (
+        <div className="flex items-center justify-center p-4">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
+            <span className="text-muted-foreground">Parsing certificate...</span>
+        </div>
+      )}
+
+      {error && !isLoading && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Parsing Error</AlertTitle>
@@ -122,7 +139,7 @@ export default function CertificateViewerPage() {
         </Alert>
       )}
 
-      {parsedDetails && (
+      {parsedDetails && !isLoading && (
         <Card>
           <CardHeader>
             <CardTitle>Parsed Certificate Details</CardTitle>
