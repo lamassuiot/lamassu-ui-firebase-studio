@@ -1,3 +1,4 @@
+
 'use client';
 
 import './globals.css';
@@ -79,6 +80,7 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'alerts': "Alerts",
   'tools': "Tools",
   'certificate-viewer': "Certificate Viewer",
+  'zlint-linter': 'Zlint Linter',
 };
 
 function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
@@ -186,6 +188,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const homeItem = { href: '/', label: 'Home', icon: HomeIcon };
   const toolsItems = [
     { href: '/tools/certificate-viewer', label: 'Certificate Viewer', icon: Binary },
+    { href: '/tools/zlint-linter', label: 'Zlint Linter', icon: Binary },
   ];
   const kmsItems = [
     { href: '/kms/keys', label: 'Keys', icon: KeyRound },
