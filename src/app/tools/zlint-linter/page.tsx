@@ -14,15 +14,15 @@ import { Badge } from '@/components/ui/badge';
 
 interface ZlintResult {
   lint_name: string;
-  status: 'pass' | 'error' | 'warn' | 'info' | 'fatal';
-  details: string;
+  status: 'pass' | 'error' | 'warn' | 'info' | 'fatal' | 'NA' | 'NE';
+  details?: string;
 }
 
 // Extend the Window interface to include the properties set by wasm_exec.js and our Go code.
 declare global {
   interface Window {
     Go: any;
-    zlintCertificateSimple: (pem: string) => ZlintResult[];
+    zlintCertificateSimple: (pem: string) => { results: Record<string, { result: string, details?: string }>, success: boolean };
   }
 }
 
@@ -86,12 +86,21 @@ export default function ZlintLinterPage() {
 
     setTimeout(() => {
         try {
-            const lintResults = window.zlintCertificateSimple(pem);
-            if (!Array.isArray(lintResults)) {
-                throw new Error("The linting function did not return a valid result array.");
+            const rawResult = window.zlintCertificateSimple(pem);
+            
+            // Check if the result is in the expected object format
+            if (rawResult && typeof rawResult === 'object' && rawResult.results) {
+                 const transformedResults: ZlintResult[] = Object.entries(rawResult.results).map(([lintName, lintData]) => ({
+                    lint_name: lintName,
+                    status: lintData.result as ZlintResult['status'],
+                    details: lintData.details,
+                }));
+                setResults(transformedResults);
+                toast({ title: "Linting Complete", description: `Found ${transformedResults.filter(r => r.status !== 'pass' && r.status !== 'NA' && r.status !== 'NE').length} issues.` });
+            } else {
+                 throw new Error("The linting function did not return a valid result object.");
             }
-            setResults(lintResults);
-            toast({ title: "Linting Complete", description: `Found ${lintResults.filter(r => r.status !== 'pass').length} issues.` });
+
         } catch (e: any) {
             console.error("Linting error:", e);
             setError(`An error occurred during linting: ${e.message || "Unknown error. Check the console."}`);
