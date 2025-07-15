@@ -12,7 +12,6 @@ import { Separator } from "@/components/ui/separator";
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
 import { setEngine, getCrypto } from 'pkijs';
-import * as asn1js from "asn1js";
 import { parseCertificatePemDetails, type ParsedPemDetails } from '@/lib/ca-data';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -45,92 +44,52 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
     );
 };
 
-// New component for rendering the ASN.1 tree
-const Asn1Tree: React.FC<{ node: asn1js.BaseBlock<any> }> = ({ node }) => {
-    const Asn1Node: React.FC<{ node: asn1js.BaseBlock<any>; level: number }> = ({ node, level }) => {
-        const isConstructed = node.idBlock.isConstructed;
-        const valueBlock = node.valueBlock as any;
-        const value = isConstructed ? valueBlock.value : valueBlock.valueHex;
-
-        let nodeType = 'Unknown';
-        const tagMap: { [key: number]: string } = {
-            1: 'BOOLEAN', 2: 'INTEGER', 3: 'BIT STRING', 4: 'OCTET STRING', 5: 'NULL',
-            6: 'OBJECT IDENTIFIER', 12: 'UTF8String', 16: 'SEQUENCE', 17: 'SET',
-            19: 'PrintableString', 22: 'IA5String', 23: 'UTCTime', 24: 'GeneralizedTime',
-        };
-        
-        if (node.idBlock.tagClass === 1) { // UNIVERSAL
-            nodeType = tagMap[node.idBlock.tagNumber] || `Tag ${node.idBlock.tagNumber}`;
-        }
-
-        const renderPrimitiveValue = () => {
-            if (nodeType === "OBJECT IDENTIFIER") {
-                return valueBlock.value; // OIDs have a string value
-            }
-            if (nodeType === "UTCTime" || nodeType === "GeneralizedTime") {
-                return valueBlock.toDate().toISOString();
-            }
-            if (value) {
-                return Buffer.from(value).toString('hex');
-            }
-            return 'N/A';
-        };
-
-        return (
-            <div style={{ marginLeft: `${level * 16}px` }} className="font-mono text-xs border-l border-dashed pl-2 py-0.5">
-                <span className="font-semibold text-primary/80">{nodeType}:</span>
-                {!isConstructed && (
-                     <span className="text-muted-foreground ml-2 break-all">{renderPrimitiveValue()}</span>
-                )}
-                {isConstructed && value && Array.isArray(value) && value.map((childNode, index) => (
-                    <Asn1Node key={index} node={childNode} level={level + 1} />
-                ))}
-            </div>
-        );
-    };
-
-    return <Asn1Node node={node} level={0} />;
-};
-
 
 export default function CertificateViewerPage() {
   const [pem, setPem] = useState('');
   const [parsedDetails, setParsedDetails] = useState<ParsedPemDetails | null>(null);
-  const [asn1Root, setAsn1Root] = useState<asn1js.BaseBlock<any> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [isParsing, setIsParsing] = useState(false);
+  
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setEngine("webcrypto", getCrypto());
     }
   }, []);
   
+  // This effect will run a debounced parse when the pem input changes.
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (pem.trim() && !isParsing) { // Only parse if there's content and not already parsing
+        handleParse();
+      } else if (!pem.trim()) {
+        // Clear results if input is cleared
+        setParsedDetails(null);
+        setError(null);
+      }
+    }, 500); // 500ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pem]);
+
+
   const handleParse = async () => {
     if(pem.trim() === '') {
         setParsedDetails(null);
-        setAsn1Root(null);
         setError("PEM input cannot be empty.");
         return;
     }
 
     setIsLoading(true);
+    setIsParsing(true); // Set parsing flag
     setError(null);
     setParsedDetails(null);
-    setAsn1Root(null);
 
     try {
-        const pemContent = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s+/g, "");
-        const derBuffer = Uint8Array.from(atob(pemContent), c => c.charCodeAt(0)).buffer;
-        
-        // 1. Parse raw ASN.1 structure
-        const asn1 = asn1js.fromBER(derBuffer);
-        if (asn1.offset === -1) {
-            throw new Error("Could not parse the provided text as a valid ASN.1 structure.");
-        }
-        setAsn1Root(asn1.result);
-        
-        // 2. Parse into high-level details
         const details = await parseCertificatePemDetails(pem);
         if (details.signatureAlgorithm === 'N/A' && details.keyUsage.length === 0 && details.sans.length === 0) {
             throw new Error("Could not parse the provided text as a valid PEM certificate.");
@@ -140,6 +99,7 @@ export default function CertificateViewerPage() {
         setError(e.message || "An unknown error occurred during parsing.");
     } finally {
         setIsLoading(false);
+        setIsParsing(false); // Unset parsing flag
     }
   };
 
@@ -158,7 +118,7 @@ export default function CertificateViewerPage() {
             <CardHeader>
             <CardTitle>Certificate Input</CardTitle>
             <CardDescription>
-                The certificate should start with `-----BEGIN CERTIFICATE-----`.
+                Parsing will happen automatically after you stop typing.
             </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -169,10 +129,6 @@ export default function CertificateViewerPage() {
                 className="font-mono h-[20rem]"
                 disabled={isLoading}
             />
-            <Button onClick={handleParse} disabled={isLoading || !pem.trim()}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                Parse Certificate
-            </Button>
             </CardContent>
         </Card>
 
@@ -237,23 +193,10 @@ export default function CertificateViewerPage() {
                 </CardContent>
             </Card>
             )}
-
-             {asn1Root && !isLoading && (
-                <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="asn1-tree">
-                        <AccordionTrigger className="text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md">
-                           Raw ASN.1 Structure
-                        </AccordionTrigger>
-                        <AccordionContent className="p-4 border border-t-0 rounded-b-md">
-                             <Asn1Tree node={asn1Root} />
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
-            )}
             
             {!isLoading && !error && !parsedDetails && (
                  <div className="flex items-center justify-center p-4 min-h-[20rem] border-2 border-dashed rounded-lg bg-muted/20">
-                    <p className="text-muted-foreground">Results will appear here...</p>
+                    <p className="text-muted-foreground">Paste a certificate above to see the results.</p>
                 </div>
             )}
         </div>
