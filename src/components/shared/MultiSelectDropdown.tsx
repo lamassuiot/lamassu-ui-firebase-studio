@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -11,7 +11,6 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
