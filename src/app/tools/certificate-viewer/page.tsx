@@ -42,7 +42,7 @@ declare global {
   interface Window {
     Go: any;
     zlintCertificateSimple: (pem: string) => { results: Record<string, { result: string, details?: string }>, success: boolean };
-    zlintGetProfiles: () => Record<string, ZlintProfile>;
+    zlintGetLints: (nameFilter?: string) => Record<string, ZlintProfile>;
   }
 }
 
@@ -140,12 +140,11 @@ export default function CertificateAnalysisPage() {
       .then(result => {
         goInstance.current.run(result.instance);
         setIsWasmReady(true);
-        // Fetch profiles once WASM is ready
-        if (typeof window.zlintGetProfiles === 'function') {
-            const profiles = window.zlintGetProfiles();
+        if (typeof window.zlintGetLints === 'function') {
+            const profiles = window.zlintGetLints();
             setLintProfiles(profiles);
         } else {
-            console.warn("`zlintGetProfiles` function not found on WASM module.");
+            console.warn("`zlintGetLints` function not found on WASM module.");
         }
       })
       .catch(err => {
@@ -154,9 +153,8 @@ export default function CertificateAnalysisPage() {
       });
   }, [isScriptReady]);
   
-  const handleParseAndEnable = async (newPem: string) => {
-    setPem(newPem);
-    if (!newPem.trim()) {
+  const handleParse = async () => {
+    if (!pem.trim()) {
         setParsedDetails(null);
         setError(null);
         setActiveTab("input");
@@ -168,7 +166,7 @@ export default function CertificateAnalysisPage() {
     setParsedDetails(null);
     
     try {
-        const details = await parseCertificatePemDetails(newPem);
+        const details = await parseCertificatePemDetails(pem);
         if (details.signatureAlgorithm === 'N/A') {
             throw new Error("Could not parse the provided text as a valid PEM certificate.");
         }
@@ -290,16 +288,15 @@ export default function CertificateAnalysisPage() {
                     <CardContent>
                         <Textarea
                             value={pem}
-                            onChange={(e) => handleParseAndEnable(e.target.value)}
+                            onChange={(e) => setPem(e.target.value)}
                             placeholder="-----BEGIN CERTIFICATE-----..."
                             className="font-mono h-[30rem]"
                             disabled={isLoading}
                         />
-                        {isLoading && (
-                            <div className="flex items-center mt-2 text-muted-foreground text-sm">
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin"/> Parsing...
-                            </div>
-                        )}
+                        <Button onClick={handleParse} disabled={isLoading || !pem.trim()} className="mt-4">
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                            Parse Certificate
+                        </Button>
                         {error && (
                             <Alert variant="destructive" className="mt-2">
                                 <AlertTriangle className="h-4 w-4" />
