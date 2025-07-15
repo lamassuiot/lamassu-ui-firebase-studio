@@ -1,14 +1,13 @@
 
-
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Script from 'next/script';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +16,10 @@ import { parseCertificatePemDetails, type ParsedPemDetails } from '@/lib/ca-data
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+
 
 // --- Zlint Types and Interfaces ---
 interface ZlintResult {
@@ -78,6 +81,9 @@ const ResultStatusIcon: React.FC<{ status: ZlintResult['status'] }> = ({ status 
     }
 };
 
+type StatusFilter = ZlintResult['status'] | 'all';
+const statusFilterOrder: StatusFilter[] = ['all', 'fatal', 'error', 'warn', 'info', 'pass'];
+
 export default function CertificateAnalysisPage() {
   const { toast } = useToast();
   // --- Common State ---
@@ -95,6 +101,12 @@ export default function CertificateAnalysisPage() {
   const [isWasmReady, setIsWasmReady] = useState(false);
   const [isLinting, setIsLinting] = useState(false);
   const goInstance = useRef<any>(null);
+  
+  // Linter Pagination & Filtering
+  const [linterCurrentPage, setLinterCurrentPage] = useState(1);
+  const [linterItemsPerPage, setLinterItemsPerPage] = useState(10);
+  const [linterStatusFilter, setLinterStatusFilter] = useState<StatusFilter>('all');
+  
 
   // --- Effects ---
   useEffect(() => {
@@ -161,6 +173,8 @@ export default function CertificateAnalysisPage() {
     setIsLinting(true);
     setError(null);
     setLintResults([]);
+    setLinterCurrentPage(1);
+    setLinterStatusFilter('all');
 
     setTimeout(() => {
         try {
@@ -186,6 +200,49 @@ export default function CertificateAnalysisPage() {
         }
     }, 100);
   };
+  
+  // Memoized calculations for linter results
+  const lintSummaryCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = {
+      all: lintResults.length,
+      fatal: 0,
+      error: 0,
+      warn: 0,
+      info: 0,
+      pass: 0,
+      NA: 0,
+      NE: 0
+    };
+    lintResults.forEach(r => {
+      counts[r.status] = (counts[r.status] || 0) + 1;
+    });
+    return counts;
+  }, [lintResults]);
+
+  const filteredLintResults = useMemo(() => {
+    if (linterStatusFilter === 'all') {
+      return lintResults;
+    }
+    return lintResults.filter(r => r.status === linterStatusFilter);
+  }, [lintResults, linterStatusFilter]);
+
+  const paginatedLintResults = useMemo(() => {
+    const startIndex = (linterCurrentPage - 1) * linterItemsPerPage;
+    return filteredLintResults.slice(startIndex, startIndex + linterItemsPerPage);
+  }, [filteredLintResults, linterCurrentPage, linterItemsPerPage]);
+
+  const totalLinterPages = Math.ceil(filteredLintResults.length / linterItemsPerPage);
+
+  const handleFilterChange = (status: StatusFilter) => {
+    setLinterStatusFilter(status);
+    setLinterCurrentPage(1); // Reset to first page on filter change
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage > 0 && newPage <= totalLinterPages) {
+        setLinterCurrentPage(newPage);
+    }
+  }
 
   return (
     <>
@@ -290,6 +347,24 @@ export default function CertificateAnalysisPage() {
                         )}
                         {lintResults.length > 0 && (
                             <div className="mt-4">
+                               <div className="flex flex-wrap items-center gap-2 border bg-muted/50 p-2 rounded-md mb-4">
+                                {statusFilterOrder.map(status => {
+                                    const count = lintSummaryCounts[status];
+                                    if (status !== 'all' && count === 0) return null;
+                                    const text = `${status.toUpperCase()} (${count})`;
+                                    return (
+                                        <Button
+                                            key={status}
+                                            variant={linterStatusFilter === status ? 'default' : 'secondary'}
+                                            size="sm"
+                                            onClick={() => handleFilterChange(status)}
+                                            className="h-7 px-2.5"
+                                        >
+                                            {text}
+                                        </Button>
+                                    )
+                                })}
+                               </div>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -299,7 +374,7 @@ export default function CertificateAnalysisPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {lintResults.map((result, index) => (
+                                        {paginatedLintResults.map((result, index) => (
                                             <TableRow key={index}>
                                                 <TableCell><Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize"><ResultStatusIcon status={result.status} /><span className="ml-1.5">{result.status}</span></Badge></TableCell>
                                                 <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
@@ -308,6 +383,35 @@ export default function CertificateAnalysisPage() {
                                         ))}
                                     </TableBody>
                                 </Table>
+                                {totalLinterPages > 1 && (
+                                     <div className="flex justify-between items-center mt-4">
+                                        <div className="flex items-center space-x-2">
+                                            <Label htmlFor="itemsPerPage" className="text-sm text-muted-foreground">Items per page:</Label>
+                                            <Select value={String(linterItemsPerPage)} onValueChange={(value) => { setLinterItemsPerPage(Number(value)); setLinterCurrentPage(1); }}>
+                                                <SelectTrigger id="itemsPerPage" className="w-[70px] h-9">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="10">10</SelectItem>
+                                                    <SelectItem value="25">25</SelectItem>
+                                                    <SelectItem value="50">50</SelectItem>
+                                                    <SelectItem value="100">100</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <span className="text-sm text-muted-foreground">
+                                                Page {linterCurrentPage} of {totalLinterPages}
+                                            </span>
+                                            <Button onClick={() => handlePageChange(linterCurrentPage - 1)} disabled={linterCurrentPage === 1} variant="outline" size="sm">
+                                                <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                                            </Button>
+                                            <Button onClick={() => handlePageChange(linterCurrentPage + 1)} disabled={linterCurrentPage >= totalLinterPages} variant="outline" size="sm">
+                                                Next <ChevronRight className="ml-1 h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardContent>
@@ -318,4 +422,3 @@ export default function CertificateAnalysisPage() {
     </>
   );
 }
-
