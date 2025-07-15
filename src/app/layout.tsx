@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import './globals.css';
@@ -80,7 +81,6 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'alerts': "Alerts",
   'tools': "Tools",
   'certificate-viewer': "Certificate Viewer",
-  'zlint-linter': 'Zlint Linter',
 };
 
 function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
@@ -188,7 +188,6 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const homeItem = { href: '/', label: 'Home', icon: HomeIcon };
   const toolsItems = [
     { href: '/tools/certificate-viewer', label: 'Certificate Viewer', icon: Binary },
-    { href: '/tools/zlint-linter', label: 'Zlint Linter', icon: Binary },
   ];
   const kmsItems = [
     { href: '/kms/keys', label: 'Keys', icon: KeyRound },
@@ -336,12 +335,10 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                         asChild
                         isActive={pathname.startsWith(item.href)}
                         tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                        disabled={item.comingSoon}
                       >
                         <Link href={item.href} className="flex items-center w-full justify-start">
                           <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap flex-grow">{item.label}</span>
-                          {item.comingSoon && <Badge variant="outline" className="text-xs group-data-[collapsible=icon]:hidden">Soon</Badge>}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
