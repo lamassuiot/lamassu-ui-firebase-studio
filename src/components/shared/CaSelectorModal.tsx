@@ -14,10 +14,9 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
+import { filterCaList, type CaStatusFilter } from '@/lib/ca-utils';
 
-type CaStatus = 'active' | 'expired' | 'revoked' | 'unknown';
-
-const STATUS_OPTIONS: { value: CaStatus; label: string }[] = [
+const STATUS_OPTIONS: { value: CaStatusFilter; label: string }[] = [
     { value: 'active', label: 'Active' },
     { value: 'expired', label: 'Expired' },
     { value: 'revoked', label: 'Revoked' },
@@ -55,32 +54,13 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
   allCryptoEngines,
 }) => {
   const [filterText, setFilterText] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<CaStatus[]>(['active', 'expired']);
+  const [selectedStatuses, setSelectedStatuses] = useState<CaStatusFilter[]>(['active', 'expired']);
 
   const filteredCAs = useMemo(() => {
-    const filterCaList = (caList: CA[]): CA[] => {
-      return caList
-        .map(ca => {
-          const filteredChildren = ca.children ? filterCaList(ca.children) : [];
-          const newCa = { ...ca, children: filteredChildren };
-          
-          const matchesStatus = selectedStatuses.includes(ca.status);
-          const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
-          
-          if (matchesText && matchesStatus) {
-            return newCa;
-          }
-          
-          if (filteredChildren.length > 0) {
-              return newCa;
-          }
-
-          return null;
-        })
-        .filter((ca): ca is CA => ca !== null);
-    };
-
-    return filterCaList(availableCAs);
+    return filterCaList(availableCAs, {
+        filterText,
+        selectedStatuses,
+    });
   }, [availableCAs, filterText, selectedStatuses]);
 
 
@@ -115,7 +95,7 @@ export const CaSelectorModal: React.FC<CaSelectorModalProps> = ({
                         id="modal-status-filter"
                         options={STATUS_OPTIONS}
                         selectedValues={selectedStatuses}
-                        onChange={setSelectedStatuses}
+                        onChange={setSelectedStatuses as (selected: string[]) => void}
                         buttonText="Filter by status..."
                     />
                 </div>

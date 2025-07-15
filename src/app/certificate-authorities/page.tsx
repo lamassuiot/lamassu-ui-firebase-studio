@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Landmark, List, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, PlusCircle, FileSignature, Search } from "lucide-react";
+import { Landmark, List, Network, Loader2, GitFork, AlertCircle as AlertCircleIcon, PlusCircle, FileSignature, Search, UploadCloud, FileText } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import dynamic from 'next/dynamic';
@@ -16,6 +16,8 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelectDropdown } from '@/components/shared/MultiSelectDropdown';
+import type { CaStatusFilter, CaTypeFilter } from '@/lib/ca-utils';
+import { filterCaList } from '@/lib/ca-utils';
 
 
 const CaFilesystemView = dynamic(() => 
@@ -58,12 +60,17 @@ const CaGraphView = dynamic(() =>
 );
 
 type ViewMode = 'list' | 'hierarchy' | 'graph';
-type CaStatus = 'active' | 'expired' | 'revoked' | 'unknown';
 
-const STATUS_OPTIONS: { value: CaStatus; label: string }[] = [
+const STATUS_OPTIONS: { value: CaStatusFilter; label: string }[] = [
     { value: 'active', label: 'Active' },
     { value: 'expired', label: 'Expired' },
     { value: 'revoked', label: 'Revoked' },
+];
+
+const TYPE_OPTIONS: { value: CaTypeFilter, label: string; icon: React.ElementType }[] = [
+    { value: 'MANAGED', label: 'Managed', icon: Landmark },
+    { value: 'IMPORTED', label: 'Imported', icon: UploadCloud },
+    { value: 'EXTERNAL_PUBLIC', label: 'External Public', icon: FileText },
 ];
 
 
@@ -77,7 +84,8 @@ export default function CertificateAuthoritiesPage() {
 
   // Filtering state
   const [filterText, setFilterText] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<CaStatus[]>(['active', 'expired']);
+  const [selectedStatuses, setSelectedStatuses] = useState<CaStatusFilter[]>(['active', 'expired']);
+  const [selectedTypes, setSelectedTypes] = useState<CaTypeFilter[]>(['MANAGED', 'IMPORTED']);
 
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingCryptoEngines, setIsLoadingCryptoEngines] = useState(true);
@@ -127,30 +135,12 @@ export default function CertificateAuthoritiesPage() {
   }, [loadData, authLoading]);
 
   const filteredCAs = useMemo(() => {
-    const filterCaList = (caList: CA[]): CA[] => {
-      return caList
-        .map(ca => {
-          const filteredChildren = ca.children ? filterCaList(ca.children) : [];
-          const newCa = { ...ca, children: filteredChildren };
-          
-          const matchesStatus = selectedStatuses.includes(ca.status);
-          const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
-          
-          if (matchesText && matchesStatus) {
-            return newCa;
-          }
-          
-          if (filteredChildren.length > 0) {
-              return newCa;
-          }
-
-          return null;
-        })
-        .filter((ca): ca is CA => ca !== null);
-    };
-
-    return filterCaList(cas);
-  }, [cas, filterText, selectedStatuses]);
+    return filterCaList(cas, {
+      filterText,
+      selectedStatuses,
+      selectedTypes
+    });
+  }, [cas, filterText, selectedStatuses, selectedTypes]);
 
 
   const handleCreateNewCAClick = () => {
@@ -225,6 +215,16 @@ export default function CertificateAuthoritiesPage() {
                     selectedValues={selectedStatuses}
                     onChange={setSelectedStatuses as (selected: string[]) => void}
                     buttonText="Filter by status..."
+                 />
+            </div>
+            <div className="w-full md:w-auto md:min-w-[200px] space-y-1.5">
+                 <Label htmlFor="type-filter">Filter by Type</Label>
+                 <MultiSelectDropdown
+                    id="type-filter"
+                    options={TYPE_OPTIONS}
+                    selectedValues={selectedTypes}
+                    onChange={setSelectedTypes as (selected: string[]) => void}
+                    buttonText="Filter by type..."
                  />
             </div>
           </div>
