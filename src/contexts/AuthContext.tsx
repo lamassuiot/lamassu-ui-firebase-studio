@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
@@ -108,18 +109,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const onUserLoaded = (loadedUser: User) => setUser(loadedUser);
     const onUserUnloaded = () => setUser(null);
     const onSilentRenewError = (error: Error) => { console.error("AuthContext: Silent renew error:", error); logout(); };
-    const onUserSignedOut = () => setUser(null);
 
     userManagerInstance.events.addUserLoaded(onUserLoaded);
     userManagerInstance.events.addUserUnloaded(onUserUnloaded);
     userManagerInstance.events.addSilentRenewError(onSilentRenewError);
-    userManagerInstance.events.addUserSignedOut(onUserSignedOut);
 
     return () => {
       userManagerInstance.events.removeUserLoaded(onUserLoaded);
       userManagerInstance.events.removeUserUnloaded(onUserUnloaded);
       userManagerInstance.events.removeSilentRenewError(onSilentRenewError);
-      userManagerInstance.events.removeUserSignedOut(onUserSignedOut);
     };
   }, [userManagerInstance, authMode, logout]);
   
@@ -185,3 +183,4 @@ export const useAuth = () => {
 };
 
 export const getClientUserManager = createUserManager;
+
