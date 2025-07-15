@@ -7,10 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+
 
 interface ZlintResult {
   lint_name: string;
@@ -32,8 +36,8 @@ const statusSortOrder: Record<ZlintResult['status'], number> = {
     warn: 2,
     info: 3,
     pass: 4,
-    NE: 5,
-    NA: 6,
+    NE: 5, // Not effective, can be hidden
+    NA: 6,  // Not applicable, can be hidden
 };
 
 
@@ -47,7 +51,14 @@ export default function ZlintLinterPage() {
   // New state to manage script and WASM loading
   const [isScriptReady, setIsScriptReady] = useState(false);
   const [isWasmReady, setIsWasmReady] = useState(false);
-
+  
+  // Accordion state
+  const [activeAccordion, setActiveAccordion] = useState<string>("input");
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  
   const goInstance = useRef<any>(null);
 
   const handleScriptLoad = () => {
@@ -55,7 +66,6 @@ export default function ZlintLinterPage() {
   };
   
   useEffect(() => {
-    // This effect initializes the WASM module, but only after the script is ready.
     if (!isScriptReady || goInstance.current) {
       return;
     }
@@ -70,7 +80,6 @@ export default function ZlintLinterPage() {
     WebAssembly.instantiateStreaming(fetch('/zlint.wasm'), goInstance.current.importObject)
       .then(result => {
         goInstance.current.run(result.instance);
-        // Now, `zlintCertificateSimple` should be available on the window object.
         setIsWasmReady(true);
         toast({ title: "Zlint Ready", description: "WASM module loaded successfully." });
       })
@@ -94,12 +103,12 @@ export default function ZlintLinterPage() {
     setIsLoading(true);
     setError(null);
     setResults([]);
+    setCurrentPage(1);
 
     setTimeout(() => {
         try {
             const rawResult = window.zlintCertificateSimple(pem);
             
-            // Check if the result is in the expected object format
             if (rawResult && typeof rawResult === 'object' && rawResult.results) {
                  const transformedResults: ZlintResult[] = Object.entries(rawResult.results).map(([lintName, lintData]) => ({
                     lint_name: lintName,
@@ -113,6 +122,7 @@ export default function ZlintLinterPage() {
 
                 setResults(filteredAndSortedResults);
                 toast({ title: "Linting Complete", description: `Found ${filteredAndSortedResults.filter(r => r.status !== 'pass').length} issues.` });
+                setActiveAccordion("results"); // Collapse input and show results
             } else {
                  throw new Error("The linting function did not return a valid result object.");
             }
@@ -121,10 +131,23 @@ export default function ZlintLinterPage() {
             console.error("Linting error:", e);
             setError(`An error occurred during linting: ${e.message || "Unknown error. Check the console."}`);
             setResults([]);
+            setActiveAccordion("input"); // Keep input open on error
         } finally {
             setIsLoading(false);
         }
-    }, 100); // Small delay for UX
+    }, 100);
+  };
+  
+  // Pagination logic
+  const lastIndex = currentPage * itemsPerPage;
+  const firstIndex = lastIndex - itemsPerPage;
+  const currentResults = results.slice(firstIndex, lastIndex);
+  const totalPages = Math.ceil(results.length / itemsPerPage);
+
+  const paginate = (pageNumber: number) => {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
   };
 
   const ResultStatusIcon = ({ status }: { status: ZlintResult['status'] }) => {
@@ -149,28 +172,34 @@ export default function ZlintLinterPage() {
         <p className="text-sm text-muted-foreground">
           Analyze an X.509 certificate against Zlint's comprehensive set of linting rules.
         </p>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Certificate Input</CardTitle>
-            <CardDescription>
-              Paste a single X.509 certificate in PEM format. The wasm module will be used to process it.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              value={pem}
-              onChange={(e) => setPem(e.target.value)}
-              placeholder="-----BEGIN CERTIFICATE-----..."
-              className="font-mono h-64"
-              disabled={isLoading || !isWasmReady}
-            />
-            <Button onClick={handleLint} disabled={isLoading || !isWasmReady || !pem.trim()}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : !isWasmReady ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              { !isWasmReady ? 'Loading Linter...' : 'Lint Certificate' }
-            </Button>
-          </CardContent>
-        </Card>
+        
+        <Accordion type="single" collapsible value={activeAccordion} onValueChange={setActiveAccordion} className="w-full">
+            <AccordionItem value="input">
+                <AccordionTrigger>
+                     <CardTitle>Certificate Input</CardTitle>
+                </AccordionTrigger>
+                <AccordionContent>
+                    <CardHeader className="p-0 pb-4">
+                        <CardDescription>
+                            Paste a single X.509 certificate in PEM format. The wasm module will be used to process it.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 p-0">
+                        <Textarea
+                        value={pem}
+                        onChange={(e) => setPem(e.target.value)}
+                        placeholder="-----BEGIN CERTIFICATE-----..."
+                        className="font-mono h-64"
+                        disabled={isLoading || !isWasmReady}
+                        />
+                        <Button onClick={handleLint} disabled={isLoading || !isWasmReady || !pem.trim()}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : !isWasmReady ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        { !isWasmReady ? 'Loading Linter...' : 'Lint Certificate' }
+                        </Button>
+                    </CardContent>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
 
         {error && (
           <Alert variant="destructive">
@@ -181,36 +210,65 @@ export default function ZlintLinterPage() {
         )}
         
         {results.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Linting Results</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[100px]">Status</TableHead>
-                                <TableHead>Lint Name</TableHead>
-                                <TableHead>Details</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {results.map((result, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>
-                                        <Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize">
-                                            <ResultStatusIcon status={result.status} />
-                                            <span className="ml-1.5">{result.status}</span>
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
-                                    <TableCell>{result.details}</TableCell>
+            <Accordion type="single" collapsible value={activeAccordion} onValueChange={setActiveAccordion}>
+                <AccordionItem value="results">
+                    <AccordionTrigger>
+                        <CardTitle>Linting Results</CardTitle>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[100px]">Status</TableHead>
+                                    <TableHead>Lint Name</TableHead>
+                                    <TableHead>Details</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {currentResults.map((result, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>
+                                            <Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize">
+                                                <ResultStatusIcon status={result.status} />
+                                                <span className="ml-1.5">{result.status}</span>
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
+                                        <TableCell>{result.details}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        <div className="flex justify-between items-center mt-4">
+                            <div className="flex items-center space-x-2">
+                                <Label htmlFor="itemsPerPage" className="text-sm text-muted-foreground">Items per page:</Label>
+                                <Select value={String(itemsPerPage)} onValueChange={(value) => { setItemsPerPage(Number(value)); setCurrentPage(1); }}>
+                                    <SelectTrigger id="itemsPerPage" className="w-[70px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="100">100</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <span className="text-sm text-muted-foreground">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <Button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} variant="outline" size="sm">
+                                    <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                                </Button>
+                                <Button onClick={() => paginate(currentPage + 1)} disabled={currentPage >= totalPages} variant="outline" size="sm">
+                                    Next <ChevronRight className="ml-1 h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
         )}
 
       </div>
