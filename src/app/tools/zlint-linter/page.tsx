@@ -32,33 +32,42 @@ export default function ZlintLinterPage() {
   const [results, setResults] = useState<ZlintResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // New state to manage script and WASM loading
+  const [isScriptReady, setIsScriptReady] = useState(false);
   const [isWasmReady, setIsWasmReady] = useState(false);
 
   const goInstance = useRef<any>(null);
 
+  const handleScriptLoad = () => {
+    setIsScriptReady(true);
+  };
+  
   useEffect(() => {
-    // This effect initializes the WASM module.
-    // It runs only once when the component mounts.
-    if (!goInstance.current) {
-        if (!window.Go) {
-            console.error("wasm_exec.js did not load the Go object on the window.");
-            setError("Failed to load WASM execution environment.");
-            return;
-        }
-        goInstance.current = new window.Go();
-        WebAssembly.instantiateStreaming(fetch('/zlint.wasm'), goInstance.current.importObject)
-          .then(result => {
-            goInstance.current.run(result.instance);
-            // Now, `lintCertificate` should be available on the window object.
-            setIsWasmReady(true);
-            toast({ title: "Zlint Ready", description: "WASM module loaded successfully." });
-          })
-          .catch(err => {
-            console.error("WASM instantiation failed:", err);
-            setError(`Failed to load and instantiate zlint.wasm: ${err.message}`);
-          });
+    // This effect initializes the WASM module, but only after the script is ready.
+    if (!isScriptReady || goInstance.current) {
+      return;
     }
-  }, [toast]);
+    
+    if (!window.Go) {
+        console.error("wasm_exec.js did not load the Go object on the window.");
+        setError("Failed to load WASM execution environment.");
+        return;
+    }
+
+    goInstance.current = new window.Go();
+    WebAssembly.instantiateStreaming(fetch('/zlint.wasm'), goInstance.current.importObject)
+      .then(result => {
+        goInstance.current.run(result.instance);
+        // Now, `lintCertificate` should be available on the window object.
+        setIsWasmReady(true);
+        toast({ title: "Zlint Ready", description: "WASM module loaded successfully." });
+      })
+      .catch(err => {
+        console.error("WASM instantiation failed:", err);
+        setError(`Failed to load and instantiate zlint.wasm: ${err.message}`);
+      });
+  }, [isScriptReady, toast]);
 
   const handleLint = () => {
     if (!isWasmReady) {
@@ -106,7 +115,7 @@ export default function ZlintLinterPage() {
 
   return (
     <>
-      <Script src="/wasm_exec.js" strategy="lazyOnload" />
+      <Script src="/wasm_exec.js" strategy="afterInteractive" onLoad={handleScriptLoad} />
       <div className="space-y-6 w-full pb-8">
         <div className="flex items-center space-x-3">
           <Binary className="h-8 w-8 text-primary" />
