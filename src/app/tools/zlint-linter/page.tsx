@@ -22,7 +22,7 @@ interface ZlintResult {
 declare global {
   interface Window {
     Go: any;
-    lintCertificate: (pem: string) => ZlintResult[];
+    zlintCertificateSimple: (pem: string) => ZlintResult[];
   }
 }
 
@@ -59,7 +59,7 @@ export default function ZlintLinterPage() {
     WebAssembly.instantiateStreaming(fetch('/zlint.wasm'), goInstance.current.importObject)
       .then(result => {
         goInstance.current.run(result.instance);
-        // Now, `lintCertificate` should be available on the window object.
+        // Now, `zlintCertificateSimple` should be available on the window object.
         setIsWasmReady(true);
         toast({ title: "Zlint Ready", description: "WASM module loaded successfully." });
       })
@@ -86,7 +86,7 @@ export default function ZlintLinterPage() {
 
     setTimeout(() => {
         try {
-            const lintResults = window.lintCertificate(pem);
+            const lintResults = window.zlintCertificateSimple(pem);
             if (!Array.isArray(lintResults)) {
                 throw new Error("The linting function did not return a valid result array.");
             }
