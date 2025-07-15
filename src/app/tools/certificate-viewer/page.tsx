@@ -29,20 +29,11 @@ interface ZlintResult {
   details?: string;
 }
 
-interface ZlintProfile {
-    Name: string;
-    Source: string;
-    Description: string;
-    Citation: string;
-    EffectiveDate: string;
-    IneffectiveDate: string;
-}
-
 declare global {
   interface Window {
     Go: any;
     zlintCertificateSimple: (pem: string) => { results: Record<string, { result: string, details?: string }>, success: boolean };
-    zlintGetLints: (nameFilter?: string) => { success: boolean, results?: ZlintProfile[], error?: string };
+    zlintGetLints: (options?: { nameFilter?: string }) => { success: boolean, results?: any[], error?: string };
   }
 }
 
@@ -108,7 +99,6 @@ export default function CertificateViewerPage() {
 
   // --- Linter State ---
   const [lintResults, setLintResults] = useState<ZlintResult[]>([]);
-  const [lintProfileMap, setLintProfileMap] = useState<Map<string, ZlintProfile>>(new Map());
   const [isScriptReady, setIsScriptReady] = useState(false);
   const [isWasmReady, setIsWasmReady] = useState(false);
   const [isLinting, setIsLinting] = useState(false);
@@ -140,20 +130,6 @@ export default function CertificateViewerPage() {
       .then(result => {
         goInstance.current.run(result.instance);
         setIsWasmReady(true);
-        if (typeof window.zlintGetLints === 'function') {
-            const lintData = window.zlintGetLints();
-            if (lintData.success && lintData.results) {
-                const profileMap = new Map<string, ZlintProfile>();
-                lintData.results.forEach(lint => {
-                    profileMap.set(lint.Name, lint);
-                });
-                setLintProfileMap(profileMap);
-            } else {
-                console.error("Error fetching lint profiles:", lintData.error);
-            }
-        } else {
-            console.warn("`zlintGetLints` function not found on WASM module.");
-        }
       })
       .catch(err => {
         console.error("WASM instantiation failed:", err);
@@ -398,19 +374,13 @@ export default function CertificateViewerPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {paginatedLintResults.map((result, index) => {
-                                            const profile = lintProfileMap.get(result.lint_name);
-                                            return (
-                                                <TableRow key={index}>
-                                                    <TableCell><Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize"><ResultStatusIcon status={result.status} /><span className="ml-1.5">{result.status}</span></Badge></TableCell>
-                                                    <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
-                                                    <TableCell className="text-sm">
-                                                        {result.details && <p className="font-semibold">{result.details}</p>}
-                                                        {profile?.Description && <p className="text-muted-foreground text-xs">{profile.Description}</p>}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )
-                                        })}
+                                        {paginatedLintResults.map((result, index) => (
+                                            <TableRow key={index}>
+                                                <TableCell><Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize"><ResultStatusIcon status={result.status} /><span className="ml-1.5">{result.status}</span></Badge></TableCell>
+                                                <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
+                                                <TableCell className="text-sm">{result.details}</TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                                 {totalLinterPages > 1 && (
