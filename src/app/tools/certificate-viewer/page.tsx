@@ -391,6 +391,7 @@ export default function CertificateViewerPage() {
                                  <MultiSelectDropdown
                                     id="source-filter"
                                     options={availableSourceOptions}
+                                    allOptionValues={availableSources}
                                     selectedValues={selectedSources}
                                     onChange={setSelectedSources}
                                     buttonText="Select sources..."
@@ -488,5 +489,6 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
