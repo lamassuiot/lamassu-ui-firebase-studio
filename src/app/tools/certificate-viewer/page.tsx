@@ -29,11 +29,19 @@ interface ZlintResult {
   details?: string;
 }
 
+interface ZlintProfile {
+    name: string;
+    source: string;
+    citation: string;
+    description: string;
+    effectiveDate: string;
+}
+
 declare global {
   interface Window {
     Go: any;
     zlintCertificateSimple: (pem: string) => { results: Record<string, { result: string, details?: string }>, success: boolean };
-    zlintGetLints: (options?: { nameFilter?: string }) => { success: boolean, results?: any[], error?: string };
+    zlintGetLints: () => { success: boolean, lints?: Record<string, ZlintProfile>, error?: string, count?: number };
   }
 }
 
@@ -109,6 +117,9 @@ export default function CertificateViewerPage() {
   const [linterItemsPerPage, setLinterItemsPerPage] = useState(10);
   const [linterStatusFilter, setLinterStatusFilter] = useState<StatusFilter>('all');
   
+  // State to hold all lint definitions
+  const [lintProfileMap, setLintProfileMap] = useState<Map<string, ZlintProfile>>(new Map());
+
 
   // --- Effects ---
   useEffect(() => {
@@ -137,6 +148,26 @@ export default function CertificateViewerPage() {
       });
   }, [isScriptReady]);
   
+   useEffect(() => {
+    // Fetch all lint profiles once WASM is ready
+    if (isWasmReady && lintProfileMap.size === 0) {
+      try {
+        const result = window.zlintGetLints();
+        if (result && result.success && result.lints) {
+          const profileMap = new Map<string, ZlintProfile>();
+          for (const lintName in result.lints) {
+            profileMap.set(lintName, result.lints[lintName]);
+          }
+          setLintProfileMap(profileMap);
+        } else {
+          console.error("Failed to fetch lint profiles:", result?.error);
+        }
+      } catch (e) {
+        console.error("Error calling zlintGetLints:", e);
+      }
+    }
+  }, [isWasmReady, lintProfileMap.size]);
+  
   const handleParse = async () => {
     if (!pem.trim()) {
         setParsedDetails(null);
@@ -148,6 +179,7 @@ export default function CertificateViewerPage() {
     setIsLoading(true);
     setError(null);
     setParsedDetails(null);
+    setLintResults([]);
     
     try {
         const details = await parseCertificatePemDetails(pem);
@@ -155,7 +187,7 @@ export default function CertificateViewerPage() {
             throw new Error("Could not parse the provided text as a valid PEM certificate.");
         }
         setParsedDetails(details);
-        setActiveTab("details"); // Switch to details tab on successful parse
+        setActiveTab("details");
     } catch (e: any) {
         setError(e.message || "An unknown error occurred during parsing.");
         setParsedDetails(null);
@@ -236,7 +268,7 @@ export default function CertificateViewerPage() {
 
   const handleFilterChange = (status: StatusFilter) => {
     setLinterStatusFilter(status);
-    setLinterCurrentPage(1); // Reset to first page on filter change
+    setLinterCurrentPage(1);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -370,17 +402,24 @@ export default function CertificateViewerPage() {
                                         <TableRow>
                                             <TableHead className="w-[100px]">Status</TableHead>
                                             <TableHead>Lint Name</TableHead>
-                                            <TableHead>Details</TableHead>
+                                            <TableHead>Description & Details</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {paginatedLintResults.map((result, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell><Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize"><ResultStatusIcon status={result.status} /><span className="ml-1.5">{result.status}</span></Badge></TableCell>
-                                                <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
-                                                <TableCell className="text-sm">{result.details}</TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {paginatedLintResults.map((result, index) => {
+                                            const profile = lintProfileMap.get(result.lint_name);
+                                            return (
+                                                <TableRow key={index}>
+                                                    <TableCell><Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize"><ResultStatusIcon status={result.status} /><span className="ml-1.5">{result.status}</span></Badge></TableCell>
+                                                    <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
+                                                    <TableCell className="text-sm">
+                                                        {profile && <p className="font-medium">{profile.description}</p>}
+                                                        {profile?.citation && <p className="text-xs text-muted-foreground mt-1">Source: {profile.source} - {profile.citation}</p>}
+                                                        {result.details && <p className="text-xs text-muted-foreground mt-1">Details: {result.details}</p>}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })}
                                     </TableBody>
                                 </Table>
                                 {totalLinterPages > 1 && (
@@ -422,3 +461,4 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
