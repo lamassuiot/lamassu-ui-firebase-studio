@@ -39,11 +39,6 @@ interface ZlintProfile {
     effectiveDate: string;
 }
 
-interface ZlintOptions {
-    format?: 'pem';
-    includeSources?: string; // Comma-separated string
-}
-
 declare global {
   interface Window {
     Go: any;
@@ -64,6 +59,17 @@ const statusSortOrder: Record<ZlintResult['status'], number> = {
 
 
 // --- Helper Functions ---
+const RFC_TITLE_MAP: Record<string, string> = {
+  "RFC3279": "Algorithms and Identifiers for the Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile",
+  "RFC3647": "Internet X.509 Public Key Infrastructure Certificate Policy and Certification Practices Framework",
+  "RFC4043": "Internet X.509 Public Key Infrastructure Permanent Identifier",
+  "RFC5246": "The Transport Layer Security (TLS) Protocol Version 1.2",
+  "RFC5280": "Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile",
+  "RFC5480": "Elliptic Curve Cryptography Subject Public Key Information",
+  "RFC5912": "New ASN.1 Modules for the Public Key Infrastructure Using X.509 (PKIX)",
+  "RFC6960": "X.509 Internet Public Key Infrastructure Online Certificate Status Protocol - OCSP",
+};
+
 const toTitleCase = (str: string) => {
   if (!str) return '';
   return str.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
@@ -96,7 +102,7 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
     case 'pass':
       Icon = CheckCircle;
       text = 'Pass';
-      className = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
+      className = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
       break;
     case 'error':
       Icon = XCircle;
@@ -139,7 +145,7 @@ const SourceLink: React.FC<{ text: string }> = ({ text }) => {
     const rfcNumber = rfcMatch[1].replace(/\s/g, '').toLowerCase();
     let url = `https://datatracker.ietf.org/doc/html/${rfcNumber}`;
     
-    // Look for a section number like "4.1.2.2" or "A.1"
+    // Look for a section number like "4.1.2.2" or "A.1" but ignore "BRs:"
     const sectionMatch = text.match(/[:/]\s*([\w\.]+)/);
     if (sectionMatch && sectionMatch[1] && !text.toUpperCase().includes('BRS:')) {
       const section = sectionMatch[1];
@@ -373,7 +379,15 @@ export default function CertificateViewerPage() {
     }
   }
 
-  const availableSourceOptions = useMemo(() => availableSources.map(s => ({ value: s, label: s })), [availableSources]);
+  const availableSourceOptions = useMemo(() => {
+    return availableSources.map(source => {
+        const title = (RFC_TITLE_MAP[source] || '').replace(/Internet X\.509 Public Key Infrastructure/g, 'PKIX');
+        return {
+            value: source,
+            label: title ? `${source} - ${title}` : source
+        };
+    });
+  }, [availableSources]);
 
   return (
     <>
@@ -577,6 +591,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 
