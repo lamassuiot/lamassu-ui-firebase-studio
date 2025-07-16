@@ -48,7 +48,7 @@ declare global {
   interface Window {
     Go: any;
     zlintCertificate: (pem: string, options: ZlintOptions) => { results: Record<string, { result: string, details?: string }>, success: boolean };
-    zlintGetLints: () => { success: boolean, lints?: Record<string, ZlintProfile>, error?: string, count?: number };
+    zlintGetLints: () => { lints: Record<string, ZlintProfile>, success: boolean, error?: string, count?: number };
   }
 }
 
@@ -88,72 +88,72 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
 };
 
 const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status }) => {
-    let Icon = AlertTriangle;
-    let text = 'Info';
-    let className = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
+  let Icon = AlertTriangle;
+  let text = 'Info';
+  let className = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
 
-    switch (status) {
-        case 'pass':
-            Icon = CheckCircle;
-            text = 'Pass';
-            className = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
-            break;
-        case 'error':
-            Icon = XCircle;
-            text = 'Error';
-            className = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-400/50';
-            break;
-        case 'fatal':
-            Icon = XCircle;
-            text = 'Fatal';
-            className = 'bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-200 border-red-500/50';
-            break;
-        case 'warn':
-            Icon = AlertTriangle;
-            text = 'Warn';
-            className = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-400/50';
-            break;
-        case 'info':
-            Icon = AlertTriangle;
-            text = 'Info';
-            className = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
-            break;
-        default:
-            return null;
-    }
+  switch (status) {
+    case 'pass':
+      Icon = CheckCircle;
+      text = 'Pass';
+      className = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
+      break;
+    case 'error':
+      Icon = XCircle;
+      text = 'Error';
+      className = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-400/50';
+      break;
+    case 'fatal':
+      Icon = XCircle;
+      text = 'Fatal';
+      className = 'bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-200 border-red-500/50';
+      break;
+    case 'warn':
+      Icon = AlertTriangle;
+      text = 'Warn';
+      className = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-400/50';
+      break;
+    case 'info':
+      Icon = AlertTriangle;
+      text = 'Info';
+      className = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
+      break;
+    default:
+      return null;
+  }
 
-    return (
-        <Badge variant="outline" className={cn('capitalize', className)}>
-            <Icon className="h-4 w-4 mr-1.5" />
-            <span>{text}</span>
-        </Badge>
-    );
+  return (
+    <Badge variant="outline" className={cn('capitalize', className)}>
+      <Icon className="h-4 w-4 mr-1.5" />
+      <span>{text}</span>
+    </Badge>
+  );
 };
 
 
-const SourceLink: React.FC<{ source?: string; citation?: string }> = ({ source, citation }) => {
-    const rfcMatch = citation?.match(/(RFC\s?\d+)/i) || source?.match(/(RFC\s?\d+)/i);
+const SourceLink: React.FC<{ text: string }> = ({ text }) => {
+    const rfcMatch = text?.match(/(RFC\s?\d+)/i);
 
     if (rfcMatch) {
         const rfcNumber = rfcMatch[1].replace(/\s/g, '');
         const url = `https://datatracker.ietf.org/doc/html/${rfcNumber.toLowerCase()}`;
-        return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{source || rfcNumber}</a>;
-    }
-
-    if (source === 'CABF_BR') {
-        return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{source}</a>;
+        return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
     }
     
+    if (text === 'CABF_BR') {
+        return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+    }
+
     try {
-        if (source) {
-            new URL(source);
-            return <a href={source} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{source}</a>;
+        if (text) {
+            new URL(text);
+            return <a href={text} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
         }
     } catch (_) {
         // Not a valid URL, render as text
     }
 
-    return <>{source || 'N/A'}</>;
+    return <>{text || 'N/A'}</>;
 };
 
 
@@ -513,8 +513,11 @@ export default function CertificateViewerPage() {
                                                     <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
                                                     <TableCell className="text-sm">
                                                         {profile && <p className="font-medium">{profile.description}</p>}
-                                                        {profile?.citation && <p className="text-xs text-muted-foreground mt-1">Source: <SourceLink source={profile.source} citation={profile.citation} /></p>}
-                                                        {result.details && <p className="text-xs text-muted-foreground mt-1">Details: {result.details}</p>}
+                                                        <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                                                            {profile?.source && <p><strong>Source:</strong> <SourceLink text={profile.source} /></p>}
+                                                            {profile?.citation && <p><strong>Citation:</strong> <SourceLink text={profile.citation} /></p>}
+                                                            {result.details && <p><strong>Details:</strong> {result.details}</p>}
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             )
