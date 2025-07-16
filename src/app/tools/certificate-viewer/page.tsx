@@ -88,16 +88,49 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
     );
 };
 
-const ResultStatusIcon: React.FC<{ status: ZlintResult['status'] }> = ({ status }) => {
+const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status }) => {
+    let Icon = AlertTriangle;
+    let text = 'Info';
+    let className = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
+
     switch (status) {
-      case 'pass': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'error': return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'fatal': return <XCircle className="h-4 w-4 text-red-700" />;
-      case 'warn': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case 'info': return <AlertTriangle className="h-4 w-4 text-blue-500" />;
-      default: return null;
+        case 'pass':
+            Icon = CheckCircle;
+            text = 'Pass';
+            className = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
+            break;
+        case 'error':
+            Icon = XCircle;
+            text = 'Error';
+            className = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-400/50';
+            break;
+        case 'fatal':
+            Icon = XCircle;
+            text = 'Fatal';
+            className = 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-500/50';
+            break;
+        case 'warn':
+            Icon = AlertTriangle;
+            text = 'Warn';
+            className = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-400/50';
+            break;
+        case 'info':
+            Icon = AlertTriangle;
+            text = 'Info';
+            className = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
+            break;
+        default:
+            return null;
     }
+
+    return (
+        <Badge variant="outline" className={cn('capitalize', className)}>
+            <Icon className="h-4 w-4 mr-1.5" />
+            <span>{text}</span>
+        </Badge>
+    );
 };
+
 
 type StatusFilter = ZlintResult['status'] | 'all';
 const statusFilterOrder: StatusFilter[] = ['all', 'fatal', 'error', 'warn', 'info', 'pass'];
@@ -259,7 +292,7 @@ export default function CertificateViewerPage() {
   // Memoized calculations for linter results
   const lintSummaryCounts = useMemo(() => {
     const counts: Record<StatusFilter, number> = {
-      all: lintResults.length,
+      all: 0,
       fatal: 0,
       error: 0,
       warn: 0,
@@ -271,6 +304,7 @@ export default function CertificateViewerPage() {
     lintResults.forEach(r => {
       counts[r.status] = (counts[r.status] || 0) + 1;
     });
+    counts.all = lintResults.length;
     return counts;
   }, [lintResults]);
 
@@ -449,7 +483,7 @@ export default function CertificateViewerPage() {
                                             const profile = lintProfileMap.get(result.lint_name);
                                             return (
                                                 <TableRow key={index}>
-                                                    <TableCell><Badge variant={result.status === 'pass' ? 'secondary' : 'destructive'} className="capitalize"><ResultStatusIcon status={result.status} /><span className="ml-1.5">{result.status}</span></Badge></TableCell>
+                                                    <TableCell><ResultStatusBadge status={result.status} /></TableCell>
                                                     <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
                                                     <TableCell className="text-sm">
                                                         {profile && <p className="font-medium">{profile.description}</p>}
@@ -500,4 +534,5 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
