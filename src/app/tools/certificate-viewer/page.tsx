@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -20,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { MultiSelectDropdown } from '@/components/shared/MultiSelectDropdown';
 
 
 // --- Zlint Types and Interfaces ---
@@ -41,6 +43,7 @@ declare global {
   interface Window {
     Go: any;
     zlintCertificateSimple: (pem: string) => { results: Record<string, { result: string, details?: string }>, success: boolean };
+    zlintCertificate: (pem: string, options: { includeSources?: string[] }) => { results: Record<string, { result: string, details?: string }>, success: boolean };
     zlintGetLints: () => { success: boolean, lints?: Record<string, ZlintProfile>, error?: string, count?: number };
   }
 }
@@ -119,6 +122,8 @@ export default function CertificateViewerPage() {
   
   // State to hold all lint definitions
   const [lintProfileMap, setLintProfileMap] = useState<Map<string, ZlintProfile>>(new Map());
+  const [availableSources, setAvailableSources] = useState<string[]>([]);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
 
 
   // --- Effects ---
@@ -155,10 +160,18 @@ export default function CertificateViewerPage() {
         const result = window.zlintGetLints();
         if (result && result.success && result.lints) {
           const profileMap = new Map<string, ZlintProfile>();
+          const sources = new Set<string>();
           for (const lintName in result.lints) {
-            profileMap.set(lintName, result.lints[lintName]);
+            const lintProfile = result.lints[lintName];
+            profileMap.set(lintName, lintProfile);
+            if (lintProfile.source) {
+              sources.add(lintProfile.source);
+            }
           }
           setLintProfileMap(profileMap);
+          const sortedSources = Array.from(sources).sort();
+          setAvailableSources(sortedSources);
+          setSelectedSources(sortedSources); // Select all by default
         } else {
           console.error("Failed to fetch lint profiles:", result?.error);
         }
@@ -211,7 +224,7 @@ export default function CertificateViewerPage() {
 
     setTimeout(() => {
         try {
-            const rawResult = window.zlintCertificateSimple(pem);
+            const rawResult = window.zlintCertificate(pem, { includeSources: selectedSources });
             if (!rawResult?.results) throw new Error("The linting function did not return a valid result object.");
 
             const transformedResults: ZlintResult[] = Object.entries(rawResult.results).map(([lintName, lintData]) => ({
@@ -276,6 +289,8 @@ export default function CertificateViewerPage() {
         setLinterCurrentPage(newPage);
     }
   }
+
+  const availableSourceOptions = useMemo(() => availableSources.map(s => ({ value: s, label: s })), [availableSources]);
 
   return (
     <>
@@ -370,10 +385,22 @@ export default function CertificateViewerPage() {
                         <CardDescription>Analyze the certificate against Zlint rules.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button onClick={handleLint} disabled={isLinting || !isWasmReady}>
-                            {isLinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : !isWasmReady ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            { !isWasmReady ? 'Loading Linter...' : 'Run Linter' }
-                        </Button>
+                        <div className="flex flex-col md:flex-row gap-4 items-end">
+                            <div className="flex-grow w-full space-y-1.5">
+                                <Label htmlFor="source-filter">Lint Sources</Label>
+                                 <MultiSelectDropdown
+                                    id="source-filter"
+                                    options={availableSourceOptions}
+                                    selectedValues={selectedSources}
+                                    onChange={setSelectedSources}
+                                    buttonText="Select sources..."
+                                 />
+                            </div>
+                            <Button onClick={handleLint} disabled={isLinting || !isWasmReady} className="w-full md:w-auto">
+                                {isLinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : !isWasmReady ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                { !isWasmReady ? 'Loading Linter...' : 'Run Linter' }
+                            </Button>
+                        </div>
                         {isLinting && (
                            <div className="flex items-center mt-2 text-muted-foreground text-sm"><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Linting...</div>
                         )}
@@ -461,4 +488,5 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
