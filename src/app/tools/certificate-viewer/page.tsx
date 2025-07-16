@@ -141,7 +141,7 @@ const SourceLink: React.FC<{ text: string }> = ({ text }) => {
     
     // Look for a section number like "4.1.2.2" or "A.1"
     const sectionMatch = text.match(/[:/]\s*([\w\.]+)/);
-    if (sectionMatch && sectionMatch[1]) {
+    if (sectionMatch && sectionMatch[1] && !text.toUpperCase().includes('BRS:')) {
       const section = sectionMatch[1];
       url += `#section-${section}`;
     }
@@ -150,11 +150,16 @@ const SourceLink: React.FC<{ text: string }> = ({ text }) => {
   }
 
   // Case 2: Specific keyword link for CABF_BR
-  if (text === 'CABF_BR') {
+  if (text.toUpperCase().includes('CABF_BR')) {
     return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
   
-  // Case 3: Check if the text is a full URL
+  // Case 3: Mozilla Root Store Policy
+  if (text.includes('Mozilla Root Store Policy')) {
+    return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+  }
+
+  // Case 4: Check if the text is a full URL
   try {
     new URL(text);
     return <a href={text} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
@@ -572,5 +577,6 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
