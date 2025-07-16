@@ -1,9 +1,11 @@
 
+
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
+import { format as formatDate } from 'date-fns';
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -125,8 +127,39 @@ const KEY_USAGE_NAMES = [
     "keyAgreement", "keyCertSign", "cRLSign", "encipherOnly", "decipherOnly"
 ];
 
+const OID_MAP: Record<string, string> = {
+  "2.5.4.3": "CN", "2.5.4.6": "C", "2.5.4.7": "L", "2.5.4.8": "ST", "2.5.4.10": "O", "2.5.4.11": "OU",
+  "1.2.840.113549.1.1.1": "RSA", "1.2.840.10045.2.1": "EC",
+  "1.2.840.10045.3.1.7": "P-256", "1.3.132.0.34": "P-384", "1.3.132.0.35": "P-521",
+};
+
+const formatPkijsSubject = (subject: RelativeDistinguishedNames): string => {
+  return subject.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
+};
+
+const formatPkijsPublicKeyInfo = (publicKeyInfo: PublicKeyInfo): string => {
+  const algoOid = publicKeyInfo.algorithm.algorithmId;
+  const algoName = OID_MAP[algoOid] || algoOid;
+  let details = "";
+  if (algoName === "EC" && publicKeyInfo.algorithm.parameters && (publicKeyInfo.algorithm.parameters as any).valueBlock) {
+      const curveOid = (publicKeyInfo.algorithm.parameters as any).valueBlock.value as string;
+      details = `(Curve: ${OID_MAP[curveOid] || curveOid})`;
+  } else if (algoName === "RSA" && publicKeyInfo.parsedKey && (publicKeyInfo.parsedKey as any).modulus) {
+      const modulusBytes = (publicKeyInfo.parsedKey as any).modulus.valueBlock.valueHex.byteLength;
+      details = `(${(modulusBytes - (new Uint8Array((publicKeyInfo.parsedKey as any).modulus.valueBlock.valueHex)[0] === 0 ? 1:0)) * 8} bits)`;
+  }
+  return `${algoName} ${details}`;
+};
+
+const ab2hex = (ab: ArrayBuffer) => Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
 
 export interface ParsedPemDetails {
+    subject: string;
+    issuer: string;
+    serialNumber: string;
+    validFrom: string;
+    validTo: string;
+    publicKeyAlgorithm: string;
     signatureAlgorithm: string;
     crlDistributionPoints: string[];
     ocspUrls: string[];
@@ -139,6 +172,12 @@ export interface ParsedPemDetails {
 
 export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
     const defaultResult: ParsedPemDetails = {
+        subject: 'N/A',
+        issuer: 'N/A',
+        serialNumber: 'N/A',
+        validFrom: 'N/A',
+        validTo: 'N/A',
+        publicKeyAlgorithm: 'N/A',
         signatureAlgorithm: 'N/A',
         crlDistributionPoints: [],
         ocspUrls: [],
@@ -167,6 +206,12 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
 
         const certificate = new Certificate({ schema: asn1.result });
         
+        defaultResult.subject = formatPkijsSubject(certificate.subject);
+        defaultResult.issuer = formatPkijsSubject(certificate.issuer);
+        defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
+        defaultResult.validFrom = formatDate(certificate.notBefore.value, "PPpp");
+        defaultResult.validTo = formatDate(certificate.notAfter.value, "PPpp");
+        defaultResult.publicKeyAlgorithm = formatPkijsPublicKeyInfo(certificate.subjectPublicKeyInfo);
         
         try {
             const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
@@ -991,3 +1036,4 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+

@@ -44,7 +44,7 @@ interface ZlintProfile {
 declare global {
   interface Window {
     Go: any;
-    zlintCertificate: (pem: string, options: ZlintOptions) => { results: Record<string, { result: string, details?: string }>, success: boolean };
+    zlintCertificate: (pem: string, options: { format: 'pem', includeSources: string }) => { results: Record<string, { result: string, details?: string }>, success: boolean };
     zlintGetLints: () => { lints: Record<string, ZlintProfile>, success: boolean, error?: string, count?: number };
   }
 }
@@ -134,25 +134,25 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
 const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ text, type }) => {
   if (!text) return <>N/A</>;
 
+  if (text === "Mozilla Root Store Policy") {
+    return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+  }
+  
+  if (text.toUpperCase().includes('CABF_BR')) {
+    return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+  }
+
   const rfcMatch = text.match(/(RFC\s?\d+)/i);
   if (rfcMatch) {
     const rfcNumber = rfcMatch[1].replace(/\s/g, '').toUpperCase();
     let url = `https://datatracker.ietf.org/doc/html/${rfcNumber.toLowerCase()}`;
+    // Look for a section number like ": 4.1.2.2" or "/ 7.1.5" and append it as a fragment
     const sectionMatch = text.match(/[:/]\s*([\w\.]+)/);
-    // Don't add section for CABF BRS citations
     if (sectionMatch && sectionMatch[1] && !text.toUpperCase().includes('BRS:')) {
       url += `#section-${sectionMatch[1]}`;
     }
     const displayText = type === 'source' && RFC_TITLE_MAP[rfcNumber] ? `${rfcNumber}: ${RFC_TITLE_MAP[rfcNumber]}` : text;
     return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{displayText}</a>;
-  }
-
-  if (text.toUpperCase().includes('CABF_BR')) {
-    return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
-  }
-  
-  if (text.includes('Mozilla Root Store Policy')) {
-    return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
 
   try {
@@ -164,12 +164,6 @@ const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ t
 
   return <>{text}</>;
 };
-
-interface ZlintOptions {
-    format: 'pem';
-    includeSources: string;
-}
-
 
 type StatusFilter = ZlintResult['status'] | 'all';
 const statusFilterOrder: StatusFilter[] = ['all', 'fatal', 'error', 'warn', 'info', 'pass'];
@@ -316,8 +310,8 @@ export default function CertificateViewerPage() {
 
     setTimeout(() => {
         try {
-            const options: ZlintOptions = {
-                format: 'pem',
+            const options = {
+                format: 'pem' as 'pem',
                 includeSources: selectedSources.join(','),
             };
             const rawResult = window.zlintCertificate(pem, options);
@@ -442,7 +436,18 @@ export default function CertificateViewerPage() {
                  <Card>
                     <CardHeader><CardTitle>Parsed Certificate Details</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <DetailItem label="Signature Algorithm" value={parsedDetails?.signatureAlgorithm} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                            <DetailItem label="Subject" value={parsedDetails?.subject} isMono />
+                            <DetailItem label="Issuer" value={parsedDetails?.issuer} isMono />
+                        </div>
+                        <Separator/>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                           <DetailItem label="Serial Number" value={parsedDetails?.serialNumber} isMono />
+                           <DetailItem label="Signature Algorithm" value={parsedDetails?.signatureAlgorithm} isMono />
+                           <DetailItem label="Valid From" value={parsedDetails?.validFrom} />
+                           <DetailItem label="Valid To" value={parsedDetails?.validTo} />
+                           <DetailItem label="Public Key Algorithm" value={parsedDetails?.publicKeyAlgorithm} />
+                        </div>
                         <Separator />
                         <h4 className="font-medium text-md text-muted-foreground pt-2">Extensions</h4>
                         <DetailItem label="Subject Alternative Names (SANs)" value={
@@ -606,5 +611,6 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
