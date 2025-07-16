@@ -40,14 +40,13 @@ interface ZlintProfile {
 }
 
 interface ZlintOptions {
-    format?: 'pem' | 'der';
+    format?: 'pem';
     includeSources?: string; // Comma-separated string
 }
 
 declare global {
   interface Window {
     Go: any;
-    zlintCertificateSimple: (pem: string) => { results: Record<string, { result: string, details?: string }>, success: boolean };
     zlintCertificate: (pem: string, options: ZlintOptions) => { results: Record<string, { result: string, details?: string }>, success: boolean };
     zlintGetLints: () => { success: boolean, lints?: Record<string, ZlintProfile>, error?: string, count?: number };
   }
@@ -91,33 +90,33 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
 const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status }) => {
     let Icon = AlertTriangle;
     let text = 'Info';
-    let className = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
+    let className = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
 
     switch (status) {
         case 'pass':
             Icon = CheckCircle;
             text = 'Pass';
-            className = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
+            className = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
             break;
         case 'error':
             Icon = XCircle;
             text = 'Error';
-            className = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-400/50';
+            className = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-400/50';
             break;
         case 'fatal':
             Icon = XCircle;
             text = 'Fatal';
-            className = 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-500/50';
+            className = 'bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-200 border-red-500/50';
             break;
         case 'warn':
             Icon = AlertTriangle;
             text = 'Warn';
-            className = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-400/50';
+            className = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-400/50';
             break;
         case 'info':
             Icon = AlertTriangle;
             text = 'Info';
-            className = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
+            className = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
             break;
         default:
             return null;
@@ -130,6 +129,33 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
         </Badge>
     );
 };
+
+
+const SourceLink: React.FC<{ source?: string; citation?: string }> = ({ source, citation }) => {
+    const rfcMatch = citation?.match(/(RFC\s?\d+)/i) || source?.match(/(RFC\s?\d+)/i);
+
+    if (rfcMatch) {
+        const rfcNumber = rfcMatch[1].replace(/\s/g, '');
+        const url = `https://datatracker.ietf.org/doc/html/${rfcNumber.toLowerCase()}`;
+        return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{source || rfcNumber}</a>;
+    }
+
+    if (source === 'CABF_BR') {
+        return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{source}</a>;
+    }
+    
+    try {
+        if (source) {
+            new URL(source);
+            return <a href={source} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{source}</a>;
+        }
+    } catch (_) {
+        // Not a valid URL, render as text
+    }
+
+    return <>{source || 'N/A'}</>;
+};
+
 
 
 type StatusFilter = ZlintResult['status'] | 'all';
@@ -192,7 +218,6 @@ export default function CertificateViewerPage() {
   }, [isScriptReady]);
   
    useEffect(() => {
-    // Fetch all lint profiles once WASM is ready
     if (isWasmReady && lintProfileMap.size === 0) {
       try {
         const result = window.zlintGetLints();
@@ -209,7 +234,7 @@ export default function CertificateViewerPage() {
           setLintProfileMap(profileMap);
           const sortedSources = Array.from(sources).sort();
           setAvailableSources(sortedSources);
-          setSelectedSources(sortedSources); // Select all by default
+          setSelectedSources(sortedSources); 
         } else {
           console.error("Failed to fetch lint profiles:", result?.error);
         }
@@ -289,7 +314,6 @@ export default function CertificateViewerPage() {
     }, 100);
   };
   
-  // Memoized calculations for linter results
   const lintSummaryCounts = useMemo(() => {
     const counts: Record<StatusFilter, number> = {
       all: 0,
@@ -487,7 +511,7 @@ export default function CertificateViewerPage() {
                                                     <TableCell className="font-mono text-xs">{result.lint_name}</TableCell>
                                                     <TableCell className="text-sm">
                                                         {profile && <p className="font-medium">{profile.description}</p>}
-                                                        {profile?.citation && <p className="text-xs text-muted-foreground mt-1">Source: {profile.source} - {profile.citation}</p>}
+                                                        {profile?.citation && <p className="text-xs text-muted-foreground mt-1">Source: <SourceLink source={profile.source} citation={profile.citation} /></p>}
                                                         {result.details && <p className="text-xs text-muted-foreground mt-1">Details: {result.details}</p>}
                                                     </TableCell>
                                                 </TableRow>
@@ -534,5 +558,4 @@ export default function CertificateViewerPage() {
     </>
   );
 }
-
 
