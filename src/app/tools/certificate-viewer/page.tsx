@@ -39,6 +39,11 @@ interface ZlintProfile {
     effectiveDate: string;
 }
 
+interface ZlintOptions {
+    format: 'pem';
+    includeSources: string;
+}
+
 declare global {
   interface Window {
     Go: any;
@@ -136,41 +141,34 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
   );
 };
 
-const SourceLink: React.FC<{ text: string }> = ({ text }) => {
+const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ text, type }) => {
   if (!text) return <>N/A</>;
 
-  // Case 1: RFC with potential section deep link
   const rfcMatch = text.match(/(RFC\s?\d+)/i);
   if (rfcMatch) {
-    const rfcNumber = rfcMatch[1].replace(/\s/g, '').toLowerCase();
-    let url = `https://datatracker.ietf.org/doc/html/${rfcNumber}`;
-    
-    // Look for a section number like "4.1.2.2" or "A.1" but ignore "BRs:"
+    const rfcNumber = rfcMatch[1].replace(/\s/g, '').toUpperCase();
+    let url = `https://datatracker.ietf.org/doc/html/${rfcNumber.toLowerCase()}`;
     const sectionMatch = text.match(/[:/]\s*([\w\.]+)/);
     if (sectionMatch && sectionMatch[1] && !text.toUpperCase().includes('BRS:')) {
-      const section = sectionMatch[1];
-      url += `#section-${section}`;
+      url += `#section-${sectionMatch[1]}`;
     }
-    
-    return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+    const displayText = type === 'source' && RFC_TITLE_MAP[rfcNumber] ? `${rfcNumber}: ${RFC_TITLE_MAP[rfcNumber]}` : text;
+    return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{displayText}</a>;
   }
 
-  // Case 2: Specific keyword link for CABF_BR
   if (text.toUpperCase().includes('CABF_BR')) {
     return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
-  
-  // Case 3: Mozilla Root Store Policy
+
   if (text.includes('Mozilla Root Store Policy')) {
     return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
 
-  // Case 4: Check if the text is a full URL
   try {
     new URL(text);
     return <a href={text} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   } catch (_) {
-    // Not a valid URL, render as plain text
+    // Not a valid URL
   }
 
   return <>{text}</>;
@@ -380,13 +378,7 @@ export default function CertificateViewerPage() {
   }
 
   const availableSourceOptions = useMemo(() => {
-    return availableSources.map(source => {
-        const title = (RFC_TITLE_MAP[source] || '').replace(/Internet X\.509 Public Key Infrastructure/g, 'PKIX');
-        return {
-            value: source,
-            label: title ? `${source} - ${title}` : source
-        };
-    });
+    return availableSources.map(source => ({ value: source, label: source }));
   }, [availableSources]);
 
   return (
@@ -542,8 +534,8 @@ export default function CertificateViewerPage() {
                                                     <TableCell className="text-sm">
                                                         {profile && <p className="font-medium">{profile.description}</p>}
                                                         <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                                                            {profile?.source && <p><strong>Source:</strong> <SourceLink text={profile.source} /></p>}
-                                                            {profile?.citation && <p><strong>Citation:</strong> <SourceLink text={profile.citation} /></p>}
+                                                            {profile?.source && <div><strong>Source:</strong> <SourceLink text={profile.source} type="source" /></div>}
+                                                            {profile?.citation && <div><strong>Citation:</strong> <SourceLink text={profile.citation} type="citation" /></div>}
                                                             {result.details && <p><strong>Details:</strong> {result.details}</p>}
                                                         </div>
                                                     </TableCell>
@@ -591,6 +583,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 
