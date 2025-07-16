@@ -209,8 +209,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         defaultResult.subject = formatPkijsSubject(certificate.subject);
         defaultResult.issuer = formatPkijsSubject(certificate.issuer);
         defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
-        defaultResult.validFrom = certificate.notBefore.value.toISOString();
-        defaultResult.validTo = certificate.notAfter.value.toISOString();
+        defaultResult.validFrom = formatDate(certificate.notBefore.value, "PPpp");
+        defaultResult.validTo = formatDate(certificate.notAfter.value, "PPpp");
         defaultResult.publicKeyAlgorithm = formatPkijsPublicKeyInfo(certificate.subjectPublicKeyInfo);
         
         try {
