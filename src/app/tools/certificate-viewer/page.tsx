@@ -22,6 +22,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MultiSelectDropdown } from '@/components/shared/MultiSelectDropdown';
+import { Asn1Viewer } from '@/components/shared/Asn1Viewer';
+import * as asn1js from 'asn1js';
 
 
 // --- Zlint Types and Interfaces ---
@@ -37,11 +39,6 @@ interface ZlintProfile {
     citation: string;
     description: string;
     effectiveDate: string;
-}
-
-interface ZlintOptions {
-    format: 'pem';
-    includeSources: string;
 }
 
 declare global {
@@ -99,7 +96,7 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
 };
 
 const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status }) => {
-  let Icon = AlertTriangle;
+  let Icon: React.ElementType = AlertTriangle;
   let text = 'Info';
   let className = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
 
@@ -124,13 +121,6 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
       text = 'Warn';
       className = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-400/50';
       break;
-    case 'info':
-      Icon = AlertTriangle;
-      text = 'Info';
-      className = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-400/50';
-      break;
-    default:
-      return null;
   }
 
   return (
@@ -149,6 +139,7 @@ const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ t
     const rfcNumber = rfcMatch[1].replace(/\s/g, '').toUpperCase();
     let url = `https://datatracker.ietf.org/doc/html/${rfcNumber.toLowerCase()}`;
     const sectionMatch = text.match(/[:/]\s*([\w\.]+)/);
+    // Don't add section for CABF BRS citations
     if (sectionMatch && sectionMatch[1] && !text.toUpperCase().includes('BRS:')) {
       url += `#section-${sectionMatch[1]}`;
     }
@@ -159,7 +150,7 @@ const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ t
   if (text.toUpperCase().includes('CABF_BR')) {
     return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
-
+  
   if (text.includes('Mozilla Root Store Policy')) {
     return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
@@ -174,6 +165,10 @@ const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ t
   return <>{text}</>;
 };
 
+interface ZlintOptions {
+    format: 'pem';
+    includeSources: string;
+}
 
 
 type StatusFilter = ZlintResult['status'] | 'all';
@@ -189,6 +184,7 @@ export default function CertificateViewerPage() {
 
   // --- Viewer State ---
   const [parsedDetails, setParsedDetails] = useState<ParsedPemDetails | null>(null);
+  const [asn1Data, setAsn1Data] = useState<asn1js.Asn1Json | null>(null);
 
   // --- Linter State ---
   const [lintResults, setLintResults] = useState<ZlintResult[]>([]);
@@ -267,6 +263,7 @@ export default function CertificateViewerPage() {
   const handleParse = async () => {
     if (!pem.trim()) {
         setParsedDetails(null);
+        setAsn1Data(null);
         setError(null);
         setActiveTab("input");
         return;
@@ -275,9 +272,18 @@ export default function CertificateViewerPage() {
     setIsLoading(true);
     setError(null);
     setParsedDetails(null);
+    setAsn1Data(null);
     setLintResults([]);
     
     try {
+        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s+/g, "");
+        const derBuffer = Uint8Array.from(atob(pemString), c => c.charCodeAt(0)).buffer;
+        const asn1 = asn1js.fromBER(derBuffer);
+        if (asn1.offset === -1) {
+            throw new Error("Invalid ASN.1 structure.");
+        }
+        setAsn1Data(asn1.result.toJSON());
+        
         const details = await parseCertificatePemDetails(pem);
         if (details.signatureAlgorithm === 'N/A') {
             throw new Error("Could not parse the provided text as a valid PEM certificate.");
@@ -287,6 +293,7 @@ export default function CertificateViewerPage() {
     } catch (e: any) {
         setError(e.message || "An unknown error occurred during parsing.");
         setParsedDetails(null);
+        setAsn1Data(null);
         setActiveTab("input");
     } finally {
         setIsLoading(false);
@@ -397,6 +404,7 @@ export default function CertificateViewerPage() {
             <TabsList>
                 <TabsTrigger value="input">PEM Input</TabsTrigger>
                 <TabsTrigger value="details" disabled={!parsedDetails}>Parsed Details</TabsTrigger>
+                <TabsTrigger value="asn1" disabled={!asn1Data}>ASN.1 Structure</TabsTrigger>
                 <TabsTrigger value="linter" disabled={!parsedDetails}>Zlint Linter</TabsTrigger>
             </TabsList>
             
@@ -465,6 +473,19 @@ export default function CertificateViewerPage() {
                         {renderUrlList(parsedDetails?.ocspUrls, 'OCSP Responders')}
                         {parsedDetails?.ocspUrls && parsedDetails.caIssuersUrls && <Separator/>}
                         {renderUrlList(parsedDetails?.caIssuersUrls, 'CA Issuers')}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+             <TabsContent value="asn1">
+                <Card>
+                    <CardHeader><CardTitle>ASN.1 Structure</CardTitle></CardHeader>
+                    <CardContent>
+                        {asn1Data ? (
+                            <Asn1Viewer data={asn1Data} />
+                        ) : (
+                            <p>No ASN.1 data to display. Please parse a certificate first.</p>
+                        )}
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -583,8 +604,4 @@ export default function CertificateViewerPage() {
     </>
   );
 }
-
-
-
-
 
