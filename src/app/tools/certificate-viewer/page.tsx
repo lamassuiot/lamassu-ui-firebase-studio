@@ -12,7 +12,7 @@ import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle } from "lucide-rea
 import { Separator } from "@/components/ui/separator";
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
-import { setEngine, getCrypto } from 'pkijs';
+import { getCrypto, setEngine, Certificate } from 'pkijs';
 import { parseCertificatePemDetails, type ParsedPemDetails } from '@/lib/ca-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -282,7 +282,9 @@ export default function CertificateViewerPage() {
         if (asn1.offset === -1) {
             throw new Error("Invalid ASN.1 structure.");
         }
-        setAsn1Data(asn1.result.toJSON());
+        
+        const certificate = new Certificate({ schema: asn1.result });
+        setAsn1Data(certificate.toJSON());
         
         const details = await parseCertificatePemDetails(pem);
         if (details.signatureAlgorithm === 'N/A') {
@@ -604,4 +606,5 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
