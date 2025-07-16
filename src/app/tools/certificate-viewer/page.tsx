@@ -234,7 +234,9 @@ export default function CertificateViewerPage() {
           setLintProfileMap(profileMap);
           const sortedSources = Array.from(sources).sort();
           setAvailableSources(sortedSources);
-          setSelectedSources(sortedSources); 
+          // Default to selecting all RFC sources
+          const rfcSources = sortedSources.filter(s => s.startsWith('RFC'));
+          setSelectedSources(rfcSources); 
         } else {
           console.error("Failed to fetch lint profiles:", result?.error);
         }
