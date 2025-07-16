@@ -5,7 +5,7 @@ import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
-import { format as formatDate } from 'date-fns';
+import { format as formatDate, parseISO, isValid } from 'date-fns';
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -209,8 +209,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         defaultResult.subject = formatPkijsSubject(certificate.subject);
         defaultResult.issuer = formatPkijsSubject(certificate.issuer);
         defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
-        defaultResult.validFrom = formatDate(certificate.notBefore.value, "PPpp");
-        defaultResult.validTo = formatDate(certificate.notAfter.value, "PPpp");
+        defaultResult.validFrom = certificate.notBefore.value.toISOString();
+        defaultResult.validTo = certificate.notAfter.value.toISOString();
         defaultResult.publicKeyAlgorithm = formatPkijsPublicKeyInfo(certificate.subjectPublicKeyInfo);
         
         try {
@@ -1036,4 +1036,5 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+
 
