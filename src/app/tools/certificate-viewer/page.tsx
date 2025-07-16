@@ -96,12 +96,12 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
     case 'pass':
       Icon = CheckCircle;
       text = 'Pass';
-      className = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
+      className = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-400/50';
       break;
     case 'error':
       Icon = XCircle;
       text = 'Error';
-      className = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-400/50';
+      className = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-400/50';
       break;
     case 'fatal':
       Icon = XCircle;
@@ -111,7 +111,7 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
     case 'warn':
       Icon = AlertTriangle;
       text = 'Warn';
-      className = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-400/50';
+      className = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-400/50';
       break;
     case 'info':
       Icon = AlertTriangle;
@@ -130,30 +130,39 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
   );
 };
 
-
 const SourceLink: React.FC<{ text: string }> = ({ text }) => {
-    const rfcMatch = text?.match(/(RFC\s?\d+)/i);
+  if (!text) return <>N/A</>;
 
-    if (rfcMatch) {
-        const rfcNumber = rfcMatch[1].replace(/\s/g, '');
-        const url = `https://datatracker.ietf.org/doc/html/${rfcNumber.toLowerCase()}`;
-        return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+  // Case 1: RFC with potential section deep link
+  const rfcMatch = text.match(/(RFC\s?\d+)/i);
+  if (rfcMatch) {
+    const rfcNumber = rfcMatch[1].replace(/\s/g, '').toLowerCase();
+    let url = `https://datatracker.ietf.org/doc/html/${rfcNumber}`;
+    
+    // Look for a section number like "4.1.2.2" or "A.1"
+    const sectionMatch = text.match(/[:/]\s*([\w\.]+)/);
+    if (sectionMatch && sectionMatch[1]) {
+      const section = sectionMatch[1];
+      url += `#section-${section}`;
     }
     
-    if (text === 'CABF_BR') {
-        return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
-    }
+    return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+  }
 
-    try {
-        if (text) {
-            new URL(text);
-            return <a href={text} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
-        }
-    } catch (_) {
-        // Not a valid URL, render as text
-    }
+  // Case 2: Specific keyword link for CABF_BR
+  if (text === 'CABF_BR') {
+    return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+  }
+  
+  // Case 3: Check if the text is a full URL
+  try {
+    new URL(text);
+    return <a href={text} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+  } catch (_) {
+    // Not a valid URL, render as plain text
+  }
 
-    return <>{text || 'N/A'}</>;
+  return <>{text}</>;
 };
 
 
@@ -563,4 +572,5 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
