@@ -19,7 +19,7 @@ interface Asn1Json {
 }
 
 interface Asn1ViewerProps {
-  data: Asn1Json;
+  data: Asn1Json | null;
 }
 
 const tagClassMap: { [key: number]: string } = {
@@ -31,6 +31,12 @@ const tagClassMap: { [key: number]: string } = {
 
 const Asn1Node: React.FC<{ node: Asn1Json; level: number; isLast: boolean }> = ({ node, level, isLast }) => {
   const [isOpen, setIsOpen] = useState(level < 4);
+
+  // Error guard: If the node or its tag is malformed, don't render it.
+  if (!node || !node.tag) {
+    return null;
+  }
+
   const hasChildren = node.sub && node.sub.length > 0;
 
   const handleToggle = (e: React.MouseEvent) => {
@@ -97,6 +103,8 @@ const Asn1Node: React.FC<{ node: Asn1Json; level: number; isLast: boolean }> = (
 };
 
 export const Asn1Viewer: React.FC<Asn1ViewerProps> = ({ data }) => {
+  if (!data) return null;
+  
   return (
     <ScrollArea className="h-[40rem] w-full rounded-md border p-2 bg-card">
       <Asn1Node node={data} level={0} isLast={true} />
