@@ -39,11 +39,16 @@ interface ZlintProfile {
     effectiveDate: string;
 }
 
+interface ZlintOptions {
+    format?: 'pem' | 'der';
+    includeSources?: string; // Comma-separated string
+}
+
 declare global {
   interface Window {
     Go: any;
     zlintCertificateSimple: (pem: string) => { results: Record<string, { result: string, details?: string }>, success: boolean };
-    zlintCertificate: (pem: string, options: { includeSources?: string[] }) => { results: Record<string, { result: string, details?: string }>, success: boolean };
+    zlintCertificate: (pem: string, options: ZlintOptions) => { results: Record<string, { result: string, details?: string }>, success: boolean };
     zlintGetLints: () => { success: boolean, lints?: Record<string, ZlintProfile>, error?: string, count?: number };
   }
 }
@@ -224,7 +229,11 @@ export default function CertificateViewerPage() {
 
     setTimeout(() => {
         try {
-            const rawResult = window.zlintCertificate(pem, { includeSources: selectedSources });
+            const options: ZlintOptions = {
+                format: 'pem',
+                includeSources: selectedSources.join(','),
+            };
+            const rawResult = window.zlintCertificate(pem, options);
             if (!rawResult?.results) throw new Error("The linting function did not return a valid result object.");
 
             const transformedResults: ZlintResult[] = Object.entries(rawResult.results).map(([lintName, lintData]) => ({
@@ -372,7 +381,9 @@ export default function CertificateViewerPage() {
                         <Separator />
                         <h4 className="font-medium text-md text-muted-foreground pt-2">Distribution Points</h4>
                         {renderUrlList(parsedDetails?.crlDistributionPoints, 'CRL Distribution Points')}
+                        {parsedDetails?.crlDistributionPoints && (parsedDetails.ocspUrls || parsedDetails.caIssuersUrls) && <Separator/>}
                         {renderUrlList(parsedDetails?.ocspUrls, 'OCSP Responders')}
+                        {parsedDetails?.ocspUrls && parsedDetails.caIssuersUrls && <Separator/>}
                         {renderUrlList(parsedDetails?.caIssuersUrls, 'CA Issuers')}
                     </CardContent>
                 </Card>
@@ -489,6 +500,4 @@ export default function CertificateViewerPage() {
     </>
   );
 }
-
-
 
