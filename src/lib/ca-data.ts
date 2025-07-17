@@ -2,7 +2,7 @@
 
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo, SubjectKeyIdentifier, AuthorityKeyIdentifier } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo, AuthorityKeyIdentifier } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
 
@@ -248,7 +248,7 @@ export async function parseCertificatePemDetails(pem: string): Promise<ParsedPem
         try {
             const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1");
             if (aiaExtension?.parsedValue) {
-                const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
+                const aia = aiaExtension.parsedValue;
                 aia.accessDescriptions.forEach((desc: any) => {
                     if (desc.accessMethod === "1.3.6.1.5.5.7.48.1" && desc.accessLocation.type === 6) { // id-ad-ocsp
                         defaultResult.ocspUrls.push(desc.accessLocation.value);
@@ -316,7 +316,7 @@ export async function parseCertificatePemDetails(pem: string): Promise<ParsedPem
         try {
             const skiExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.14");
             if (skiExtension?.parsedValue) {
-                const ski = skiExtension.parsedValue as SubjectKeyIdentifier;
+                const ski = skiExtension.parsedValue;
                 if (ski.valueBlock?.valueHex) {
                     defaultResult.subjectKeyId = ab2hex(ski.valueBlock.valueHex);
                 }
