@@ -1,0 +1,105 @@
+/* 
+  This is a sample theme file. You can override the default color scheme of the application
+  by uncommenting and modifying the CSS variables below.
+
+  - Make a copy of this file and rename it to custom-theme.css to start.
+  - This file is loaded in src/app/layout.tsx and will override the defaults in src/app/globals.css.
+  - HSL (Hue, Saturation, Lightness) format is used for colors. You can use an online converter
+    to find the HSL values for your brand colors.
+*/
+
+/* 
+  To apply your theme, uncomment one or both of the :root (light theme) and .dark (dark theme) blocks.
+*/
+
+
+/* ========================================================================== */
+/*  LKS NEXT Orange and Charcoal Theme (derived from image)                   */
+/* =================================com========================================= */
+/* :root { */
+  /* --background: 0 0% 100%; */ /* Pure White */
+  /* --foreground: 0 0% 20%; */ /* Charcoal for text */
+  /* --card: 0 0% 100%; */
+  /* --card-foreground: 0 0% 20%; */
+  /* --popover: 0 0% 100%; */
+  /* --popover-foreground: 0 0% 20%; */
+  /* --primary: 26 82% 52%; */ /* LKS Orange */
+  /* --primary-foreground: 0 0% 100%; */ /* White */
+  /* --secondary: 0 0% 95%; */ /* Light Gray */
+  /* --secondary-foreground: 0 0% 20%; */
+  /* --muted: 0 0% 90%; */
+  /* --muted-foreground: 0 0% 40%; */
+  /* --accent: 26 82% 90%; */ /* Light Orange */
+  /* --accent-foreground: 26 82% 30%; */
+  /* --destructive: 0 84% 60%; */
+  /* --destructive-foreground: 0 0% 98%; */
+  /* --border: 0 0% 88%; */
+  /* --input: 0 0% 85%; */
+  /* --ring: 26 82% 60%; */
+  
+  /* === Header === */
+  /* --header-background: 0 0% 20%; */ /* Charcoal */
+  /* --header-foreground: 0 0% 98%; */ /* White */
+
+  /* === Sidebar === */
+  /* --sidebar-background: 0 0% 96%; */
+  /* --sidebar-foreground: 0 0% 20%; */
+  /* --sidebar-primary: 26 82% 52%; */
+  /* --sidebar-primary-foreground: 0 0% 100%; */
+  /* --sidebar-accent: 26 82% 90%; */
+  /* --sidebar-accent-foreground: 26 82% 30%; */
+/* } */
+
+
+/* ========================================================================== */
+/*  LamassuIoT Default Blue Theme (Original)                                  */
+/* ========================================================================== */
+/*
+:root {
+    --background: 208 100% 97%;
+    --foreground: 222 84% 5%;
+    --primary: 217 100% 53%;
+    --primary-foreground: 0 0% 98%;
+    --header-background: 217 100% 53%; 
+    --header-foreground: 0 0% 98%;    
+    --accent: 150 65% 85%;
+    --accent-foreground: 150 65% 25%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 84% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 84% 5%;
+    --secondary: 210 40% 90%;
+    --secondary-foreground: 222 84% 10%;
+    --muted: 210 40% 92%;
+    --muted-foreground: 210 35% 45%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 40% 88%;
+    --input: 210 40% 85%;
+    --ring: 217 90% 65%;
+}
+
+.dark {
+    --background: 222 40% 15%;
+    --foreground: 210 40% 95%;
+    --primary: 217 90% 60%;
+    --primary-foreground: 0 0% 98%;
+    --header-background: 217 90% 35%;
+    --header-foreground: 0 0% 98%;
+    --accent: 150 50% 70%;
+    --accent-foreground: 150 50% 20%;
+    --card: 222 40% 18%;
+    --card-foreground: 210 40% 95%;
+    --popover: 222 40% 18%;
+    --popover-foreground: 210 40% 95%;
+    --secondary: 217 30% 25%;
+    --secondary-foreground: 210 40% 90%;
+    --muted: 217 30% 22%;
+    --muted-foreground: 210 30% 65%;
+    --destructive: 0 63% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 217 20% 30%;
+    --input: 217 20% 35%;
+    --ring: 217 80% 65%;
+}
+*/

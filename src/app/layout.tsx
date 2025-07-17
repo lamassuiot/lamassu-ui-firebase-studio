@@ -171,21 +171,26 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [showSecondaryLogo, setShowSecondaryLogo] = useState(false);
-  const [secondaryLogoUrl, setSecondaryLogoUrl] = useState('');
-
+  
   useEffect(() => {
     const secondaryLogoEnabled = (window as any).lamassuConfig?.LAMASSU_SECONDARY_LOGO_ENABLED === true;
     setShowSecondaryLogo(secondaryLogoEnabled);
-    if(secondaryLogoEnabled) {
-      const logoUrl = (window as any).lamassuConfig?.LAMASSU_SECONDARY_LOGO || '';
-      setSecondaryLogoUrl(logoUrl);
-    }
   }, []);
 
   useEffect(() => {
     const configuredHeight = (window as any).lamassuConfig?.LAMASSU_HEADER_HEIGHT;
     if (configuredHeight) {
       document.documentElement.style.setProperty('--header-height', configuredHeight);
+    }
+  }, []);
+
+  useEffect(() => {
+    const themeFile = (window as any).lamassuConfig?.LAMASSU_THEME;
+    if (themeFile) {
+      const link = document.createElement('link');
+      link.href = `/${themeFile}`;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
     }
   }, []);
 
@@ -234,15 +239,12 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
             <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
              {showSecondaryLogo && (
               <>
-               <Image
-                  src={secondaryLogoUrl || 'https://placehold.co/200x60.png'}
+               <div
+                  className="secondary-logo h-full w-auto aspect-[200/60]"
                   data-ai-hint="logo"
-                  width={200}
-                  height={60}
-                  alt="Secondary Logo"
-                  className="h-full w-auto"
-                  unoptimized // Important for dynamic external or public URLs
-               />
+                  role="img"
+                  aria-label="Secondary Logo"
+                />
                <Separator orientation="vertical" className="h-full bg-header-foreground/30" />
               </>
              )}
@@ -314,15 +316,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               <SidebarHeader className="p-4">
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
                    {showSecondaryLogo && (
-                     <Image
-                        src={secondaryLogoUrl || 'https://placehold.co/30x30.png'}
-                        data-ai-hint="logo"
-                        width={30}
-                        height={30}
-                        alt="Secondary Logo"
-                        className="block group-data-[collapsible=icon]:hidden h-[30px] w-auto"
-                        unoptimized
-                     />
+                     <div className="secondary-logo block group-data-[collapsible=icon]:hidden h-[30px] w-auto aspect-[200/60]"/>
                    )}
                   <Image
                     src={LogoFullBlue}
@@ -563,7 +557,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="/custom-theme.css" />
+        
       </head>
       <body className="font-body antialiased">
         <AuthProvider>

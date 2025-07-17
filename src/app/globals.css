@@ -90,6 +90,9 @@
     /* Sidebar border */
     --sidebar-ring: 217 90% 65%;
     /* Ring color */
+
+    /* Variable for secondary logo */
+    --secondary-logo-url: url('https://placehold.co/200x60.png');
   }
 
   .dark {
@@ -304,5 +307,13 @@
     color: hsl(var(--foreground));
     padding-left: 10px;
     padding-right: 10px;
+  }
+
+  /* Styles for CSS-variable controlled secondary logo */
+  .secondary-logo {
+    background-image: var(--secondary-logo-url);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
   }
 }

@@ -3,14 +3,17 @@
 IKERLAN Theme - Light & Dark
 ================================================================================
 */
+:root {
+  --header-height: 3.5rem; /* h-14 */
+}
 
-@layer base {
+
   /* 
   --------------------------------------------------------------------------------
   Light Theme (Ikerlan)
   --------------------------------------------------------------------------------
   */
-  :root {
+  :root:not(.dark)  {
     /* Base Theme Colors from Ikerlan website */
     --background: 210 17% 98%;          /* #F8F9FA - Very light gray */
     --foreground: 210 10% 23%;          /* #343a40 - Dark charcoal text */
@@ -93,4 +96,4 @@ IKERLAN Theme - Light & Dark
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
   }
-}
+
