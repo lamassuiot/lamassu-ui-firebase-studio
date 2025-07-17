@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -9,6 +10,9 @@ export default {
   ],
   theme: {
     extend: {
+      height: {
+        header: 'var(--header-height)',
+      },
       fontFamily: {
         body: ['Inter', 'sans-serif'],
         headline: ['Inter', 'sans-serif'],

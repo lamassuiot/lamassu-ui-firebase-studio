@@ -182,6 +182,14 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
+  useEffect(() => {
+    const configuredHeight = (window as any).lamassuConfig?.LAMASSU_HEADER_HEIGHT;
+    if (configuredHeight) {
+      document.documentElement.style.setProperty('--header-height', configuredHeight);
+    }
+  }, []);
+
+
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
   if (isAuthenticated() && user?.access_token) {
@@ -221,7 +229,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   return (
     <SidebarProvider defaultOpen>
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
-        <header className="flex h-14 items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
+        <header className="flex h-header items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
              {showSecondaryLogo && (
