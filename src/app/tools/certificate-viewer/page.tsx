@@ -400,7 +400,7 @@ export default function CertificateViewerPage() {
           <h1 className="text-2xl font-headline font-semibold">Certificate Analysis Tool</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Paste an X.509 certificate in PEM format to parse its details and lint it against Zlint rules.
+          Paste an X.509 certificate in PEM format to parse its details and lint it.
         </p>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -516,7 +516,7 @@ export default function CertificateViewerPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Certificate Linter</CardTitle>
-                        <CardDescription>Analyze the certificate against a set of linting rules.</CardDescription>
+                        <CardDescription>Analyze the certificate against a set of industry-standard linting rules.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col md:flex-row gap-4 items-end">
@@ -633,12 +633,3 @@ export default function CertificateViewerPage() {
     </>
   );
 }
-
-
-
-
-
-
-
-
-
