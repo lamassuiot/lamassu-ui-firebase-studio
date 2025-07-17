@@ -12,7 +12,7 @@ import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle, Info, KeyRound, L
 import { Separator } from "@/components/ui/separator";
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
-import { getCrypto, setEngine, Certificate } from 'pkijs';
+import { getCrypto, setEngine } from 'pkijs';
 import { parseCertificatePemDetails, type ParsedPemDetails } from '@/lib/ca-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -22,8 +22,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MultiSelectDropdown } from '@/components/shared/MultiSelectDropdown';
-import { Asn1Viewer } from '@/components/shared/Asn1Viewer';
-import * as asn1js from 'asn1js';
 import { format as formatDate, parseISO, isValid } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -177,8 +175,7 @@ export default function CertificateViewerPage() {
 
   // --- Viewer State ---
   const [parsedDetails, setParsedDetails] = useState<ParsedPemDetails | null>(null);
-  const [asn1Data, setAsn1Data] = useState<asn1js.Asn1Json | null>(null);
-
+  
   // --- Linter State ---
   const [lintResults, setLintResults] = useState<ZlintResult[]>([]);
   const [isScriptReady, setIsScriptReady] = useState(false);
@@ -256,7 +253,6 @@ export default function CertificateViewerPage() {
   const handleParse = async () => {
     if (!pem.trim()) {
         setParsedDetails(null);
-        setAsn1Data(null);
         setError(null);
         setActiveTab("input");
         return;
@@ -265,20 +261,9 @@ export default function CertificateViewerPage() {
     setIsLoading(true);
     setError(null);
     setParsedDetails(null);
-    setAsn1Data(null);
     setLintResults([]);
     
     try {
-        const pemString = pem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s+/g, "");
-        const derBuffer = Uint8Array.from(atob(pemString), c => c.charCodeAt(0)).buffer;
-        const asn1 = asn1js.fromBER(derBuffer);
-        if (asn1.offset === -1) {
-            throw new Error("Invalid ASN.1 structure.");
-        }
-        
-        const certificate = new Certificate({ schema: asn1.result });
-        setAsn1Data(certificate.toJSON());
-        
         const details = await parseCertificatePemDetails(pem);
         if (details.signatureAlgorithm === 'N/A') {
             throw new Error("Could not parse the provided text as a valid PEM certificate.");
@@ -288,7 +273,6 @@ export default function CertificateViewerPage() {
     } catch (e: any) {
         setError(e.message || "An unknown error occurred during parsing.");
         setParsedDetails(null);
-        setAsn1Data(null);
         setActiveTab("input");
     } finally {
         setIsLoading(false);
@@ -401,7 +385,6 @@ export default function CertificateViewerPage() {
             <TabsList>
                 <TabsTrigger value="input">PEM Input</TabsTrigger>
                 <TabsTrigger value="details" disabled={!parsedDetails}>Parsed Details</TabsTrigger>
-                <TabsTrigger value="asn1" disabled={!asn1Data}>ASN.1 Structure</TabsTrigger>
                 <TabsTrigger value="linter" disabled={!parsedDetails}>Zlint Linter</TabsTrigger>
             </TabsList>
             
@@ -510,19 +493,6 @@ export default function CertificateViewerPage() {
                         </AccordionItem>
                     </Accordion>
                 )}
-            </TabsContent>
-
-             <TabsContent value="asn1">
-                <Card>
-                    <CardHeader><CardTitle>ASN.1 Structure</CardTitle></CardHeader>
-                    <CardContent>
-                        {asn1Data ? (
-                            <Asn1Viewer data={asn1Data} />
-                        ) : (
-                            <p>No ASN.1 data to display. Please parse a certificate first.</p>
-                        )}
-                    </CardContent>
-                </Card>
             </TabsContent>
             
             <TabsContent value="linter">
@@ -639,6 +609,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 
