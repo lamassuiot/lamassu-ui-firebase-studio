@@ -170,13 +170,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const searchParams = useSearchParams();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [showSecondaryLogo, setShowSecondaryLogo] = useState(false);
   
-  useEffect(() => {
-    const secondaryLogoEnabled = (window as any).lamassuConfig?.LAMASSU_SECONDARY_LOGO_ENABLED === true;
-    setShowSecondaryLogo(secondaryLogoEnabled);
-  }, []);
-
   useEffect(() => {
     const themeFile = (window as any).lamassuConfig?.LAMASSU_THEME;
     if (themeFile) {
@@ -230,8 +224,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
         <header className="flex h-header items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-4 h-full py-2">
             <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
-             {showSecondaryLogo && (
-              <>
+             <div className="secondary-logo-container">
                <div
                   className="secondary-logo h-full w-auto aspect-[200/60]"
                   data-ai-hint="logo"
@@ -239,8 +232,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                   aria-label="Secondary Logo"
                 />
                <Separator orientation="vertical" className="h-full bg-header-foreground/30" />
-              </>
-             )}
+              </div>
             <Image
               src={LogoFullWhite}
               height={60}
@@ -308,9 +300,9 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
             <Sidebar collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
               <SidebarHeader className="p-4">
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-                   {showSecondaryLogo && (
-                     <div className="secondary-logo block group-data-[collapsible=icon]:hidden h-[30px] w-auto aspect-[200/60]"/>
-                   )}
+                   <div className="secondary-logo-container group-data-[collapsible=icon]:hidden">
+                     <div className="secondary-logo h-[30px] w-auto aspect-[200/60]"/>
+                   </div>
                   <Image
                     src={LogoFullBlue}
                     height={30}

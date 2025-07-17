@@ -93,6 +93,7 @@
 
     /* Variable for secondary logo */
     --secondary-logo-url: url('https://placehold.co/200x60.png');
+    --secondary-logo-display: flex;
   }
 
   .dark {
@@ -315,5 +316,12 @@
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+  }
+
+  .secondary-logo-container {
+    display: var(--secondary-logo-display, flex); /* Default to flex */
+    align-items: center;
+    gap: 1rem;
+    height: 100%;
   }
 }
