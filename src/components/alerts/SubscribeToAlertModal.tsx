@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Mail, Users, Webhook, Check, ArrowLeft, Info, AlertTriangle } from 'lucide-react';
-import { subscribeToAlert, type SubscriptionPayload } from '@/lib/alerts-api';
+import { subscribeToAlert, type SubscriptionPayload, type ApiSubscription, updateSubscription } from '@/lib/alerts-api';
 import { cn } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
 import { JSONPath } from 'jsonpath-plus';
@@ -33,6 +33,7 @@ interface SubscribeToAlertModalProps {
   eventType: string | null;
   samplePayload: object | null;
   onSuccess: () => void;
+  subscriptionToEdit?: ApiSubscription | null;
 }
 
 const channelOptions = [
@@ -55,9 +56,11 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
   eventType,
   samplePayload,
   onSuccess,
+  subscriptionToEdit,
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isEditMode = !!subscriptionToEdit;
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,26 +84,52 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Reset state when modal opens
-      setStep(1);
-      setChannelType('EMAIL');
-      setEmail(user?.profile.email || '');
-      setWebhookUrl('');
-      setTeamsName('');
-      setWebhookName('');
-      setWebhookMethod('POST');
-      setFilterType('NONE');
-      setFilterCondition('$.data');
-      if (samplePayload) {
-          const generatedSchema = createSchema(samplePayload);
-          setJsonSchema(JSON.stringify(generatedSchema, null, 2));
+      // Reset or populate state when modal opens
+      if (isEditMode && subscriptionToEdit) {
+          // Populate from existing subscription
+          const sub = subscriptionToEdit;
+          setChannelType(sub.channel.type);
+          setEmail(sub.channel.config.email || '');
+          setWebhookUrl(sub.channel.config.url || '');
+          setWebhookName(sub.channel.config.name || '');
+          setTeamsName(sub.channel.config.name || ''); // Assuming name is shared
+          setWebhookMethod(sub.channel.config.method || 'POST');
+
+          if(sub.conditions && sub.conditions.length > 0) {
+              const firstCond = sub.conditions[0];
+              setFilterType(firstCond.type);
+              if (firstCond.type === 'JAVASCRIPT') setJsFunction(firstCond.condition);
+              else if (firstCond.type === 'JSON-SCHEMA') setJsonSchema(firstCond.condition);
+              else setFilterCondition(firstCond.condition);
+          } else {
+              setFilterType('NONE');
+              setFilterCondition('$.data');
+              setJsFunction('function (event) {\n  return true;\n}');
+          }
+
       } else {
-          setJsonSchema('{}');
+          // Reset to default for new subscription
+          setChannelType('EMAIL');
+          setEmail(user?.profile.email || '');
+          setWebhookUrl('');
+          setTeamsName('');
+          setWebhookName('');
+          setWebhookMethod('POST');
+          setFilterType('NONE');
+          setFilterCondition('$.data');
+          if (samplePayload) {
+              const generatedSchema = createSchema(samplePayload);
+              setJsonSchema(JSON.stringify(generatedSchema, null, 2));
+          } else {
+              setJsonSchema('{}');
+          }
+          setJsFunction('function (event) {\n  return true;\n}');
       }
-      setJsFunction('function (event) {\n  return true;\n}');
+      
       setInputEvent(samplePayload ? JSON.stringify(samplePayload, null, 2) : '');
+      setStep(1); // Always start at step 1
     }
-  }, [isOpen, user, samplePayload]);
+  }, [isOpen, user, samplePayload, subscriptionToEdit, isEditMode]);
 
   useEffect(() => {
     const evaluate = async () => {
@@ -235,10 +264,15 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
             }
         };
 
-        await subscribeToAlert(payload, user.access_token);
+        if (isEditMode && subscriptionToEdit) {
+            await updateSubscription(subscriptionToEdit.id, payload, user.access_token);
+        } else {
+            await subscribeToAlert(payload, user.access_token);
+        }
+        
         onSuccess();
     } catch(e: any) {
-        toast({ title: "Subscription Failed", description: e.message, variant: "destructive" });
+        toast({ title: isEditMode ? "Update Failed" : "Subscription Failed", description: e.message, variant: "destructive" });
     } finally {
         setIsSubmitting(false);
     }
@@ -446,9 +480,9 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl lg:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Subscribe to event</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Edit Subscription' : 'Subscribe to event'}</DialogTitle>
           <DialogDescription>
-            Get notified when a "<span className="font-semibold">{eventType}</span>" event occurs.
+            {isEditMode ? 'Modify' : 'Get notified when'} a "<span className="font-semibold">{eventType}</span>" event occurs.
           </DialogDescription>
         </DialogHeader>
 
@@ -468,7 +502,7 @@ export const SubscribeToAlertModal: React.FC<SubscribeToAlertModalProps> = ({
                 {step < 3 && <Button onClick={handleNext}>Next</Button>}
                 {step === 3 && <Button onClick={handleSubmit} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                    Confirm Subscription
+                    {isEditMode ? 'Save Changes' : 'Confirm Subscription'}
                 </Button>}
             </div>
         </DialogFooter>

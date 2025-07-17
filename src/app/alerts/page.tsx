@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { AlertTriangle, Info, Loader2, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Info, Loader2, RefreshCw, Search, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,10 +57,12 @@ export default function AlertsPage() {
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
   const [eventTypeToSubscribe, setEventTypeToSubscribe] = useState<string | null>(null);
   const [samplePayloadToSubscribe, setSamplePayloadToSubscribe] = useState<object | null>(null);
+  const [subscriptionToEdit, setSubscriptionToEdit] = useState<ApiSubscription | null>(null);
+
 
   // New state for details modal
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedSubscription, setSelectedSubscription] = useState<ApiSubscription | null>(null);
+  const [selectedSubscriptionForDetails, setSelectedSubscriptionForDetails] = useState<ApiSubscription | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
 
@@ -80,7 +82,7 @@ export default function AlertsPage() {
         // Close modal if open
         if (isDetailsModalOpen) {
             setIsDetailsModalOpen(false);
-            setSelectedSubscription(null);
+            setSelectedSubscriptionForDetails(null);
         }
         
         loadAlertsData(); // Re-sync with the server
@@ -92,23 +94,34 @@ export default function AlertsPage() {
   };
   
   const handleOpenSubscribeModal = (event: AlertEvent) => {
+    setSubscriptionToEdit(null); // Ensure we are in "create" mode
     setEventTypeToSubscribe(event.type);
     setSamplePayloadToSubscribe(event.payload);
     setIsSubscribeModalOpen(true);
+  };
+  
+  const handleOpenEditModal = (subscription: ApiSubscription) => {
+    const associatedEvent = events.find(e => e.type === subscription.event_type);
+    setSubscriptionToEdit(subscription);
+    setEventTypeToSubscribe(subscription.event_type);
+    setSamplePayloadToSubscribe(associatedEvent?.payload || {});
+    setIsDetailsModalOpen(false); // Close details modal
+    setIsSubscribeModalOpen(true); // Open subscribe modal in edit mode
   };
   
   const handleSubscriptionSuccess = () => {
     setIsSubscribeModalOpen(false);
     setEventTypeToSubscribe(null);
     setSamplePayloadToSubscribe(null);
-    toast({ title: "Success!", description: "You have been subscribed to the event." });
+    setSubscriptionToEdit(null);
+    toast({ title: "Success!", description: "Subscription details saved." });
     loadAlertsData(); // Refresh data to show new subscription
   }
 
   const handleViewSubscriptionDetails = (subscriptionId: string) => {
     const sub = allSubscriptions.find(s => s.id === subscriptionId);
     if (sub) {
-      setSelectedSubscription(sub);
+      setSelectedSubscriptionForDetails(sub);
       setIsDetailsModalOpen(true);
     } else {
       toast({ title: 'Error', description: 'Could not find subscription details.', variant: 'destructive'});
@@ -369,12 +382,14 @@ export default function AlertsPage() {
       eventType={eventTypeToSubscribe}
       samplePayload={samplePayloadToSubscribe}
       onSuccess={handleSubscriptionSuccess}
+      subscriptionToEdit={subscriptionToEdit}
     />
     <SubscriptionDetailsModal
         isOpen={isDetailsModalOpen}
         onOpenChange={setIsDetailsModalOpen}
-        subscription={selectedSubscription}
+        subscription={selectedSubscriptionForDetails}
         onDelete={performUnsubscribe}
+        onEdit={handleOpenEditModal}
         isDeleting={isDeleting}
     />
     </>

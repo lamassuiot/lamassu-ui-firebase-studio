@@ -132,6 +132,27 @@ export async function subscribeToAlert(payload: SubscriptionPayload, accessToken
   }
 }
 
+export async function updateSubscription(subscriptionId: string, payload: SubscriptionPayload, accessToken: string): Promise<void> {
+  const response = await fetch(`${ALERTS_API_BASE_URL}/user/_lms_system/subscriptions/${subscriptionId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to update subscription. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) { /* ignore json parse error */ }
+    throw new Error(errorMessage);
+  }
+}
+
 export async function unsubscribeFromAlert(subscriptionId: string, accessToken: string): Promise<void> {
   const response = await fetch(`${ALERTS_API_BASE_URL}/user/_lms_system/unsubscribe/${subscriptionId}`, {
     method: 'POST',
