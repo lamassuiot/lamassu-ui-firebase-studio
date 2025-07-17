@@ -220,6 +220,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
           <div className="flex items-center gap-4">
             <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
              {showSecondaryLogo && (
+              <>
                <Image
                   src="https://placehold.co/30x30.png"
                   data-ai-hint="logo"
@@ -228,8 +229,9 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                   alt="Secondary Logo"
                   className="block"
                />
+               <Separator orientation="vertical" className="h-8 bg-header-foreground/30" />
+              </>
              )}
-            <Separator orientation="vertical" className="h-8 bg-header-foreground/30" />
             <Image
               src={LogoFullWhite}
               height={30}

@@ -18,7 +18,7 @@ window.lamassuConfig = {
   // The base URL for all backend API services (CA, DMS, DevManager, etc.).
   // This should be the root of your API gateway or load balancer.
   // Example: "https://api.yourdomain.com"
-  LAMASSU_API: "https://lab.lamassu.io",
+  LAMASSU_API: "https://lab.lamassu.io/api",
 
   // --- Authentication (OIDC) ---
   // Set to `false` to disable OIDC authentication and use a mock user for development.
@@ -28,7 +28,7 @@ window.lamassuConfig = {
   // The OIDC provider's URL. All OIDC endpoints (.well-known, authorization, token)
   // are relative to this authority.
   // Example: "https://auth.yourdomain.com/realms/your-realm"
-  LAMASSU_AUTH_AUTHORITY: "https://id.lamassu.io/realms/lamassu",
+  LAMASSU_AUTH_AUTHORITY: "https://lab.lamassu.io/auth/realms/lamassu",
   
   // The OIDC client ID registered with your provider for this frontend application.
   LAMASSU_AUTH_CLIENT_ID: "frontend",
@@ -38,7 +38,7 @@ window.lamassuConfig = {
   LAMASSU_FOOTER_ENABLED: false,
 
   // Set to true to display a secondary logo in the top navigation bar.
-  LAMASSU_SECONDARY_LOGO_ENABLED: true,
+  LAMASSU_SECONDARY_LOGO_ENABLED: false,
   
   // A comma-separated list of available connector instances for platform integrations.
   // This allows the UI to present a list of possible integrations to the user.
