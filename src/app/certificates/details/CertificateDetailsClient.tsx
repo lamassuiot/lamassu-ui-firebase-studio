@@ -127,7 +127,7 @@ export default function CertificateDetailsClient() { // Renamed component
       
       if (foundCert) {
         if (foundCert.pemData) {
-            const parsedDetails = parseCertificatePemDetails(foundCert.pemData);
+            const parsedDetails = await parseCertificatePemDetails(foundCert.pemData);
             const completeCert = { ...foundCert, ...parsedDetails };
             setCertificateDetails(completeCert);
         } else {

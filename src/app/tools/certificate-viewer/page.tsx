@@ -447,6 +447,7 @@ export default function CertificateViewerPage() {
                            <DetailItem label="Valid From" value={parsedDetails?.validFrom} />
                            <DetailItem label="Valid To" value={parsedDetails?.validTo} />
                            <DetailItem label="Public Key Algorithm" value={parsedDetails?.publicKeyAlgorithm} />
+                           {parsedDetails?.fingerprintSha256 && <DetailItem label="SHA-256 Fingerprint" value={parsedDetails.fingerprintSha256} isMono />}
                            {parsedDetails?.isCa !== undefined && (
                                <DetailItem label="Is CA" value={<Badge variant={parsedDetails.isCa ? "default" : "secondary"}>{parsedDetails.isCa ? 'TRUE' : 'FALSE'}</Badge>} />
                            )}
@@ -622,6 +623,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 

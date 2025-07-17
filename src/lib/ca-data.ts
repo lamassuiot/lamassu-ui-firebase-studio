@@ -42,7 +42,7 @@ interface ApiCertificateData {
   issuer: ApiDistinguishedName; // Issuer DN from cert, issuer_metadata.id is the CA ID
   valid_from: string; // ISO Date string
   issuer_metadata: ApiIssuerMetadata;
-  valid_to: string; // ISO Date string
+  valid_to: string; // ISO date string
   revocation_timestamp?: string;
   revocation_reason?: string;
   type?: string; // "MANAGED"
@@ -171,9 +171,10 @@ export interface ParsedPemDetails {
     extendedKeyUsage?: string[];
     subjectKeyId?: string;
     authorityKeyId?: string;
+    fingerprintSha256?: string;
 }
 
-export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
+export async function parseCertificatePemDetails(pem: string): Promise<ParsedPemDetails> {
     const defaultResult: ParsedPemDetails = {
         subject: 'N/A',
         issuer: 'N/A',
@@ -192,6 +193,7 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         extendedKeyUsage: [],
         subjectKeyId: undefined,
         authorityKeyId: undefined,
+        fingerprintSha256: undefined,
     };
 
     if (typeof window === 'undefined' || !pem) return defaultResult;
@@ -212,6 +214,14 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
 
         const certificate = new Certificate({ schema: asn1.result });
         
+        // Calculate SHA-256 fingerprint of the raw DER buffer
+        if (typeof window !== 'undefined' && window.crypto?.subtle) {
+            try {
+                const hashBuffer = await crypto.subtle.digest('SHA-256', bytes.buffer);
+                defaultResult.fingerprintSha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(':');
+            } catch(e) { console.error("Could not calculate fingerprint", e); }
+        }
+
         defaultResult.subject = formatPkijsSubject(certificate.subject);
         defaultResult.issuer = formatPkijsSubject(certificate.issuer);
         defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
@@ -308,8 +318,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
             const skiExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.14");
             if (skiExtension?.parsedValue) {
                 const ski = skiExtension.parsedValue as SubjectKeyIdentifier;
-                if (ski.keyIdentifier) {
-                  defaultResult.subjectKeyId = ab2hex(ski.keyIdentifier.valueBlock.valueHex);
+                if (ski.valueBlock?.valueHex) {
+                    defaultResult.subjectKeyId = ab2hex(ski.valueBlock.valueHex);
                 }
             }
         } catch(e) { console.error("Failed to parse Subject Key Identifier:", e); }
@@ -319,7 +329,9 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
             if (akiExtension?.parsedValue) {
                 const aki = akiExtension.parsedValue as AuthorityKeyIdentifier;
                 if (aki.keyIdentifier) {
-                    defaultResult.authorityKeyId = ab2hex(aki.keyIdentifier.valueBlock.valueHex);
+                    if (aki.keyIdentifier.valueBlock?.valueHex) {
+                        defaultResult.authorityKeyId = ab2hex(aki.keyIdentifier.valueBlock.valueHex);
+                    }
                 }
             }
         } catch(e) { console.error("Failed to parse Authority Key Identifier:", e); }
@@ -1064,6 +1076,7 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+
 
 
 
