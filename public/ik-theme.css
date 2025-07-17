@@ -1,0 +1,96 @@
+/* 
+================================================================================
+IKERLAN Theme - Light & Dark
+================================================================================
+*/
+
+@layer base {
+  /* 
+  --------------------------------------------------------------------------------
+  Light Theme (Ikerlan)
+  --------------------------------------------------------------------------------
+  */
+  :root {
+    /* Base Theme Colors from Ikerlan website */
+    --background: 210 17% 98%;          /* #F8F9FA - Very light gray */
+    --foreground: 210 10% 23%;          /* #343a40 - Dark charcoal text */
+
+    /* White header/cards */
+    --card: 0 0% 100%;                   /* #FFFFFF */
+    --card-foreground: 210 10% 23%;      /* #343a40 */
+    --popover: 0 0% 100%;                /* #FFFFFF */
+    --popover-foreground: 210 10% 23%;   /* #343a40 */
+    --header-background: 0 0% 100%;      /* #FFFFFF - White header */
+    --header-foreground: 210 10% 23%;    /* #343a40 - Dark text on header */
+
+    /* Green primary color for buttons/actions */
+    --primary: 86 57% 56%;               /* #92d050 - Vibrant Green */
+    --primary-foreground: 0 0% 100%;     /* #FFFFFF - White text for primary buttons */
+    
+    /* Secondary & Muted tones */
+    --secondary: 210 16% 93%;           /* #e9ecef - Light gray for secondary elements */
+    --secondary-foreground: 210 10% 23%; /* #343a40 */
+    --muted: 210 16% 96%;                /* #f1f3f5 - Lighter gray for muted backgrounds */
+    --muted-foreground: 210 8% 45%;      /* #6c757d - Muted text color */
+    
+    /* Accent color can be same as secondary */
+    --accent: 210 16% 93%;               /* #e9ecef */
+    --accent-foreground: 210 10% 23%;    /* #343a40 */
+
+    /* Borders and Input */
+    --border: 210 14% 89%;               /* #dee2e6 - Standard border */
+    --input: 210 14% 89%;                /* #dee2e6 - Input border */
+    --ring: 86 57% 56%;                  /* #92d050 - Green for focus rings */
+
+    /* Standard Destructive Color */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    /* Default Radius */
+    --radius: 0.375rem; /* 6px */
+  }
+
+  /* 
+  --------------------------------------------------------------------------------
+  Dark Theme (Ikerlan)
+  --------------------------------------------------------------------------------
+  */
+  .dark {
+    /* Dark background and foreground */
+    --background: 220 14% 10%;          /* #16181D - Very dark gray/blue */
+    --foreground: 210 20% 90%;          /* #E0E3E6 - Light gray text */
+
+    /* Slightly lighter cards/popovers */
+    --card: 220 13% 13%;                 /* #1B1E24 */
+    --card-foreground: 210 20% 90%;      /* #E0E3E6 */
+    --popover: 220 13% 13%;              /* #1B1E24 */
+    --popover-foreground: 210 20% 90%;   /* #E0E3E6 */
+
+    /* Dark header with light text */
+    --header-background: 220 13% 13%;    /* #1B1E24 */
+    --header-foreground: 210 20% 90%;    /* #E0E3E6 */
+
+    /* Keep the primary green for high contrast */
+    --primary: 86 57% 56%;               /* #92d050 */
+    --primary-foreground: 210 10% 15%;   /* #212529 - Dark text for contrast on green button */
+
+    /* Muted dark tones */
+    --secondary: 220 14% 20%;           /* #2A2E37 */
+    --secondary-foreground: 210 20% 85%; /* #D3D7DB */
+    --muted: 220 14% 17%;                /* #24272F */
+    --muted-foreground: 210 15% 55%;     /* #7E8691 */
+
+    /* Accent color */
+    --accent: 220 14% 20%;               /* #2A2E37 */
+    --accent-foreground: 210 20% 90%;    /* #E0E3E6 */
+
+    /* Borders and Input */
+    --border: 220 14% 25%;               /* #363A45 */
+    --input: 220 14% 25%;                /* #363A45 */
+    --ring: 86 57% 56%;                  /* #92d050 - Green for focus rings */
+    
+    /* Standard Destructive Color */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+  }
+}
