@@ -6,6 +6,7 @@
 
 :root {
   --header-height: 3.5rem; /* h-14 */
+  --secondary-logo-url: url('/lks.png');
 }
 
 /* ------------------------- */

@@ -178,13 +178,6 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    const configuredHeight = (window as any).lamassuConfig?.LAMASSU_HEADER_HEIGHT;
-    if (configuredHeight) {
-      document.documentElement.style.setProperty('--header-height', configuredHeight);
-    }
-  }, []);
-
-  useEffect(() => {
     const themeFile = (window as any).lamassuConfig?.LAMASSU_THEME;
     if (themeFile) {
       const link = document.createElement('link');
