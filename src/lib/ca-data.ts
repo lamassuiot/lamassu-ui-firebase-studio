@@ -308,7 +308,9 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
             const skiExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.14");
             if (skiExtension?.parsedValue) {
                 const ski = skiExtension.parsedValue as SubjectKeyIdentifier;
-                defaultResult.subjectKeyId = ab2hex(ski.keyIdentifier.valueBlock.valueHex);
+                if (ski.keyIdentifier) {
+                  defaultResult.subjectKeyId = ab2hex(ski.keyIdentifier.valueBlock.valueHex);
+                }
             }
         } catch(e) { console.error("Failed to parse Subject Key Identifier:", e); }
 
@@ -1062,6 +1064,7 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+
 
 
 
