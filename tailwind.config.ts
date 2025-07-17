@@ -25,6 +25,10 @@ export default {
           DEFAULT: 'hsl(var(--popover))',
           foreground: 'hsl(var(--popover-foreground))',
         },
+        header: {
+          DEFAULT: 'hsl(var(--header-background))',
+          foreground: 'hsl(var(--header-foreground))',
+        },
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',

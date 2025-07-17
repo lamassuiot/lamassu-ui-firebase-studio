@@ -14,6 +14,9 @@
     /* #0f67ff Light Sky Blue */
     --primary-foreground: 0 0% 98%;
     /* Near White */
+    
+    --header-background: 217 100% 53%; /* Custom header background */
+    --header-foreground: 0 0% 98%;    /* Custom header foreground */
 
     --accent: 150 65% 85%;
     /* #a2ecc8 Periwinkle (greenish) */
@@ -98,6 +101,9 @@
     /* Slightly lighter/desaturated primary */
     --primary-foreground: 0 0% 98%;
     /* Near White */
+    
+    --header-background: 217 90% 35%; /* Custom header background for dark mode */
+    --header-foreground: 0 0% 98%;    /* Custom header foreground for dark mode */
 
     --accent: 150 50% 70%;
     /* Muted accent */

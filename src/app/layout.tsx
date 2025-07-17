@@ -210,9 +210,9 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   return (
     <SidebarProvider defaultOpen>
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
-        <header className="flex h-14 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
+        <header className="flex h-14 items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <SidebarTrigger className="md:hidden text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" />
+            <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
             <Image
               src={LogoFullWhite}
               height={30}
@@ -226,10 +226,10 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                 <ThemeToggle />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
+                    <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto text-header-foreground hover:bg-header/80 hover:text-header-foreground">
                       <span className='hidden sm:inline'>{user?.profile.name}</span>
-                       <div className='flex items-center justify-center bg-primary-foreground/20 rounded-full h-8 w-8'>
-                        <User className="h-5 w-5 text-primary-foreground" />
+                       <div className='flex items-center justify-center bg-header-foreground/20 rounded-full h-8 w-8'>
+                        <User className="h-5 w-5 text-header-foreground" />
                       </div>
                     </Button>
                   </DropdownMenuTrigger>
@@ -260,7 +260,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                 </DropdownMenu>
               </>
             ) : (
-              <Button variant="ghost" size="sm" onClick={login} className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
+              <Button variant="ghost" size="sm" onClick={login} className="text-header-foreground hover:bg-header/80 hover:text-header-foreground">
                 <LogIn className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Login</span>
               </Button>
             )}
