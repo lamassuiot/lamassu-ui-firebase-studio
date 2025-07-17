@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,6 +15,10 @@
     /* #0f67ff Light Sky Blue */
     --primary-foreground: 0 0% 98%;
     /* Near White */
+    
+    --header-background: 217 100% 53%; /* Custom header background */
+    --header-foreground: 0 0% 98%;    /* Custom header foreground */
+    --header-height: 3rem; 
 
     --accent: 150 65% 85%;
     /* #a2ecc8 Periwinkle (greenish) */
@@ -85,6 +90,10 @@
     /* Sidebar border */
     --sidebar-ring: 217 90% 65%;
     /* Ring color */
+
+    /* Variable for secondary logo */
+    --secondary-logo-url: url('https://placehold.co/200x60.png');
+    --secondary-logo-display: none;
   }
 
   .dark {
@@ -98,6 +107,10 @@
     /* Slightly lighter/desaturated primary */
     --primary-foreground: 0 0% 98%;
     /* Near White */
+    
+    --header-background: 217 90% 35%; /* Custom header background for dark mode */
+    --header-foreground: 0 0% 98%;    /* Custom header foreground for dark mode */
+    --header-height: 3.5rem; /* h-14 */
 
     --accent: 150 50% 70%;
     /* Muted accent */
@@ -295,5 +308,20 @@
     color: hsl(var(--foreground));
     padding-left: 10px;
     padding-right: 10px;
+  }
+
+  /* Styles for CSS-variable controlled secondary logo */
+  .secondary-logo {
+    background-image: var(--secondary-logo-url);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+
+  .secondary-logo-container {
+    display: var(--secondary-logo-display, flex); /* Default to flex */
+    align-items: center;
+    gap: 1rem;
+    height: 100%;
   }
 }

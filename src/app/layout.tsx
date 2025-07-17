@@ -170,7 +170,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const searchParams = useSearchParams();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-
+  
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
   if (isAuthenticated() && user?.access_token) {
@@ -210,14 +210,33 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   return (
     <SidebarProvider defaultOpen>
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
-        <header className="flex h-14 items-center justify-between border-b border-primary-foreground/30 bg-primary text-primary-foreground px-4 md:px-6 sticky top-0 z-30">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="md:hidden text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" />
+        <header className="flex h-header items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
+          <div className="flex items-center gap-4 h-full py-2">
+            {isAuthenticated() && (
+              <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
+            )}
+             <div className="secondary-logo-container">
+               <div
+                  className="secondary-logo h-full w-auto aspect-[200/60]"
+                  data-ai-hint="logo"
+                  role="img"
+                  aria-label="Secondary Logo"
+                />
+               <Separator orientation="vertical" className="h-full bg-header-foreground/30" />
+              </div>
             <Image
               src={LogoFullWhite}
-              height={30}
-              width={140}
+              height={60}
+              width={280}
               alt="LamassuIoT Logo"
+              className="hidden md:block h-full w-auto"
+            />
+            <Image
+              src={LogoBlue}
+              height={60}
+              width={60}
+              alt="LamassuIoT Logo"
+              className="block md:hidden h-full w-auto invert brightness-0"
             />
           </div>
           <div className="flex items-center gap-4">
@@ -226,10 +245,10 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                 <ThemeToggle />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
+                    <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto text-header-foreground hover:bg-header/80 hover:text-header-foreground">
                       <span className='hidden sm:inline'>{user?.profile.name}</span>
-                       <div className='flex items-center justify-center bg-primary-foreground/20 rounded-full h-8 w-8'>
-                        <User className="h-5 w-5 text-primary-foreground" />
+                       <div className='flex items-center justify-center bg-header-foreground/20 rounded-full h-8 w-8'>
+                        <User className="h-5 w-5 text-header-foreground" />
                       </div>
                     </Button>
                   </DropdownMenuTrigger>
@@ -260,7 +279,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                 </DropdownMenu>
               </>
             ) : (
-              <Button variant="ghost" size="sm" onClick={login} className="text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground">
+              <Button variant="ghost" size="sm" onClick={login} className="text-header-foreground hover:bg-header/80 hover:text-header-foreground">
                 <LogIn className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Login</span>
               </Button>
             )}
@@ -272,11 +291,29 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
             <Sidebar collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
               <SidebarHeader className="p-4">
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+                   <div className="secondary-logo-container group-data-[collapsible=icon]:hidden">
+                     <div className="secondary-logo h-[30px] w-auto aspect-[200/60]"/>
+                   </div>
                   <Image
                     src={LogoFullBlue}
                     height={30}
                     width={140}
                     alt="LamassuIoT Logo"
+                    className="group-data-[collapsible=icon]:hidden dark:hidden"
+                  />
+                   <Image
+                    src={LogoFullWhite}
+                    height={30}
+                    width={140}
+                    alt="LamassuIoT Logo"
+                    className="group-data-[collapsible=icon]:hidden hidden dark:block"
+                  />
+                  <Image
+                    src={LogoBlue}
+                    height={30}
+                    width={30}
+                    alt="LamassuIoT Logo"
+                    className="hidden group-data-[collapsible=icon]:block"
                   />
                 </div>
               </SidebarHeader>
@@ -496,7 +533,23 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="/custom-theme.css" />
+        <Script id="theme-loader">
+          {`
+            (function() {
+              try {
+                var themeFile = window.lamassuConfig?.LAMASSU_THEME;
+                if (themeFile) {
+                  var link = document.createElement('link');
+                  link.href = '/themes/' + themeFile;
+                  link.rel = 'stylesheet';
+                  document.head.appendChild(link);
+                }
+              } catch (e) {
+                console.error('Error loading theme:', e);
+              }
+            })();
+          `}
+        </Script>
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
