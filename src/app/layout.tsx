@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import './globals.css';
@@ -360,7 +359,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
                   
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">Tools</SidebarGroupLabel>
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">TOOLS</SidebarGroupLabel>
                   {toolsItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
