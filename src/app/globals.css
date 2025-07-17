@@ -93,7 +93,7 @@
 
     /* Variable for secondary logo */
     --secondary-logo-url: url('https://placehold.co/200x60.png');
-    --secondary-logo-display: flex;
+    --secondary-logo-display: none;
   }
 
   .dark {
