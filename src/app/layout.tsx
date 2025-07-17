@@ -219,19 +219,15 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               width={140}
               alt="LamassuIoT Logo"
             />
-            {isAuthenticated() && (
-              <>
-                <Separator orientation="vertical" className="h-8 bg-header-foreground/30 hidden md:block" />
-                <div data-ai-hint="company logo" className="hidden md:block">
-                  <Image
-                    src="https://placehold.co/120x30.png"
-                    width={120}
-                    height={30}
-                    alt="Secondary Logo"
-                  />
-                </div>
-              </>
-            )}
+            <Separator orientation="vertical" className="h-8 bg-header-foreground/30 hidden md:block" />
+            <div data-ai-hint="company logo" className="hidden md:block">
+              <Image
+                src="https://placehold.co/120x30.png"
+                width={120}
+                height={30}
+                alt="Secondary Logo"
+              />
+            </div>
           </div>
           <div className="flex items-center gap-4">
             {isAuthenticated() ? (
