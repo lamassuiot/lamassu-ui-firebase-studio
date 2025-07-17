@@ -230,35 +230,35 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
     <SidebarProvider defaultOpen>
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
         <header className="flex h-header items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 h-full py-2">
             <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
              {showSecondaryLogo && (
               <>
                <Image
-                  src={secondaryLogoUrl || 'https://placehold.co/100x30.png'}
+                  src={secondaryLogoUrl || 'https://placehold.co/200x60.png'}
                   data-ai-hint="logo"
-                  width={100}
-                  height={30}
+                  width={200}
+                  height={60}
                   alt="Secondary Logo"
-                  className="h-[30px] w-auto"
+                  className="h-full w-auto"
                   unoptimized // Important for dynamic external or public URLs
                />
-               <Separator orientation="vertical" className="h-8 bg-header-foreground/30" />
+               <Separator orientation="vertical" className="h-full bg-header-foreground/30" />
               </>
              )}
             <Image
               src={LogoFullWhite}
-              height={30}
-              width={140}
+              height={60}
+              width={280}
               alt="LamassuIoT Logo"
-              className="hidden md:block"
+              className="hidden md:block h-full w-auto"
             />
             <Image
               src={LogoBlue}
-              height={30}
-              width={30}
+              height={60}
+              width={60}
               alt="LamassuIoT Logo"
-              className="block md:hidden invert brightness-0"
+              className="block md:hidden h-full w-auto invert brightness-0"
             />
           </div>
           <div className="flex items-center gap-4">
