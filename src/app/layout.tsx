@@ -170,6 +170,12 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const searchParams = useSearchParams();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [showSecondaryLogo, setShowSecondaryLogo] = useState(false);
+
+  useEffect(() => {
+    const secondaryLogoEnabled = (window as any).lamassuConfig?.LAMASSU_SECONDARY_LOGO_ENABLED === true;
+    setShowSecondaryLogo(secondaryLogoEnabled);
+  }, []);
 
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
@@ -213,14 +219,16 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
         <header className="flex h-14 items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
-             <Image
-                src="https://placehold.co/30x30.png"
-                data-ai-hint="logo"
-                width={30}
-                height={30}
-                alt="Secondary Logo"
-                className="block"
-             />
+             {showSecondaryLogo && (
+               <Image
+                  src="https://placehold.co/30x30.png"
+                  data-ai-hint="logo"
+                  width={30}
+                  height={30}
+                  alt="Secondary Logo"
+                  className="block"
+               />
+             )}
             <Separator orientation="vertical" className="h-8 bg-header-foreground/30" />
             <Image
               src={LogoFullWhite}
@@ -289,14 +297,16 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
             <Sidebar collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
               <SidebarHeader className="p-4">
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-                   <Image
-                      src="https://placehold.co/30x30.png"
-                      data-ai-hint="logo"
-                      width={30}
-                      height={30}
-                      alt="Secondary Logo"
-                      className="block group-data-[collapsible=icon]:hidden"
-                   />
+                   {showSecondaryLogo && (
+                     <Image
+                        src="https://placehold.co/30x30.png"
+                        data-ai-hint="logo"
+                        width={30}
+                        height={30}
+                        alt="Secondary Logo"
+                        className="block group-data-[collapsible=icon]:hidden"
+                     />
+                   )}
                   <Image
                     src={LogoFullBlue}
                     height={30}
