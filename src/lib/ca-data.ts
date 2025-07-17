@@ -1,7 +1,8 @@
 
+
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo, AuthorityKeyIdentifier } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
 
@@ -40,7 +41,7 @@ interface ApiCertificateData {
   issuer: ApiDistinguishedName; // Issuer DN from cert, issuer_metadata.id is the CA ID
   valid_from: string; // ISO Date string
   issuer_metadata: ApiIssuerMetadata;
-  valid_to: string; // ISO Date string
+  valid_to: string; // ISO date string
   revocation_timestamp?: string;
   revocation_reason?: string;
   type?: string; // "MANAGED"
@@ -125,28 +126,73 @@ const KEY_USAGE_NAMES = [
     "keyAgreement", "keyCertSign", "cRLSign", "encipherOnly", "decipherOnly"
 ];
 
+const OID_MAP: Record<string, string> = {
+  "2.5.4.3": "CN", "2.5.4.6": "C", "2.5.4.7": "L", "2.5.4.8": "ST", "2.5.4.10": "O", "2.5.4.11": "OU",
+  "1.2.840.113549.1.1.1": "RSA", "1.2.840.10045.2.1": "EC",
+  "1.2.840.10045.3.1.7": "P-256", "1.3.132.0.34": "P-384", "1.3.132.0.35": "P-521",
+};
+
+const formatPkijsSubject = (subject: RelativeDistinguishedNames): string => {
+  return subject.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
+};
+
+const formatPkijsPublicKeyInfo = (publicKeyInfo: PublicKeyInfo): string => {
+  const algoOid = publicKeyInfo.algorithm.algorithmId;
+  const algoName = OID_MAP[algoOid] || algoOid;
+  let details = "";
+  if (algoName === "EC" && publicKeyInfo.algorithm.parameters && (publicKeyInfo.algorithm.parameters as any).valueBlock) {
+      const curveOid = (publicKeyInfo.algorithm.parameters as any).valueBlock.value as string;
+      details = `(Curve: ${OID_MAP[curveOid] || curveOid})`;
+  } else if (algoName === "RSA" && publicKeyInfo.parsedKey && (publicKeyInfo.parsedKey as any).modulus) {
+      const modulusBytes = (publicKeyInfo.parsedKey as any).modulus.valueBlock.valueHex.byteLength;
+      details = `(${(modulusBytes - (new Uint8Array((publicKeyInfo.parsedKey as any).modulus.valueBlock.valueHex)[0] === 0 ? 1:0)) * 8} bits)`;
+  }
+  return `${algoName} ${details}`;
+};
+
+const ab2hex = (ab: ArrayBuffer) => Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join(':');
 
 export interface ParsedPemDetails {
+    subject: string;
+    issuer: string;
+    serialNumber: string;
+    validFrom: string;
+    validTo: string;
+    publicKeyAlgorithm: string;
     signatureAlgorithm: string;
     crlDistributionPoints: string[];
     ocspUrls: string[];
     caIssuersUrls: string[];
-    pathLenConstraint: number | 'None';
-    sans: string[];
-    keyUsage: string[];
-    extendedKeyUsage: string[];
+    isCa?: boolean;
+    pathLenConstraint?: number | 'None';
+    sans?: string[];
+    keyUsage?: string[];
+    extendedKeyUsage?: string[];
+    subjectKeyId?: string;
+    authorityKeyId?: string;
+    fingerprintSha256?: string;
 }
 
-export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
+export async function parseCertificatePemDetails(pem: string): Promise<ParsedPemDetails> {
     const defaultResult: ParsedPemDetails = {
+        subject: 'N/A',
+        issuer: 'N/A',
+        serialNumber: 'N/A',
+        validFrom: new Date(0).toISOString(),
+        validTo: new Date(0).toISOString(),
+        publicKeyAlgorithm: 'N/A',
         signatureAlgorithm: 'N/A',
         crlDistributionPoints: [],
         ocspUrls: [],
         caIssuersUrls: [],
-        pathLenConstraint: 'None',
+        isCa: undefined,
+        pathLenConstraint: undefined,
         sans: [],
         keyUsage: [],
-        extendedKeyUsage: []
+        extendedKeyUsage: [],
+        subjectKeyId: undefined,
+        authorityKeyId: undefined,
+        fingerprintSha256: undefined,
     };
 
     if (typeof window === 'undefined' || !pem) return defaultResult;
@@ -167,6 +213,20 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
 
         const certificate = new Certificate({ schema: asn1.result });
         
+        // Calculate SHA-256 fingerprint of the raw DER buffer
+        if (typeof window !== 'undefined' && window.crypto?.subtle) {
+            try {
+                const hashBuffer = await crypto.subtle.digest('SHA-256', bytes.buffer);
+                defaultResult.fingerprintSha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(':');
+            } catch(e) { console.error("Could not calculate fingerprint", e); }
+        }
+
+        defaultResult.subject = formatPkijsSubject(certificate.subject);
+        defaultResult.issuer = formatPkijsSubject(certificate.issuer);
+        defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
+        defaultResult.validFrom = certificate.notBefore.value.toISOString();
+        defaultResult.validTo = certificate.notAfter.value.toISOString();
+        defaultResult.publicKeyAlgorithm = formatPkijsPublicKeyInfo(certificate.subjectPublicKeyInfo);
         
         try {
             const signatureAlgorithmOid = certificate.signatureAlgorithm.algorithmId;
@@ -188,7 +248,7 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         try {
             const aiaExtension = certificate.extensions?.find(ext => ext.extnID === "1.3.6.1.5.5.7.1.1");
             if (aiaExtension?.parsedValue) {
-                const aia = aiaExtension.parsedValue as AuthorityInformationAccess;
+                const aia = aiaExtension.parsedValue;
                 aia.accessDescriptions.forEach((desc: any) => {
                     if (desc.accessMethod === "1.3.6.1.5.5.7.48.1" && desc.accessLocation.type === 6) { // id-ad-ocsp
                         defaultResult.ocspUrls.push(desc.accessLocation.value);
@@ -203,6 +263,7 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
             const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
             if (bcExtension?.parsedValue) {
                 const basicConstraints = bcExtension.parsedValue as BasicConstraints;
+                defaultResult.isCa = basicConstraints.cA;
                 if (basicConstraints.pathLenConstraint !== undefined) {
                     defaultResult.pathLenConstraint = basicConstraints.pathLenConstraint;
                 }
@@ -251,6 +312,29 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
                 });
             }
         } catch(e) { console.error("Failed to parse Extended Key Usage:", e); }
+        
+        try {
+            const skiExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.14");
+            if (skiExtension?.parsedValue) {
+                const ski = skiExtension.parsedValue;
+                if (ski.valueBlock?.valueHex) {
+                    defaultResult.subjectKeyId = ab2hex(ski.valueBlock.valueHex);
+                }
+            }
+        } catch(e) { console.error("Failed to parse Subject Key Identifier:", e); }
+
+        try {
+            const akiExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.35");
+            if (akiExtension?.parsedValue) {
+                const aki = akiExtension.parsedValue as AuthorityKeyIdentifier;
+                if (aki.keyIdentifier) {
+                    if (aki.keyIdentifier.valueBlock?.valueHex) {
+                        defaultResult.authorityKeyId = ab2hex(aki.keyIdentifier.valueBlock.valueHex);
+                    }
+                }
+            }
+        } catch(e) { console.error("Failed to parse Authority Key Identifier:", e); }
+
 
         return defaultResult;
 
@@ -991,3 +1075,10 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+
+
+
+
+
+
+

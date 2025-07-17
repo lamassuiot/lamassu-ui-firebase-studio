@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -23,6 +24,7 @@ interface Option {
 interface MultiSelectDropdownProps {
   id?: string;
   options: Option[];
+  allOptionValues: string[];
   selectedValues: string[];
   onChange: (selected: string[]) => void;
   buttonText?: string;
@@ -32,6 +34,7 @@ interface MultiSelectDropdownProps {
 export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   id,
   options,
+  allOptionValues,
   selectedValues,
   onChange,
   buttonText = "Select options...",
@@ -42,6 +45,14 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
       ? selectedValues.filter((v) => v !== value)
       : [...selectedValues, value];
     onChange(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    onChange(allOptionValues);
+  };
+
+  const handleClear = () => {
+    onChange([]);
   };
 
   const selectedLabels = options
@@ -67,7 +78,11 @@ export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end">
-        <DropdownMenuLabel>Select Statuses</DropdownMenuLabel>
+        <DropdownMenuLabel>Select Sources</DropdownMenuLabel>
+        <div className="flex justify-between px-2 py-1">
+            <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={handleSelectAll}>Select All</Button>
+            <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={handleClear}>Clear</Button>
+        </div>
         <DropdownMenuSeparator />
         {options.map((option) => (
           <DropdownMenuCheckboxItem
