@@ -205,6 +205,7 @@ export default function CertificateAuthoritiesPage() {
                  <MultiSelectDropdown
                     id="status-filter"
                     options={STATUS_OPTIONS}
+                    allOptionValues={STATUS_OPTIONS.map(o => o.value)}
                     selectedValues={selectedStatuses}
                     onChange={setSelectedStatuses as (selected: string[]) => void}
                     buttonText="Filter by status..."
@@ -215,6 +216,7 @@ export default function CertificateAuthoritiesPage() {
                  <MultiSelectDropdown
                     id="type-filter"
                     options={TYPE_OPTIONS}
+                    allOptionValues={TYPE_OPTIONS.map(o => o.value)}
                     selectedValues={selectedTypes}
                     onChange={setSelectedTypes as (selected: string[]) => void}
                     buttonText="Filter by type..."
@@ -265,9 +267,9 @@ export default function CertificateAuthoritiesPage() {
           ) : (
             !errorCas && !(viewMode === 'list' && errorCryptoEngines) && (
               <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-                <h3 className="text-lg font-semibold text-muted-foreground">{filterText || selectedStatuses.length > 0 ? 'No Matching CAs Found' : 'No Certification Authorities Configured'}</h3>
+                <h3 className="text-lg font-semibold text-muted-foreground">{filterText || selectedStatuses.length > 0 || selectedTypes.length > 0 ? 'No Matching CAs Found' : 'No Certification Authorities Configured'}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {filterText || selectedStatuses.length > 0 ? 'Try adjusting your filters.' : 'There are no CAs in the system yet.'}
+                  {filterText || selectedStatuses.length > 0 || selectedTypes.length > 0 ? 'Try adjusting your filters.' : 'There are no CAs in the system yet.'}
                 </p>
               </div>
             )
