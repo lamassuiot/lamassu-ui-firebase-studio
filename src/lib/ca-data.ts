@@ -175,8 +175,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         subject: 'N/A',
         issuer: 'N/A',
         serialNumber: 'N/A',
-        validFrom: 'N/A',
-        validTo: 'N/A',
+        validFrom: new Date(0).toISOString(),
+        validTo: new Date(0).toISOString(),
         publicKeyAlgorithm: 'N/A',
         signatureAlgorithm: 'N/A',
         crlDistributionPoints: [],
@@ -209,8 +209,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         defaultResult.subject = formatPkijsSubject(certificate.subject);
         defaultResult.issuer = formatPkijsSubject(certificate.issuer);
         defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
-        defaultResult.validFrom = formatDate(certificate.notBefore.value, "PPpp");
-        defaultResult.validTo = formatDate(certificate.notAfter.value, "PPpp");
+        defaultResult.validFrom = certificate.notBefore.value.toISOString();
+        defaultResult.validTo = certificate.notAfter.value.toISOString();
         defaultResult.publicKeyAlgorithm = formatPkijsPublicKeyInfo(certificate.subjectPublicKeyInfo);
         
         try {
@@ -1036,5 +1036,6 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+
 
 
