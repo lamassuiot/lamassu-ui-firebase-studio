@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -285,16 +286,6 @@ export const RegisterDeviceModal: React.FC<RegisterDeviceModalProps> = ({
                     <Label htmlFor="device-tags">Tags</Label>
                     <TagInput id="device-tags" value={tags} onChange={setTags} />
                   </div>
-                   <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="raw-data" className="border-t">
-                        <AccordionTrigger className="text-sm text-muted-foreground pt-3">View Raw RA Data</AccordionTrigger>
-                        <AccordionContent>
-                        <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto mt-1">
-                            {JSON.stringify(selectedRa, null, 2)}
-                        </pre>
-                        </AccordionContent>
-                    </AccordionItem>
-                    </Accordion>
                 </div>
               </>
             )}
