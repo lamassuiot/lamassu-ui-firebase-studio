@@ -211,7 +211,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
     <SidebarProvider defaultOpen>
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
         <header className="flex h-14 items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
             <Image
               src={LogoFullWhite}
@@ -219,11 +219,10 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               width={140}
               alt="LamassuIoT Logo"
             />
-          </div>
-          <div className="flex items-center gap-4">
-            {isAuthenticated() ? (
+            {isAuthenticated() && (
               <>
-                 <div data-ai-hint="company logo" className="hidden md:block">
+                <Separator orientation="vertical" className="h-8 bg-header-foreground/30 hidden md:block" />
+                <div data-ai-hint="company logo" className="hidden md:block">
                   <Image
                     src="https://placehold.co/120x30.png"
                     width={120}
@@ -231,7 +230,12 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     alt="Secondary Logo"
                   />
                 </div>
-                <Separator orientation="vertical" className="h-8 bg-header-foreground/30 hidden md:block" />
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            {isAuthenticated() ? (
+              <>
                 <ThemeToggle />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
