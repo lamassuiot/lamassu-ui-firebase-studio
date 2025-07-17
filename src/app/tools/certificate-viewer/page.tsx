@@ -143,7 +143,7 @@ const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ t
     if (sectionMatch && sectionMatch[1] && !text.toUpperCase().includes('BRS:')) {
       url += `#section-${sectionMatch[1]}`;
     }
-    const displayText = type === 'source' ? RFC_TITLE_MAP[rfcNumber] : text;
+    const displayText = RFC_TITLE_MAP[rfcNumber] || text;
     return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{displayText}</a>;
   }
 
@@ -407,7 +407,7 @@ export default function CertificateViewerPage() {
             <TabsList>
                 <TabsTrigger value="input">PEM Input</TabsTrigger>
                 <TabsTrigger value="details" disabled={!parsedDetails}>Parsed Details</TabsTrigger>
-                <TabsTrigger value="linter" disabled={!parsedDetails}>Zlint Linter</TabsTrigger>
+                <TabsTrigger value="linter" disabled={!parsedDetails}>Certificate Linter</TabsTrigger>
             </TabsList>
             
             <TabsContent value="input">
@@ -515,8 +515,8 @@ export default function CertificateViewerPage() {
             <TabsContent value="linter">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Zlint Linter</CardTitle>
-                        <CardDescription>Analyze the certificate against Zlint rules.</CardDescription>
+                        <CardTitle>Certificate Linter</CardTitle>
+                        <CardDescription>Analyze the certificate against a set of linting rules.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col md:flex-row gap-4 items-end">
@@ -616,6 +616,13 @@ export default function CertificateViewerPage() {
                                         </div>
                                     </div>
                                 )}
+                                <div className="text-xs text-muted-foreground text-center mt-6 pt-4 border-t">
+                                    Linting rules and descriptions are provided by the open-source{' '}
+                                    <a href="https://github.com/zmap/zlint" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                        Zlint
+                                    </a>{' '}
+                                    project.
+                                </div>
                             </div>
                         )}
                     </CardContent>
@@ -626,6 +633,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 
