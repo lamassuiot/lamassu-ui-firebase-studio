@@ -1,4 +1,9 @@
 :root {
+  --header-height: 3rem; /* h-14 */
+ /* --secondary-logo-url: url('/themes/ik/ik.svg');*/
+}
+
+:root:not(.dark) {
     /* IK-Theme Light Mode */
     --background: 220 13% 96%; /* #f2f4f7 - Light Gray */
     --foreground: 224 71% 4%; /* #080f1e - Nearly Black */
@@ -39,8 +44,6 @@
     --sidebar-accent: 220 13% 88%;
     --sidebar-accent-foreground: 224 71% 4%;
     --sidebar-border: 220 13% 88%;
-    
-    --secondary-logo-url: url('https://www.ikerlan.es/images/logo-ikerlan.svg');
 }
 
 .dark {

@@ -38,7 +38,7 @@ window.lamassuConfig = {
     LAMASSU_FOOTER_ENABLED: false,
   
     // Set to true to display a secondary logo in the top navigation bar.
-    LAMASSU_SECONDARY_LOGO_ENABLED: true,
+    LAMASSU_SECONDARY_LOGO_ENABLED: false,
     // A comma-separated list of available connector instances for platform integrations.
     // This allows the UI to present a list of possible integrations to the user.
     // Example: "aws.123456789012.eu-west-1,aws.987654321098.us-east-1"
