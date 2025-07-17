@@ -329,7 +329,14 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     height={30}
                     width={140}
                     alt="LamassuIoT Logo"
-                    className="group-data-[collapsible=icon]:hidden"
+                    className="group-data-[collapsible=icon]:hidden dark:hidden"
+                  />
+                   <Image
+                    src={LogoFullWhite}
+                    height={30}
+                    width={140}
+                    alt="LamassuIoT Logo"
+                    className="group-data-[collapsible=icon]:hidden hidden dark:block"
                   />
                   <Image
                     src={LogoBlue}
