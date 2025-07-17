@@ -1,0 +1,100 @@
+/* 
+  Lamassu IoT - Alternate Theme
+  - Light Theme: Charcoal header, white content, orange accents.
+  - Dark Theme: Very dark gray background, orange accents.
+*/
+
+:root {
+  --header-height: 3.5rem; /* h-14 */
+}
+
+/* ------------------------- */
+/* --- LIGHT THEME (DAY) --- */
+/* ------------------------- */
+
+:root:not(.dark) {
+  --background: 0 0% 100%;                  /* #ffffff White */
+  --foreground: 240 10% 3.9%;              /* #0a0a0a Near Black */
+
+  --card: 0 0% 100%;                       /* #ffffff White */
+  --card-foreground: 240 10% 3.9%;         /* #0a0a0a Near Black */
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+
+  --primary: 16 100% 67%;                  /* #ff7f50 Coral Orange */
+  --primary-foreground: 0 0% 100%;         /* White */
+
+  --secondary: 240 4.8% 95.9%;             /* #f4f4f5 Cool Gray 100 */
+  --secondary-foreground: 240 5.9% 10%;    /* #18181b Cool Gray 900 */
+
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 16 100% 67%;                     /* Coral Orange for focus */
+
+  /* Header & Sidebar Overrides */
+  --header-background: 240 10% 3.9%;       /* #0a0a0a Near Black */
+  --header-foreground: 0 0% 98%;           /* #fafafa Near White */
+  --sidebar-background: 240 4.8% 95.9%;    /* #f4f4f5 Cool Gray 100 */
+  --sidebar-foreground: 240 5.9% 10%;     /* #18181b Cool Gray 900 */
+  --sidebar-primary: 16 100% 67%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 240 5.9% 90%;
+  --sidebar-accent-foreground: 240 5.9% 10%;
+  --sidebar-border: 240 5.9% 90%;
+}
+
+
+/* -------------------------- */
+/* --- DARK THEME (NIGHT) --- */
+/* -------------------------- */
+
+.dark {
+  --background: 240 5.9% 10%;              /* #18181b Cool Gray 900 */
+  --foreground: 0 0% 98%;                  /* #fafafa Near White */
+
+  --card: 240 5.2% 13%;                    /* #1f1f22 Slightly Lighter Dark */
+  --card-foreground: 0 0% 98%;             /* #fafafa Near White */
+
+  --popover: 240 5.9% 10%;
+  --popover-foreground: 0 0% 98%;
+
+  --primary: 16 100% 67%;                  /* #ff7f50 Coral Orange */
+  --primary-foreground: 0 0% 98%;         /* White */
+
+  --secondary: 240 3.7% 15.9%;             /* #27272a Dark Gray */
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+
+  --destructive: 0 72.2% 50.6%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 16 100% 67%;                     /* Coral Orange for focus */
+  
+  /* Header & Sidebar Overrides */
+  --header-background: 240 10% 3.9%;       /* #0a0a0a Near Black */
+  --header-foreground: 0 0% 98%;           /* #fafafa Near White */
+  --sidebar-background: 240 5.9% 10%;      /* #18181b Cool Gray 900 */
+  --sidebar-foreground: 0 0% 98%;          /* #fafafa Near White */
+  --sidebar-primary: 16 100% 67%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 240 3.7% 15.9%;
+}
