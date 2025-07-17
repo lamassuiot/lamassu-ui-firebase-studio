@@ -133,7 +133,7 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
 
 const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ text, type }) => {
   if (!text) return <>N/A</>;
-
+  
   if (text === "Mozilla Root Store Policy") {
     return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
@@ -447,6 +447,17 @@ export default function CertificateViewerPage() {
                            <DetailItem label="Valid From" value={parsedDetails?.validFrom} />
                            <DetailItem label="Valid To" value={parsedDetails?.validTo} />
                            <DetailItem label="Public Key Algorithm" value={parsedDetails?.publicKeyAlgorithm} />
+                           {parsedDetails?.isCa !== undefined && (
+                               <DetailItem label="Is CA" value={<Badge variant={parsedDetails.isCa ? "default" : "secondary"}>{parsedDetails.isCa ? 'TRUE' : 'FALSE'}</Badge>} />
+                           )}
+                           {parsedDetails?.pathLenConstraint !== undefined && parsedDetails.pathLenConstraint !== null && (
+                                <DetailItem label="Path Length Constraint" value={String(parsedDetails.pathLenConstraint)} />
+                           )}
+                        </div>
+                        <Separator />
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                           <DetailItem label="Subject Key Identifier (SKI)" value={parsedDetails?.subjectKeyId} isMono />
+                           <DetailItem label="Authority Key Identifier (AKI)" value={parsedDetails?.authorityKeyId} isMono />
                         </div>
                         <Separator />
                         <h4 className="font-medium text-md text-muted-foreground pt-2">Extensions</h4>
@@ -611,6 +622,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 

@@ -2,7 +2,7 @@
 
 // Define the CA data structure
 import * as asn1js from "asn1js";
-import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo } from "pkijs";
+import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo, SubjectKeyIdentifier, AuthorityKeyIdentifier } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
 import { format as formatDate, parseISO, isValid } from 'date-fns';
@@ -151,7 +151,7 @@ const formatPkijsPublicKeyInfo = (publicKeyInfo: PublicKeyInfo): string => {
   return `${algoName} ${details}`;
 };
 
-const ab2hex = (ab: ArrayBuffer) => Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
+const ab2hex = (ab: ArrayBuffer) => Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join(':');
 
 export interface ParsedPemDetails {
     subject: string;
@@ -164,10 +164,13 @@ export interface ParsedPemDetails {
     crlDistributionPoints: string[];
     ocspUrls: string[];
     caIssuersUrls: string[];
-    pathLenConstraint: number | 'None';
-    sans: string[];
-    keyUsage: string[];
-    extendedKeyUsage: string[];
+    isCa?: boolean;
+    pathLenConstraint?: number | 'None';
+    sans?: string[];
+    keyUsage?: string[];
+    extendedKeyUsage?: string[];
+    subjectKeyId?: string;
+    authorityKeyId?: string;
 }
 
 export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
@@ -182,10 +185,13 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         crlDistributionPoints: [],
         ocspUrls: [],
         caIssuersUrls: [],
-        pathLenConstraint: 'None',
+        isCa: undefined,
+        pathLenConstraint: undefined,
         sans: [],
         keyUsage: [],
-        extendedKeyUsage: []
+        extendedKeyUsage: [],
+        subjectKeyId: undefined,
+        authorityKeyId: undefined,
     };
 
     if (typeof window === 'undefined' || !pem) return defaultResult;
@@ -209,8 +215,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         defaultResult.subject = formatPkijsSubject(certificate.subject);
         defaultResult.issuer = formatPkijsSubject(certificate.issuer);
         defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
-        defaultResult.validFrom = certificate.notBefore.value.toISOString();
-        defaultResult.validTo = certificate.notAfter.value.toISOString();
+        defaultResult.validFrom = formatDate(certificate.notBefore.value, 'PPpp');
+        defaultResult.validTo = formatDate(certificate.notAfter.value, 'PPpp');
         defaultResult.publicKeyAlgorithm = formatPkijsPublicKeyInfo(certificate.subjectPublicKeyInfo);
         
         try {
@@ -248,6 +254,7 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
             const bcExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.19");
             if (bcExtension?.parsedValue) {
                 const basicConstraints = bcExtension.parsedValue as BasicConstraints;
+                defaultResult.isCa = basicConstraints.cA;
                 if (basicConstraints.pathLenConstraint !== undefined) {
                     defaultResult.pathLenConstraint = basicConstraints.pathLenConstraint;
                 }
@@ -296,6 +303,25 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
                 });
             }
         } catch(e) { console.error("Failed to parse Extended Key Usage:", e); }
+        
+        try {
+            const skiExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.14");
+            if (skiExtension?.parsedValue) {
+                const ski = skiExtension.parsedValue as SubjectKeyIdentifier;
+                defaultResult.subjectKeyId = ab2hex(ski.keyIdentifier.valueBlock.valueHex);
+            }
+        } catch(e) { console.error("Failed to parse Subject Key Identifier:", e); }
+
+        try {
+            const akiExtension = certificate.extensions?.find(ext => ext.extnID === "2.5.29.35");
+            if (akiExtension?.parsedValue) {
+                const aki = akiExtension.parsedValue as AuthorityKeyIdentifier;
+                if (aki.keyIdentifier) {
+                    defaultResult.authorityKeyId = ab2hex(aki.keyIdentifier.valueBlock.valueHex);
+                }
+            }
+        } catch(e) { console.error("Failed to parse Authority Key Identifier:", e); }
+
 
         return defaultResult;
 
@@ -1036,6 +1062,7 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+
 
 
 
