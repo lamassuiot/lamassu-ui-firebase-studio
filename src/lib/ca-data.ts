@@ -215,8 +215,8 @@ export function parseCertificatePemDetails(pem: string): ParsedPemDetails {
         defaultResult.subject = formatPkijsSubject(certificate.subject);
         defaultResult.issuer = formatPkijsSubject(certificate.issuer);
         defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
-        defaultResult.validFrom = formatDate(certificate.notBefore.value, 'PPpp');
-        defaultResult.validTo = formatDate(certificate.notAfter.value, 'PPpp');
+        defaultResult.validFrom = certificate.notBefore.value.toISOString();
+        defaultResult.validTo = certificate.notAfter.value.toISOString();
         defaultResult.publicKeyAlgorithm = formatPkijsPublicKeyInfo(certificate.subjectPublicKeyInfo);
         
         try {
@@ -1062,6 +1062,7 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+
 
 
 
