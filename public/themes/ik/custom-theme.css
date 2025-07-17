@@ -1,6 +1,7 @@
 :root {
   --header-height: 3rem; /* h-14 */
- /* --secondary-logo-url: url('/themes/ik/ik.svg');*/
+  --secondary-logo-display: none;
+  --secondary-logo-url: url('/themes/ik/ik.svg');
 }
 
 :root:not(.dark) {
