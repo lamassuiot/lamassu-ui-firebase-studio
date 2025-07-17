@@ -259,7 +259,7 @@ export default function CertificateViewerPage() {
             }
           }
           setLintProfileMap(profileMap);
-          const sortedSources = Array.from(sources).sort();
+          const sortedSources = Array.from(sources).sort((a, b) => a.localeCompare(b));
           setAvailableSources(sortedSources);
           // Default to selecting all RFC sources
           const rfcSources = sortedSources.filter(s => s.startsWith('RFC'));
@@ -633,3 +633,4 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
