@@ -70,7 +70,7 @@ const STATUS_OPTIONS: { value: CaStatusFilter; label: string }[] = [
 const TYPE_OPTIONS: { value: CaTypeFilter, label: string; icon: React.ElementType }[] = [
     { value: 'MANAGED', label: 'Managed', icon: Landmark },
     { value: 'IMPORTED', label: 'Imported', icon: UploadCloud },
-    { value: 'EXTERNAL_PUBLIC', label: 'External Public', icon: FileText },
+    { value: 'EXTERNAL', label: 'External', icon: FileText },
 ];
 
 
