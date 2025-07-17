@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle, Info, KeyRound, Lock, Link as LinkIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MultiSelectDropdown } from '@/components/shared/MultiSelectDropdown';
 import { Asn1Viewer } from '@/components/shared/Asn1Viewer';
 import * as asn1js from 'asn1js';
+import { format as formatDate, parseISO, isValid } from 'date-fns';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 // --- Zlint Types and Interfaces ---
@@ -80,18 +82,16 @@ const toTitleCase = (str: string) => {
 const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
     if (!urls || urls.length === 0) return null;
     return (
-      <DetailItem
-        label={listTitle}
-        value={
-          <ul className="list-disc list-inside space-y-1">
+      <>
+        <h5 className="font-medium text-sm mt-1">{listTitle}</h5>
+        <ul className="list-disc list-inside space-y-1 pl-4">
             {urls.map((url, i) => (
-              <li key={i}>
+            <li key={i}>
                 <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{url}</a>
-              </li>
+            </li>
             ))}
-          </ul>
-        }
-      />
+        </ul>
+      </>
     );
 };
 
@@ -134,7 +134,7 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
 const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ text, type }) => {
   if (!text) return <>N/A</>;
   
-  if (text === "Mozilla Root Store Policy") {
+  if (text.toUpperCase() === "MOZILLA ROOT STORE POLICY") {
     return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
   
@@ -146,7 +146,6 @@ const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ t
   if (rfcMatch) {
     const rfcNumber = rfcMatch[1].replace(/\s/g, '').toUpperCase();
     let url = `https://datatracker.ietf.org/doc/html/${rfcNumber.toLowerCase()}`;
-    // Look for a section number like ": 4.1.2.2" or "/ 7.1.5" and append it as a fragment
     const sectionMatch = text.match(/[:/]\s*([\w\.]+)/);
     if (sectionMatch && sectionMatch[1] && !text.toUpperCase().includes('BRS:')) {
       url += `#section-${sectionMatch[1]}`;
@@ -383,6 +382,8 @@ export default function CertificateViewerPage() {
   const availableSourceOptions = useMemo(() => {
     return availableSources.map(source => ({ value: source, label: source }));
   }, [availableSources]);
+  
+  const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
 
   return (
     <>
@@ -433,67 +434,82 @@ export default function CertificateViewerPage() {
             </TabsContent>
 
             <TabsContent value="details">
-                 <Card>
-                    <CardHeader><CardTitle>Parsed Certificate Details</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-                            <DetailItem label="Subject" value={parsedDetails?.subject} isMono />
-                            <DetailItem label="Issuer" value={parsedDetails?.issuer} isMono />
-                        </div>
-                        <Separator/>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-                           <DetailItem label="Serial Number" value={parsedDetails?.serialNumber} isMono />
-                           <DetailItem label="Signature Algorithm" value={parsedDetails?.signatureAlgorithm} isMono />
-                           <DetailItem label="Valid From" value={parsedDetails?.validFrom} />
-                           <DetailItem label="Valid To" value={parsedDetails?.validTo} />
-                           <DetailItem label="Public Key Algorithm" value={parsedDetails?.publicKeyAlgorithm} />
-                           {parsedDetails?.fingerprintSha256 && <DetailItem label="SHA-256 Fingerprint" value={parsedDetails.fingerprintSha256} isMono />}
-                           {parsedDetails?.isCa !== undefined && (
-                               <DetailItem label="Is CA" value={<Badge variant={parsedDetails.isCa ? "default" : "secondary"}>{parsedDetails.isCa ? 'TRUE' : 'FALSE'}</Badge>} />
-                           )}
-                           {parsedDetails?.pathLenConstraint !== undefined && parsedDetails.pathLenConstraint !== null && (
-                                <DetailItem label="Path Length Constraint" value={String(parsedDetails.pathLenConstraint)} />
-                           )}
-                        </div>
-                        <Separator />
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-                           <DetailItem label="Subject Key Identifier (SKI)" value={parsedDetails?.subjectKeyId} isMono />
-                           <DetailItem label="Authority Key Identifier (AKI)" value={parsedDetails?.authorityKeyId} isMono />
-                        </div>
-                        <Separator />
-                        <h4 className="font-medium text-md text-muted-foreground pt-2">Extensions</h4>
-                        <DetailItem label="Subject Alternative Names (SANs)" value={
-                            parsedDetails?.sans && parsedDetails.sans.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                                {parsedDetails.sans.map((san, index) => <Badge key={index} variant="secondary">{san}</Badge>)}
-                            </div>
-                            ) : ("Not Specified")
-                        }/>
-                        <DetailItem label="Key Usages" value={
-                            (parsedDetails?.keyUsage && parsedDetails.keyUsage.length > 0) || (parsedDetails?.extendedKeyUsage && parsedDetails.extendedKeyUsage.length > 0) ? (
-                            <div className="space-y-2">
-                                {parsedDetails?.keyUsage && parsedDetails.keyUsage.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                        {parsedDetails.keyUsage.map(usage => <Badge key={usage} variant="outline">{toTitleCase(usage)}</Badge>)}
+                 {parsedDetails && (
+                    <Accordion type="multiple" defaultValue={['general', 'keyInfo']} className="w-full space-y-3">
+                        <AccordionItem value="general" className="border-b-0">
+                            <AccordionTrigger className={cn(accordionTriggerStyle)}><Info className="mr-2 h-5 w-5" />General Information</AccordionTrigger>
+                            <AccordionContent className="space-y-1 px-4 pt-3">
+                                <DetailItem label="Subject" value={parsedDetails.subject} isMono />
+                                <DetailItem label="Issuer" value={parsedDetails.issuer} isMono />
+                                <DetailItem label="Serial Number" value={parsedDetails.serialNumber} isMono />
+                                <DetailItem label="Valid From" value={isValid(parseISO(parsedDetails.validFrom)) ? formatDate(parseISO(parsedDetails.validFrom), 'PPpp') : 'Invalid Date'} />
+                                <DetailItem label="Valid To" value={isValid(parseISO(parsedDetails.validTo)) ? formatDate(parseISO(parsedDetails.validTo), 'PPpp') : 'Invalid Date'} />
+                            </AccordionContent>
+                        </AccordionItem>
+                        
+                        <AccordionItem value="keyInfo" className="border-b-0">
+                            <AccordionTrigger className={cn(accordionTriggerStyle)}><KeyRound className="mr-2 h-5 w-5" />Key & Signature Information</AccordionTrigger>
+                            <AccordionContent className="space-y-1 px-4 pt-3">
+                                <DetailItem label="Public Key Algorithm" value={parsedDetails.publicKeyAlgorithm || 'N/A'} />
+                                <DetailItem label="Signature Algorithm" value={parsedDetails.signatureAlgorithm || 'N/A'} />
+                                <DetailItem label="SHA-256 Fingerprint" value={parsedDetails.fingerprintSha256 || 'N/A'} isMono />
+                                <DetailItem label="Subject Key ID (SKI)" value={parsedDetails.subjectKeyId || 'N/A'} isMono />
+                                <DetailItem label="Authority Key ID (AKI)" value={parsedDetails.authorityKeyId || 'N/A'} isMono />
+                            </AccordionContent>
+                        </AccordionItem>
+
+                        <AccordionItem value="extensions" className="border-b-0">
+                            <AccordionTrigger className={cn(accordionTriggerStyle)}><Lock className="mr-2 h-5 w-5" />Certificate Extensions</AccordionTrigger>
+                            <AccordionContent className="space-y-3 px-4 pt-3">
+                                <DetailItem label="Basic Constraints" value={
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2">Is CA: <Badge variant={parsedDetails.isCa ? "default" : "secondary"}>{parsedDetails.isCa ? "TRUE" : "FALSE"}</Badge></div>
+                                    {parsedDetails.pathLenConstraint !== undefined && <div className="flex items-center gap-2">Path Length Constraint: <Badge variant="outline">{parsedDetails.pathLenConstraint ?? 'None'}</Badge></div>}
+                                </div>
+                                } />
+                                <Separator className="my-2" />
+                                <DetailItem label="Subject Alternative Names" value={
+                                    parsedDetails.sans && parsedDetails.sans.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {parsedDetails.sans.map((san, index) => <Badge key={index} variant="secondary">{san}</Badge>)}
+                                        </div>
+                                    ) : ("Not Specified")
+                                }/>
+                                 <Separator className="my-2" />
+                                <DetailItem label="Key Usages" value={
+                                (parsedDetails.keyUsage && parsedDetails.keyUsage.length > 0) || (parsedDetails.extendedKeyUsage && parsedDetails.extendedKeyUsage.length > 0) ? (
+                                    <div className="space-y-2">
+                                        {parsedDetails.keyUsage && parsedDetails.keyUsage.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                                {parsedDetails.keyUsage.map(usage => <Badge key={usage} variant="outline">{toTitleCase(usage)}</Badge>)}
+                                            </div>
+                                        )}
+                                        {parsedDetails.extendedKeyUsage && parsedDetails.extendedKeyUsage.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                                {parsedDetails.extendedKeyUsage.map(usage => <Badge key={usage} variant="outline">{toTitleCase(usage)}</Badge>)}
+                                            </div>
+                                        )}
                                     </div>
+                                ) : ("Not Specified")
+                                } />
+                            </AccordionContent>
+                        </AccordionItem>
+                        
+                        <AccordionItem value="distribution" className="border-b-0">
+                            <AccordionTrigger className={cn(accordionTriggerStyle)}><LinkIcon className="mr-2 h-5 w-5" />Distribution Points</AccordionTrigger>
+                            <AccordionContent className="space-y-3 px-4 pt-3">
+                                {renderUrlList(parsedDetails.crlDistributionPoints, 'CRL Distribution Points (CDP)')}
+                                {parsedDetails.crlDistributionPoints && (parsedDetails.ocspUrls || parsedDetails.caIssuersUrls) && <Separator/>}
+                                {renderUrlList(parsedDetails.ocspUrls, 'OCSP Responders (from AIA)')}
+                                {parsedDetails.ocspUrls && parsedDetails.caIssuersUrls && <Separator/>}
+                                {renderUrlList(parsedDetails.caIssuersUrls, 'CA Issuers (from AIA)')}
+                                {(!parsedDetails.crlDistributionPoints || parsedDetails.crlDistributionPoints.length === 0) && (!parsedDetails.ocspUrls || parsedDetails.ocspUrls.length === 0) && (!parsedDetails.caIssuersUrls || parsedDetails.caIssuersUrls.length === 0) && (
+                                    <p className="text-sm text-muted-foreground">No distribution points specified in certificate.</p>
                                 )}
-                                {parsedDetails?.extendedKeyUsage && parsedDetails.extendedKeyUsage.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                        {parsedDetails.extendedKeyUsage.map(usage => <Badge key={usage} variant="outline">{toTitleCase(usage)}</Badge>)}
-                                    </div>
-                                )}
-                            </div>
-                            ) : ("Not Specified")
-                        } />
-                        <Separator />
-                        <h4 className="font-medium text-md text-muted-foreground pt-2">Distribution Points</h4>
-                        {renderUrlList(parsedDetails?.crlDistributionPoints, 'CRL Distribution Points')}
-                        {parsedDetails?.crlDistributionPoints && (parsedDetails.ocspUrls || parsedDetails.caIssuersUrls) && <Separator/>}
-                        {renderUrlList(parsedDetails?.ocspUrls, 'OCSP Responders')}
-                        {parsedDetails?.ocspUrls && parsedDetails.caIssuersUrls && <Separator/>}
-                        {renderUrlList(parsedDetails?.caIssuersUrls, 'CA Issuers')}
-                    </CardContent>
-                </Card>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                )}
             </TabsContent>
 
              <TabsContent value="asn1">
@@ -623,6 +639,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 
