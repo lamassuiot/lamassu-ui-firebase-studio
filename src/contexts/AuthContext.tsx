@@ -13,7 +13,7 @@ Log.setLevel(Log.DEBUG);
 const createUserManager = (): UserManager | null => {
   // Check moved inside the function to be safe.
   if (typeof window !== 'undefined' && (window as any).lamassuConfig?.LAMASSU_AUTH_ENABLED !== false) {
-    const authority = (window as any).lamassuConfig?.LAMASSU_AUTH_AUTHORITY || 'https://lab.lamassu.io/auth/realms/lamassu';
+    const authority = (window as any).lamassuConfig?.LAMASSU_AUTH_AUTHORITY;
     const clientId = (window as any).lamassuConfig?.LAMASSU_AUTH_CLIENT_ID || 'frontend';
 
     return new UserManager({
@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // This effect runs once on the client after the component mounts.
-    // By this time, `env-config.js` should have loaded and populated window.lamassuConfig.
+    // By this time, `config.js` should have loaded and populated window.lamassuConfig.
     const isEnabled = (window as any).lamassuConfig?.LAMASSU_AUTH_ENABLED !== false;
     setAuthMode(isEnabled ? 'enabled' : 'disabled');
   }, []);
@@ -183,4 +183,3 @@ export const useAuth = () => {
 };
 
 export const getClientUserManager = createUserManager;
-

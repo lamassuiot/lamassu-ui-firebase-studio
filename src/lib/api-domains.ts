@@ -1,6 +1,6 @@
 // src/lib/api-domains.ts
 const getApiBaseUrl = (): string => {
-    // 1. Check for configuration from env-config.js on the window object
+    // 1. Check for configuration from config.js on the window object
     if (typeof window !== 'undefined' && (window as any).lamassuConfig?.LAMASSU_API) {
         return (window as any).lamassuConfig.LAMASSU_API;
     }
@@ -8,8 +8,8 @@ const getApiBaseUrl = (): string => {
     if (process.env.NEXT_PUBLIC_API_BASE_URL) {
         return process.env.NEXT_PUBLIC_API_BASE_URL;
     }
-    // 3. Last resort fallback to a hardcoded default value
-    return 'https://lab.lamassu.io/api';
+    // 3. Return an empty string if no configuration is found
+    return '';
 };
 
 const API_BASE_URL = getApiBaseUrl();

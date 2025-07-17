@@ -3,7 +3,7 @@
 import type { CA } from './ca-data';
 
 export type CaStatusFilter = 'active' | 'expired' | 'revoked' | 'unknown';
-export type CaTypeFilter = 'MANAGED' | 'IMPORTED' | 'EXTERNAL_PUBLIC';
+export type CaTypeFilter = 'MANAGED' | 'IMPORTED' | 'EXTERNAL';
 
 interface CaFilterOptions {
   filterText?: string;

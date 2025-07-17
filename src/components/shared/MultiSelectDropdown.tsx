@@ -24,7 +24,7 @@ interface Option {
 interface MultiSelectDropdownProps {
   id?: string;
   options: Option[];
-  allOptionValues: string[];
+  allOptionValues?: string[];
   selectedValues: string[];
   onChange: (selected: string[]) => void;
   buttonText?: string;
@@ -34,7 +34,7 @@ interface MultiSelectDropdownProps {
 export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   id,
   options,
-  allOptionValues,
+  allOptionValues = [],
   selectedValues,
   onChange,
   buttonText = "Select options...",

@@ -220,7 +220,13 @@ export default function DevicesPage() {
             
             // Sorting
             if (sortConfig) {
-                const apiSortColumn = sortConfig.column === 'deviceGroup' ? 'dms_owner' : sortConfig.column;
+                let apiSortColumn = sortConfig.column;
+                if(apiSortColumn === 'deviceGroup') {
+                    apiSortColumn = 'dms_owner';
+                } else if (apiSortColumn === 'createdAt') {
+                    apiSortColumn = 'creation_timestamp';
+                }
+
                 params.append('sort_by', apiSortColumn);
                 params.append('sort_mode', sortConfig.direction);
             } else {

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Edit } from 'lucide-react';
 import type { ApiSubscription } from '@/lib/alerts-api';
 import { DetailItem } from '../shared/DetailItem';
 import { CodeBlock } from '../shared/CodeBlock';
@@ -25,6 +25,7 @@ interface SubscriptionDetailsModalProps {
   onOpenChange: (isOpen: boolean) => void;
   subscription: ApiSubscription | null;
   onDelete: (subscriptionId: string) => void;
+  onEdit: (subscription: ApiSubscription) => void;
   isDeleting: boolean;
 }
 
@@ -33,12 +34,17 @@ export const SubscriptionDetailsModal: React.FC<SubscriptionDetailsModalProps> =
   onOpenChange,
   subscription,
   onDelete,
+  onEdit,
   isDeleting,
 }) => {
   if (!subscription) return null;
 
   const handleDelete = () => {
       onDelete(subscription.id);
+  }
+  
+  const handleEdit = () => {
+      onEdit(subscription);
   }
   
   const getConditionContent = (conditionType: string, conditionValue: string): string => {
@@ -95,13 +101,20 @@ export const SubscriptionDetailsModal: React.FC<SubscriptionDetailsModalProps> =
             </div>
         </ScrollArea>
         <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2">
-            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Unsubscribe
-            </Button>
-            <DialogClose asChild>
-                <Button type="button" variant="outline">Close</Button>
-            </DialogClose>
+            <div>
+                 <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Unsubscribe
+                </Button>
+            </div>
+            <div className="flex space-x-2">
+                <DialogClose asChild>
+                    <Button type="button" variant="outline">Close</Button>
+                </DialogClose>
+                <Button variant="default" onClick={handleEdit}>
+                    <Edit className="mr-2 h-4 w-4" /> Edit
+                </Button>
+            </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

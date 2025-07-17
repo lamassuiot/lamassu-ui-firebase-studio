@@ -9,6 +9,7 @@ window.lamassuConfig = {
 
     // Base URL for the Lamassu API gateway
     LAMASSU_API: "https://lab.lamassu.io/api",
+    
 
     // Flag to enable a custom footer from public/footer.html
     LAMASSU_FOOTER_ENABLED: false,
