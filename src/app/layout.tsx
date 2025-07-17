@@ -171,10 +171,15 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [showSecondaryLogo, setShowSecondaryLogo] = useState(false);
+  const [secondaryLogoUrl, setSecondaryLogoUrl] = useState('');
 
   useEffect(() => {
     const secondaryLogoEnabled = (window as any).lamassuConfig?.LAMASSU_SECONDARY_LOGO_ENABLED === true;
     setShowSecondaryLogo(secondaryLogoEnabled);
+    if(secondaryLogoEnabled) {
+      const logoUrl = (window as any).lamassuConfig?.LAMASSU_SECONDARY_LOGO || '';
+      setSecondaryLogoUrl(logoUrl);
+    }
   }, []);
 
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
@@ -222,12 +227,13 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
              {showSecondaryLogo && (
               <>
                <Image
-                  src="https://placehold.co/30x30.png"
+                  src={secondaryLogoUrl || 'https://placehold.co/100x30.png'}
                   data-ai-hint="logo"
-                  width={30}
+                  width={100}
                   height={30}
                   alt="Secondary Logo"
-                  className="block"
+                  className="h-[30px] w-auto"
+                  unoptimized // Important for dynamic external or public URLs
                />
                <Separator orientation="vertical" className="h-8 bg-header-foreground/30" />
               </>
@@ -301,12 +307,13 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
                    {showSecondaryLogo && (
                      <Image
-                        src="https://placehold.co/30x30.png"
+                        src={secondaryLogoUrl || 'https://placehold.co/30x30.png'}
                         data-ai-hint="logo"
                         width={30}
                         height={30}
                         alt="Secondary Logo"
-                        className="block group-data-[collapsible=icon]:hidden"
+                        className="block group-data-[collapsible=icon]:hidden h-[30px] w-auto"
+                        unoptimized
                      />
                    )}
                   <Image

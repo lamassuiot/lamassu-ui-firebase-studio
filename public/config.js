@@ -1,49 +1,22 @@
-// public/config.js
+// This file can be used to override the default configuration of the application.
+// You can change the values of the following variables to customize the application.
+// Any variables you don't want to override can be removed from this file.
 
-/**
- * This file is intended to be used for runtime configuration of the Lamassu UI.
- * It will be loaded by a <script> tag in the main HTML document, making the `lamassuConfig`
- * object available on the `window` object.
- *
- * This allows for easy configuration in different environments (dev, staging, prod)
- * without needing to rebuild the Next.js application. This is particularly useful
- * for containerized deployments (e.g., Docker) where you can mount a different
- * `config.js` file for each environment.
- *
- * Example:
- * You can set these values based on environment variables when your container starts.
- */
 window.lamassuConfig = {
-  // --- Core API Endpoint ---
-  // The base URL for all backend API services (CA, DMS, DevManager, etc.).
-  // This should be the root of your API gateway or load balancer.
-  // Example: "https://api.yourdomain.com"
-  LAMASSU_API: "https://lab.lamassu.io/api",
+    // Auth Settings
+    LAMASSU_AUTH_ENABLED: true, // Set to false to disable authentication for local development
+    LAMASSU_AUTH_AUTHORITY: "http://localhost:8080/realms/lamassu", // OIDC provider URL
+    LAMASSU_AUTH_CLIENT_ID: "frontend", // OIDC client ID
+    // Note: Do not add client secret here. This is a public client.
 
-  // --- Authentication (OIDC) ---
-  // Set to `false` to disable OIDC authentication and use a mock user for development.
-  // In a production environment, this should always be `true`.
-  LAMASSU_AUTH_ENABLED: true,
+    // API Endpoint Settings
+    LAMASSU_API: "http://localhost:8090/api", // Base URL for all backend APIs
 
-  // The OIDC provider's URL. All OIDC endpoints (.well-known, authorization, token)
-  // are relative to this authority.
-  // Example: "https://auth.yourdomain.com/realms/your-realm"
-  LAMASSU_AUTH_AUTHORITY: "https://lab.lamassu.io/auth/realms/lamassu",
-  
-  // The OIDC client ID registered with your provider for this frontend application.
-  LAMASSU_AUTH_CLIENT_ID: "frontend",
-  
-  // --- UI Customization ---
-  // Set to true to enable loading of a custom footer from /public/footer.html
-  LAMASSU_FOOTER_ENABLED: false,
+    // Customization Settings
+    LAMASSU_FOOTER_ENABLED: false, // Set to true to show a custom footer loaded from /public/footer.html
+    LAMASSU_SECONDARY_LOGO_ENABLED: true, // Set to true to show a secondary logo in the top bar
+    LAMASSU_SECONDARY_LOGO: '', // URL for the secondary logo, e.g. '/my-logo.svg'. Must be in the /public folder. If empty, a placeholder is shown.
 
-  // Set to true to display a secondary logo in the top navigation bar.
-  LAMASSU_SECONDARY_LOGO_ENABLED: false,
-  
-  // A comma-separated list of available connector instances for platform integrations.
-  // This allows the UI to present a list of possible integrations to the user.
-  // Example: "aws.123456789012.eu-west-1,aws.987654321098.us-east-1"
-  LAMASSU_CONNECTORS: [
-    "aws.1010101010.eu-west-1"
-  ]
+    // Comma-separated list of enabled connectors
+    LAMASSU_CONNECTORS: "aws.us-east-1.12345,aws.us-west-2.67890",
 };
