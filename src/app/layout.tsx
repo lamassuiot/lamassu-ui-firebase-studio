@@ -223,6 +223,15 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
           <div className="flex items-center gap-4">
             {isAuthenticated() ? (
               <>
+                 <div data-ai-hint="company logo" className="hidden md:block">
+                  <Image
+                    src="https://placehold.co/120x30.png"
+                    width={120}
+                    height={30}
+                    alt="Secondary Logo"
+                  />
+                </div>
+                <Separator orientation="vertical" className="h-8 bg-header-foreground/30 hidden md:block" />
                 <ThemeToggle />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
