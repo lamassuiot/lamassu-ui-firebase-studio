@@ -49,6 +49,9 @@ declare global {
   }
 }
 
+// --- Singleton state for WASM loading ---
+let wasmInitialized = false;
+
 const statusSortOrder: Record<ZlintResult['status'], number> = {
     fatal: 0,
     error: 1,
@@ -132,14 +135,6 @@ const ResultStatusBadge: React.FC<{ status: ZlintResult['status'] }> = ({ status
 const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ text, type }) => {
   if (!text) return <>N/A</>;
   
-  if (text.toUpperCase() === "MOZILLA ROOT STORE POLICY") {
-    return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
-  }
-  
-  if (text.toUpperCase().includes('CABF_BR')) {
-    return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
-  }
-
   const rfcMatch = text.match(/(RFC\s?\d+)/i);
   if (rfcMatch) {
     const rfcNumber = rfcMatch[1].replace(/\s/g, '').toUpperCase();
@@ -148,8 +143,16 @@ const SourceLink: React.FC<{ text: string, type: 'source' | 'citation' }> = ({ t
     if (sectionMatch && sectionMatch[1] && !text.toUpperCase().includes('BRS:')) {
       url += `#section-${sectionMatch[1]}`;
     }
-    const displayText = type === 'source' && RFC_TITLE_MAP[rfcNumber] ? `${rfcNumber}: ${RFC_TITLE_MAP[rfcNumber]}` : text;
+    const displayText = type === 'source' ? RFC_TITLE_MAP[rfcNumber] : text;
     return <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{displayText}</a>;
+  }
+
+  if (text.toUpperCase() === "MOZILLA ROOT STORE POLICY") {
+    return <a href="https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
+  }
+  
+  if (text.toUpperCase().includes('CABF_BR')) {
+    return <a href="https://cabforum.org/working-groups/server/baseline-requirements/documents/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{text}</a>;
   }
 
   try {
@@ -178,10 +181,8 @@ export default function CertificateViewerPage() {
   
   // --- Linter State ---
   const [lintResults, setLintResults] = useState<ZlintResult[]>([]);
-  const [isScriptReady, setIsScriptReady] = useState(false);
-  const [isWasmReady, setIsWasmReady] = useState(false);
+  const [isWasmReady, setIsWasmReady] = useState(wasmInitialized);
   const [isLinting, setIsLinting] = useState(false);
-  const goInstance = useRef<any>(null);
   
   // Linter Pagination & Filtering
   const [linterCurrentPage, setLinterCurrentPage] = useState(1);
@@ -199,27 +200,49 @@ export default function CertificateViewerPage() {
     setEngine("webcrypto", getCrypto());
   }, []);
 
-  const handleScriptLoad = () => setIsScriptReady(true);
-
+  // Effect to load and initialize WASM environment reliably
   useEffect(() => {
-    if (!isScriptReady || goInstance.current) return;
-    if (!window.Go) {
-      console.error("wasm_exec.js did not load the Go object on the window.");
-      setError("Failed to load WASM execution environment.");
-      return;
-    }
+    const initializeWasm = async () => {
+        if (wasmInitialized) {
+            setIsWasmReady(true);
+            return;
+        }
 
-    goInstance.current = new window.Go();
-    WebAssembly.instantiateStreaming(fetch('/zlint.wasm'), goInstance.current.importObject)
-      .then(result => {
-        goInstance.current.run(result.instance);
-        setIsWasmReady(true);
-      })
-      .catch(err => {
-        console.error("WASM instantiation failed:", err);
-        setError(`Failed to load and instantiate zlint.wasm: ${err.message}`);
-      });
-  }, [isScriptReady]);
+        const script = document.createElement('script');
+        script.src = '/wasm_exec.js';
+        script.async = true;
+        script.onload = async () => {
+            if (!window.Go) {
+                console.error("wasm_exec.js did not load the Go object on the window.");
+                setError("Failed to load WASM execution environment.");
+                return;
+            }
+            try {
+                const go = new window.Go();
+                const result = await WebAssembly.instantiateStreaming(fetch('/zlint.wasm'), go.importObject);
+                go.run(result.instance);
+                wasmInitialized = true;
+                setIsWasmReady(true);
+            } catch (err: any) {
+                console.error("WASM instantiation failed:", err);
+                setError(`Failed to load and instantiate zlint.wasm: ${err.message}`);
+                wasmInitialized = false; // Allow retry on next mount
+            }
+        };
+        script.onerror = () => {
+            setError("Failed to load the WASM execution script (wasm_exec.js).");
+            wasmInitialized = false;
+        };
+
+        document.body.appendChild(script);
+
+        return () => {
+            document.body.removeChild(script);
+        };
+    };
+
+    initializeWasm();
+  }, []); // Empty dependency array ensures this runs once per component mount
   
    useEffect(() => {
     if (isWasmReady && lintProfileMap.size === 0) {
@@ -371,7 +394,6 @@ export default function CertificateViewerPage() {
 
   return (
     <>
-      <Script src="/wasm_exec.js" strategy="afterInteractive" onLoad={handleScriptLoad} />
       <div className="space-y-6 w-full pb-8">
         <div className="flex items-center space-x-3">
           <Binary className="h-8 w-8 text-primary" />
@@ -427,6 +449,8 @@ export default function CertificateViewerPage() {
                                 <DetailItem label="Serial Number" value={parsedDetails.serialNumber} isMono />
                                 <DetailItem label="Valid From" value={isValid(parseISO(parsedDetails.validFrom)) ? formatDate(parseISO(parsedDetails.validFrom), 'PPpp') : 'Invalid Date'} />
                                 <DetailItem label="Valid To" value={isValid(parseISO(parsedDetails.validTo)) ? formatDate(parseISO(parsedDetails.validTo), 'PPpp') : 'Invalid Date'} />
+                                <DetailItem label="Is CA" value={<Badge variant={parsedDetails.isCa ? "default" : "secondary"}>{parsedDetails.isCa ? 'Yes' : 'No'}</Badge>} />
+                                {parsedDetails.pathLenConstraint !== undefined && <DetailItem label="Path Length Constraint" value={<Badge variant="outline">{parsedDetails.pathLenConstraint ?? 'None'}</Badge>} />}
                             </AccordionContent>
                         </AccordionItem>
                         
@@ -444,13 +468,6 @@ export default function CertificateViewerPage() {
                         <AccordionItem value="extensions" className="border-b-0">
                             <AccordionTrigger className={cn(accordionTriggerStyle)}><Lock className="mr-2 h-5 w-5" />Certificate Extensions</AccordionTrigger>
                             <AccordionContent className="space-y-3 px-4 pt-3">
-                                <DetailItem label="Basic Constraints" value={
-                                <div className="space-y-0.5">
-                                    <div className="flex items-center gap-2">Is CA: <Badge variant={parsedDetails.isCa ? "default" : "secondary"}>{parsedDetails.isCa ? "TRUE" : "FALSE"}</Badge></div>
-                                    {parsedDetails.pathLenConstraint !== undefined && <div className="flex items-center gap-2">Path Length Constraint: <Badge variant="outline">{parsedDetails.pathLenConstraint ?? 'None'}</Badge></div>}
-                                </div>
-                                } />
-                                <Separator className="my-2" />
                                 <DetailItem label="Subject Alternative Names" value={
                                     parsedDetails.sans && parsedDetails.sans.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
@@ -609,6 +626,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 
