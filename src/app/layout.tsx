@@ -171,17 +171,6 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   
-  useEffect(() => {
-    const themeFile = (window as any).lamassuConfig?.LAMASSU_THEME;
-    if (themeFile) {
-      const link = document.createElement('link');
-      link.href = `/${themeFile}`;
-      link.rel = 'stylesheet';
-      document.head.appendChild(link);
-    }
-  }, []);
-
-
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
   let userRoles: string[] = [];
   if (isAuthenticated() && user?.access_token) {
@@ -223,7 +212,9 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
       <div className="flex flex-col h-screen bg-background text-foreground w-full">
         <header className="flex h-header items-center justify-between border-b border-header-foreground/30 bg-header text-header-foreground px-4 md:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-4 h-full py-2">
-            <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
+            {isAuthenticated() && (
+              <SidebarTrigger className="md:hidden text-header-foreground hover:bg-header/80 hover:text-header-foreground" />
+            )}
              <div className="secondary-logo-container">
                <div
                   className="secondary-logo h-full w-auto aspect-[200/60]"
@@ -542,7 +533,23 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="/custom-theme.css" />
+        <Script id="theme-loader">
+          {`
+            (function() {
+              try {
+                var themeFile = window.lamassuConfig?.LAMASSU_THEME;
+                if (themeFile) {
+                  var link = document.createElement('link');
+                  link.href = '/themes/' + themeFile;
+                  link.rel = 'stylesheet';
+                  document.head.appendChild(link);
+                }
+              } catch (e) {
+                console.error('Error loading theme:', e);
+              }
+            })();
+          `}
+        </Script>
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
