@@ -219,8 +219,8 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               width={140}
               alt="LamassuIoT Logo"
             />
-            <Separator orientation="vertical" className="h-8 bg-header-foreground/30 hidden md:block" />
-            <div data-ai-hint="company logo" className="hidden md:block">
+            <Separator orientation="vertical" className="h-8 bg-header-foreground/30" />
+            <div data-ai-hint="company logo">
               <Image
                 src="https://placehold.co/120x30.png"
                 width={120}
