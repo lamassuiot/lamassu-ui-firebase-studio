@@ -5,7 +5,6 @@ import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, AuthorityInformationAccess, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo, SubjectKeyIdentifier, AuthorityKeyIdentifier } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
-import { format as formatDate, parseISO, isValid } from 'date-fns';
 
 // API Response Structures
 interface ApiKeyMetadata {

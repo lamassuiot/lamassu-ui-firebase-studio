@@ -2,8 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import Script from 'next/script';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
