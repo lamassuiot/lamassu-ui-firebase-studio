@@ -533,23 +533,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-        <Script id="theme-loader">
-          {`
-            (function() {
-              try {
-                var themeFile = window.lamassuConfig?.LAMASSU_THEME;
-                if (themeFile) {
-                  var link = document.createElement('link');
-                  link.href = '/themes/' + themeFile;
-                  link.rel = 'stylesheet';
-                  document.head.appendChild(link);
-                }
-              } catch (e) {
-                console.error('Error loading theme:', e);
-              }
-            })();
-          `}
-        </Script>
+        <link rel="stylesheet" href="/custom-theme.css"></link>
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
