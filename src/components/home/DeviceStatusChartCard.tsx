@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -133,7 +134,7 @@ export function DeviceStatusChartCard() {
   };
 
   return (
-    <Card className="shadow-lg w-full bg-primary text-primary-foreground">
+    <Card className="shadow-lg w-full bg-[--homepage-card-background] text-primary-foreground">
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Device Status Overview</CardTitle>
         <CardDescription className="text-primary-foreground/80">A summary of all managed devices by their current status.</CardDescription>
@@ -162,7 +163,7 @@ export function DeviceStatusChartCard() {
                   innerRadius="60%"
                   fill="#8884d8"
                   dataKey="value"
-                  stroke={'hsl(var(--primary))'}
+                  stroke={'hsl(var(--homepage-card-background))'}
                   strokeWidth={2}
                 >
                   {chartData.map((entry, index) => (

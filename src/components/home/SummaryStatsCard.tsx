@@ -39,7 +39,7 @@ const StatItem: React.FC<{
     <Card
       role="button"
       tabIndex={0}
-      className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer p-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background shadow-lg"
+      className="bg-[--homepage-card-background] text-primary-foreground hover:bg-[--homepage-card-background]/90 transition-colors cursor-pointer p-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background shadow-lg"
       onClick={() => router.push(href)}
       onKeyDown={handleKeyDown}
     >

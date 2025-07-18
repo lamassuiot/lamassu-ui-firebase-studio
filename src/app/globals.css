@@ -60,6 +60,9 @@
 
     --radius: 0.5rem;
     /* Default border radius */
+    
+    /* Homepage Specific Colors */
+    --homepage-card-background: hsl(var(--primary));
 
     /* Chart Colors */
     --chart-1: 217 90% 60%;
@@ -149,6 +152,9 @@
     /* Darker input border */
     --ring: 217 80% 65%;
     /* Primary variant for dark rings */
+    
+    /* Homepage Specific Colors */
+    --homepage-card-background: hsl(var(--primary));
 
     /* Chart Colors (Dark Theme) - adjust as needed */
     --chart-1: 217 80% 65%;
