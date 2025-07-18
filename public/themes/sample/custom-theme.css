@@ -40,8 +40,8 @@
   --secondary: 210 40% 96%;
   --secondary-foreground: 222 47% 11%;
   
-  /* Make secondary logo visible */
-  --secondary-logo-display: flex;
+  --table-header-background: rgb(30, 30, 30); 
+  --table-header-foreground: hsl(0 0% 100%);
 }
 
 /* --- Dark Mode --- */
