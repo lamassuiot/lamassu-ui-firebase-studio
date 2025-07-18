@@ -1,109 +1,83 @@
-/*
-  Sample Theme based on user-provided image.
-  - Light mode with dark cards and red accents.
-  - Dark mode mirrors the light mode's card style.
-  - Enables and sets the secondary logo.
+/* 
+  Sample theme based on a high-contrast, modern UI screenshot.
+  This theme features a dark-on-light pattern for the main layout 
+  and a light-on-dark pattern for card elements.
 */
 :root {
-  /* --- Light Theme --- */
-  --background: 240 5% 96%; /* #f4f4f5 - Light Gray */
-  --foreground: 240 10% 4%; /* #09090b - Nearly Black */
-
-  /* Header & Sidebar are white */
-  --header-background: 0 0% 100%;
-  --header-foreground: 240 10% 4%;
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 240 10% 4%;
-  --sidebar-border: 240 6% 90%;
-  
-  /* Cards are dark */
-  --card: 240 6% 10%; /* #18181b - Dark Gray */
-  --card-foreground: 0 0% 98%; /* #fafafa - White Text */
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 4%;
-
-  /* Primary accent is red */
-  --primary: 0 72% 51%; /* #e53935 - Red */
-  --primary-foreground: 0 0% 98%;
-  --sidebar-primary: 0 72% 51%;
-  --sidebar-primary-foreground: 0 0% 98%;
-
-  --secondary: 240 5% 90%;
-  --secondary-foreground: 240 10% 4%;
-
-  --muted: 240 5% 90%;
-  --muted-foreground: 240 4% 46%;
-
-  --accent: 240 5% 90%;
-  --accent-foreground: 240 10% 4%;
-
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
-
-  --border: 240 6% 83%;
-  --input: 240 6% 83%;
-  --ring: 0 72% 51%;
-
-  /* Chart colors from image */
-  --chart-1: 90 60% 45%; /* #66b032 - Green */
-  --chart-2: 0 72% 51%; /* #e53935 - Red */
-  --chart-3: 45 90% 55%; /* #f9c846 - Yellow */
-  --chart-4: 25 85% 60%; /* #f68b39 - Orange */
-  --chart-5: 240 5% 65%; /* #9395a1 - Gray */
-
   /* --- Secondary Logo --- */
-  --secondary-logo-url: url('https://placehold.co/100x40/ef4444/ffffff.png?text=CAF');
+  --secondary-logo-url: url('https://placehold.co/100x40/ef4444/ffffff.png?text=SAMPLE');
   --secondary-logo-display: flex;
-
-  --homepage-card-background: 0 0% 12%;
 }
 
+/* --- Light Mode --- */
+:root:not(.dark) {
+  /* Layout: Light gray side/top bars on a white background */
+  --background: 0 0% 100%;                  /* Main content area: white */
+  --header-background: 220 13% 96%;         /* Top bar: light gray */
+  --sidebar-background: 220 13% 96%;        /* Sidebar: light gray */
+  --sidebar-foreground: 222 47% 11%;        /* Dark text for sidebar */
+  --header-foreground: 222 47% 11%;         /* Dark text for header */
+
+  /* Cards: Dark cards with white text */
+  --homepage-card-background: rgb(30, 30, 30); /* Dark card background for homepage */
+  --card: rgb(30, 30, 30);                     /* Dark card background for other cards */
+  --card-foreground: 0 0% 100%;                /* White text for cards */
+
+  /* Primary Accent: Red */
+  --primary: 0 84% 60%;                     /* Red for active elements */
+  --primary-foreground: 0 0% 98%;           /* White text on primary elements */
+  --sidebar-primary: 0 84% 60%;
+  --sidebar-primary-foreground: 0 0% 98%;
+
+  /* Borders and Rings */
+  --border: 214 32% 91%;
+  --sidebar-border: 214 32% 88%;
+  --ring: 0 84% 60%;
+
+  /* Muted/Secondary colors */
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 20% 65%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  
+  --table-header-background: rgb(30, 30, 30); 
+  --table-header-foreground: hsl(0 0% 100%);
+}
+
+/* --- Dark Mode --- */
 .dark {
-  /* Dark mode uses the same dark card aesthetic */
-  --background: 240 10% 4%; /* #09090b - Nearly Black */
-  --foreground: 0 0% 98%;
+  /* Layout */
+  --background: 222 47% 11%;             /* Very dark blue/gray */
+  --header-background: 222 40% 15%;      /* Darker header */
+  --sidebar-background: 222 40% 15%;     /* Darker sidebar */
+  --sidebar-foreground: 210 40% 98%;     /* Light text */
+  --header-foreground: 210 40% 98%;      /* Light text */
 
-  --header-background: 240 6% 10%;
-  --header-foreground: 0 0% 98%;
-  
-  --sidebar-background: 240 6% 12%; /* Slightly different from header */
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-border: 240 4% 26%;
+  /* Cards */
+  --homepage-card-background: rgb(30, 30, 30); /* Consistent dark cards */
+  --card: rgb(30, 30, 30);
+  --card-foreground: 0 0% 100%;
 
-  /* Cards stay dark */
-  --card: 240 6% 10%;
-  --card-foreground: 0 0% 98%;
-  
-  --popover: 240 6% 10%;
-  --popover-foreground: 0 0% 98%;
-
-  /* Primary accent is red */
+  /* Primary Accent: Red */
   --primary: 0 72% 51%;
-  --primary-foreground: 0 0% 98%;
+  --primary-foreground: 0 86% 97%;
   --sidebar-primary: 0 72% 51%;
-  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-primary-foreground: 0 86% 97%;
   
-  --secondary: 240 4% 16%;
-  --secondary-foreground: 0 0% 98%;
-  
-  --muted: 240 4% 16%;
-  --muted-foreground: 240 5% 65%;
-  
-  --accent: 240 4% 16%;
-  --accent-foreground: 0 0% 98%;
-  
-  --destructive: 0 63% 31%;
-  --destructive-foreground: 0 0% 98%;
-  
-  --border: 240 4% 26%;
-  --input: 240 4% 26%;
+  /* Borders and Rings */
+  --border: 217 33% 17%;
+  --sidebar-border: 217 33% 17%;
   --ring: 0 72% 51%;
 
-  /* --- Secondary Logo --- */
-  --secondary-logo-url: url('https://placehold.co/100x40/ef4444/ffffff.png?text=SMPL');
-  --secondary-logo-display: flex;
+  /* Muted/Secondary colors */
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
 }
+
+
+/* --- Logo Adjustments --- */
 
 /* Light theme specific logo color */
 header img[alt="LamassuIoT Logo"] {
@@ -113,4 +87,17 @@ header img[alt="LamassuIoT Logo"] {
 /* Dark theme specific logo color */
 .dark header img[alt="LamassuIoT Logo"] {
   filter: none; /* Revert to the original white logo on dark theme */
+}
+
+/* In dark mode, ensure the secondary logo (if it's dark) is inverted to be white */
+.dark .secondary-logo {
+  filter: invert(1) brightness(2);
+}
+
+header button[aria-label="Toggle theme"] svg {
+  filter: invert(1) brightness(0) sepia(1) saturate(0) hue-rotate(0deg) brightness(0.2);
+}
+
+.dark header button[aria-label="Toggle theme"] svg {
+  filter: none;
 }
