@@ -55,6 +55,8 @@
   /* --- Secondary Logo --- */
   --secondary-logo-url: url('https://placehold.co/100x40/ef4444/ffffff.png?text=CAF');
   --secondary-logo-display: flex;
+
+  --homepage-card-background: 0 0% 12%;
 }
 
 .dark {
