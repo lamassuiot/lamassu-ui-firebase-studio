@@ -113,7 +113,7 @@
     
     --header-background: 217 90% 35%; /* Custom header background for dark mode */
     --header-foreground: 0 0% 98%;    /* Custom header foreground for dark mode */
-    --header-height: 3.5rem; /* h-14 */
+    --header-height: 3rem;
 
     --accent: 150 50% 70%;
     /* Muted accent */

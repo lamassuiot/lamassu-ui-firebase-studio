@@ -3,9 +3,14 @@
   This theme features a dark-on-light pattern for the main layout 
   and a light-on-dark pattern for card elements.
 */
+:root {
+  /* --- Secondary Logo --- */
+  --secondary-logo-url: url('https://placehold.co/100x40/ef4444/ffffff.png?text=SAMPLE');
+  --secondary-logo-display: flex;
+}
 
 /* --- Light Mode --- */
-:root {
+:root:not(.dark) {
   /* Layout: Light gray side/top bars on a white background */
   --background: 0 0% 100%;                  /* Main content area: white */
   --header-background: 220 13% 96%;         /* Top bar: light gray */
@@ -74,12 +79,25 @@
 
 /* --- Logo Adjustments --- */
 
-/* In light mode, make the main Lamassu logo black for contrast on the white header */
-:root .dark\:hidden.h-full.w-auto {
-  filter: invert(1) grayscale(1) brightness(0.5);
+/* Light theme specific logo color */
+header img[alt="LamassuIoT Logo"] {
+  filter: invert(1) brightness(0) sepia(1) saturate(0) hue-rotate(0deg) brightness(0.2);
+}
+
+/* Dark theme specific logo color */
+.dark header img[alt="LamassuIoT Logo"] {
+  filter: none; /* Revert to the original white logo on dark theme */
 }
 
 /* In dark mode, ensure the secondary logo (if it's dark) is inverted to be white */
 .dark .secondary-logo {
   filter: invert(1) brightness(2);
+}
+
+header button[aria-label="Toggle theme"] svg {
+  filter: invert(1) brightness(0) sepia(1) saturate(0) hue-rotate(0deg) brightness(0.2);
+}
+
+.dark header button[aria-label="Toggle theme"] svg {
+  filter: none;
 }
