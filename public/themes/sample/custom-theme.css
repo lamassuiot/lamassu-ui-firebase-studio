@@ -102,3 +102,13 @@
   --secondary-logo-url: url('https://placehold.co/100x40/ef4444/ffffff.png?text=CAF');
   --secondary-logo-display: flex;
 }
+
+/* Light theme specific logo color */
+header img[alt="LamassuIoT Logo"] {
+  filter: invert(1) brightness(0) sepia(1) saturate(0) hue-rotate(0deg) brightness(0.2);
+}
+
+/* Dark theme specific logo color */
+.dark header img[alt="LamassuIoT Logo"] {
+  filter: none; /* Revert to the original white logo on dark theme */
+}
