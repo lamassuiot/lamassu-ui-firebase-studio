@@ -1,0 +1,104 @@
+/*
+  Sample Theme based on user-provided image.
+  - Light mode with dark cards and red accents.
+  - Dark mode mirrors the light mode's card style.
+  - Enables and sets the secondary logo.
+*/
+:root {
+  /* --- Light Theme --- */
+  --background: 240 5% 96%; /* #f4f4f5 - Light Gray */
+  --foreground: 240 10% 4%; /* #09090b - Nearly Black */
+
+  /* Header & Sidebar are white */
+  --header-background: 0 0% 100%;
+  --header-foreground: 240 10% 4%;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 240 10% 4%;
+  --sidebar-border: 240 6% 90%;
+  
+  /* Cards are dark */
+  --card: 240 6% 10%; /* #18181b - Dark Gray */
+  --card-foreground: 0 0% 98%; /* #fafafa - White Text */
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 4%;
+
+  /* Primary accent is red */
+  --primary: 0 72% 51%; /* #e53935 - Red */
+  --primary-foreground: 0 0% 98%;
+  --sidebar-primary: 0 72% 51%;
+  --sidebar-primary-foreground: 0 0% 98%;
+
+  --secondary: 240 5% 90%;
+  --secondary-foreground: 240 10% 4%;
+
+  --muted: 240 5% 90%;
+  --muted-foreground: 240 4% 46%;
+
+  --accent: 240 5% 90%;
+  --accent-foreground: 240 10% 4%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 240 6% 83%;
+  --input: 240 6% 83%;
+  --ring: 0 72% 51%;
+
+  /* Chart colors from image */
+  --chart-1: 90 60% 45%; /* #66b032 - Green */
+  --chart-2: 0 72% 51%; /* #e53935 - Red */
+  --chart-3: 45 90% 55%; /* #f9c846 - Yellow */
+  --chart-4: 25 85% 60%; /* #f68b39 - Orange */
+  --chart-5: 240 5% 65%; /* #9395a1 - Gray */
+
+  /* --- Secondary Logo --- */
+  --secondary-logo-url: url('https://placehold.co/100x40/ef4444/ffffff.png?text=CAF');
+  --secondary-logo-display: flex;
+}
+
+.dark {
+  /* Dark mode uses the same dark card aesthetic */
+  --background: 240 10% 4%; /* #09090b - Nearly Black */
+  --foreground: 0 0% 98%;
+
+  --header-background: 240 6% 10%;
+  --header-foreground: 0 0% 98%;
+  
+  --sidebar-background: 240 6% 12%; /* Slightly different from header */
+  --sidebar-foreground: 0 0% 98%;
+  --sidebar-border: 240 4% 26%;
+
+  /* Cards stay dark */
+  --card: 240 6% 10%;
+  --card-foreground: 0 0% 98%;
+  
+  --popover: 240 6% 10%;
+  --popover-foreground: 0 0% 98%;
+
+  /* Primary accent is red */
+  --primary: 0 72% 51%;
+  --primary-foreground: 0 0% 98%;
+  --sidebar-primary: 0 72% 51%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  
+  --secondary: 240 4% 16%;
+  --secondary-foreground: 0 0% 98%;
+  
+  --muted: 240 4% 16%;
+  --muted-foreground: 240 5% 65%;
+  
+  --accent: 240 4% 16%;
+  --accent-foreground: 0 0% 98%;
+  
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  
+  --border: 240 4% 26%;
+  --input: 240 4% 26%;
+  --ring: 0 72% 51%;
+
+  /* --- Secondary Logo --- */
+  --secondary-logo-url: url('https://placehold.co/100x40/ef4444/ffffff.png?text=CAF');
+  --secondary-logo-display: flex;
+}
