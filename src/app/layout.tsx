@@ -58,7 +58,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { BackendStatusDialog } from '@/components/shared/BackendStatusDialog';
 import '@/i18n';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 
 
 interface DecodedAccessToken {
@@ -67,73 +67,17 @@ interface DecodedAccessToken {
   };
 }
 
-const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
-  'certificates': "Certificates",
-  'certificate-authorities': "Certification Authorities",
-  'signing-profiles': "Issuance Profiles",
-  'registration-authorities': "Registration Authorities",
-  'verification-authorities': "Verification Authorities",
-  'new': "New",
-  'details': "Details",
-  'issue-certificate': "Issue Certificate",
-  'kms': "KMS",
-  'keys': "Keys",
-  'devices': "Devices",
-  'device-groups': "Device Groups",
-  'integrations': "Platform Integrations",
-  'crypto-engines': "Crypto Engines",
-  'requests': "CA Requests",
-  'alerts': "Alerts",
-  'tools': "Tools",
-  'certificate-viewer': "Certificate Viewer",
+const LoadingState = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
+      <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      <p className="mt-6 text-lg text-muted-foreground">
+        {t('loading.app')}
+      </p>
+    </div>
+  );
 };
-
-function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
-  const pathSegments = pathname.split('/').filter(segment => segment);
-  const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/' }];
-
-  if (pathname === '/') {
-    return [{ label: 'Home' }];
-  }
-
-  let currentHref = '';
-
-  for (let i = 0; i < pathSegments.length; i++) {
-    const segment = pathSegments[i];
-    let label = PATH_SEGMENT_TO_LABEL_MAP[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
-
-    currentHref += `/${segment}`;
-    const isLastSegment = i === pathSegments.length - 1;
-    let hrefWithQuery = currentHref;
-
-    if (segment === 'details') {
-      if (queryParams.get('caId')) hrefWithQuery += `?caId=${queryParams.get('caId')}`;
-      else if (queryParams.get('certificateId')) hrefWithQuery += `?certificateId=${queryParams.get('certificateId')}`;
-      else if (queryParams.get('keyId')) hrefWithQuery += `?keyId=${queryParams.get('keyId')}`;
-      else if (queryParams.get('deviceId')) hrefWithQuery += `?deviceId=${queryParams.get('deviceId')}`;
-    } else if (segment === 'issue-certificate' && queryParams.get('caId')) {
-      hrefWithQuery += `?caId=${queryParams.get('caId')}`;
-    }
-
-
-    if (isLastSegment) {
-      breadcrumbItems.push({ label });
-    } else {
-      breadcrumbItems.push({ label, href: hrefWithQuery });
-    }
-  }
-  return breadcrumbItems;
-}
-
-
-const LoadingState = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
-    <Loader2 className="h-16 w-16 animate-spin text-primary" />
-    <p className="mt-6 text-lg text-muted-foreground">
-      Loading application...
-    </p>
-  </div>
-);
 
 const CustomFooter = () => {
   const [showFooter, setShowFooter] = useState(false);
@@ -172,13 +116,49 @@ const CustomFooter = () => {
 
 const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, login, logout } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   
+  const generateBreadcrumbs = (pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] => {
+    const pathSegments = pathname.split('/').filter(segment => segment);
+    const breadcrumbItems: BreadcrumbItem[] = [{ label: t('breadcrumbs.home'), href: '/' }];
+
+    if (pathname === '/') {
+      return [{ label: t('breadcrumbs.home') }];
+    }
+
+    let currentHref = '';
+
+    for (let i = 0; i < pathSegments.length; i++) {
+      const segment = pathSegments[i];
+      let label = t(`breadcrumbs.${segment}`, { defaultValue: segment.charAt(0).toUpperCase() + segment.slice(1) });
+
+      currentHref += `/${segment}`;
+      const isLastSegment = i === pathSegments.length - 1;
+      let hrefWithQuery = currentHref;
+
+      if (segment === 'details') {
+        if (queryParams.get('caId')) hrefWithQuery += `?caId=${queryParams.get('caId')}`;
+        else if (queryParams.get('certificateId')) hrefWithQuery += `?certificateId=${queryParams.get('certificateId')}`;
+        else if (queryParams.get('keyId')) hrefWithQuery += `?keyId=${queryParams.get('keyId')}`;
+        else if (queryParams.get('deviceId')) hrefWithQuery += `?deviceId=${queryParams.get('deviceId')}`;
+      } else if (segment === 'issue-certificate' && queryParams.get('caId')) {
+        hrefWithQuery += `?caId=${queryParams.get('caId')}`;
+      }
+
+      if (isLastSegment) {
+        breadcrumbItems.push({ label });
+      } else {
+        breadcrumbItems.push({ label, href: hrefWithQuery });
+      }
+    }
+    return breadcrumbItems;
+  }
   const breadcrumbItems = generateBreadcrumbs(pathname, searchParams);
+
   let userRoles: string[] = [];
   if (isAuthenticated() && user?.access_token) {
     try {
@@ -191,27 +171,27 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  const homeItem = { href: '/', label: 'Home', icon: HomeIcon };
+  const homeItem = { href: '/', label: t('navigation.home'), icon: HomeIcon };
   const toolsItems = [
-    { href: '/tools/certificate-viewer', label: 'Certificate Viewer', icon: Binary },
+    { href: '/tools/certificate-viewer', label: t('navigation.certificateViewer'), icon: Binary },
   ];
   const kmsItems = [
-    { href: '/kms/keys', label: 'Keys', icon: KeyRound },
-    { href: '/crypto-engines', label: 'Crypto Engines', icon: Cpu },
+    { href: '/kms/keys', label: t('navigation.keys'), icon: KeyRound },
+    { href: '/crypto-engines', label: t('navigation.cryptoEngines'), icon: Cpu },
   ];
   const pkiItems = [
-    { href: '/certificates', label: 'Certificates', icon: FileText },
-    { href: '/certificate-authorities', label: 'Certification Authorities', icon: Landmark },
-    { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon },
-    { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
-    { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
+    { href: '/certificates', label: t('navigation.certificates'), icon: FileText },
+    { href: '/certificate-authorities', label: t('navigation.certificationAuthorities'), icon: Landmark },
+    { href: '/signing-profiles', label: t('navigation.issuanceProfiles'), icon: ScrollTextIcon },
+    { href: '/registration-authorities', label: t('navigation.registrationAuthorities'), icon: Users },
+    { href: '/verification-authorities', label: t('navigation.verificationAuthorities'), icon: ShieldCheck },
   ];
   const iotItems = [
-    { href: '/devices', label: 'Devices', icon: Router },
-    { href: '/integrations', label: 'Platform Integrations', icon: Blocks },
+    { href: '/devices', label: t('navigation.devices'), icon: Router },
+    { href: '/integrations', label: t('navigation.platformIntegrations'), icon: Blocks },
   ];
   const notificationItems = [
-    { href: '/alerts', label: 'Alerts', icon: Info },
+    { href: '/alerts', label: t('navigation.alerts'), icon: Info },
   ];
 
   return (
@@ -262,7 +242,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">My Account</p>
+                        <p className="text-sm font-medium leading-none">{t('userMenu.myAccount')}</p>
                         <p className="text-xs leading-none text-muted-foreground">
                           {user?.profile.email}
                         </p>
@@ -272,7 +252,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                      <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
                         <Globe className="mr-2 h-4 w-4" />
-                        <span>Language</span>
+                        <span>{t('userMenu.language')}</span>
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent>
@@ -282,30 +262,30 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => i18n.changeLanguage('es')}>
                              <span className="w-4 mr-2">{i18n.language === 'es' && <Check className="h-4 w-4" />}</span>
-                            Spanish
+                            Español
                           </DropdownMenuItem>
                         </DropdownMenuSubContent>
                       </DropdownMenuPortal>
                     </DropdownMenuSub>
                     <DropdownMenuItem onSelect={() => setIsProfileModalOpen(true)}>
                       <User className="mr-2 h-4 w-4" />
-                      <span>Profile / Token Claims</span>
+                      <span>{t('userMenu.profile')}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setIsStatusModalOpen(true)}>
                       <Info className="mr-2 h-4 w-4" />
-                      <span>Backend Services</span>
+                      <span>{t('userMenu.backendServices')}</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout}>
                       <LogOut className="mr-2 h-4 w-4" />
-                      <span>Logout</span>
+                      <span>{t('userMenu.logout')}</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
               <Button variant="ghost" size="sm" onClick={login} className="text-header-foreground hover:bg-header/80 hover:text-header-foreground">
-                <LogIn className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Login</span>
+                <LogIn className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">{t('login.loginButton')}</span>
               </Button>
             )}
           </div>
@@ -357,7 +337,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">{t('navigation.group.kms')}</SidebarGroupLabel>
                   {kmsItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -373,7 +353,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
 
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">PKI</SidebarGroupLabel>
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">{t('navigation.group.pki')}</SidebarGroupLabel>
                   {pkiItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -389,7 +369,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
 
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">IoT</SidebarGroupLabel>
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">{t('navigation.group.iot')}</SidebarGroupLabel>
                   {iotItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -405,7 +385,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
 
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">NOTIFICATIONS</SidebarGroupLabel>
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">{t('navigation.group.notifications')}</SidebarGroupLabel>
                   {notificationItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -421,7 +401,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
                   
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">TOOLS</SidebarGroupLabel>
+                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">{t('navigation.group.tools')}</SidebarGroupLabel>
                   {toolsItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -461,12 +441,12 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               width={75}
               alt="LamassuIoT Logo"
             />
-            <h1 className="text-3xl font-bold mt-3 mb-3">Welcome to LamassuIoT</h1>
+            <h1 className="text-3xl font-bold mt-3 mb-3">{t('login.welcomeMessage')}</h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-md">
-              Securely manage your X.509 certificates and IoT device identities. Please log in to access the dashboard.
+              {t('login.welcomeDescription')}
             </p>
             <Button onClick={login} size="lg" className="px-8 py-6 text-lg">
-              <LogIn className="mr-2 h-5 w-5" /> Login with Lamassu Identity
+              <LogIn className="mr-2 h-5 w-5" /> {t('login.loginButton')}
             </Button>
           </div>
         )}
@@ -475,25 +455,25 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
       <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>User Profile & Token Claims</DialogTitle>
+            <DialogTitle>{t('userMenu.profileClaimsTitle')}</DialogTitle>
             <DialogDescription>
-              This is the decoded information from your ID and Access tokens.
+              {t('userMenu.profileClaimsDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4">
             <div>
-              <h4 className="text-sm font-semibold text-muted-foreground mb-2">Assigned Roles</h4>
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2">{t('userMenu.assignedRoles')}</h4>
               <div className="flex flex-wrap gap-2">
                 {userRoles.length > 0 ? (
                   userRoles.map(role => <Badge key={role} variant="secondary">{role}</Badge>)
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">No roles found in access token.</p>
+                  <p className="text-xs text-muted-foreground italic">{t('userMenu.noRoles')}</p>
                 )}
               </div>
             </div>
             <Separator />
             <div>
-              <h4 className="text-sm font-semibold text-muted-foreground mb-2">ID Token Claims</h4>
+              <h4 className="text-sm font-semibold text-muted-foreground mb-2">{t('userMenu.idTokenClaims')}</h4>
               <ScrollArea className="h-60 w-full rounded-md border p-4 bg-muted/30">
                   <pre className="text-xs whitespace-pre-wrap break-all">
                   {user ? JSON.stringify(user.profile, null, 2) : "No user profile data available."}
@@ -503,7 +483,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
           </div>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsProfileModalOpen(false)}>
-              Close
+              {t('actions.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -574,6 +554,7 @@ export default function RootLayout({
 
 function CustomSidebarToggle() {
   const { open, toggleSidebar, isMobile } = useSidebar();
+  const { t } = useTranslation();
   
   if (isMobile) {
     return null;
@@ -583,10 +564,10 @@ function CustomSidebarToggle() {
     <SidebarMenuButton
       onClick={toggleSidebar}
       className="w-full flex items-center group-data-[collapsible=icon]:justify-center mb-2"
-      tooltip={{ children: open ? "Collapse sidebar" : "Expand sidebar", side: 'right', align: 'center' }}
+      tooltip={{ children: open ? t('navigation.collapse') : t('navigation.expand'), side: 'right', align: 'center' }}
     >
       {open ? <ChevronsLeft /> : <ChevronsRight />}
-      <span className="ml-2 group-data-[collapsible=icon]:hidden whitespace-nowrap">{open ? "Collapse" : ""}</span>
+      <span className="ml-2 group-data-[collapsible=icon]:hidden whitespace-nowrap">{open ? t('navigation.collapse') : ""}</span>
     </SidebarMenuButton>
   );
 }
