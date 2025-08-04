@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -6,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Landmark, FileText, Users, Router } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from 'react-i18next';
 
 interface SummaryStats {
   certificates: number | null;
@@ -62,33 +64,33 @@ const StatItem: React.FC<{
 
 
 export const SummaryStatsCard: React.FC<SummaryStatsCardProps> = ({ stats, isLoading }) => {
-
+  const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
        <StatItem
         value={stats.certificates}
-        label="Issued Certificates"
+        label={t('home.summaryStats.issuedCertificates')}
         href="/certificates"
         isLoading={isLoading}
         icon={FileText}
       />
       <StatItem
         value={stats.cas}
-        label="Certification Authorities"
+        label={t('home.summaryStats.certificationAuthorities')}
         href="/certificate-authorities"
         isLoading={isLoading}
         icon={Landmark}
       />
       <StatItem
         value={stats.ras}
-        label="Registration Authorities"
+        label={t('home.summaryStats.registrationAuthorities')}
         href="/registration-authorities"
         isLoading={isLoading}
         icon={Users}
       />
       <StatItem
         value={stats.devices}
-        label="Managed Devices"
+        label={t('home.summaryStats.managedDevices')}
         href="/devices"
         isLoading={isLoading}
         icon={Router}

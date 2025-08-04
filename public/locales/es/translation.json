@@ -1,74 +1,108 @@
 {
-    "actions": {
-        "close": "Cerrar"
+  "loading": {
+    "app": "Cargando Aplicación..."
+  },
+  "login": {
+    "welcomeMessage": "Bienvenido a LamassuIoT",
+    "welcomeDescription": "El estándar abierto, flexible y neutral para la gestión de dispositivos IoT.",
+    "loginButton": "Iniciar Sesión"
+  },
+  "userMenu": {
+    "myAccount": "Mi Cuenta",
+    "language": "Idioma",
+    "profile": "Perfil",
+    "backendServices": "Servicios de Backend",
+    "logout": "Cerrar Sesión",
+    "profileClaimsTitle": "Atributos del Perfil de Usuario",
+    "profileClaimsDescription": "Estos son los atributos decodificados de su token de identidad.",
+    "assignedRoles": "Roles Asignados",
+    "noRoles": "No hay roles asignados.",
+    "idTokenClaims": "Atributos del Token de ID"
+  },
+  "actions": {
+    "close": "Cerrar"
+  },
+  "breadcrumbs": {
+    "home": "Inicio",
+    "kms": "KMS",
+    "keys": "Claves",
+    "crypto-engines": "Motores Criptográficos",
+    "certificates": "Certificados",
+    "certificate-authorities": "Autoridades de Certificación",
+    "signing-profiles": "Perfiles de Emisión",
+    "registration-authorities": "Autoridades de Registro",
+    "verification-authorities": "Autoridades de Verificación",
+    "devices": "Dispositivos",
+    "integrations": "Integraciones",
+    "alerts": "Alertas",
+    "tools": "Herramientas",
+    "certificate-viewer": "Visor de Certificados",
+    "details": "Detalles",
+    "new": "Nuevo",
+    "issue-certificate": "Emitir Certificado",
+    "generate": "Generar",
+    "reuse-key": "Reusar Clave",
+    "import-full": "Importación Completa",
+    "import-public": "Importar Pública",
+    "requests": "Solicitudes",
+    "approve-request": "Aprobar Solicitud",
+    "generate-csr": "Generar CSR",
+    "configure": "Configurar"
+  },
+  "navigation": {
+    "home": "Dashboard",
+    "collapse": "Contraer",
+    "expand": "Expandir",
+    "group": {
+      "kms": "Gestión de Claves",
+      "pki": "Gestión de PKI",
+      "iot": "Gestión de IoT",
+      "notifications": "Notificaciones",
+      "tools": "Herramientas"
     },
-    "loading": {
-        "app": "Cargando aplicación..."
+    "keys": "Claves",
+    "cryptoEngines": "Motores Cripto",
+    "certificates": "Certificados",
+    "certificationAuthorities": "Autoridades de Cert.",
+    "issuanceProfiles": "Perfiles de Emisión",
+    "registrationAuthorities": "Autoridades de Reg.",
+    "verificationAuthorities": "Autoridades de Verif.",
+    "devices": "Dispositivos",
+    "platformIntegrations": "Integraciones",
+    "alerts": "Alertas",
+    "certificateViewer": "Visor de Certificados"
+  },
+  "home": {
+    "refreshAll": "Refrescar Todo",
+    "summaryStats": {
+      "issuedCertificates": "Certificados Emitidos",
+      "certificationAuthorities": "Autoridades de Certificación",
+      "registrationAuthorities": "Autoridades de Registro",
+      "managedDevices": "Dispositivos Gestionados"
     },
-    "login": {
-        "welcomeMessage": "Bienvenido a LamassuIoT",
-        "welcomeDescription": "Gestione de forma segura sus certificados X.509 e identidades de dispositivos IoT. Por favor, inicie sesión para acceder al panel de control.",
-        "loginButton": "Iniciar sesión con Lamassu Identity"
+    "deviceStatus": {
+      "title": "Resumen de Estado de Dispositivos",
+      "description": "Un resumen de todos los dispositivos gestionados por su estado actual.",
+      "loading": "Cargando datos del gráfico...",
+      "error": "Error: {{error}}",
+      "noData": "No hay datos de dispositivos para mostrar.",
+      "totalDevices": "Dispositivos Totales",
+      "statuses": {
+        "active": "Activo",
+        "noIdentity": "Sin Identidad",
+        "decommissioned": "Retirado",
+        "expiringSoon": "Próximo a Expirar",
+        "renewalPending": "Renovación Pendiente",
+        "revoked": "Revocado",
+        "expired": "Expirado"
+      }
     },
-    "userMenu": {
-        "myAccount": "Mi Cuenta",
-        "language": "Idioma",
-        "profile": "Perfil / Atributos del Token",
-        "profileClaimsTitle": "Perfil de Usuario y Atributos del Token",
-        "profileClaimsDescription": "Esta es la información decodificada de sus tokens de ID y de acceso.",
-        "assignedRoles": "Roles Asignados",
-        "noRoles": "No se encontraron roles en el token de acceso.",
-        "idTokenClaims": "Atributos del Token de ID",
-        "backendServices": "Servicios de Backend",
-        "logout": "Cerrar sesión"
-    },
-    "navigation": {
-        "home": "Inicio",
-        "group": {
-            "kms": "KMS",
-            "pki": "PKI",
-            "iot": "IoT",
-            "notifications": "NOTIFICACIONES",
-            "tools": "HERRAMIENTAS"
-        },
-        "keys": "Claves",
-        "cryptoEngines": "Motores Criptográficos",
-        "certificates": "Certificados",
-        "certificationAuthorities": "Autoridades de Certificación",
-        "issuanceProfiles": "Perfiles de Emisión",
-        "registrationAuthorities": "Autoridades de Registro",
-        "verificationAuthorities": "Autoridades de Verificación",
-        "devices": "Dispositivos",
-        "platformIntegrations": "Integraciones de Plataforma",
-        "alerts": "Alertas",
-        "certificateViewer": "Visor de Certificados",
-        "collapse": "Contraer",
-        "expand": "Expandir"
-    },
-    "breadcrumbs": {
-        "home": "Inicio",
-        "kms": "KMS",
-        "keys": "Claves",
-        "crypto-engines": "Motores Criptográficos",
-        "certificates": "Certificados",
-        "certificate-authorities": "Autoridades de Certificación",
-        "signing-profiles": "Perfiles de Emisión",
-        "registration-authorities": "Autoridades de Registro",
-        "verification-authorities": "Autoridades de Verificación",
-        "devices": "Dispositivos",
-        "integrations": "Integraciones de Plataforma",
-        "alerts": "Alertas",
-        "tools": "Herramientas",
-        "certificate-viewer": "Visor de Certificados",
-        "details": "Detalles",
-        "new": "Nuevo",
-        "issue-certificate": "Emitir Certificado",
-        "requests": "Solicitudes de CA",
-        "approve-request": "Aprobar Solicitud",
-        "generate": "Generar",
-        "generate-csr": "Generar CSR",
-        "import-full": "Importar CA Completa",
-        "import-public": "Importar CA Pública",
-        "reuse-key": "Reutilizar Clave"
+    "caExpiry": {
+      "title": "Línea de Tiempo de Expiración de AC",
+      "description": "Línea de tiempo visual de las fechas de expiración de las Autoridades de Certificación. Haga clic en un elemento para ver detalles.",
+      "loading": "Cargando datos de la línea de tiempo de AC...",
+      "errorTitle": "Error al Cargar Datos de la Línea de Tiempo",
+      "tryAgain": "¿Intentar de nuevo?"
     }
+  }
 }

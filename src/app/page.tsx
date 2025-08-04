@@ -17,6 +17,7 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { cn } from '@/lib/utils';
 import { fetchDmsStats } from '@/lib/dms-api';
 import { fetchDeviceStats } from '@/lib/devices-api';
+import { useTranslation } from 'react-i18next';
 
 // Helper function from old page.tsx
 function flattenCAs(cas: CA[]): CA[] {
@@ -43,6 +44,7 @@ interface SummaryStats {
 
 export default function HomePage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
 
   // State for timeline
   const [allCAs, setAllCAs] = useState<CA[]>([]);
@@ -146,7 +148,7 @@ export default function HomePage() {
     <div className="w-full space-y-8">
       <div className="flex items-center justify-end">
         <Button onClick={loadInitialData} variant="outline" disabled={isReloading}>
-            <RefreshCw className={cn("mr-2 h-4 w-4", isReloading && "animate-spin")} /> Refresh All
+            <RefreshCw className={cn("mr-2 h-4 w-4", isReloading && "animate-spin")} /> {t('home.refreshAll')}
         </Button>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -163,27 +165,27 @@ export default function HomePage() {
         {anyTimelineLoading && !anyTimelineError ? (
           <Card className="shadow-lg w-full bg-card">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold">Certification Authority Expiry Timeline</CardTitle>
+              <CardTitle className="text-xl font-semibold">{t('home.caExpiry.title')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center h-[200px] md:h-[250px] p-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-3 text-muted-foreground">Loading Certification Authority timeline data...</p>
+                <p className="ml-3 text-muted-foreground">{t('home.caExpiry.loading')}</p>
               </div>
             </CardContent>
           </Card>
         ) : anyTimelineError ? (
           <Card className="shadow-lg w-full bg-card">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold">Certification Authority Expiry Timeline</CardTitle>
+              <CardTitle className="text-xl font-semibold">{t('home.caExpiry.title')}</CardTitle>
             </CardHeader>
             <CardContent>
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Error Loading Timeline Data</AlertTitle>
+                <AlertTitle>{t('home.caExpiry.errorTitle')}</AlertTitle>
                 <AlertDescription>
                   {anyTimelineError}
-                  <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80 focus:text-destructive">Try again?</Button>
+                  <Button variant="link" onClick={loadInitialData} className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80 focus:text-destructive">{t('home.caExpiry.tryAgain')}</Button>
                 </AlertDescription>
               </Alert>
             </CardContent>

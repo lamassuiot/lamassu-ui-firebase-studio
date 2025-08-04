@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
@@ -14,6 +15,7 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { Button } from '@/components/ui/button';
 import { Maximize, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 
 interface CaExpiryTimelineProps {
@@ -26,6 +28,7 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
   const cardRef = useRef<HTMLDivElement>(null);
   const hiddenItemsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const timelineInstance = useRef<Timeline | null>(null);
+  const { t } = useTranslation();
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isReadyForTimeline, setIsReadyForTimeline] = useState(false);
@@ -163,9 +166,9 @@ export const CaExpiryTimeline: React.FC<CaExpiryTimelineProps> = ({ cas, allCryp
       <Card ref={cardRef} className={cn("shadow-lg w-full bg-[--homepage-card-background] text-primary-foreground", isFullscreen && "fixed inset-0 z-50 flex flex-col")}>
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
-            <CardTitle className="text-xl font-semibold">Certification Authority Expiry Timeline</CardTitle>
+            <CardTitle className="text-xl font-semibold">{t('home.caExpiry.title')}</CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              Visual timeline of Certification Authority expiry dates. Click an item to view details.
+              {t('home.caExpiry.description')}
             </CardDescription>
           </div>
            <div className="flex items-center space-x-2">

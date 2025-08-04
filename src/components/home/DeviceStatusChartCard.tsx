@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,6 +8,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recha
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { fetchDeviceStats } from '@/lib/devices-api';
+import { useTranslation } from 'react-i18next';
 
 interface ChartData {
   name: string;
@@ -14,14 +16,14 @@ interface ChartData {
   color: string;
 }
 
-const statusConfig: { [key: string]: { label: string; color: string } } = {
-  ACTIVE: { label: 'Active', color: 'rgb(34, 197, 94)' },
-  NO_IDENTITY: { label: 'No Identity', color: '#3b82f6' },
-  DECOMMISSIONED: { label: 'Decommissioned', color: '#9ca3af' },
-  EXPIRING_SOON: { label: 'Expiring Soon', color: '#f97316' },
-  RENEWAL_PENDING: { label: 'Renewal Pending', color: '#eab308' },
-  REVOKED: { label: 'Revoked', color: '#ef4444' },
-  EXPIRED: { label: 'Expired', color: '#8b5cf6' },
+const statusConfig: { [key: string]: { i18nKey: string; color: string } } = {
+  ACTIVE: { i18nKey: 'active', color: 'rgb(34, 197, 94)' },
+  NO_IDENTITY: { i18nKey: 'noIdentity', color: '#3b82f6' },
+  DECOMMISSIONED: { i18nKey: 'decommissioned', color: '#9ca3af' },
+  EXPIRING_SOON: { i18nKey: 'expiringSoon', color: '#f97316' },
+  RENEWAL_PENDING: { i18nKey: 'renewalPending', color: '#eab308' },
+  REVOKED: { i18nKey: 'revoked', color: '#ef4444' },
+  EXPIRED: { i18nKey: 'expired', color: '#8b5cf6' },
 };
 
 // Custom Legend Component
@@ -45,6 +47,7 @@ const renderLegend = (props: any) => {
 
 export function DeviceStatusChartCard() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const [chartData, setChartData] = useState<ChartData[] | null>(null);
   const [totalDevices, setTotalDevices] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,9 +70,9 @@ export function DeviceStatusChartCard() {
 
         const transformedData = Object.entries(data.status_distribution)
           .map(([statusKey, value]) => {
-              const config = statusConfig[statusKey] || { label: statusKey, color: '#8884d8' };
+              const config = statusConfig[statusKey] || { i18nKey: statusKey, color: '#8884d8' };
               return {
-                  name: config.label,
+                  name: t(`home.deviceStatus.statuses.${config.i18nKey}`, { defaultValue: statusKey }),
                   value: value,
                   color: config.color,
               };
@@ -88,7 +91,7 @@ export function DeviceStatusChartCard() {
     if(!authLoading) {
       getDeviceStats();
     }
-  }, [user, isAuthenticated, authLoading]);
+  }, [user, isAuthenticated, authLoading, t]);
 
 
   const RADIAN = Math.PI / 180;
@@ -136,18 +139,18 @@ export function DeviceStatusChartCard() {
   return (
     <Card className="shadow-lg w-full bg-[--homepage-card-background] text-primary-foreground">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">Device Status Overview</CardTitle>
-        <CardDescription className="text-primary-foreground/80">A summary of all managed devices by their current status.</CardDescription>
+        <CardTitle className="text-2xl font-headline">{t('home.deviceStatus.title')}</CardTitle>
+        <CardDescription className="text-primary-foreground/80">{t('home.deviceStatus.description')}</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading || authLoading ? (
           <div className="h-[250px] flex flex-col items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary-foreground/80" />
-            <p className="mt-2 text-sm text-primary-foreground/70">Loading chart data...</p>
+            <p className="mt-2 text-sm text-primary-foreground/70">{t('home.deviceStatus.loading')}</p>
           </div>
         ) : error ? (
           <div className="h-[250px] flex flex-col items-center justify-center text-center">
-            <p className="text-destructive-foreground/80 bg-destructive/30 p-3 rounded-md">Error: {error}</p>
+            <p className="text-destructive-foreground/80 bg-destructive/30 p-3 rounded-md">{t('home.deviceStatus.error', { error: error })}</p>
           </div>
         ) : chartData && chartData.length > 0 ? (
           <div className="relative" style={{ width: '100%', height: 250 }}>
@@ -177,13 +180,13 @@ export function DeviceStatusChartCard() {
             {totalDevices !== null && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-3xl font-bold text-primary-foreground">{totalDevices}</span>
-                    <span className="text-sm text-primary-foreground/80">Total Devices</span>
+                    <span className="text-sm text-primary-foreground/80">{t('home.deviceStatus.totalDevices')}</span>
                 </div>
             )}
           </div>
         ) : (
              <div className="h-[250px] flex flex-col items-center justify-center text-center">
-                <p className="text-primary-foreground/80">No device data available to display.</p>
+                <p className="text-primary-foreground/80">{t('home.deviceStatus.noData')}</p>
              </div>
         )}
       </CardContent>

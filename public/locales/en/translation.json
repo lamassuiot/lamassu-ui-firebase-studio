@@ -1,74 +1,108 @@
 {
-    "actions": {
-        "close": "Close"
+  "loading": {
+    "app": "Loading Application..."
+  },
+  "login": {
+    "welcomeMessage": "Welcome to LamassuIoT",
+    "welcomeDescription": "The open, flexible, and vendor-neutral standard for IoT device management.",
+    "loginButton": "Login"
+  },
+  "userMenu": {
+    "myAccount": "My Account",
+    "language": "Language",
+    "profile": "Profile",
+    "backendServices": "Backend Services",
+    "logout": "Logout",
+    "profileClaimsTitle": "User Profile Claims",
+    "profileClaimsDescription": "These are the claims decoded from your identity token.",
+    "assignedRoles": "Assigned Roles",
+    "noRoles": "No roles assigned.",
+    "idTokenClaims": "ID Token Claims"
+  },
+  "actions": {
+    "close": "Close"
+  },
+  "breadcrumbs": {
+    "home": "Home",
+    "kms": "KMS",
+    "keys": "Keys",
+    "crypto-engines": "Crypto Engines",
+    "certificates": "Certificates",
+    "certificate-authorities": "Certification Authorities",
+    "signing-profiles": "Issuance Profiles",
+    "registration-authorities": "Registration Authorities",
+    "verification-authorities": "Verification Authorities",
+    "devices": "Devices",
+    "integrations": "Integrations",
+    "alerts": "Alerts",
+    "tools": "Tools",
+    "certificate-viewer": "Certificate Viewer",
+    "details": "Details",
+    "new": "New",
+    "issue-certificate": "Issue Certificate",
+    "generate": "Generate",
+    "reuse-key": "Reuse Key",
+    "import-full": "Import Full",
+    "import-public": "Import Public",
+    "requests": "Requests",
+    "approve-request": "Approve Request",
+    "generate-csr": "Generate CSR",
+    "configure": "Configure"
+  },
+  "navigation": {
+    "home": "Dashboard",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "group": {
+      "kms": "Key Management",
+      "pki": "PKI Management",
+      "iot": "IoT Management",
+      "notifications": "Notifications",
+      "tools": "Tools"
     },
-    "loading": {
-        "app": "Loading application..."
+    "keys": "Keys",
+    "cryptoEngines": "Crypto Engines",
+    "certificates": "Certificates",
+    "certificationAuthorities": "Certification Authorities",
+    "issuanceProfiles": "Issuance Profiles",
+    "registrationAuthorities": "Registration Authorities",
+    "verificationAuthorities": "Verification Authorities",
+    "devices": "Devices",
+    "platformIntegrations": "Platform Integrations",
+    "alerts": "Alerts",
+    "certificateViewer": "Certificate Viewer"
+  },
+  "home": {
+    "refreshAll": "Refresh All",
+    "summaryStats": {
+      "issuedCertificates": "Issued Certificates",
+      "certificationAuthorities": "Certification Authorities",
+      "registrationAuthorities": "Registration Authorities",
+      "managedDevices": "Managed Devices"
     },
-    "login": {
-        "welcomeMessage": "Welcome to LamassuIoT",
-        "welcomeDescription": "Securely manage your X.509 certificates and IoT device identities. Please log in to access the dashboard.",
-        "loginButton": "Login with Lamassu Identity"
+    "deviceStatus": {
+      "title": "Device Status Overview",
+      "description": "A summary of all managed devices by their current status.",
+      "loading": "Loading chart data...",
+      "error": "Error: {{error}}",
+      "noData": "No device data available to display.",
+      "totalDevices": "Total Devices",
+      "statuses": {
+        "active": "Active",
+        "noIdentity": "No Identity",
+        "decommissioned": "Decommissioned",
+        "expiringSoon": "Expiring Soon",
+        "renewalPending": "Renewal Pending",
+        "revoked": "Revoked",
+        "expired": "Expired"
+      }
     },
-    "userMenu": {
-        "myAccount": "My Account",
-        "language": "Language",
-        "profile": "Profile / Token Claims",
-        "profileClaimsTitle": "User Profile & Token Claims",
-        "profileClaimsDescription": "This is the decoded information from your ID and Access tokens.",
-        "assignedRoles": "Assigned Roles",
-        "noRoles": "No roles found in access token.",
-        "idTokenClaims": "ID Token Claims",
-        "backendServices": "Backend Services",
-        "logout": "Logout"
-    },
-    "navigation": {
-        "home": "Home",
-        "group": {
-            "kms": "KMS",
-            "pki": "PKI",
-            "iot": "IoT",
-            "notifications": "NOTIFICATIONS",
-            "tools": "TOOLS"
-        },
-        "keys": "Keys",
-        "cryptoEngines": "Crypto Engines",
-        "certificates": "Certificates",
-        "certificationAuthorities": "Certification Authorities",
-        "issuanceProfiles": "Issuance Profiles",
-        "registrationAuthorities": "Registration Authorities",
-        "verificationAuthorities": "Verification Authorities",
-        "devices": "Devices",
-        "platformIntegrations": "Platform Integrations",
-        "alerts": "Alerts",
-        "certificateViewer": "Certificate Viewer",
-        "collapse": "Collapse",
-        "expand": "Expand"
-    },
-    "breadcrumbs": {
-        "home": "Home",
-        "kms": "KMS",
-        "keys": "Keys",
-        "crypto-engines": "Crypto Engines",
-        "certificates": "Certificates",
-        "certificate-authorities": "Certification Authorities",
-        "signing-profiles": "Issuance Profiles",
-        "registration-authorities": "Registration Authorities",
-        "verification-authorities": "Verification Authorities",
-        "devices": "Devices",
-        "integrations": "Platform Integrations",
-        "alerts": "Alerts",
-        "tools": "Tools",
-        "certificate-viewer": "Certificate Viewer",
-        "details": "Details",
-        "new": "New",
-        "issue-certificate": "Issue Certificate",
-        "requests": "CA Requests",
-        "approve-request": "Approve Request",
-        "generate": "Generate",
-        "generate-csr": "Generate CSR",
-        "import-full": "Import Full CA",
-        "import-public": "Import Public CA",
-        "reuse-key": "Reuse Key"
+    "caExpiry": {
+      "title": "Certification Authority Expiry Timeline",
+      "description": "Visual timeline of Certification Authority expiry dates. Click an item to view details.",
+      "loading": "Loading Certification Authority timeline data...",
+      "errorTitle": "Error Loading Timeline Data",
+      "tryAgain": "Try again?"
     }
+  }
 }
