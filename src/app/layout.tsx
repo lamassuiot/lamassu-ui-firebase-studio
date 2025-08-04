@@ -68,12 +68,20 @@ interface DecodedAccessToken {
 }
 
 const LoadingState = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  
+  // This ensures that we don't try to translate on the server during SSR.
+  // We'll show a generic message on the server, and the correct one on the client.
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground w-full p-6 text-center">
       <Loader2 className="h-16 w-16 animate-spin text-primary" />
       <p className="mt-6 text-lg text-muted-foreground">
-        {t('loading.app')}
+        {isClient ? t('loading.app') : 'Loading Application...'}
       </p>
     </div>
   );
@@ -512,12 +520,10 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     return <>{children}</>;
   }
 
-  if (!clientMounted) {
+  // Before the client is mounted, or while auth is loading, show the loading state.
+  // This state is safe from hydration errors as it only renders client-side translated text.
+  if (!clientMounted || authIsLoading) {
     return <LoadingState />;
-  }
-  
-  if (authIsLoading) {
-      return <LoadingState />;
   }
 
   return <MainLayoutContent>{children}</MainLayoutContent>;

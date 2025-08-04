@@ -98,9 +98,9 @@
       }
     },
     "caExpiry": {
-      "title": "Línea de Tiempo de Expiración de AC",
+      "title": "Línea de Tiempo de Expiración de CA",
       "description": "Línea de tiempo visual de las fechas de expiración de las Autoridades de Certificación. Haga clic en un elemento para ver detalles.",
-      "loading": "Cargando datos de la línea de tiempo de AC...",
+      "loading": "Cargando datos de la línea de tiempo de CA...",
       "errorTitle": "Error al Cargar Datos de la Línea de Tiempo",
       "tryAgain": "¿Intentar de nuevo?"
     }
