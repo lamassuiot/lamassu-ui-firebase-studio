@@ -1,0 +1,21 @@
+{
+  "home": {
+    "stats": {
+      "certificates": "Certificados Emitidos",
+      "cas": "Autoridades de Certificación",
+      "ras": "Autoridades de Registro",
+      "devices": "Dispositivos Gestionados"
+    },
+    "device_status": {
+      "title": "Resumen del Estado de Dispositivos",
+      "description": "Un resumen de todos los dispositivos gestionados por su estado actual."
+    },
+    "ca_expiry": {
+      "title": "Línea de Tiempo de Expiración de AC",
+      "description": "Línea de tiempo visual de las fechas de expiración de las Autoridades de Certificación. Haga clic en un elemento para ver los detalles."
+    }
+  },
+  "common": {
+    "refresh": "Actualizar"
+  }
+}

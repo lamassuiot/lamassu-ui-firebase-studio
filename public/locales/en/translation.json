@@ -1,0 +1,21 @@
+{
+  "home": {
+    "stats": {
+      "certificates": "Issued Certificates",
+      "cas": "Certification Authorities",
+      "ras": "Registration Authorities",
+      "devices": "Managed Devices"
+    },
+    "device_status": {
+      "title": "Device Status Overview",
+      "description": "A summary of all managed devices by their current status."
+    },
+    "ca_expiry": {
+      "title": "Certification Authority Expiry Timeline",
+      "description": "Visual timeline of Certification Authority expiry dates. Click an item to view details."
+    }
+  },
+  "common": {
+    "refresh": "Refresh"
+  }
+}
