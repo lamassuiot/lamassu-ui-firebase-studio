@@ -53,6 +53,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { BackendStatusDialog } from '@/components/shared/BackendStatusDialog';
+import '@/i18n';
 
 
 interface DecodedAccessToken {
