@@ -25,7 +25,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import { FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Info, User, Blocks, Binary } from 'lucide-react';
+import { FileText, Users, Landmark, ShieldCheck, HomeIcon, ChevronsLeft, ChevronsRight, Router, KeyRound, ScrollTextIcon, LogIn, LogOut, Loader2, Cpu, Info, User, Blocks, Binary, Globe, Check } from 'lucide-react';
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
@@ -54,6 +58,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { BackendStatusDialog } from '@/components/shared/BackendStatusDialog';
 import '@/i18n';
+import { useTranslation } from 'react-i18next';
 
 
 interface DecodedAccessToken {
@@ -167,6 +172,7 @@ const CustomFooter = () => {
 
 const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, login, logout } = useAuth();
+  const { i18n } = useTranslation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -263,6 +269,24 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                     <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Globe className="mr-2 h-4 w-4" />
+                        <span>Language</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem onSelect={() => i18n.changeLanguage('en')}>
+                            <span className="w-4 mr-2">{i18n.language === 'en' && <Check className="h-4 w-4" />}</span>
+                            English
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => i18n.changeLanguage('es')}>
+                             <span className="w-4 mr-2">{i18n.language === 'es' && <Check className="h-4 w-4" />}</span>
+                            Spanish
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
                     <DropdownMenuItem onSelect={() => setIsProfileModalOpen(true)}>
                       <User className="mr-2 h-4 w-4" />
                       <span>Profile / Token Claims</span>
