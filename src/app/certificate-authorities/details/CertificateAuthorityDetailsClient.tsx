@@ -152,33 +152,36 @@ export default function CertificateAuthorityDetailsClient() {
   }, [authLoading, loadInitialData]);
 
   useEffect(() => {
-    if (isLoadingCAs || !caIdFromUrl || allCertificateAuthoritiesData.length === 0) {
-      setCaDetails(null);
-      setCaPathToRoot([]);
-      setFullChainPemString('');
-      return;
-    }
-    const foundCa = findCaById(caIdFromUrl, allCertificateAuthoritiesData);
-    if (foundCa) {
-        if(foundCa.pemData) {
-            const parsedDetails = parseCertificatePemDetails(foundCa.pemData);
-            const completeCa = { ...foundCa, ...parsedDetails };
-            setCaDetails(completeCa);
-        } else {
-            setCaDetails(foundCa);
-        }
-
-        const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
-        setCaPathToRoot(path);
-        const chainPem = path.map(p => p.pemData).filter(Boolean).join('\\n\\n');
-        setFullChainPemString(chainPem);
-        if (isAuthenticated() && user?.access_token) {
-            loadCaStats(foundCa.id, user.access_token);
-        }
-
-    } else {
-      setErrorCAs(`Certification Authority with ID "${caIdFromUrl}" not found.`);
-    }
+    const processCaDetails = async () => {
+      if (isLoadingCAs || !caIdFromUrl || allCertificateAuthoritiesData.length === 0) {
+        setCaDetails(null);
+        setCaPathToRoot([]);
+        setFullChainPemString('');
+        return;
+      }
+      const foundCa = findCaById(caIdFromUrl, allCertificateAuthoritiesData);
+      if (foundCa) {
+          if (foundCa.pemData) {
+              const parsedDetails = await parseCertificatePemDetails(foundCa.pemData);
+              const completeCa = { ...foundCa, ...parsedDetails };
+              setCaDetails(completeCa);
+          } else {
+              setCaDetails(foundCa);
+          }
+  
+          const path = buildCaPathToRoot(foundCa.id, allCertificateAuthoritiesData);
+          setCaPathToRoot(path);
+          const chainPem = path.map(p => p.pemData).filter(Boolean).join('\\n\\n');
+          setFullChainPemString(chainPem);
+          if (isAuthenticated() && user?.access_token) {
+              loadCaStats(foundCa.id, user.access_token);
+          }
+  
+      } else {
+        setErrorCAs(`Certification Authority with ID "${caIdFromUrl}" not found.`);
+      }
+    };
+    processCaDetails();
   }, [caIdFromUrl, allCertificateAuthoritiesData, isLoadingCAs, isAuthenticated, user?.access_token, loadCaStats]);
 
   const handleCARevocation = () => {
