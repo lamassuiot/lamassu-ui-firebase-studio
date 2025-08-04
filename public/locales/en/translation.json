@@ -1,61 +1,50 @@
+
 {
   "loading": {
-    "app": "Loading Application..."
-  },
-  "login": {
-    "welcomeMessage": "Welcome to LamassuIoT",
-    "welcomeDescription": "The open, flexible, and vendor-neutral standard for IoT device management.",
-    "loginButton": "Login"
-  },
-  "userMenu": {
-    "myAccount": "My Account",
-    "language": "Language",
-    "profile": "Profile",
-    "backendServices": "Backend Services",
-    "logout": "Logout",
-    "profileClaimsTitle": "User Profile Claims",
-    "profileClaimsDescription": "These are the claims decoded from your identity token.",
-    "assignedRoles": "Assigned Roles",
-    "noRoles": "No roles assigned.",
-    "idTokenClaims": "ID Token Claims"
+    "app": "Loading Application...",
+    "authenticating": "Authenticating...",
+    "generic": "Loading..."
   },
   "actions": {
-    "close": "Close"
+    "close": "Close",
+    "next": "Next",
+    "previous": "Previous",
+    "refreshList": "Refresh List",
+    "tryAgain": "Try again?"
   },
-  "breadcrumbs": {
-    "home": "Home",
-    "kms": "KMS",
-    "keys": "Keys",
-    "crypto-engines": "Crypto Engines",
-    "certificates": "Certificates",
-    "certificate-authorities": "Certification Authorities",
-    "signing-profiles": "Issuance Profiles",
-    "registration-authorities": "Registration Authorities",
-    "verification-authorities": "Verification Authorities",
-    "devices": "Devices",
-    "integrations": "Integrations",
-    "alerts": "Alerts",
-    "tools": "Tools",
-    "certificate-viewer": "Certificate Viewer",
-    "details": "Details",
-    "new": "New",
-    "issue-certificate": "Issue Certificate",
-    "generate": "Generate",
-    "reuse-key": "Reuse Key",
-    "import-full": "Import Full",
-    "import-public": "Import Public",
-    "requests": "Requests",
-    "approve-request": "Approve Request",
-    "generate-csr": "Generate CSR",
-    "configure": "Configure"
+  "filters": {
+    "pageSize": "Page Size",
+    "search": {
+      "label": "Search Term",
+      "placeholder": "Enter search term..."
+    },
+    "searchIn": "Search In",
+    "status": "Status",
+    "fields": {
+      "commonName": "Common Name",
+      "serialNumber": "Serial Number"
+    },
+    "statuses": {
+      "all": "All Statuses",
+      "active": "Active",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    }
+  },
+  "errors": {
+    "loadingData": "Error Loading Data"
+  },
+  "modals": {
+    "selectIssuer": {
+      "title": "Select an Issuer Certification Authority",
+      "description": "Choose the Certification Authority that will issue the new certificate."
+    }
   },
   "navigation": {
     "home": "Dashboard",
-    "collapse": "Collapse",
-    "expand": "Expand",
     "group": {
-      "kms": "Key Management",
-      "pki": "PKI Management",
+      "kms": "KMS",
+      "pki": "PKI",
       "iot": "IoT Management",
       "notifications": "Notifications",
       "tools": "Tools"
@@ -70,7 +59,53 @@
     "devices": "Devices",
     "platformIntegrations": "Platform Integrations",
     "alerts": "Alerts",
-    "certificateViewer": "Certificate Viewer"
+    "certificateViewer": "Certificate Viewer",
+    "expand": "Expand",
+    "collapse": "Collapse"
+  },
+  "login": {
+    "welcomeMessage": "Welcome to LamassuIoT",
+    "welcomeDescription": "The central hub for managing your device identities and certificate lifecycle.",
+    "loginButton": "Login"
+  },
+  "userMenu": {
+    "myAccount": "My Account",
+    "profile": "Profile",
+    "profileClaimsTitle": "Profile & Claims",
+    "profileClaimsDescription": "These are the claims contained within your identity token.",
+    "assignedRoles": "Assigned Roles",
+    "noRoles": "No application roles assigned.",
+    "idTokenClaims": "ID Token Claims",
+    "language": "Language",
+    "backendServices": "Backend Services",
+    "logout": "Logout"
+  },
+  "breadcrumbs": {
+    "home": "Home",
+    "certificates": "Certificates",
+    "details": "Details",
+    "certificate-authorities": "Certification Authorities",
+    "new": "New",
+    "generate": "Generate",
+    "import-full": "Import Full CA",
+    "import-public": "Import Public CA",
+    "requests": "Requests",
+    "approve-request": "Approve Request",
+    "issue-certificate": "Issue Certificate",
+    "signing-profiles": "Issuance Profiles",
+    "edit": "Edit",
+    "registration-authorities": "Registration Authorities",
+    "verification-authorities": "Verification Authorities",
+    "devices": "Devices",
+    "kms": "KMS",
+    "keys": "Keys",
+    "crypto-engines": "Crypto Engines",
+    "integrations": "Integrations",
+    "configure": "Configure",
+    "alerts": "Alerts",
+    "tools": "Tools",
+    "zlint-linter": "Zlint Linter",
+    "certificate-viewer": "Certificate Viewer"
   },
   "home": {
     "refreshAll": "Refresh All",
@@ -82,11 +117,11 @@
     },
     "deviceStatus": {
       "title": "Device Status Overview",
-      "description": "A summary of all managed devices by their current status.",
-      "loading": "Loading chart data...",
-      "error": "Error: {{error}}",
+      "description": "Summary of your managed device fleet's current status.",
+      "totalDevices": "Devices",
+      "loading": "Loading device statistics...",
+      "error": "Could not load device stats: {{error}}",
       "noData": "No device data available to display.",
-      "totalDevices": "Total Devices",
       "statuses": {
         "active": "Active",
         "noIdentity": "No Identity",
@@ -99,10 +134,25 @@
     },
     "caExpiry": {
       "title": "Certification Authority Expiry Timeline",
-      "description": "Visual timeline of Certification Authority expiry dates. Click an item to view details.",
-      "loading": "Loading Certification Authority timeline data...",
-      "errorTitle": "Error Loading Timeline Data",
+      "description": "Visualize the expiration dates of your CAs.",
+      "loading": "Loading CA timeline...",
+      "errorTitle": "Error Loading Timeline",
       "tryAgain": "Try again?"
+    }
+  },
+  "certificates": {
+    "title": "Issued Certificates",
+    "actions": {
+      "issue": "Issue Certificate"
+    },
+    "loading": {
+      "certificates": "Loading Certificates...",
+      "cas": "Loading CA Data...",
+      "engines": "Loading Crypto Engines..."
+    },
+    "noData": {
+      "title": "No Issued Certificates Found",
+      "description": "There are no certificates to display based on the current filters or none have been issued yet."
     }
   }
 }

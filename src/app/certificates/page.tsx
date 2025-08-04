@@ -20,6 +20,7 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 import { usePaginatedCertificateFetcher, type ApiStatusFilterValue } from '@/hooks/usePaginatedCertificateFetcher';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from 'react-i18next';
 
 export type SortableCertColumn = 'commonName' | 'serialNumber' | 'expires' | 'status' | 'validFrom';
 export type SortDirection = 'asc' | 'desc';
@@ -65,6 +66,7 @@ export default function CertificatesPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   
   const [isClientMounted, setIsClientMounted] = useState(false);
   useEffect(() => { setIsClientMounted(true); }, []);
@@ -181,14 +183,14 @@ export default function CertificatesPage() {
   }
   
   const loadingText = authLoading 
-      ? "Authenticating..." 
+      ? t('loading.authenticating') 
       : isLoadingApi 
-          ? "Loading Certificates..." 
+          ? t('certificates.loading.certificates') 
           : isLoadingCAs
-              ? "Loading CA Data..."
+              ? t('certificates.loading.cas')
               : isLoadingCryptoEngines 
-                  ? "Loading Crypto Engines..."
-                  : "Loading...";
+                  ? t('certificates.loading.engines')
+                  : t('loading.generic');
 
   if (authLoading || (isLoadingApi && certificates.length === 0) || (isLoadingCAs && allCAs.length === 0)) {
     return (
@@ -200,10 +202,10 @@ export default function CertificatesPage() {
   }
   
   const statusOptions = [
-    { label: 'All Statuses', value: 'ALL' },
-    { label: 'Active', value: 'ACTIVE' },
-    { label: 'Expired', value: 'EXPIRED' },
-    { label: 'Revoked', value: 'REVOKED' },
+    { label: t('filters.statuses.all'), value: 'ALL' },
+    { label: t('filters.statuses.active'), value: 'ACTIVE' },
+    { label: t('filters.statuses.expired'), value: 'EXPIRED' },
+    { label: t('filters.statuses.revoked'), value: 'REVOKED' },
   ];
 
   return (
@@ -211,26 +213,26 @@ export default function CertificatesPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-3">
             <FileText className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold">Issued Certificates</h1>
+            <h1 className="text-2xl font-headline font-semibold">{t('certificates.title')}</h1>
         </div>
         <div className="flex items-center space-x-2 self-start sm:self-center">
             <Button onClick={refreshCertificates} variant="outline" disabled={isLoadingApi && certificates.length > 0}>
-                <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> Refresh List
+                <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> {t('actions.refreshList')}
             </Button>
             <Button onClick={() => setIsCaSelectorOpen(true)} variant="default">
-                <PlusCircle className="mr-2 h-4 w-4" /> Issue Certificate
+                <PlusCircle className="mr-2 h-4 w-4" /> {t('certificates.actions.issue')}
             </Button>
         </div>
       </div>
 
        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
         <div className="relative col-span-1 md:col-span-1">
-            <Label htmlFor="certSearchTermInput">Search Term</Label>
+            <Label htmlFor="certSearchTermInput">{t('filters.search.label')}</Label>
             <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
                 id="certSearchTermInput"
                 type="text"
-                placeholder="Enter search term..."
+                placeholder={t('filters.search.placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 mt-1"
@@ -238,19 +240,19 @@ export default function CertificatesPage() {
             />
         </div>
         <div className="col-span-1 md:col-span-1">
-            <Label htmlFor="certSearchFieldSelect">Search In</Label>
+            <Label htmlFor="certSearchFieldSelect">{t('filters.searchIn')}</Label>
             <Select value={searchField} onValueChange={(value: 'commonName' | 'serialNumber') => setSearchField(value)} disabled={isLoadingApi || authLoading}>
                 <SelectTrigger id="certSearchFieldSelect" className="w-full mt-1">
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="commonName">Common Name</SelectItem>
-                    <SelectItem value="serialNumber">Serial Number</SelectItem>
+                    <SelectItem value="commonName">{t('filters.fields.commonName')}</SelectItem>
+                    <SelectItem value="serialNumber">{t('filters.fields.serialNumber')}</SelectItem>
                 </SelectContent>
             </Select>
         </div>
         <div className="col-span-1 md:col-span-1">
-            <Label htmlFor="certStatusFilterSelect">Status</Label>
+            <Label htmlFor="certStatusFilterSelect">{t('filters.status')}</Label>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ApiStatusFilterValue)} disabled={isLoadingApi || authLoading}>
                 <SelectTrigger id="certStatusFilterSelect" className="w-full mt-1">
                     <SelectValue />
@@ -265,12 +267,12 @@ export default function CertificatesPage() {
       {(apiError || errorCAs || errorCryptoEngines) && (
         <Alert variant="destructive">
           <AlertCircleIcon className="h-4 w-4" />
-          <AlertTitle>Error Loading Data</AlertTitle>
+          <AlertTitle>{t('errors.loadingData')}</AlertTitle>
           <AlertDescription>
             {apiError && <p>Certificates: {apiError}</p>}
             {errorCAs && <p>CAs for Linking: {errorCAs}</p>}
             {errorCryptoEngines && <p>Crypto Engines: {errorCryptoEngines}</p>}
-            <Button variant="link" onClick={refreshCertificates} className="p-0 h-auto">Try again?</Button>
+            <Button variant="link" onClick={refreshCertificates} className="p-0 h-auto">{t('actions.tryAgain')}</Button>
           </AlertDescription>
         </Alert>
       )}
@@ -289,9 +291,9 @@ export default function CertificatesPage() {
           />
           {certificates.length === 0 && !isLoadingApi && (
             <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-              <h3 className="text-lg font-semibold text-muted-foreground">No Issued Certificates Found</h3>
+              <h3 className="text-lg font-semibold text-muted-foreground">{t('certificates.noData.title')}</h3>
               <p className="text-sm text-muted-foreground">
-                There are no certificates to display based on the current filters or none have been issued yet.
+                {t('certificates.noData.description')}
               </p>
             </div>
           )}
@@ -301,7 +303,7 @@ export default function CertificatesPage() {
       {!(apiError || errorCAs || errorCryptoEngines) && (certificates.length > 0 || isLoadingApi) && (
         <div className="flex justify-between items-center mt-4">
             <div className="flex items-center space-x-2">
-              <Label htmlFor="pageSizeSelectCertList" className="text-sm text-muted-foreground whitespace-nowrap">Page Size:</Label>
+              <Label htmlFor="pageSizeSelectCertList" className="text-sm text-muted-foreground whitespace-nowrap">{t('filters.pageSize')}:</Label>
               <Select
                 value={pageSize}
                 onValueChange={(value) => { setPageSize(value); }}
@@ -321,17 +323,17 @@ export default function CertificatesPage() {
 
             <div className="flex items-center space-x-2">
                 <Button onClick={handlePreviousPage} disabled={isLoadingApi || currentPageIndex === 0} variant="outline">
-                    <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                    <ChevronLeft className="mr-2 h-4 w-4" /> {t('actions.previous')}
                 </Button>
                 <Button onClick={handleNextPage} disabled={isLoadingApi || !(currentPageIndex < bookmarkStack.length - 1 || nextTokenFromApi)} variant="outline">
-                    Next <ChevronRight className="ml-2 h-4 w-4" />
+                    {t('actions.next')} <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
             </div>
         </div>
       )}
 
       <CertificateDetailsModal certificate={selectedCertificate} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      <CaSelectorModal isOpen={isCaSelectorOpen} onOpenChange={setIsCaSelectorOpen} title="Select an Issuer Certification Authority" description="Choose the Certification Authority that will issue the new certificate." availableCAs={allCAs} isLoadingCAs={isLoadingCAs} errorCAs={errorCAs} loadCAsAction={loadPageDependencies} onCaSelected={handleCaSelectedForIssuance} isAuthLoading={authLoading} allCryptoEngines={allCryptoEngines} />
+      <CaSelectorModal isOpen={isCaSelectorOpen} onOpenChange={setIsCaSelectorOpen} title={t('modals.selectIssuer.title')} description={t('modals.selectIssuer.description')} availableCAs={allCAs} isLoadingCAs={isLoadingCAs} errorCAs={errorCAs} loadCAsAction={loadPageDependencies} onCaSelected={handleCaSelectedForIssuance} isAuthLoading={authLoading} allCryptoEngines={allCryptoEngines} />
     </div>
   );
 }
