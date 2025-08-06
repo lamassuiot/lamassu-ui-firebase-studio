@@ -424,11 +424,10 @@ export default function CertificateAuthorityDetailsClient() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full p-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-2 md:grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-4 mb-6">
             <TabsTrigger value="information"><Info className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Information</TabsTrigger>
             <TabsTrigger value="certificate"><KeyRound className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Certificate PEM</TabsTrigger>
             <TabsTrigger value="metadata"><Lock className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Metadata</TabsTrigger>
-            <TabsTrigger value="api"><BookText className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Raw API Data</TabsTrigger>
             <TabsTrigger value="issued"><ListChecks className="mr-2 h-4 w-4 sm:hidden md:inline-block" />Issued Certificates</TabsTrigger>
           </TabsList>
 
@@ -474,16 +473,6 @@ export default function CertificateAuthorityDetailsClient() {
             />
           </TabsContent>
           
-          <TabsContent value="api">
-             <MetadataTabContent
-              rawJsonData={caDetails.rawApiData}
-              itemName={caDetails.name}
-              tabTitle="Raw API Data"
-              toast={toast}
-              isEditable={false}
-            />
-          </TabsContent>
-
           <TabsContent value="issued">
             <IssuedCertificatesTab 
               caId={caDetails.id} 
