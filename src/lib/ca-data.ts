@@ -448,11 +448,14 @@ export async function fetchAndProcessCAs(accessToken: string, apiQueryString?: s
     // Base URL setup
     const baseUrl = `${CA_API_BASE_URL}/cas`;
     const initialParams = new URLSearchParams(apiQueryString);
-    initialParams.set('page_size', '25'); // Fetch large pages to minimize requests
+    initialParams.set('page_size', '25');
 
     while (hasNextPage) {
         const url = new URL(baseUrl);
-        url.search = initialParams.toString();
+        initialParams.forEach((value, key) => {
+            if(key !== 'bookmark') url.searchParams.append(key, value);
+        });
+
         if (nextBookmark) {
             url.searchParams.set('bookmark', nextBookmark);
         }
