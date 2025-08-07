@@ -469,7 +469,7 @@ export async function fetchAndProcessCAs(accessToken: string, apiQueryString?: s
             let errorMessage = `Failed to fetch CAs page. HTTP error ${response.status}`;
             try {
                 errorJson = await response.json();
-                errorMessage = `Failed to fetch CAs: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+                errorMessage += `: ${errorJson.err || errorJson.message || 'Unknown error'}`;
             } catch (e) {
                 console.error("Failed to parse error response as JSON for CAs fetch:", e);
             }
