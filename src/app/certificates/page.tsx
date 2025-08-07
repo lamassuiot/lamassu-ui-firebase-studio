@@ -90,6 +90,7 @@ export default function CertificatesPage() {
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCaSelectorOpen, setIsCaSelectorOpen] = useState(false);
+  const [caSelectorMode, setCaSelectorMode] = useState<'issue' | 'filter'>('filter');
 
   // CA and Engine data is still fetched here as it's a page-level concern
   const [allCAs, setAllCAs] = useState<CA[]>([]);
@@ -150,6 +151,11 @@ export default function CertificatesPage() {
   useEffect(() => {
     loadPageDependencies();
   }, [loadPageDependencies]);
+  
+  const handleOpenCaSelector = (mode: 'issue' | 'filter') => {
+    setCaSelectorMode(mode);
+    setIsCaSelectorOpen(true);
+  };
 
   const handleCaSelectedForIssuance = (ca: CA) => {
     if (ca.status !== 'active' || new Date(ca.expires) < new Date()) {
@@ -228,7 +234,7 @@ export default function CertificatesPage() {
             <Button onClick={refreshCertificates} variant="outline" disabled={isLoadingApi && certificates.length > 0}>
                 <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> Refresh List
             </Button>
-            <Button onClick={() => setIsCaSelectorOpen(true)} variant="default">
+            <Button onClick={() => handleOpenCaSelector('issue')} variant="default">
                 <PlusCircle className="mr-2 h-4 w-4" /> Issue Certificate
             </Button>
         </div>
@@ -267,7 +273,7 @@ export default function CertificatesPage() {
                     id="ca-filter-button"
                     variant="outline"
                     className="w-full justify-start text-left font-normal"
-                    onClick={() => setIsCaSelectorOpen(true)}
+                    onClick={() => handleOpenCaSelector('filter')}
                     disabled={isLoadingApi || authLoading || isLoadingCAs}
                 >
                     {selectedCaForFilter ? selectedCaForFilter.name : 'All Issuers'}
@@ -370,13 +376,15 @@ export default function CertificatesPage() {
       <CaSelectorModal 
         isOpen={isCaSelectorOpen} 
         onOpenChange={setIsCaSelectorOpen} 
-        title="Select an Issuer" 
-        description={caIdFilter ? "Choose a new Certification Authority to filter the certificate list." : "Choose the Certification Authority that will issue the new certificate."}
+        title={caSelectorMode === 'issue' ? "Select an Issuer" : "Filter by CA Issuer"}
+        description={caSelectorMode === 'issue' 
+            ? "Choose the Certification Authority that will issue the new certificate." 
+            : "Choose a Certification Authority to filter the certificate list."}
         availableCAs={allCAs} 
         isLoadingCAs={isLoadingCAs} 
         errorCAs={errorCAs} 
         loadCAsAction={loadPageDependencies} 
-        onCaSelected={caIdFilter ? handleCaSelectedForFilter : handleCaSelectedForIssuance} 
+        onCaSelected={caSelectorMode === 'issue' ? handleCaSelectedForIssuance : handleCaSelectedForFilter}
         isAuthLoading={authLoading} 
         allCryptoEngines={allCryptoEngines} 
       />
