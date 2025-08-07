@@ -34,8 +34,8 @@ export function filterCaList(caList: CA[], options: CaFilterOptions): CA[] {
       const matchesType = selectedTypes.length > 0 
         ? selectedTypes.some(type => {
             if (type === 'EXTERNAL') {
-              // The "External" filter should catch both imported CAs and public-only CAs.
-              return ca.caType === 'IMPORTED' || ca.caType === 'EXTERNAL_PUBLIC';
+              // The "External" filter should ONLY catch public-only CAs.
+              return ca.caType === 'EXTERNAL_PUBLIC';
             }
             return ca.caType === type;
           })
