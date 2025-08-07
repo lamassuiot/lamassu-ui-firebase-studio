@@ -34,7 +34,7 @@ import { ExpirationConfig, ExpirationInput } from '@/components/shared/Expiratio
 import { formatISO } from 'date-fns';
 
 
-const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
+const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:58.999Z";
 
 
 // --- Helper Functions ---
