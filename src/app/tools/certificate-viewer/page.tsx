@@ -312,25 +312,57 @@ export default function CertificateViewerPage() {
   };
 
   const handleOpenOcspModal = async () => {
-    if (!parsedDetails || !parsedDetails.authorityKeyId || !user?.access_token) {
-        toast({ title: "Cannot perform OCSP Check", description: "The parsed certificate is missing an Authority Key Identifier, or you are not logged in.", variant: "destructive" });
+    if (!parsedDetails || !user?.access_token) {
+        toast({ title: "Cannot perform OCSP Check", description: "Certificate details are missing or you are not logged in.", variant: "destructive" });
         return;
     }
 
     setIsFetchingIssuer(true);
     try {
-        const issuerCAs = await fetchAndProcessCAs(user.access_token, `filter=subject_key_id[equal]${parsedDetails.authorityKeyId}`);
-        const foundIssuer = issuerCAs?.[0]; // Assuming the first result is the correct one
+        let foundIssuer: CA | null = null;
+        
+        // 1. Try to find issuer locally via AKI
+        if (parsedDetails.authorityKeyId) {
+            const issuerCAs = await fetchAndProcessCAs(user.access_token, `filter=subject_key_id[equal]${parsedDetails.authorityKeyId}`);
+            foundIssuer = issuerCAs?.[0] || null;
+        }
 
+        // 2. If not found, try to fetch from caIssuers URL
+        if (!foundIssuer && parsedDetails.caIssuersUrls && parsedDetails.caIssuersUrls.length > 0) {
+            const issuerUrl = parsedDetails.caIssuersUrls[0];
+            try {
+                const response = await fetch(issuerUrl);
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const issuerPem = await response.text();
+                const parsedIssuerDetails = await parseCertificatePemDetails(issuerPem);
+                // Create a temporary CA object for the modal
+                foundIssuer = {
+                    id: parsedIssuerDetails.serialNumber || 'external-issuer',
+                    name: parsedIssuerDetails.subject || 'External Issuer',
+                    pemData: issuerPem,
+                    // Add other required CA fields with default/dummy values
+                    issuer: parsedIssuerDetails.issuer || 'Unknown',
+                    expires: parsedIssuerDetails.validTo,
+                    serialNumber: parsedIssuerDetails.serialNumber || '',
+                    status: 'active', // Assume active
+                    keyAlgorithm: parsedIssuerDetails.publicKeyAlgorithm || '',
+                };
+            } catch (e: any) {
+                console.error("Failed to fetch or parse issuer from AIA:", e);
+                toast({ title: "AIA Fetch Failed", description: `Could not retrieve the issuer certificate from ${issuerUrl}.`, variant: "warning" });
+            }
+        }
+        
         if (!foundIssuer) {
-            toast({ title: "Issuer Not Found", description: "Could not find the issuer CA in the system based on the AKI. OCSP check is not possible.", variant: "destructive" });
+            toast({ title: "Issuer Not Found", description: "Could not find or fetch the issuer CA. OCSP check is not possible.", variant: "destructive" });
             setIssuerForOcsp(null);
         } else {
             setIssuerForOcsp(foundIssuer);
             setIsOcspModalOpen(true);
         }
+
     } catch (e: any) {
-        toast({ title: "Error Fetching Issuer", description: e.message, variant: "destructive" });
+        toast({ title: "Error Finding Issuer", description: e.message, variant: "destructive" });
     } finally {
         setIsFetchingIssuer(false);
     }
@@ -708,5 +740,6 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
