@@ -329,7 +329,10 @@ export default function CertificateViewerPage() {
 
         // 2. If not found, try to fetch from caIssuers URL
         if (!foundIssuer && parsedDetails.caIssuersUrls && parsedDetails.caIssuersUrls.length > 0) {
-            const issuerUrl = parsedDetails.caIssuersUrls[0];
+            let issuerUrl = parsedDetails.caIssuersUrls[0];
+            if (issuerUrl.startsWith('http://')) {
+                issuerUrl = issuerUrl.replace('http://', 'https://');
+            }
             try {
                 const response = await fetch(issuerUrl);
                 if (!response.ok) throw new Error(`HTTP error ${response.status}`);
@@ -740,6 +743,7 @@ export default function CertificateViewerPage() {
     </>
   );
 }
+
 
 
 
