@@ -1,5 +1,6 @@
 import type { CertificateData } from '@/types/certificate';
 import { CA_API_BASE_URL } from './api-domains';
+import { parseCertificatePemDetails } from './ca-data';
 
 
 // API Response Structures for Issued Certificates
@@ -86,21 +87,8 @@ async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificat
   if (apiCert.issuer.organization_unit) issuerDNParts.push(`OU=${apiCert.issuer.organization_unit}`);
   const fullIssuer = issuerDNParts.join(', ');
   
-  let fingerprintSha256 = '';
-
-  if (pemData && !pemData.startsWith("Error") && typeof window !== 'undefined' && window.crypto?.subtle) {
-    try {
-        const pemString = pemData.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s+/g, "");
-        const derBuffer = Uint8Array.from(atob(pemString), c => c.charCodeAt(0)).buffer;
-
-        const hashBuffer = await crypto.subtle.digest('SHA-256', derBuffer);
-        fingerprintSha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(':');
-    } catch (e) {
-        console.error("Error generating fingerprint:", e);
-        fingerprintSha256 = "Parsing Error";
-    }
-  }
-
+  // Parse the PEM to extract additional details like OCSP URLs
+  const parsedDetails = await parseCertificatePemDetails(pemData);
 
   return {
     id: apiCert.serial_number, 
@@ -115,17 +103,17 @@ async function transformApiIssuedCertificateToLocal(apiCert: ApiIssuedCertificat
     revocationReason: apiCert.revocation_reason,
     revocationTimestamp: apiCert.revocation_timestamp,
     publicKeyAlgorithm,
-    fingerprintSha256,
+    fingerprintSha256: parsedDetails.fingerprintSha256,
     issuerCaId: apiCert.issuer_metadata.id,
     rawApiData: apiCert,
-     // Parsed fields are intentionally left undefined for lazy parsing
-    sans: [],
-    signatureAlgorithm: undefined,
-    ocspUrls: [],
-    crlDistributionPoints: [],
-    caIssuersUrls: [],
-    keyUsage: [],
-    extendedKeyUsage: [],
+    // Populate fields from parsed details
+    sans: parsedDetails.sans,
+    signatureAlgorithm: parsedDetails.signatureAlgorithm,
+    ocspUrls: parsedDetails.ocspUrls,
+    crlDistributionPoints: parsedDetails.crlDistributionPoints,
+    caIssuersUrls: parsedDetails.caIssuersUrls,
+    keyUsage: parsedDetails.keyUsage,
+    extendedKeyUsage: parsedDetails.extendedKeyUsage,
   };
 }
 

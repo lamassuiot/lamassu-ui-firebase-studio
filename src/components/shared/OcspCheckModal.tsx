@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, AlertTriangle, ShieldCheck, CheckCircle, XCircle, Clock, Download, Copy, Check } from "lucide-react";
 import * as asn1js from "asn1js";
 import {
@@ -16,7 +19,8 @@ import {
     setEngine,
     BasicOCSPResponse,
     Extension,
-    getRandomValues
+    getRandomValues,
+    SingleResponse
 } from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
@@ -25,6 +29,7 @@ import { DetailItem } from './DetailItem';
 import { Badge } from '../ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { revocationReasons } from '@/lib/revocation-reasons';
 
 interface OcspCheckModalProps {
   isOpen: boolean;
@@ -105,6 +110,22 @@ const downloadPem = (derBuffer: ArrayBuffer | null, type: 'OCSP REQUEST' | 'OCSP
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 };
+
+const OID_MAP: Record<string, string> = {
+  "2.5.4.3": "CN", "2.5.4.6": "C", "2.5.4.7": "L", "2.5.4.8": "ST", "2.5.4.10": "O", "2.5.4.11": "OU",
+};
+
+const formatResponderId = (responderID: any): string => {
+    if (responderID.typesAndValues) { // It's a byName responder
+        return responderID.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${tv.value.valueBlock.value}`).join(', ');
+    }
+    if (responderID.valueBlock?.valueHex) { // It's a byKey responder
+        const hash = Array.from(new Uint8Array(responderID.valueBlock.valueHex)).map(b => b.toString(16).padStart(2, '0')).join('');
+        return `byKey: ${hash}`;
+    }
+    return 'Unknown format';
+};
+
 
 export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose, certificate, issuerCertificate }) => {
     const { toast } = useToast();
@@ -233,17 +254,11 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             }
             
             const basicResponse = new BasicOCSPResponse({ schema: asn1BasicResp.result });
-            const singleResponse = basicResponse.tbsResponseData.responses[0];
+            const singleResponse = new SingleResponse(basicResponse.tbsResponseData.responses[0]);
 
-            let responderId = "N/A";
-            if(basicResponse.tbsResponseData.responderID.byName) {
-                responderId = basicResponse.tbsResponseData.responderID.byName.typesAndValues.map((tv: any) => `${tv.type}=${tv.value.valueBlock.value}`).join(', ');
-            } else if (basicResponse.tbsResponseData.responderID.byKey) {
-                const keyHash = basicResponse.tbsResponseData.responderID.byKey.valueBlock.valueHex;
-                responderId = `KeyHash: ${Buffer.from(keyHash).toString('hex')}`;
-            }
-
-            const certStatus = getCertStatusFromTag(singleResponse.certStatus.tag);
+            const responderId = formatResponderId(basicResponse.tbsResponseData.responderID);
+            
+            const certStatus = getCertStatusFromTag(singleResponse.certStatus.idBlock.tagNumber);
             let revokedInfo = {};
             if (certStatus === 'revoked' && singleResponse.certStatus.value?.revocationTime) {
                 revokedInfo = {
