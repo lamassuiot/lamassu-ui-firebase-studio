@@ -41,6 +41,7 @@ export function usePaginatedCertificateFetcher({ caId = null, initialPageSize = 
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [searchField, setSearchField] = useState<'commonName' | 'serialNumber'>('commonName');
   const [statusFilter, setStatusFilter] = useState<ApiStatusFilterValue>('ALL');
+  const [caIdFilter, setCaIdFilter] = useState<string | null>(caId);
   const [sortConfig, setSortConfig] = useState<CertSortConfig | null>({ column: 'validFrom', direction: 'desc' });
   
   // Ref to track if this is the very first load to prevent extra renders
@@ -119,7 +120,7 @@ export function usePaginatedCertificateFetcher({ caId = null, initialPageSize = 
             
             const result = await fetchIssuedCertificates({
                 accessToken: user.access_token,
-                forCaId: caId ?? undefined,
+                forCaId: caIdFilter ?? undefined, // Use the new caIdFilter state
                 apiQueryString: apiParams.toString(),
             });
             setCertificates(result.certificates);
@@ -152,7 +153,7 @@ export function usePaginatedCertificateFetcher({ caId = null, initialPageSize = 
         setCurrentPageIndex(0);
         setBookmarkStack([null]);
     }
-  }, [pageSize, debouncedSearchTerm, searchField, statusFilter, sortConfig]);
+  }, [pageSize, debouncedSearchTerm, searchField, statusFilter, sortConfig, caIdFilter]);
 
 
   const handleNextPage = () => {
@@ -200,6 +201,7 @@ export function usePaginatedCertificateFetcher({ caId = null, initialPageSize = 
     searchTerm, setSearchTerm,
     searchField, setSearchField,
     statusFilter, setStatusFilter,
+    caIdFilter, setCaIdFilter,
     sortConfig, requestSort,
     currentPageIndex,
     nextTokenFromApi,

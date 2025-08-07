@@ -77,6 +77,7 @@ export default function CertificatesPage() {
     searchTerm, setSearchTerm,
     searchField, setSearchField,
     statusFilter, setStatusFilter,
+    caIdFilter, setCaIdFilter,
     sortConfig, requestSort,
     currentPageIndex,
     nextTokenFromApi,
@@ -205,6 +206,17 @@ export default function CertificatesPage() {
     { label: 'Expired', value: 'EXPIRED' },
     { label: 'Revoked', value: 'REVOKED' },
   ];
+  
+  // Flatten CAs for the dropdown selector
+  const flattenedCaList = (function flatten(cas: CA[]): CA[] {
+      return cas.reduce((acc, ca) => {
+          acc.push(ca);
+          if (ca.children) {
+              acc.push(...flatten(ca.children));
+          }
+          return acc;
+      }, [] as CA[]);
+  })(allCAs);
 
   return (
     <div className="w-full space-y-6 pb-8">
@@ -223,7 +235,7 @@ export default function CertificatesPage() {
         </div>
       </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         <div className="relative col-span-1 md:col-span-1">
             <Label htmlFor="certSearchTermInput">Search Term</Label>
             <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -246,6 +258,20 @@ export default function CertificatesPage() {
                 <SelectContent>
                     <SelectItem value="commonName">Common Name</SelectItem>
                     <SelectItem value="serialNumber">Serial Number</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+        <div className="col-span-1 md:col-span-1">
+            <Label htmlFor="certCaFilterSelect">CA Issuer</Label>
+            <Select value={caIdFilter || 'ALL'} onValueChange={(value) => setCaIdFilter(value === 'ALL' ? null : value)} disabled={isLoadingApi || authLoading || isLoadingCAs}>
+                <SelectTrigger id="certCaFilterSelect" className="w-full mt-1">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="ALL">All Issuers</SelectItem>
+                    {flattenedCaList.map(ca => (
+                        <SelectItem key={ca.id} value={ca.id}>{ca.name}</SelectItem>
+                    ))}
                 </SelectContent>
             </Select>
         </div>
