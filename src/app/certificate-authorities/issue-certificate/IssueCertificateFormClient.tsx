@@ -34,6 +34,8 @@ import { ExpirationConfig, ExpirationInput } from '@/components/shared/Expiratio
 import { formatISO, add, parseISO, isAfter } from 'date-fns';
 
 
+// This specific date string is used to represent "indefinite validity" (no expiration) in the API.
+// The backend and API consumers interpret "9999-12-31T23:59:58.999Z" as a special value meaning the certificate does not expire.
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:58.999Z";
 
 
