@@ -1,9 +1,9 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,6 +26,8 @@ import {
   Shield,
   ListChecks,
   Server,
+  Search,
+  X,
 } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -40,7 +42,9 @@ import { EstReEnrollModal } from '@/components/shared/EstReEnrollModal';
 import { fetchRegistrationAuthorities, updateRaMetadata, type ApiRaItem } from '@/lib/dms-api';
 import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from '@/components/ui/input';
+import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 
 
 const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: React.ReactNode }> = ({ icon: Icon, label, value }) => (
@@ -62,6 +66,11 @@ export default function RegistrationAuthoritiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Filtering State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [caFilterId, setCaFilterId] = useState<string | null>(null);
+
   // Pagination State
   const [pageSize, setPageSize] = useState('6');
   const [bookmarkStack, setBookmarkStack] = useState<(string | null)[]>([null]);
@@ -76,11 +85,21 @@ export default function RegistrationAuthoritiesPage() {
 
   const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
   const [selectedRaForMetadata, setSelectedRaForMetadata] = useState<ApiRaItem | null>(null);
+  
+  const [isCaSelectorOpen, setIsCaSelectorOpen] = useState(false);
   const [isClientMounted, setIsClientMounted] = useState(false);
 
   useEffect(() => {
     setIsClientMounted(true);
   }, []);
+  
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const fetchData = useCallback(async (bookmarkToFetch: string | null) => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -99,6 +118,10 @@ export default function RegistrationAuthoritiesPage() {
 
         if (bookmarkToFetch) {
             params.append('bookmark', bookmarkToFetch);
+        }
+        
+        if (debouncedSearchTerm.trim()) {
+            params.append('filter', `name[contains]${debouncedSearchTerm.trim()}`);
         }
 
         const [raData, caData] = await Promise.all([
@@ -119,14 +142,14 @@ export default function RegistrationAuthoritiesPage() {
     } finally {
         setIsLoading(false);
     }
-  }, [user, isAuthenticated, authLoading, pageSize, allCAs.length]);
+  }, [user, isAuthenticated, authLoading, pageSize, allCAs.length, debouncedSearchTerm]);
 
 
-  // Reset pagination when page size changes
+  // Reset pagination when page size or filter changes
   useEffect(() => {
     setCurrentPageIndex(0);
     setBookmarkStack([null]);
-  }, [pageSize]);
+  }, [pageSize, debouncedSearchTerm]);
 
   useEffect(() => {
     // Gate fetching until the component is mounted and auth is resolved
@@ -134,6 +157,22 @@ export default function RegistrationAuthoritiesPage() {
       fetchData(bookmarkStack[currentPageIndex]);
     }
   }, [isClientMounted, authLoading, isAuthenticated, bookmarkStack, currentPageIndex, fetchData]);
+
+  const filteredRas = useMemo(() => {
+    if (!caFilterId) {
+        return ras;
+    }
+    return ras.filter(ra => {
+        const enrollmentCaMatch = ra.settings.enrollment_settings.enrollment_ca === caFilterId;
+        const validationCaMatch = ra.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas?.includes(caFilterId);
+        return enrollmentCaMatch || validationCaMatch;
+    });
+  }, [ras, caFilterId]);
+
+  const selectedCaForFilter = useMemo(() => {
+    if (!caFilterId) return null;
+    return findCaById(caFilterId, allCAs);
+  }, [caFilterId, allCAs]);
 
   const getCaNameById = (caId: string) => {
     const ca = findCaById(caId, allCAs);
@@ -219,6 +258,48 @@ export default function RegistrationAuthoritiesPage() {
         Manage policies for device enrollment and certificate issuance.
       </p>
 
+      <div className="flex flex-col md:flex-row gap-4 items-end mb-4 p-4 border rounded-lg bg-muted/30">
+        <div className="flex-grow w-full space-y-1.5">
+          <Label htmlFor="ra-name-filter">Filter by Name</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="ra-name-filter"
+              placeholder="e.g., Main IoT RA..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+              disabled={isLoading || authLoading}
+            />
+          </div>
+        </div>
+         <div className="flex-grow w-full space-y-1.5">
+          <Label htmlFor="ca-filter-button">Filter by CA</Label>
+          <div className="flex items-center gap-2">
+            <Button
+                id="ca-filter-button"
+                variant="outline"
+                className="w-full justify-start text-left font-normal"
+                onClick={() => setIsCaSelectorOpen(true)}
+                disabled={isLoading || authLoading}
+            >
+                {selectedCaForFilter ? selectedCaForFilter.name : 'All Issuers & Validators'}
+            </Button>
+            {caFilterId && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setCaFilterId(null)}
+                    className="h-9 w-9 flex-shrink-0"
+                    title="Clear CA filter"
+                >
+                    <X className="h-4 w-4" />
+                </Button>
+            )}
+           </div>
+        </div>
+      </div>
+
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -227,19 +308,19 @@ export default function RegistrationAuthoritiesPage() {
         </Alert>
       )}
 
-      {!isLoading && !error && ras.length === 0 && (
+      {!isLoading && !error && filteredRas.length === 0 && (
         <div className="mt-6 p-8 border-2 border-dashed border-border rounded-lg text-center bg-muted/20">
-            <h3 className="text-lg font-semibold text-muted-foreground">No Registration Authorities Found</h3>
-            <p className="text-sm text-muted-foreground">Get started by creating a new RA to define an enrollment policy.</p>
+            <h3 className="text-lg font-semibold text-muted-foreground">{searchTerm || caFilterId ? "No Matching RAs Found" : "No Registration Authorities Found"}</h3>
+            <p className="text-sm text-muted-foreground">{searchTerm || caFilterId ? "Try a different search term or filter." : "Get started by creating a new RA to define an enrollment policy."}</p>
             <Button onClick={handleCreateNewRAClick} className="mt-4">
               <PlusCircle className="mr-2 h-4 w-4" /> Create New RA
             </Button>
         </div>
       )}
 
-      {!error && ras.length > 0 && (
+      {!error && filteredRas.length > 0 && (
         <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6", isLoading && "opacity-50")}>
-            {ras.map(ra => {
+            {filteredRas.map(ra => {
                 const profile = ra.settings.enrollment_settings.device_provisioning_profile;
                 const IconComponent = getLucideIconByName(profile.icon);
                 const [iconColor, bgColor] = (profile.icon_color || '#888888-#e0e0e0').split('-');
@@ -435,7 +516,20 @@ export default function RegistrationAuthoritiesPage() {
       )}
 
     </div>
-
+    <CaSelectorModal
+        isOpen={isCaSelectorOpen}
+        onOpenChange={setIsCaSelectorOpen}
+        title="Filter by Certificate Authority"
+        description="Show Registration Authorities that use the selected CA for enrollment or validation."
+        availableCAs={allCAs}
+        isLoadingCAs={isLoading}
+        errorCAs={error}
+        loadCAsAction={handleRefresh}
+        onCaSelected={(ca) => { setCaFilterId(ca.id); setIsCaSelectorOpen(false); }}
+        currentSelectedCaId={caFilterId}
+        isAuthLoading={authLoading}
+        allCryptoEngines={[]}
+    />
       <EstEnrollModal
           isOpen={isEnrollModalOpen}
           onOpenChange={setIsEnrollModalOpen}
@@ -460,3 +554,6 @@ export default function RegistrationAuthoritiesPage() {
     </>
   );
 }
+
+
+    
