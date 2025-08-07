@@ -16,7 +16,8 @@ import {
     setEngine,
     BasicOCSPResponse,
     Extension,
-    getRandomValues
+    getRandomValues,
+    SingleResponse
 } from "pkijs";
 import type { CertificateData } from '@/types/certificate';
 import type { CA } from '@/lib/ca-data';
@@ -233,17 +234,12 @@ export const OcspCheckModal: React.FC<OcspCheckModalProps> = ({ isOpen, onClose,
             }
             
             const basicResponse = new BasicOCSPResponse({ schema: asn1BasicResp.result });
-            const singleResponse = basicResponse.tbsResponseData.responses[0];
+            const singleResponse = new SingleResponse(basicResponse.tbsResponseData.responses[0]);
 
-            let responderId = "N/A";
-            if(basicResponse.tbsResponseData.responderID.byName) {
-                responderId = basicResponse.tbsResponseData.responderID.byName.typesAndValues.map((tv: any) => `${tv.type}=${tv.value.valueBlock.value}`).join(', ');
-            } else if (basicResponse.tbsResponseData.responderID.byKey) {
-                const keyHash = basicResponse.tbsResponseData.responderID.byKey.valueBlock.valueHex;
-                responderId = `KeyHash: ${Buffer.from(keyHash).toString('hex')}`;
-            }
+            const responderId = basicResponse.tbsResponseData.responderID.typesAndValues.map((tv: any) => `${tv.type}=${tv.value.valueBlock.value}`).join(', ');
+            
 
-            const certStatus = getCertStatusFromTag(singleResponse.certStatus.tag);
+            const certStatus = getCertStatusFromTag(singleResponse.certStatus.idBlock.tagNumber);
             let revokedInfo = {};
             if (certStatus === 'revoked' && singleResponse.certStatus.value?.revocationTime) {
                 revokedInfo = {
