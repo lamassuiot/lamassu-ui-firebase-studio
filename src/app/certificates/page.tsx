@@ -1,14 +1,14 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CertificateList } from '@/components/CertificateList';
 import { CertificateDetailsModal } from '@/components/CertificateDetailsModal';
 import type { CertificateData } from '@/types/certificate';
-import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, Search, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Loader2 as Loader2Icon, AlertCircle as AlertCircleIcon, RefreshCw, Search, PlusCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchAndProcessCAs, fetchCryptoEngines, type CA } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines, type CA, findCaById } from '@/lib/ca-data';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -77,6 +77,7 @@ export default function CertificatesPage() {
     searchTerm, setSearchTerm,
     searchField, setSearchField,
     statusFilter, setStatusFilter,
+    caIdFilter, setCaIdFilter,
     sortConfig, requestSort,
     currentPageIndex,
     nextTokenFromApi,
@@ -89,6 +90,7 @@ export default function CertificatesPage() {
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCaSelectorOpen, setIsCaSelectorOpen] = useState(false);
+  const [caSelectorMode, setCaSelectorMode] = useState<'issue' | 'filter'>('filter');
 
   // CA and Engine data is still fetched here as it's a page-level concern
   const [allCAs, setAllCAs] = useState<CA[]>([]);
@@ -149,6 +151,11 @@ export default function CertificatesPage() {
   useEffect(() => {
     loadPageDependencies();
   }, [loadPageDependencies]);
+  
+  const handleOpenCaSelector = (mode: 'issue' | 'filter') => {
+    setCaSelectorMode(mode);
+    setIsCaSelectorOpen(true);
+  };
 
   const handleCaSelectedForIssuance = (ca: CA) => {
     if (ca.status !== 'active' || new Date(ca.expires) < new Date()) {
@@ -176,6 +183,16 @@ export default function CertificatesPage() {
     setIsModalOpen(true);
   };
   
+  const handleCaSelectedForFilter = (ca: CA) => {
+    setCaIdFilter(ca.id);
+    setIsCaSelectorOpen(false);
+  }
+
+  const selectedCaForFilter = useMemo(() => {
+    if (!caIdFilter) return null;
+    return findCaById(caIdFilter, allCAs);
+  }, [caIdFilter, allCAs]);
+
   if (!isClientMounted) {
     return <CertificatesPageSkeleton />;
   }
@@ -217,13 +234,13 @@ export default function CertificatesPage() {
             <Button onClick={refreshCertificates} variant="outline" disabled={isLoadingApi && certificates.length > 0}>
                 <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingApi && certificates.length > 0 && "animate-spin")} /> Refresh List
             </Button>
-            <Button onClick={() => setIsCaSelectorOpen(true)} variant="default">
+            <Button onClick={() => handleOpenCaSelector('issue')} variant="default">
                 <PlusCircle className="mr-2 h-4 w-4" /> Issue Certificate
             </Button>
         </div>
       </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         <div className="relative col-span-1 md:col-span-1">
             <Label htmlFor="certSearchTermInput">Search Term</Label>
             <Search className="absolute left-3 top-[calc(50%+6px)] -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -248,6 +265,31 @@ export default function CertificatesPage() {
                     <SelectItem value="serialNumber">Serial Number</SelectItem>
                 </SelectContent>
             </Select>
+        </div>
+        <div className="col-span-1 md:col-span-1">
+            <Label htmlFor="ca-filter-button">CA Issuer</Label>
+            <div className="flex items-center gap-2 mt-1">
+                <Button
+                    id="ca-filter-button"
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    onClick={() => handleOpenCaSelector('filter')}
+                    disabled={isLoadingApi || authLoading || isLoadingCAs}
+                >
+                    {selectedCaForFilter ? selectedCaForFilter.name : 'All Issuers'}
+                </Button>
+                {caIdFilter && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCaIdFilter(null)}
+                        className="h-9 w-9 flex-shrink-0"
+                        title="Clear CA filter"
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
+            </div>
         </div>
         <div className="col-span-1 md:col-span-1">
             <Label htmlFor="certStatusFilterSelect">Status</Label>
@@ -331,7 +373,21 @@ export default function CertificatesPage() {
       )}
 
       <CertificateDetailsModal certificate={selectedCertificate} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      <CaSelectorModal isOpen={isCaSelectorOpen} onOpenChange={setIsCaSelectorOpen} title="Select an Issuer Certification Authority" description="Choose the Certification Authority that will issue the new certificate." availableCAs={allCAs} isLoadingCAs={isLoadingCAs} errorCAs={errorCAs} loadCAsAction={loadPageDependencies} onCaSelected={handleCaSelectedForIssuance} isAuthLoading={authLoading} allCryptoEngines={allCryptoEngines} />
+      <CaSelectorModal 
+        isOpen={isCaSelectorOpen} 
+        onOpenChange={setIsCaSelectorOpen} 
+        title={caSelectorMode === 'issue' ? "Select an Issuer" : "Filter by CA Issuer"}
+        description={caSelectorMode === 'issue' 
+            ? "Choose the Certification Authority that will issue the new certificate." 
+            : "Choose a Certification Authority to filter the certificate list."}
+        availableCAs={allCAs} 
+        isLoadingCAs={isLoadingCAs} 
+        errorCAs={errorCAs} 
+        loadCAsAction={loadPageDependencies} 
+        onCaSelected={caSelectorMode === 'issue' ? handleCaSelectedForIssuance : handleCaSelectedForFilter}
+        isAuthLoading={authLoading} 
+        allCryptoEngines={allCryptoEngines} 
+      />
     </div>
   );
 }
