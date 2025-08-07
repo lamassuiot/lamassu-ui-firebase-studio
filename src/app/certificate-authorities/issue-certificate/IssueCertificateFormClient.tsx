@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,7 @@ import { fetchAndProcessCAs, findCaById, signCertificate, type CA } from '@/lib/
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/shared/Stepper';
 import { ExpirationConfig, ExpirationInput } from '@/components/shared/ExpirationInput';
-import { formatISO } from 'date-fns';
+import { formatISO, add, parseISO, isAfter } from 'date-fns';
 
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:58.999Z";
@@ -104,6 +104,25 @@ interface SanEntry {
   value: string;
 }
 
+const parseDurationString = (durationStr: string): Duration => {
+  const duration: Duration = {};
+  const regex = /(\d+)(y|w|d|h|m|s)/g;
+  let match;
+  while ((match = regex.exec(durationStr)) !== null) {
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    switch (unit) {
+      case 'y': duration.years = value; break;
+      case 'w': duration.weeks = value; break;
+      case 'd': duration.days = value; break;
+      case 'h': duration.hours = value; break;
+      case 'm': duration.minutes = value; break;
+      case 's': duration.seconds = value; break;
+    }
+  }
+  return duration;
+};
+
 
 export default function IssueCertificateFormClient() {
   const searchParams = useSearchParams();
@@ -152,6 +171,36 @@ export default function IssueCertificateFormClient() {
   // UX State for copy buttons
   const [privateKeyCopied, setPrivateKeyCopied] = useState(false);
   const [issuedCertCopied, setIssuedCertCopied] = useState(false);
+
+  const validityWarning = useMemo(() => {
+    if (!issuerCa || !validity) return null;
+
+    let certExpiryDate: Date;
+    
+    if (validity.type === 'Indefinite') {
+        // An indefinite cert will always expire after a finite CA
+        return `The certificate's indefinite validity extends beyond the issuer CA's expiration date.`;
+    } else if (validity.type === 'Date' && validity.dateValue) {
+        certExpiryDate = validity.dateValue;
+    } else if (validity.type === 'Duration' && validity.durationValue) {
+        try {
+            const durationObj = parseDurationString(validity.durationValue);
+            certExpiryDate = add(new Date(), durationObj);
+        } catch {
+            return null; // Invalid duration format
+        }
+    } else {
+        return null; // Not enough info
+    }
+
+    const caExpiryDate = parseISO(issuerCa.expires);
+    
+    if (isAfter(certExpiryDate, caExpiryDate)) {
+        return `The certificate's validity extends beyond the issuer CA's expiration date.`;
+    }
+
+    return null;
+  }, [validity, issuerCa]);
 
 
   // --- Effects ---
@@ -643,6 +692,12 @@ export default function IssueCertificateFormClient() {
                                 value={validity}
                                 onValueChange={setValidity}
                             />
+                            {validityWarning && (
+                                <Alert variant="warning" className="mt-2">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertDescription>{validityWarning}</AlertDescription>
+                                </Alert>
+                            )}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2"><h4 className="font-medium">Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{KEY_USAGE_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`ku-${o.id}`} checked={keyUsages.includes(o.id)} onCheckedChange={(c)=>handleKeyUsageChange(o.id, !!c)}/><Label htmlFor={`ku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
                                 <div className="space-y-2"><h4 className="font-medium">Extended Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{EKU_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`eku-${o.id}`} checked={extendedKeyUsages.includes(o.id)} onCheckedChange={(c)=>handleExtendedKeyUsageChange(o.id, !!c)}/><Label htmlFor={`eku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
