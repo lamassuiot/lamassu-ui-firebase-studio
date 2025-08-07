@@ -30,7 +30,17 @@ export function filterCaList(caList: CA[], options: CaFilterOptions): CA[] {
 
       // Determine if the current CA node itself matches the filters.
       const matchesStatus = selectedStatuses.length > 0 ? selectedStatuses.includes(ca.status) : true;
-      const matchesType = selectedTypes.length > 0 ? selectedTypes.includes(ca.caType as CaTypeFilter) : true;
+      
+      const matchesType = selectedTypes.length > 0 
+        ? selectedTypes.some(type => {
+            if (type === 'EXTERNAL') {
+              // The "External" filter should catch both imported CAs and public-only CAs.
+              return ca.caType === 'IMPORTED' || ca.caType === 'EXTERNAL_PUBLIC';
+            }
+            return ca.caType === type;
+          })
+        : true;
+
       const matchesText = filterText ? ca.name.toLowerCase().includes(filterText.toLowerCase()) : true;
       
       const selfMatches = matchesStatus && matchesType && matchesText;
