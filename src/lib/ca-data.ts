@@ -441,39 +441,53 @@ function buildCaHierarchy(flatCaList: Omit<CA, 'children'>[]): CA[] {
 
 // Function to fetch, transform, and build hierarchy
 export async function fetchAndProcessCAs(accessToken: string, apiQueryString?: string): Promise<CA[]> {
-  const url = apiQueryString ? `${CA_API_BASE_URL}/cas?${apiQueryString}` : `${CA_API_BASE_URL}/cas`;
+    let allCAs: ApiCaItem[] = [];
+    let nextBookmark: string | null = null;
+    let hasNextPage = true;
+    
+    // Base URL setup
+    const baseUrl = `${CA_API_BASE_URL}/cas`;
+    const initialParams = new URLSearchParams(apiQueryString);
+    initialParams.set('page_size', '25');
 
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-    },
-  });
+    while (hasNextPage) {
+        const url = new URL(baseUrl);
+        initialParams.forEach((value, key) => {
+            if(key !== 'bookmark') url.searchParams.append(key, value);
+        });
 
-  if (!response.ok) {
-    let errorJson;
-    let errorMessage = `Failed to fetch CAs. HTTP error ${response.status}`;
-    try {
-      errorJson = await response.json();
-      if (errorJson && errorJson.err) {
-        errorMessage = `Failed to fetch CAs: ${errorJson.err}`;
-      } else if (errorJson && errorJson.message) {
-        errorMessage = `Failed to fetch CAs: ${errorJson.message}`;
-      }
-    } catch (e) {
-      // Response was not JSON or JSON parsing failed
-      console.error("Failed to parse error response as JSON for fetchAndProcessCAs:", e);
+        if (nextBookmark) {
+            url.searchParams.set('bookmark', nextBookmark);
+        }
+
+        const response = await fetch(url.toString(), {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+        });
+
+        if (!response.ok) {
+            let errorJson;
+            let errorMessage = `Failed to fetch CAs page. HTTP error ${response.status}`;
+            try {
+                errorJson = await response.json();
+                errorMessage += `: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            } catch (e) {
+                console.error("Failed to parse error response as JSON for CAs fetch:", e);
+            }
+            throw new Error(errorMessage);
+        }
+
+        const apiResponse: ApiResponseList = await response.json();
+        
+        if (apiResponse.list) {
+            allCAs = allCAs.concat(apiResponse.list);
+        }
+        
+        nextBookmark = apiResponse.next;
+        hasNextPage = !!nextBookmark;
     }
-    throw new Error(errorMessage);
-  }
-
-  const apiResponse: ApiResponseList = await response.json();
-  if (!apiResponse.list) {
-    console.warn("API response for CAs is missing 'list' property:", apiResponse);
-    return [];
-  }
-
-  const transformedFlatList = apiResponse.list.map(apiCa => transformApiCaToLocalCa(apiCa));
-  return buildCaHierarchy(transformedFlatList);
+    
+    const transformedFlatList = allCAs.map(transformApiCaToLocalCa);
+    return buildCaHierarchy(transformedFlatList);
 }
 
 
@@ -753,28 +767,51 @@ export async function fetchCaStats(caId: string, accessToken: string): Promise<C
     return response.json();
 }
 
-export async function revokeCa(caId: string, reason: string, accessToken: string): Promise<void> {
+export async function updateCaStatus(caId: string, status: 'ACTIVE' | 'REVOKED', reason?: string, accessToken?: string): Promise<void> {
+    const body: { status: string; revocation_reason?: string } = { status };
+    if (status === 'REVOKED' && reason) {
+        body.revocation_reason = reason;
+    }
     const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/status`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-            status: 'REVOKED',
-            revocation_reason: reason,
-        }),
+        body: JSON.stringify(body),
     });
     if (!response.ok) {
         let errorJson;
-        let errorMessage = `Failed to revoke CA. Status: ${response.status}`;
+        let errorMessage = `Failed to update CA status. Status: ${response.status}`;
         try {
             errorJson = await response.json();
-            errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+            errorMessage = `Status update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
         } catch (e) { /* ignore json parse error */ }
         throw new Error(errorMessage);
     }
 }
+
+export async function revokeCa(caId: string, reason: string, accessToken: string): Promise<void> {
+  const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ status: 'REVOKED', revocation_reason: reason }),
+  });
+
+  if (!response.ok) {
+    let errorJson;
+    let errorMessage = `Failed to revoke CA. Status: ${response.status}`;
+    try {
+      errorJson = await response.json();
+      errorMessage = `Revocation failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+    } catch (e) { /* ignore json parse error */ }
+    throw new Error(errorMessage);
+  }
+}
+
 
 export async function deleteCa(caId: string, accessToken: string): Promise<void> {
     const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}`, {
@@ -1075,10 +1112,3 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
-
-
-
-
-
-
-

@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,14 @@ import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/l
 import { fetchAndProcessCAs, findCaById, signCertificate, type CA } from '@/lib/ca-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/shared/Stepper';
+import { ExpirationConfig, ExpirationInput } from '@/components/shared/ExpirationInput';
+import { formatISO, add, parseISO, isAfter } from 'date-fns';
+
+
+// This specific date string is used to represent "indefinite validity" (no expiration) in the API.
+// The backend and API consumers interpret "9999-12-31T23:59:58.999Z" as a special value meaning the certificate does not expire.
+const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:58.999Z";
+
 
 // --- Helper Functions ---
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -98,6 +106,25 @@ interface SanEntry {
   value: string;
 }
 
+const parseDurationString = (durationStr: string): Duration => {
+  const duration: Duration = {};
+  const regex = /(\d+)(y|w|d|h|m|s)/g;
+  let match;
+  while ((match = regex.exec(durationStr)) !== null) {
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    switch (unit) {
+      case 'y': duration.years = value; break;
+      case 'w': duration.weeks = value; break;
+      case 'd': duration.days = value; break;
+      case 'h': duration.hours = value; break;
+      case 'm': duration.minutes = value; break;
+      case 's': duration.seconds = value; break;
+    }
+  }
+  return duration;
+};
+
 
 export default function IssueCertificateFormClient() {
   const searchParams = useSearchParams();
@@ -132,10 +159,10 @@ export default function IssueCertificateFormClient() {
   const [csrPem, setCsrPem] = useState('');
   const [decodedCsrInfo, setDecodedCsrInfo] = useState<DecodedCsrInfo | null>(null);
 
-  // Step 1 - Configuration State (previously step 3)
+  // Step 1 - Configuration State
   const [keyUsages, setKeyUsages] = useState<string[]>(['DigitalSignature', 'KeyEncipherment']);
   const [extendedKeyUsages, setExtendedKeyUsages] = useState<string[]>(['ClientAuth', 'ServerAuth']);
-  const [duration, setDuration] = useState('');
+  const [validity, setValidity] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
 
   // Step 2 & 3 State
   const [generatedPrivateKeyPem, setGeneratedPrivateKeyPem] = useState<string>('');
@@ -146,6 +173,36 @@ export default function IssueCertificateFormClient() {
   // UX State for copy buttons
   const [privateKeyCopied, setPrivateKeyCopied] = useState(false);
   const [issuedCertCopied, setIssuedCertCopied] = useState(false);
+
+  const validityWarning = useMemo(() => {
+    if (!issuerCa || !validity) return null;
+
+    let certExpiryDate: Date;
+    
+    if (validity.type === 'Indefinite') {
+        // An indefinite cert will always expire after a finite CA
+        return `The certificate's indefinite validity extends beyond the issuer CA's expiration date.`;
+    } else if (validity.type === 'Date' && validity.dateValue) {
+        certExpiryDate = validity.dateValue;
+    } else if (validity.type === 'Duration' && validity.durationValue) {
+        try {
+            const durationObj = parseDurationString(validity.durationValue);
+            certExpiryDate = add(new Date(), durationObj);
+        } catch {
+            return null; // Invalid duration format
+        }
+    } else {
+        return null; // Not enough info
+    }
+
+    const caExpiryDate = parseISO(issuerCa.expires);
+    
+    if (isAfter(certExpiryDate, caExpiryDate)) {
+        return `The certificate's validity extends beyond the issuer CA's expiration date.`;
+    }
+
+    return null;
+  }, [validity, issuerCa]);
 
 
   // --- Effects ---
@@ -186,36 +243,41 @@ export default function IssueCertificateFormClient() {
   }, [caId, user?.access_token, toast]);
 
   useEffect(() => {
-    // Only run this logic if we are not still loading the CA
-    if (!isLoadingCa) {
-        if (issuerCa) {
-            // Set default validity duration
-            const defaultLifetime = issuerCa.defaultIssuanceLifetime;
+    if (!isLoadingCa && issuerCa) {
+        // Set default validity from CA
+        if (issuerCa.defaultIssuanceLifetime) {
             const DURATION_REGEX = /^(?=.*\d)(\d+y)?(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$/;
-
-            if (defaultLifetime && DURATION_REGEX.test(defaultLifetime)) {
-                setDuration(defaultLifetime);
+            if (issuerCa.defaultIssuanceLifetime.startsWith('9999-12-31') || issuerCa.defaultIssuanceLifetime === 'Indefinite') {
+                setValidity({ type: 'Indefinite' });
+            } else if (DURATION_REGEX.test(issuerCa.defaultIssuanceLifetime)) {
+                setValidity({ type: 'Duration', durationValue: issuerCa.defaultIssuanceLifetime });
             } else {
-                setDuration('1y'); 
-            }
-
-            // Set default key algorithm based on issuer
-            const keyMeta = issuerCa.rawApiData?.certificate.key_metadata;
-            if (keyMeta) {
-                if (keyMeta.type === 'RSA' && keyMeta.bits) {
-                    setSelectedAlgorithm('RSA');
-                    setSelectedRsaKeySize(String(keyMeta.bits));
-                } else if (keyMeta.type === 'ECDSA' && keyMeta.bits) {
-                    setSelectedAlgorithm('ECDSA');
-                    // For ECDSA, the API provides the key size in bits. We map it to the curve name.
-                    const curveName = { 256: 'P-256', 384: 'P-384', 521: 'P-521' }[keyMeta.bits] || 'P-256';
-                    setSelectedEcdsaCurve(curveName);
+                try {
+                    const date = new Date(issuerCa.defaultIssuanceLifetime);
+                    if (!isNaN(date.getTime())) {
+                        setValidity({ type: 'Date', dateValue: date });
+                    }
+                } catch {
+                    // Fallback to default if parsing fails
+                    setValidity({ type: 'Duration', durationValue: '1y' });
                 }
             }
-
         } else {
-            // Fallback for Indefinite, date, or not specified when no CA
-            setDuration('1y');
+            // Default if CA has no setting
+            setValidity({ type: 'Duration', durationValue: '1y' });
+        }
+
+        // Set default key algorithm based on issuer's key
+        const keyMeta = issuerCa?.rawApiData?.certificate.key_metadata;
+        if (keyMeta) {
+            if (keyMeta.type === 'RSA' && keyMeta.bits) {
+                setSelectedAlgorithm('RSA');
+                setSelectedRsaKeySize(String(keyMeta.bits));
+            } else if (keyMeta.type === 'ECDSA' && keyMeta.bits) {
+                setSelectedAlgorithm('ECDSA');
+                const curveName = { 256: 'P-256', 384: 'P-384', 521: 'P-521' }[keyMeta.bits] || 'P-256';
+                setSelectedEcdsaCurve(curveName);
+            }
         }
     }
   }, [issuerCa, isLoadingCa]);
@@ -233,6 +295,19 @@ export default function IssueCertificateFormClient() {
   }, [csrPem, issuanceMode]);
 
   // --- Handlers ---
+  const formatValidityForApi = () => {
+    if (validity.type === "Duration") {
+        return { type: "Duration", duration: validity.durationValue };
+    }
+    if (validity.type === "Date" && validity.dateValue) {
+        return { type: "Date", time: formatISO(validity.dateValue) };
+    }
+    if (validity.type === "Indefinite") {
+        return { type: "Date", time: INDEFINITE_DATE_API_VALUE };
+    }
+    return { type: "Duration", duration: "1y" }; // Fallback
+  };
+
 
   const handleAddSan = () => {
     if (currentSanValue.trim() === '') return;
@@ -372,7 +447,7 @@ export default function IssueCertificateFormClient() {
             key_usage: keyUsages,
             honor_extensions: true,
             honor_subject: true,
-            validity: { type: "Duration", duration: duration }
+            validity: formatValidityForApi(),
         }
       };
     
@@ -412,7 +487,7 @@ export default function IssueCertificateFormClient() {
             key_usage: keyUsages,
             honor_extensions: true,
             honor_subject: true,
-            validity: { type: "Duration", duration: duration }
+            validity: formatValidityForApi(),
         }
     };
     
@@ -613,14 +688,18 @@ export default function IssueCertificateFormClient() {
                             
                             {/* --- Configuration section (both modes) --- */}
                             <h3 className="font-medium text-lg border-t pt-4">Certificate Configuration</h3>
-                            <DurationInput 
-                            id="duration" 
-                            label="Validity Duration" 
-                            value={duration} 
-                            onChange={setDuration} 
-                            placeholder="e.g., 365d, 1y, 2w"
-                            description="Units: y, w, d, h, m, s."
+                             <ExpirationInput
+                                idPrefix="cert-validity"
+                                label="Certificate Validity"
+                                value={validity}
+                                onValueChange={setValidity}
                             />
+                            {validityWarning && (
+                                <Alert variant="warning" className="mt-2">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertDescription>{validityWarning}</AlertDescription>
+                                </Alert>
+                            )}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2"><h4 className="font-medium">Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{KEY_USAGE_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`ku-${o.id}`} checked={keyUsages.includes(o.id)} onCheckedChange={(c)=>handleKeyUsageChange(o.id, !!c)}/><Label htmlFor={`ku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
                                 <div className="space-y-2"><h4 className="font-medium">Extended Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{EKU_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`eku-${o.id}`} checked={extendedKeyUsages.includes(o.id)} onCheckedChange={(c)=>handleExtendedKeyUsageChange(o.id, !!c)}/><Label htmlFor={`eku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
