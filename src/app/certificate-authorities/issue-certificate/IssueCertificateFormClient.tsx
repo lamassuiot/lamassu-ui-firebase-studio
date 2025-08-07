@@ -192,10 +192,11 @@ export default function IssueCertificateFormClient() {
   }, [caId, user?.access_token, toast]);
 
   useEffect(() => {
-    if (!isLoadingCa) {
-        if (issuerCa?.defaultIssuanceLifetime) {
+    if (!isLoadingCa && issuerCa) {
+        // Set default validity from CA
+        if (issuerCa.defaultIssuanceLifetime) {
             const DURATION_REGEX = /^(?=.*\d)(\d+y)?(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$/;
-            if (issuerCa.defaultIssuanceLifetime.startsWith('9999-12-31')) {
+            if (issuerCa.defaultIssuanceLifetime.startsWith('9999-12-31') || issuerCa.defaultIssuanceLifetime === 'Indefinite') {
                 setValidity({ type: 'Indefinite' });
             } else if (DURATION_REGEX.test(issuerCa.defaultIssuanceLifetime)) {
                 setValidity({ type: 'Duration', durationValue: issuerCa.defaultIssuanceLifetime });
@@ -204,18 +205,18 @@ export default function IssueCertificateFormClient() {
                     const date = new Date(issuerCa.defaultIssuanceLifetime);
                     if (!isNaN(date.getTime())) {
                         setValidity({ type: 'Date', dateValue: date });
-                    } else {
-                        setValidity({ type: 'Duration', durationValue: '1y' });
                     }
                 } catch {
-                     setValidity({ type: 'Duration', durationValue: '1y' });
+                    // Fallback to default if parsing fails
+                    setValidity({ type: 'Duration', durationValue: '1y' });
                 }
             }
         } else {
+            // Default if CA has no setting
             setValidity({ type: 'Duration', durationValue: '1y' });
         }
 
-        // Set default key algorithm based on issuer
+        // Set default key algorithm based on issuer's key
         const keyMeta = issuerCa?.rawApiData?.certificate.key_metadata;
         if (keyMeta) {
             if (keyMeta.type === 'RSA' && keyMeta.bits) {
