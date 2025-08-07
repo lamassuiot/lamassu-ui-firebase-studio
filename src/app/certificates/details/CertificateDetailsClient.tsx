@@ -119,9 +119,11 @@ export default function CertificateDetailsClient() { // Renamed component
     setErrorCert(null);
     try {
       // Use a specific filter to fetch only the requested certificate by its serial number.
+      // The API expects the serial number with hyphens instead of colons.
+      const apiFormattedSerialNumber = certificateId.replace(/:/g, '-');
       const { certificates: certList } = await fetchIssuedCertificates({ 
           accessToken: user.access_token, 
-          apiQueryString: `filter=serial_number[equal]${certificateId}&page_size=1`
+          apiQueryString: `filter=serial_number[equal]${apiFormattedSerialNumber}&page_size=1`
       });
       const foundCert = certList.length > 0 ? certList[0] : null;
       
