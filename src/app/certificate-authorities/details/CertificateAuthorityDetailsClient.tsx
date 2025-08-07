@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Download, ShieldAlert, Loader2, AlertCircle, ListChecks, Info, KeyRound, Lock, Trash2, BookText } from "lucide-react";
+import { ArrowLeft, FileText, Download, ShieldAlert, Loader2, AlertCircle, ListChecks, Info, KeyRound, Lock, Trash2, BookText, ChevronRight } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
@@ -374,6 +374,22 @@ export default function CertificateAuthorityDetailsClient() {
               <div className="flex items-center space-x-3">
                 <FileText className="h-8 w-8 text-primary" />
                 <div>
+                    {caPathToRoot.length > 1 && (
+                      <div className="flex items-center text-sm text-muted-foreground mb-1">
+                        {caPathToRoot.slice(0, -1).map((ca, index) => (
+                          <React.Fragment key={ca.id}>
+                            <Button
+                              variant="link"
+                              className="p-0 h-auto"
+                              onClick={() => routerHook.push(`/certificate-authorities/details?caId=${ca.id}`)}
+                            >
+                              {ca.name}
+                            </Button>
+                            <ChevronRight className="h-4 w-4 mx-1" />
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
                     <h1 className="text-2xl font-headline font-semibold">{caDetails.name}</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">
                         Certification Authority ID: {caDetails.id}
