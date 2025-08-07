@@ -2,17 +2,17 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle, Info, KeyRound, Lock, Link as LinkIcon } from "lucide-react";
+import { Binary, AlertTriangle, Loader2, CheckCircle, XCircle, Info, KeyRound, Lock, Link as LinkIcon, ShieldCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DetailItem } from '@/components/shared/DetailItem';
 import { Badge } from '@/components/ui/badge';
 import { getCrypto, setEngine } from 'pkijs';
-import { parseCertificatePemDetails, type ParsedPemDetails } from '@/lib/ca-data';
+import { parseCertificatePemDetails, type ParsedPemDetails, fetchAndProcessCAs, type CA, findCaById } from '@/lib/ca-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -23,6 +23,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MultiSelectDropdown } from '@/components/shared/MultiSelectDropdown';
 import { format as formatDate, parseISO, isValid } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { OcspCheckModal } from '@/components/shared/OcspCheckModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 // --- Zlint Types and Interfaces ---
@@ -169,6 +171,8 @@ const statusFilterOrder: StatusFilter[] = ['all', 'fatal', 'error', 'warn', 'inf
 
 export default function CertificateViewerPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
+
   // --- Common State ---
   const [pem, setPem] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -183,6 +187,11 @@ export default function CertificateViewerPage() {
   const [isWasmReady, setIsWasmReady] = useState(wasmInitialized);
   const [isLinting, setIsLinting] = useState(false);
   
+  // --- OCSP Check State ---
+  const [isOcspModalOpen, setIsOcspModalOpen] = useState(false);
+  const [issuerForOcsp, setIssuerForOcsp] = useState<CA | null>(null);
+  const [isFetchingIssuer, setIsFetchingIssuer] = useState(false);
+
   // Linter Pagination & Filtering
   const [linterCurrentPage, setLinterCurrentPage] = useState(1);
   const [linterItemsPerPage, setLinterItemsPerPage] = useState(10);
@@ -284,6 +293,7 @@ export default function CertificateViewerPage() {
     setError(null);
     setParsedDetails(null);
     setLintResults([]);
+    setIssuerForOcsp(null);
     
     try {
         const details = await parseCertificatePemDetails(pem);
@@ -300,6 +310,32 @@ export default function CertificateViewerPage() {
         setIsLoading(false);
     }
   };
+
+  const handleOpenOcspModal = async () => {
+    if (!parsedDetails || !parsedDetails.authorityKeyId || !user?.access_token) {
+        toast({ title: "Cannot perform OCSP Check", description: "The parsed certificate is missing an Authority Key Identifier, or you are not logged in.", variant: "destructive" });
+        return;
+    }
+
+    setIsFetchingIssuer(true);
+    try {
+        const issuerCAs = await fetchAndProcessCAs(user.access_token, `filter=subject_key_id[equal]${parsedDetails.authorityKeyId}`);
+        const foundIssuer = issuerCAs?.[0]; // Assuming the first result is the correct one
+
+        if (!foundIssuer) {
+            toast({ title: "Issuer Not Found", description: "Could not find the issuer CA in the system based on the AKI. OCSP check is not possible.", variant: "destructive" });
+            setIssuerForOcsp(null);
+        } else {
+            setIssuerForOcsp(foundIssuer);
+            setIsOcspModalOpen(true);
+        }
+    } catch (e: any) {
+        toast({ title: "Error Fetching Issuer", description: e.message, variant: "destructive" });
+    } finally {
+        setIsFetchingIssuer(false);
+    }
+  };
+
 
   const handleLint = () => {
     if (!isWasmReady) {
@@ -439,6 +475,22 @@ export default function CertificateViewerPage() {
 
             <TabsContent value="details">
                  {parsedDetails && (
+                    <>
+                    <div className="flex justify-end mb-4">
+                        <Button
+                            variant="outline"
+                            onClick={handleOpenOcspModal}
+                            disabled={isFetchingIssuer || !parsedDetails.ocspUrls || parsedDetails.ocspUrls.length === 0}
+                            title={
+                                !parsedDetails.ocspUrls || parsedDetails.ocspUrls.length === 0
+                                ? "Certificate does not contain an OCSP URL."
+                                : "Check OCSP Status"
+                            }
+                        >
+                            {isFetchingIssuer ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                            OCSP Check
+                        </Button>
+                    </div>
                     <Accordion type="multiple" defaultValue={['general', 'keyInfo']} className="w-full space-y-3">
                         <AccordionItem value="general" className="border-b-0">
                             <AccordionTrigger className={cn(accordionTriggerStyle)}><Info className="mr-2 h-5 w-5" />General Information</AccordionTrigger>
@@ -508,6 +560,7 @@ export default function CertificateViewerPage() {
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
+                    </>
                 )}
             </TabsContent>
             
@@ -629,7 +682,31 @@ export default function CertificateViewerPage() {
             </TabsContent>
         </Tabs>
       </div>
+
+       {parsedDetails && (
+          <OcspCheckModal
+              isOpen={isOcspModalOpen}
+              onClose={() => setIsOcspModalOpen(false)}
+              // The OcspCheckModal expects a CertificateData object, which has a different shape from ParsedPemDetails.
+              // We need to create a temporary object that conforms to what the modal needs.
+              certificate={{
+                  id: parsedDetails.serialNumber || 'temp-id',
+                  serialNumber: parsedDetails.serialNumber || 'temp-id',
+                  pemData: pem,
+                  ocspUrls: parsedDetails.ocspUrls,
+                  // Add other required fields with default/dummy values if necessary, as the modal might need them.
+                  // This is a bit of a hack, a better solution would be to refactor OcspCheckModal to accept a simpler object.
+                  fileName: 'parsed_cert.pem',
+                  subject: parsedDetails.subject || '',
+                  issuer: parsedDetails.issuer || '',
+                  validFrom: parsedDetails.validFrom,
+                  validTo: parsedDetails.validTo,
+              }}
+              issuerCertificate={issuerForOcsp}
+          />
+       )}
     </>
   );
 }
+
 
