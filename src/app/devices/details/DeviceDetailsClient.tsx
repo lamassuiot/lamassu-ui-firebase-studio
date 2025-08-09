@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -807,6 +808,7 @@ export default function DeviceDetailsClient() {
         onOpenChange={setIsAssignIdentityModalOpen}
         onAssignConfirm={handleAssignIdentityConfirm}
         deviceId={deviceId || ''}
+        deviceRaId={device.dms_owner}
         isAssigning={isAssigning}
       />
       <DecommissionDeviceModal

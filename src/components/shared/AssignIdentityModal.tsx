@@ -17,12 +17,14 @@ import { CaVisualizerCard } from '../CaVisualizerCard';
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { fetchRaById } from '@/lib/dms-api';
 
 interface AssignIdentityModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onAssignConfirm: (certificateSerialNumber: string) => void;
   deviceId: string;
+  deviceRaId?: string;
   isAssigning: boolean;
 }
 
@@ -31,6 +33,7 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   onOpenChange,
   onAssignConfirm,
   deviceId,
+  deviceRaId,
   isAssigning,
 }) => {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -95,7 +98,7 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
     }
   }, [isOpen, authLoading, isAuthenticated, user?.access_token, deviceId]);
 
-  const loadCAs = useCallback(async () => {
+  const loadCAsAndSetDefault = useCallback(async () => {
     if (!isOpen || authLoading || !isAuthenticated() || !user?.access_token) return;
     
     setIsLoadingCAs(true);
@@ -105,22 +108,38 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
             fetchAndProcessCAs(user.access_token),
             fetchCryptoEngines(user.access_token)
         ]);
-        setAvailableCAs(cas.filter(ca => ca.status === 'active' && ca.caType !== 'EXTERNAL_PUBLIC'));
+        const activeCAs = cas.filter(ca => ca.status === 'active' && ca.caType !== 'EXTERNAL_PUBLIC');
+        setAvailableCAs(activeCAs);
         setAllCryptoEngines(engines);
+        
+        // If a device RA is provided, find its enrollment CA and set it as default
+        if (deviceRaId) {
+            try {
+                const raDetails = await fetchRaById(deviceRaId, user.access_token);
+                const enrollmentCaId = raDetails.settings.enrollment_settings.enrollment_ca;
+                const defaultCa = activeCAs.find(ca => ca.id === enrollmentCaId);
+                if (defaultCa) {
+                    setSelectedCA(defaultCa);
+                }
+            } catch (raError: any) {
+                console.warn(`Could not fetch RA details to set default CA: ${raError.message}`);
+            }
+        }
+
     } catch (e: any) {
         setErrorCAs(e.message || "Failed to load CAs.");
     } finally {
         setIsLoadingCAs(false);
     }
-  }, [isOpen, authLoading, isAuthenticated, user?.access_token]);
+  }, [isOpen, authLoading, isAuthenticated, user?.access_token, deviceRaId]);
   
   useEffect(() => {
     if (isOpen && view === 'select') {
       loadCertificates(certBookmarkStack[certCurrentPageIndex]);
     } else if (isOpen && view === 'issue') {
-      if(availableCAs.length === 0) loadCAs();
+      if(availableCAs.length === 0) loadCAsAndSetDefault();
     }
-  }, [isOpen, view, certCurrentPageIndex, loadCertificates, loadCAs, availableCAs.length, certBookmarkStack]);
+  }, [isOpen, view, certCurrentPageIndex, loadCertificates, availableCAs.length, certBookmarkStack, loadCAsAndSetDefault]);
 
 
   const handleNextPage = () => {
