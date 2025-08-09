@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -21,6 +22,7 @@ import { Label } from '../ui/label';
 import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import { findCaById } from '@/lib/ca-data';
 
 interface AssignIdentityModalProps {
   isOpen: boolean;
@@ -230,7 +232,7 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   );
 
   const renderIssueView = () => (
-    <div className="flex-grow my-4 overflow-hidden flex flex-col min-h-[300px]">
+    <div className="flex flex-col flex-grow my-4 overflow-hidden min-h-[300px]">
         {isLoadingCAs ? (
             <div className="flex-grow flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary"/><p className="ml-2">Loading Issuers...</p></div>
         ) : errorCAs ? (
