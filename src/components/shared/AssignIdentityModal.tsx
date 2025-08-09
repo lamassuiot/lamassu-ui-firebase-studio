@@ -2,12 +2,12 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, AlertTriangle, ChevronLeft, ChevronRight, CornerDownRight, ArrowLeft } from "lucide-react";
+import { Loader2, AlertTriangle, ChevronLeft, ChevronRight, CornerDownRight, ArrowLeft, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { CertificateData } from '@/types/certificate';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
@@ -18,6 +18,8 @@ import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchRaById } from '@/lib/dms-api';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 interface AssignIdentityModalProps {
   isOpen: boolean;
@@ -58,6 +60,8 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   const [isLoadingCAs, setIsLoadingCAs] = useState(false);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
   const [selectedCA, setSelectedCA] = useState<CA | null>(null);
+  const [caFilter, setCaFilter] = useState('');
+
 
   // Reset state when modal opens
   useEffect(() => {
@@ -67,6 +71,7 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         setSelectedCA(null);
         setCertCurrentPageIndex(0);
         setCertBookmarkStack([null]);
+        setCaFilter('');
     }
   }, [isOpen]);
 
@@ -165,6 +170,12 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         router.push(`/certificate-authorities/issue-certificate?caId=${selectedCA.id}&prefill_cn=${deviceId}&returnToDevice=${deviceId}`);
     }
   };
+  
+  const filteredCAs = useMemo(() => {
+    if (!caFilter) return availableCAs;
+    const lowercasedFilter = caFilter.toLowerCase();
+    return availableCAs.filter(ca => ca.name.toLowerCase().includes(lowercasedFilter));
+  }, [availableCAs, caFilter]);
 
 
   const renderSelectView = () => (
@@ -201,7 +212,18 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         ) : availableCAs.length > 0 ? (
             <>
                 <p className="text-sm text-muted-foreground mb-2">Select an active CA to issue the new certificate.</p>
-                <ScrollArea className="flex-grow border rounded-md"><ul className="p-2 space-y-1">{availableCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}</ul></ScrollArea>
+                <div className="relative mb-2">
+                    <Label htmlFor="ca-filter-input" className="sr-only">Filter CAs by name</Label>
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="ca-filter-input"
+                        placeholder="Filter by CA name..."
+                        value={caFilter}
+                        onChange={(e) => setCaFilter(e.target.value)}
+                        className="pl-9"
+                    />
+                </div>
+                <ScrollArea className="flex-grow border rounded-md"><ul className="p-2 space-y-1">{filteredCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}</ul></ScrollArea>
             </>
         ) : (
             <div className="flex-grow flex items-center justify-center h-full text-center text-muted-foreground p-4 border rounded-md bg-muted/20">No active issuing CAs found.</div>
