@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, AlertTriangle, ChevronLeft, ChevronRight, CornerDownRight, ArrowLeft, Search } from "lucide-react";
+import { Loader2, AlertTriangle, ChevronLeft, ChevronRight, CornerDownRight, ArrowLeft, Search, CheckCheck, ShieldCheck } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { CertificateData } from '@/types/certificate';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
@@ -21,6 +21,8 @@ import { fetchRaById } from '@/lib/dms-api';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Separator } from '../ui/separator';
+import { Badge } from '../ui/badge';
+import { cn } from '@/lib/utils';
 
 interface AssignIdentityModalProps {
   isOpen: boolean;
@@ -58,6 +60,8 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   // State for 'issue' view
   const [allAvailableCAs, setAllAvailableCAs] = useState<CA[]>([]);
   const [recommendedCAs, setRecommendedCAs] = useState<CA[]>([]);
+  const [enrollmentCaId, setEnrollmentCaId] = useState<string | null>(null);
+  const [validationCaIds, setValidationCaIds] = useState<string[]>([]);
   const [otherCAs, setOtherCAs] = useState<CA[]>([]);
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(false);
@@ -129,11 +133,14 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         if (deviceRaId) {
             try {
                 const raDetails = await fetchRaById(deviceRaId, user.access_token);
-                const enrollmentCaId = raDetails.settings.enrollment_settings.enrollment_ca;
-                const validationCaIds = raDetails.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas || [];
+                const enrollCaId = raDetails.settings.enrollment_settings.enrollment_ca;
+                const validCaIds = raDetails.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas || [];
                 
-                recommendedIds = [enrollmentCaId, ...validationCaIds];
-                defaultCa = activeCAs.find(ca => ca.id === enrollmentCaId) || null;
+                setEnrollmentCaId(enrollCaId);
+                setValidationCaIds(validCaIds);
+
+                recommendedIds = [enrollCaId, ...validCaIds];
+                defaultCa = activeCAs.find(ca => ca.id === enrollCaId) || null;
             } catch (raError: any) {
                 console.warn(`Could not fetch RA details to set default CA: ${raError.message}`);
             }
@@ -250,7 +257,25 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
                             <div>
                                 <h4 className="text-xs font-semibold text-muted-foreground uppercase px-1 mb-1">Recommended for this RA</h4>
                                 <ul className="space-y-1">
-                                    {filteredRecommendedCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}
+                                    {filteredRecommendedCAs.map(ca => {
+                                        const isEnrollment = ca.id === enrollmentCaId;
+                                        const isValidation = validationCaIds.includes(ca.id) && !isEnrollment;
+                                        return (
+                                            <div key={ca.id} className="relative">
+                                                <CaVisualizerCard ca={ca} onClick={() => setSelectedCA(ca)} className={cn(selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted', (isEnrollment || isValidation) && "pr-24")} allCryptoEngines={allCryptoEngines}/>
+                                                {isEnrollment && (
+                                                    <Badge variant="default" className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none">
+                                                        <CheckCheck className="mr-1.5 h-3.5 w-3.5"/> Enrollment
+                                                    </Badge>
+                                                )}
+                                                {isValidation && (
+                                                    <Badge variant="secondary" className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none">
+                                                        <ShieldCheck className="mr-1.5 h-3.5 w-3.5"/> Validation
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
                                 </ul>
                             </div>
                         )}
@@ -314,4 +339,3 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
     </Dialog>
   );
 };
-
