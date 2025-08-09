@@ -20,6 +20,7 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { fetchRaById } from '@/lib/dms-api';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Separator } from '../ui/separator';
 
 interface AssignIdentityModalProps {
   isOpen: boolean;
@@ -55,7 +56,9 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   const certPageSize = '10';
 
   // State for 'issue' view
-  const [availableCAs, setAvailableCAs] = useState<CA[]>([]);
+  const [allAvailableCAs, setAllAvailableCAs] = useState<CA[]>([]);
+  const [recommendedCAs, setRecommendedCAs] = useState<CA[]>([]);
+  const [otherCAs, setOtherCAs] = useState<CA[]>([]);
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(false);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
@@ -72,6 +75,8 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         setCertCurrentPageIndex(0);
         setCertBookmarkStack([null]);
         setCaFilter('');
+        setRecommendedCAs([]);
+        setOtherCAs([]);
     }
   }, [isOpen]);
 
@@ -113,23 +118,34 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
             fetchAndProcessCAs(user.access_token),
             fetchCryptoEngines(user.access_token)
         ]);
+        
         const activeCAs = cas.filter(ca => ca.status === 'active' && ca.caType !== 'EXTERNAL_PUBLIC');
-        setAvailableCAs(activeCAs);
+        setAllAvailableCAs(activeCAs);
         setAllCryptoEngines(engines);
         
-        // If a device RA is provided, find its enrollment CA and set it as default
+        let recommendedIds: string[] = [];
+        let defaultCa: CA | null = null;
+        
         if (deviceRaId) {
             try {
                 const raDetails = await fetchRaById(deviceRaId, user.access_token);
                 const enrollmentCaId = raDetails.settings.enrollment_settings.enrollment_ca;
-                const defaultCa = activeCAs.find(ca => ca.id === enrollmentCaId);
-                if (defaultCa) {
-                    setSelectedCA(defaultCa);
-                }
+                const validationCaIds = raDetails.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas || [];
+                
+                recommendedIds = [enrollmentCaId, ...validationCaIds];
+                defaultCa = activeCAs.find(ca => ca.id === enrollmentCaId) || null;
             } catch (raError: any) {
                 console.warn(`Could not fetch RA details to set default CA: ${raError.message}`);
             }
         }
+
+        const uniqueRecommendedIds = [...new Set(recommendedIds)];
+        const recommended = uniqueRecommendedIds.map(id => activeCAs.find(ca => ca.id === id)).filter((c): c is CA => !!c);
+        const others = activeCAs.filter(ca => !uniqueRecommendedIds.includes(ca.id));
+        
+        setRecommendedCAs(recommended);
+        setOtherCAs(others);
+        setSelectedCA(defaultCa);
 
     } catch (e: any) {
         setErrorCAs(e.message || "Failed to load CAs.");
@@ -142,9 +158,9 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
     if (isOpen && view === 'select') {
       loadCertificates(certBookmarkStack[certCurrentPageIndex]);
     } else if (isOpen && view === 'issue') {
-      if(availableCAs.length === 0) loadCAsAndSetDefault();
+      if(allAvailableCAs.length === 0) loadCAsAndSetDefault();
     }
-  }, [isOpen, view, certCurrentPageIndex, loadCertificates, availableCAs.length, certBookmarkStack, loadCAsAndSetDefault]);
+  }, [isOpen, view, certCurrentPageIndex, loadCertificates, allAvailableCAs.length, certBookmarkStack, loadCAsAndSetDefault]);
 
 
   const handleNextPage = () => {
@@ -171,12 +187,17 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
     }
   };
   
-  const filteredCAs = useMemo(() => {
-    if (!caFilter) return availableCAs;
+  const filteredRecommendedCAs = useMemo(() => {
+    if (!caFilter) return recommendedCAs;
     const lowercasedFilter = caFilter.toLowerCase();
-    return availableCAs.filter(ca => ca.name.toLowerCase().includes(lowercasedFilter));
-  }, [availableCAs, caFilter]);
+    return recommendedCAs.filter(ca => ca.name.toLowerCase().includes(lowercasedFilter));
+  }, [recommendedCAs, caFilter]);
 
+  const filteredOtherCAs = useMemo(() => {
+    if (!caFilter) return otherCAs;
+    const lowercasedFilter = caFilter.toLowerCase();
+    return otherCAs.filter(ca => ca.name.toLowerCase().includes(lowercasedFilter));
+  }, [otherCAs, caFilter]);
 
   const renderSelectView = () => (
     <div className="flex-grow my-4 overflow-hidden flex flex-col min-h-[300px]">
@@ -209,7 +230,7 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
             <div className="flex-grow flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary"/><p className="ml-2">Loading Issuers...</p></div>
         ) : errorCAs ? (
             <Alert variant="destructive"><AlertTriangle className="h-4 w-4"/><AlertTitle>Error Loading CAs</AlertTitle><AlertDescription>{errorCAs}</AlertDescription></Alert>
-        ) : availableCAs.length > 0 ? (
+        ) : allAvailableCAs.length > 0 ? (
             <>
                 <p className="text-sm text-muted-foreground mb-2">Select an active CA to issue the new certificate.</p>
                 <div className="relative mb-2">
@@ -223,7 +244,29 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
                         className="pl-9"
                     />
                 </div>
-                <ScrollArea className="flex-grow border rounded-md"><ul className="p-2 space-y-1">{filteredCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}</ul></ScrollArea>
+                <ScrollArea className="flex-grow border rounded-md">
+                    <div className="p-2 space-y-2">
+                        {filteredRecommendedCAs.length > 0 && (
+                            <div>
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase px-1 mb-1">Recommended for this RA</h4>
+                                <ul className="space-y-1">
+                                    {filteredRecommendedCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}
+                                </ul>
+                            </div>
+                        )}
+                         {(filteredRecommendedCAs.length > 0 && filteredOtherCAs.length > 0) && (
+                            <Separator />
+                         )}
+                         {filteredOtherCAs.length > 0 && (
+                            <div>
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase px-1 mb-1">Other Available CAs</h4>
+                                <ul className="space-y-1">
+                                    {filteredOtherCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}
+                                </ul>
+                            </div>
+                         )}
+                    </div>
+                </ScrollArea>
             </>
         ) : (
             <div className="flex-grow flex items-center justify-center h-full text-center text-muted-foreground p-4 border rounded-md bg-muted/20">No active issuing CAs found.</div>
@@ -271,3 +314,4 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
     </Dialog>
   );
 };
+
