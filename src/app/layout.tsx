@@ -80,6 +80,7 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'alerts': "Alerts",
   'tools': "Tools",
   'certificate-viewer': "Certificate Viewer",
+  'zlint-linter': "Zlint Linter",
 };
 
 function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
@@ -187,6 +188,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const homeItem = { href: '/', label: 'Home', icon: HomeIcon };
   const toolsItems = [
     { href: '/tools/certificate-viewer', label: 'Certificate Viewer', icon: Binary },
+    { href: '/tools/zlint-linter', label: 'Zlint Linter', icon: Binary },
   ];
   const kmsItems = [
     { href: '/kms/keys', label: 'Keys', icon: KeyRound },
@@ -396,22 +398,25 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                     </SidebarMenuItem>
                   ))}
                   
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">TOOLS</SidebarGroupLabel>
-                  {toolsItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname.startsWith(item.href)}
-                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                      >
-                        <Link href={item.href} className="flex items-center w-full justify-start">
-                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-
+                  {process.env.NODE_ENV === 'development' && (
+                    <>
+                      <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">TOOLS</SidebarGroupLabel>
+                      {toolsItems.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={pathname.startsWith(item.href)}
+                            tooltip={{ children: item.label, side: 'right', align: 'center' }}
+                          >
+                            <Link href={item.href} className="flex items-center w-full justify-start">
+                              <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                              <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </>
+                  )}
                 </SidebarMenu>
               </SidebarContent>
               <SidebarFooter className="p-2 pb-4 mt-auto border-t border-sidebar-border">
