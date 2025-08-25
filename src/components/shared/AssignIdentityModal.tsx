@@ -23,6 +23,7 @@ import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { findCaById } from '@/lib/ca-data';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
 interface AssignIdentityModalProps {
   isOpen: boolean;
@@ -238,9 +239,9 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         ) : errorCAs ? (
             <Alert variant="destructive"><AlertTriangle className="h-4 w-4"/><AlertTitle>Error Loading CAs</AlertTitle><AlertDescription>{errorCAs}</AlertDescription></Alert>
         ) : allAvailableCAs.length > 0 ? (
-            <>
-                <p className="text-sm text-muted-foreground mb-2">Select an active CA to issue the new certificate.</p>
-                <div className="relative mb-2">
+            <div className="flex flex-col flex-grow overflow-hidden">
+                <p className="text-sm text-muted-foreground mb-2 flex-shrink-0">Select an active CA to issue the new certificate.</p>
+                <div className="relative mb-2 flex-shrink-0">
                     <Label htmlFor="ca-filter-input" className="sr-only">Filter CAs by name</Label>
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -264,7 +265,7 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
                                             <div key={ca.id} className="relative">
                                                 <CaVisualizerCard ca={ca} onClick={() => setSelectedCA(ca)} className={cn(selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted', (isEnrollment || isValidation) && "pr-24")} allCryptoEngines={allCryptoEngines}/>
                                                 {isEnrollment && (
-                                                    <Badge variant="default" className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none">
+                                                    <Badge className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none">
                                                         Enrollment
                                                     </Badge>
                                                 )}
@@ -283,16 +284,22 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
                             <Separator />
                          )}
                          {filteredOtherCAs.length > 0 && (
-                            <div>
-                                <h4 className="text-xs font-semibold text-muted-foreground uppercase px-1 mb-1">Other Available CAs</h4>
-                                <ul className="space-y-1">
-                                    {filteredOtherCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}
-                                </ul>
-                            </div>
+                             <Accordion type="single" collapsible className="w-full">
+                                <AccordionItem value="other-cas" className="border-none">
+                                    <AccordionTrigger className="text-xs font-semibold text-muted-foreground uppercase px-1 mb-1 hover:no-underline">
+                                        Other Available CAs
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <ul className="space-y-1">
+                                            {filteredOtherCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}
+                                        </ul>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
                          )}
                     </div>
                 </ScrollArea>
-            </>
+            </div>
         ) : (
             <div className="flex-grow flex items-center justify-center h-full text-center text-muted-foreground p-4 border rounded-md bg-muted/20">No active issuing CAs found.</div>
         )}
