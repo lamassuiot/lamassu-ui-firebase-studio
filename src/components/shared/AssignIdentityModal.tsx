@@ -113,8 +113,9 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
     }
   }, [isOpen, authLoading, isAuthenticated, user?.access_token, deviceId]);
 
-  const loadCAsAndSetDefault = useCallback(async () => {
-    if (!isOpen || authLoading || !isAuthenticated() || !user?.access_token) return;
+  // Effect to fetch all necessary CA data ONCE if it's not already loaded.
+  const loadCaDependencies = useCallback(async () => {
+    if (!isOpen || authLoading || !isAuthenticated() || !user?.access_token || allAvailableCAs.length > 0) return;
     
     setIsLoadingCAs(true);
     setErrorCAs(null);
@@ -127,48 +128,60 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         const activeCAs = cas.filter(ca => ca.status === 'active' && ca.caType !== 'EXTERNAL_PUBLIC');
         setAllAvailableCAs(activeCAs);
         setAllCryptoEngines(engines);
-        
-        let recommendedIds: string[] = [];
-        let defaultCa: CA | null = null;
-        
-        if (deviceRaId) {
-            try {
-                const raDetails = await fetchRaById(deviceRaId, user.access_token);
-                const enrollCaId = raDetails.settings.enrollment_settings.enrollment_ca;
-                const validCaIds = raDetails.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas || [];
-                
-                setEnrollmentCaId(enrollCaId);
-                setValidationCaIds(validCaIds);
-
-                recommendedIds = [enrollCaId, ...validCaIds];
-                defaultCa = activeCAs.find(ca => ca.id === enrollCaId) || null;
-            } catch (raError: any) {
-                console.warn(`Could not fetch RA details to set default CA: ${raError.message}`);
-            }
-        }
-
-        const uniqueRecommendedIds = [...new Set(recommendedIds)];
-        const recommended = uniqueRecommendedIds.map(id => activeCAs.find(ca => ca.id === id)).filter((c): c is CA => !!c);
-        const others = activeCAs.filter(ca => !uniqueRecommendedIds.includes(ca.id));
-        
-        setRecommendedCAs(recommended);
-        setOtherCAs(others);
-        setSelectedCA(defaultCa);
-
     } catch (e: any) {
         setErrorCAs(e.message || "Failed to load CAs.");
     } finally {
         setIsLoadingCAs(false);
     }
-  }, [isOpen, authLoading, isAuthenticated, user?.access_token, deviceRaId]);
+  }, [isOpen, authLoading, isAuthenticated, user?.access_token, allAvailableCAs.length]);
+  
+  // This effect runs whenever the view changes to 'issue' and processes the already-loaded CA data.
+  const processCaLists = useCallback(async () => {
+    if (view !== 'issue' || allAvailableCAs.length === 0 || !user?.access_token) return;
+
+    let recommendedIds: string[] = [];
+    let defaultCa: CA | null = null;
+    
+    if (deviceRaId) {
+        try {
+            const raDetails = await fetchRaById(deviceRaId, user.access_token);
+            const enrollCaId = raDetails.settings.enrollment_settings.enrollment_ca;
+            const validCaIds = raDetails.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas || [];
+            
+            setEnrollmentCaId(enrollCaId);
+            setValidationCaIds(validCaIds);
+
+            recommendedIds = [enrollCaId, ...validCaIds];
+            defaultCa = allAvailableCAs.find(ca => ca.id === enrollCaId) || null;
+        } catch (raError: any) {
+            console.warn(`Could not fetch RA details to set default CA: ${raError.message}`);
+        }
+    }
+
+    const uniqueRecommendedIds = [...new Set(recommendedIds)];
+    const recommended = uniqueRecommendedIds.map(id => allAvailableCAs.find(ca => ca.id === id)).filter((c): c is CA => !!c);
+    const others = allAvailableCAs.filter(ca => !uniqueRecommendedIds.includes(ca.id));
+    
+    setRecommendedCAs(recommended);
+    setOtherCAs(others);
+    setSelectedCA(defaultCa);
+
+  }, [view, allAvailableCAs, deviceRaId, user?.access_token]);
   
   useEffect(() => {
     if (isOpen && view === 'select') {
       loadCertificates(certBookmarkStack[certCurrentPageIndex]);
     } else if (isOpen && view === 'issue') {
-      if(allAvailableCAs.length === 0) loadCAsAndSetDefault();
+      loadCaDependencies(); // This will only fetch if the list is empty
     }
-  }, [isOpen, view, certCurrentPageIndex, loadCertificates, allAvailableCAs.length, certBookmarkStack, loadCAsAndSetDefault]);
+  }, [isOpen, view, certCurrentPageIndex, loadCertificates, certBookmarkStack, loadCaDependencies]);
+  
+  // New effect to re-process the CA lists when the view changes
+  useEffect(() => {
+      if (isOpen && view === 'issue') {
+          processCaLists();
+      }
+  }, [isOpen, view, allAvailableCAs, processCaLists]);
 
 
   const handleNextPage = () => {
