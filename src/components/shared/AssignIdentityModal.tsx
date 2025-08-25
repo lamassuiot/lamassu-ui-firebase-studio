@@ -1,13 +1,12 @@
 
-
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, AlertTriangle, ChevronLeft, ChevronRight, CornerDownRight, ArrowLeft } from "lucide-react";
+import { Loader2, AlertTriangle, ChevronLeft, ChevronRight, CornerDownRight, ArrowLeft, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { CertificateData } from '@/types/certificate';
 import { fetchIssuedCertificates } from '@/lib/issued-certificate-data';
@@ -17,12 +16,21 @@ import { CaVisualizerCard } from '../CaVisualizerCard';
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines } from '@/lib/ca-data';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
+import { fetchRaById } from '@/lib/dms-api';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Separator } from '../ui/separator';
+import { Badge } from '../ui/badge';
+import { cn } from '@/lib/utils';
+import { findCaById } from '@/lib/ca-data';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
 interface AssignIdentityModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onAssignConfirm: (certificateSerialNumber: string) => void;
   deviceId: string;
+  deviceRaId?: string;
   isAssigning: boolean;
 }
 
@@ -31,6 +39,7 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   onOpenChange,
   onAssignConfirm,
   deviceId,
+  deviceRaId,
   isAssigning,
 }) => {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -50,11 +59,17 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   const certPageSize = '10';
 
   // State for 'issue' view
-  const [availableCAs, setAvailableCAs] = useState<CA[]>([]);
+  const [allAvailableCAs, setAllAvailableCAs] = useState<CA[]>([]);
+  const [recommendedCAs, setRecommendedCAs] = useState<CA[]>([]);
+  const [enrollmentCaId, setEnrollmentCaId] = useState<string | null>(null);
+  const [validationCaIds, setValidationCaIds] = useState<string[]>([]);
+  const [otherCAs, setOtherCAs] = useState<CA[]>([]);
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(false);
   const [errorCAs, setErrorCAs] = useState<string | null>(null);
   const [selectedCA, setSelectedCA] = useState<CA | null>(null);
+  const [caFilter, setCaFilter] = useState('');
+
 
   // Reset state when modal opens
   useEffect(() => {
@@ -64,6 +79,9 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         setSelectedCA(null);
         setCertCurrentPageIndex(0);
         setCertBookmarkStack([null]);
+        setCaFilter('');
+        setRecommendedCAs([]);
+        setOtherCAs([]);
     }
   }, [isOpen]);
 
@@ -95,8 +113,9 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
     }
   }, [isOpen, authLoading, isAuthenticated, user?.access_token, deviceId]);
 
-  const loadCAs = useCallback(async () => {
-    if (!isOpen || authLoading || !isAuthenticated() || !user?.access_token) return;
+  // Effect to fetch all necessary CA data ONCE if it's not already loaded.
+  const loadCaDependencies = useCallback(async () => {
+    if (!isOpen || authLoading || !isAuthenticated() || !user?.access_token || allAvailableCAs.length > 0) return;
     
     setIsLoadingCAs(true);
     setErrorCAs(null);
@@ -105,22 +124,64 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
             fetchAndProcessCAs(user.access_token),
             fetchCryptoEngines(user.access_token)
         ]);
-        setAvailableCAs(cas.filter(ca => ca.status === 'active' && ca.caType !== 'EXTERNAL_PUBLIC'));
+        
+        const activeCAs = cas.filter(ca => ca.status === 'active' && ca.caType !== 'EXTERNAL_PUBLIC');
+        setAllAvailableCAs(activeCAs);
         setAllCryptoEngines(engines);
     } catch (e: any) {
         setErrorCAs(e.message || "Failed to load CAs.");
     } finally {
         setIsLoadingCAs(false);
     }
-  }, [isOpen, authLoading, isAuthenticated, user?.access_token]);
+  }, [isOpen, authLoading, isAuthenticated, user?.access_token, allAvailableCAs.length]);
+  
+  // This effect runs whenever the view changes to 'issue' and processes the already-loaded CA data.
+  const processCaLists = useCallback(async () => {
+    if (view !== 'issue' || allAvailableCAs.length === 0 || !user?.access_token) return;
+
+    let recommendedIds: string[] = [];
+    let defaultCa: CA | null = null;
+    
+    if (deviceRaId) {
+        try {
+            const raDetails = await fetchRaById(deviceRaId, user.access_token);
+            const enrollCaId = raDetails.settings.enrollment_settings.enrollment_ca;
+            const validCaIds = raDetails.settings.enrollment_settings.est_rfc7030_settings?.client_certificate_settings?.validation_cas || [];
+            
+            setEnrollmentCaId(enrollCaId);
+            setValidationCaIds(validCaIds);
+
+            recommendedIds = [enrollCaId, ...validCaIds];
+            defaultCa = allAvailableCAs.find(ca => ca.id === enrollCaId) || null;
+        } catch (raError: any) {
+            console.warn(`Could not fetch RA details to set default CA: ${raError.message}`);
+        }
+    }
+
+    const uniqueRecommendedIds = [...new Set(recommendedIds)];
+    const recommended = uniqueRecommendedIds.map(id => allAvailableCAs.find(ca => ca.id === id)).filter((c): c is CA => !!c);
+    const others = allAvailableCAs.filter(ca => !uniqueRecommendedIds.includes(ca.id));
+    
+    setRecommendedCAs(recommended);
+    setOtherCAs(others);
+    setSelectedCA(defaultCa);
+
+  }, [view, allAvailableCAs, deviceRaId, user?.access_token]);
   
   useEffect(() => {
     if (isOpen && view === 'select') {
       loadCertificates(certBookmarkStack[certCurrentPageIndex]);
     } else if (isOpen && view === 'issue') {
-      if(availableCAs.length === 0) loadCAs();
+      loadCaDependencies(); // This will only fetch if the list is empty
     }
-  }, [isOpen, view, certCurrentPageIndex, loadCertificates, loadCAs, availableCAs.length, certBookmarkStack]);
+  }, [isOpen, view, certCurrentPageIndex, loadCertificates, certBookmarkStack, loadCaDependencies]);
+  
+  // New effect to re-process the CA lists when the view changes
+  useEffect(() => {
+      if (isOpen && view === 'issue') {
+          processCaLists();
+      }
+  }, [isOpen, view, allAvailableCAs, processCaLists]);
 
 
   const handleNextPage = () => {
@@ -146,7 +207,18 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
         router.push(`/certificate-authorities/issue-certificate?caId=${selectedCA.id}&prefill_cn=${deviceId}&returnToDevice=${deviceId}`);
     }
   };
+  
+  const filteredRecommendedCAs = useMemo(() => {
+    if (!caFilter) return recommendedCAs;
+    const lowercasedFilter = caFilter.toLowerCase();
+    return recommendedCAs.filter(ca => ca.name.toLowerCase().includes(lowercasedFilter));
+  }, [recommendedCAs, caFilter]);
 
+  const filteredOtherCAs = useMemo(() => {
+    if (!caFilter) return otherCAs;
+    const lowercasedFilter = caFilter.toLowerCase();
+    return otherCAs.filter(ca => ca.name.toLowerCase().includes(lowercasedFilter));
+  }, [otherCAs, caFilter]);
 
   const renderSelectView = () => (
     <div className="flex-grow my-4 overflow-hidden flex flex-col min-h-[300px]">
@@ -174,16 +246,73 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   );
 
   const renderIssueView = () => (
-    <div className="flex-grow my-4 overflow-hidden flex flex-col min-h-[300px]">
+    <div className="flex flex-col flex-grow my-4 overflow-hidden min-h-[300px]">
         {isLoadingCAs ? (
             <div className="flex-grow flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary"/><p className="ml-2">Loading Issuers...</p></div>
         ) : errorCAs ? (
             <Alert variant="destructive"><AlertTriangle className="h-4 w-4"/><AlertTitle>Error Loading CAs</AlertTitle><AlertDescription>{errorCAs}</AlertDescription></Alert>
-        ) : availableCAs.length > 0 ? (
-            <>
-                <p className="text-sm text-muted-foreground mb-2">Select an active CA to issue the new certificate.</p>
-                <ScrollArea className="flex-grow border rounded-md"><ul className="p-2 space-y-1">{availableCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}</ul></ScrollArea>
-            </>
+        ) : allAvailableCAs.length > 0 ? (
+            <div className="flex flex-col flex-grow overflow-hidden">
+                <p className="text-sm text-muted-foreground mb-2 flex-shrink-0">Select an active CA to issue the new certificate.</p>
+                <div className="relative mb-2 flex-shrink-0">
+                    <Label htmlFor="ca-filter-input" className="sr-only">Filter CAs by name</Label>
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="ca-filter-input"
+                        placeholder="Filter by CA name..."
+                        value={caFilter}
+                        onChange={(e) => setCaFilter(e.target.value)}
+                        className="pl-9"
+                    />
+                </div>
+                <ScrollArea className="flex-grow border rounded-md">
+                    <div className="p-2 space-y-2">
+                        {filteredRecommendedCAs.length > 0 && (
+                            <div>
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase px-1 mb-1">Recommended for this RA</h4>
+                                <ul className="space-y-1">
+                                    {filteredRecommendedCAs.map(ca => {
+                                        const isEnrollment = ca.id === enrollmentCaId;
+                                        const isValidation = validationCaIds.includes(ca.id) && !isEnrollment;
+                                        return (
+                                            <div key={ca.id} className="relative">
+                                                <CaVisualizerCard ca={ca} onClick={() => setSelectedCA(ca)} className={cn(selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted', (isEnrollment || isValidation) && "pr-24")} allCryptoEngines={allCryptoEngines}/>
+                                                {isEnrollment && (
+                                                    <Badge className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none">
+                                                        Enrollment
+                                                    </Badge>
+                                                )}
+                                                {isValidation && (
+                                                    <Badge variant="secondary" className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none">
+                                                        Validation
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </ul>
+                            </div>
+                        )}
+                         {(filteredRecommendedCAs.length > 0 && filteredOtherCAs.length > 0) && (
+                            <Separator />
+                         )}
+                         {filteredOtherCAs.length > 0 && (
+                             <Accordion type="single" collapsible className="w-full">
+                                <AccordionItem value="other-cas" className="border-none">
+                                    <AccordionTrigger className="text-xs font-semibold text-muted-foreground uppercase px-1 mb-1 hover:no-underline">
+                                        Other Available CAs
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <ul className="space-y-1">
+                                            {filteredOtherCAs.map(ca => (<CaVisualizerCard key={ca.id} ca={ca} onClick={() => setSelectedCA(ca)} className={selectedCA?.id === ca.id ? 'ring-2 ring-primary' : 'hover:bg-muted'} allCryptoEngines={allCryptoEngines}/>))}
+                                        </ul>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+                         )}
+                    </div>
+                </ScrollArea>
+            </div>
         ) : (
             <div className="flex-grow flex items-center justify-center h-full text-center text-muted-foreground p-4 border rounded-md bg-muted/20">No active issuing CAs found.</div>
         )}
