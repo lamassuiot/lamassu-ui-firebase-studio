@@ -57,6 +57,45 @@ npm run dev
 
 The application will be available at [http://localhost:9002](http://localhost:9002).
 
+## Configuration
+
+The application can be configured at runtime by creating and modifying a `public/config.js` file. This file allows you to customize the application's behavior without needing to rebuild it.
+
+Create a `config.js` file inside the `public/` directory with the following structure:
+
+```javascript
+window.lamassuConfig = {
+  // The base URL for all backend API services.
+  LAMASSU_API: "https://your-api-endpoint.example.com",
+
+  // --- Authentication ---
+  // Set to `false` to disable OIDC authentication for local development.
+  // Defaults to `true`.
+  LAMASSU_AUTH_ENABLED: true,
+
+  // The URL of your OpenID Connect (OIDC) identity provider.
+  // Required if LAMASSU_AUTH_ENABLED is true.
+  LAMASSU_AUTH_AUTHORITY: "https://your-oidc-provider.example.com/auth/realms/my-realm",
+
+  // The client ID for the frontend application registered with your OIDC provider.
+  // Defaults to "frontend".
+  LAMASSU_AUTH_CLIENT_ID: "frontend-client-id",
+
+  // --- Integrations ---
+  // An array of strings defining available platform connectors for integrations. These connectors ID must be already recognized by the Lamassu backend.
+  LAMASSU_CONNECTORS: ["aws.us-east-1.123456789012"],
+
+  // --- UI Customization ---
+  // Set to `true` to enable a custom HTML footer loaded from `public/footer.html`.
+  // If enabled, the content of `public/footer.html` will be rendered at the bottom of the main content area.
+  // This allows for adding static content like copyright notices, links, or disclaimers.
+  // The `footer.html` file should contain valid HTML markup for the footer content.
+  // If the file does not exist or LAMASSU_FOOTER_ENABLED is false, no footer will be displayed.
+  // Defaults to `false`.
+  LAMASSU_FOOTER_ENABLED: false
+};
+```
+
 ## Available Scripts
 
 -   `npm run dev`: Starts the application in development mode with hot-reloading.
