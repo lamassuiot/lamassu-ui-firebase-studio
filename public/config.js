@@ -18,7 +18,7 @@ window.lamassuConfig = {
     // The base URL for all backend API services (CA, DMS, DevManager, etc.).
     // This should be the root of your API gateway or load balancer.
     // Example: "https://api.yourdomain.com"
-    LAMASSU_API: "https://lab.lamassu.io/api",
+    LAMASSU_API: "https://demo-api.lamassu.cloud/prod",
   
     // --- Authentication (OIDC) ---
     // Set to `false` to disable OIDC authentication and use a mock user for development.
@@ -28,11 +28,13 @@ window.lamassuConfig = {
     // The OIDC provider's URL. All OIDC endpoints (.well-known, authorization, token)
     // are relative to this authority.
     // Example: "https://auth.yourdomain.com/realms/your-realm"
-    LAMASSU_AUTH_AUTHORITY: "https://lab.lamassu.io/auth/realms/lamassu",
+    //LAMASSU_AUTH_AUTHORITY: "https://lab.lamassu.io/auth/realms/lamassu",
+    LAMASSU_AUTH_AUTHORITY: "https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_d2VFzoHA2",
     
     // The OIDC client ID registered with your provider for this frontend application.
-    LAMASSU_AUTH_CLIENT_ID: "frontend",
-    
+    //LAMASSU_AUTH_CLIENT_ID: "frontend",
+    LAMASSU_AUTH_CLIENT_ID: "2sskv9h3clq7ctls2sg7u4grlk",
+      
     // --- UI Customization ---
     // Set to true to enable loading of a custom footer from /public/footer.html
     LAMASSU_FOOTER_ENABLED: false,
