@@ -105,6 +105,65 @@ window.lamassuConfig = {
 -   `npm run fix`: Runs ESLint and automatically fixes fixable issues.
 -   `npm run typecheck`: Runs the TypeScript compiler to check for type errors.
 
+## Running with Docker
+
+The image builds the static Next.js export and serves it with Nginx. At container startup the entrypoint uses the `config.js.tmpl` file and replaces template variables from environment variables to produce `/var/www/html/config.js`.
+
+Quick steps:
+
+1. Build the image
+```bash
+docker build -t lamassu-ui:latest .
+```
+
+2. Run the container (example)
+```bash
+docker run -d \
+  -p 9002:80 \
+  -e LAMASSU_API="https://api.example.com" \
+  -e OIDC_ENABLED=true \
+  -e OIDC_AUTHORITY="https://auth.example.com/realms/your-realm" \
+  -e OIDC_CLIENT_ID="frontend" \
+  -e CLOUD_CONNECTORS='["aws.us-east-1.123456789012"]' \
+  -e UI_FOOTER_ENABLED=false \
+  --name lamassu-ui \
+  lamassu-ui:latest
+```
+The app will be available at http://localhost:9002.
+
+Notes:
+- The entrypoint runs envsubst against `/tmpl/config.js.tmpl` and writes `/var/www/html/config.js`. Provide any runtime config via environment variables listed above.
+- To enable a custom footer, mount `footer.html` into the container and set `UI_FOOTER_ENABLED=true`:
+```bash
+docker run -d -p 9002:80 \
+  -v /local/path/footer.html:/var/www/html/footer.html:ro \
+  -e UI_FOOTER_ENABLED=true \
+  lamassu-ui:latest
+```
+
+### Custom Themes
+
+Themes live in the exported site's public directory under `public/themes`. A theme is a CSS file and may reference additional resources (images, fonts) relative to `/themes/<theme-name>/...`.
+
+Activation mechanism
+- To activate a theme at runtime the container must expose a file `/var/www/html/custom-theme.css`. That file must reference (import/link) the actual theme CSS and any assets. Example contents of `custom-theme.css`:
+```css
+/* activate mytheme which lives under /themes/mytheme/ */
+@import url("/themes/mytheme/style.css");
+```
+
+To enable a theme at container runtime, mount theme files and activation file into the container
+```bash
+docker run -d -p 9002:80 \
+  -v /local/path/theme/mytheme:/var/www/html/themes/mytheme:ro \
+  -v /local/path/custom-theme.css:/var/www/html/custom-theme.css:ro \
+  -e LAMASSU_API="https://api.example.com" \
+  --name lamassu-ui \
+  lamassu-ui:latest
+```
+- Place theme assets under `/local/path/themes/<theme-name>/`.
+- `custom-theme.css` should import `/themes/<theme-name>/style.css` and can contain overrides.
+
 ## License
 
 This project is licensed under the Mozilla Public License 2.0 (MPL 2.0). See the `LICENSE` file for more details.
