@@ -82,6 +82,58 @@ const PATH_SEGMENT_TO_LABEL_MAP: Record<string, string> = {
   'certificate-viewer': "Certificate Viewer",
 };
 
+interface NavItem {
+    href: string;
+    label: string;
+    icon: React.ElementType;
+    devOnly?: boolean;
+}
+
+interface NavGroup {
+    label?: string;
+    items: NavItem[];
+    devOnly?: boolean;
+}
+
+const navigationConfig: NavGroup[] = [
+    { items: [{ href: '/', label: 'Home', icon: HomeIcon }] },
+    {
+        label: 'KMS',
+        items: [
+            { href: '/kms/keys', label: 'Keys', icon: KeyRound },
+            { href: '/crypto-engines', label: 'Crypto Engines', icon: Cpu },
+        ],
+    },
+    {
+        label: 'PKI',
+        items: [
+            { href: '/certificates', label: 'Certificates', icon: FileText },
+            { href: '/certificate-authorities', label: 'Certification Authorities', icon: Landmark },
+            { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon },
+            { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
+            { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
+        ],
+    },
+    {
+        label: 'IoT',
+        items: [
+            { href: '/devices', label: 'Devices', icon: Router },
+            { href: '/integrations', label: 'Platform Integrations', icon: Blocks },
+        ],
+    },
+    {
+        label: 'NOTIFICATIONS',
+        items: [{ href: '/alerts', label: 'Alerts', icon: Info }],
+    },
+    {
+        label: 'TOOLS',
+        devOnly: true,
+        items: [
+            { href: '/tools/certificate-viewer', label: 'Certificate Viewer', icon: Binary },
+        ],
+    },
+];
+
 function generateBreadcrumbs(pathname: string, queryParams: URLSearchParams): BreadcrumbItem[] {
   const pathSegments = pathname.split('/').filter(segment => segment);
   const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Home', href: '/' }];
@@ -183,30 +235,6 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
       console.error("Error decoding access token:", error);
     }
   }
-
-  const homeItem = { href: '/', label: 'Home', icon: HomeIcon };
-  const toolsItems = [
-    { href: '/tools/certificate-viewer', label: 'Certificate Viewer', icon: Binary },
-    { href: '/tools/zlint-linter', label: 'Zlint Linter', icon: Binary },
-  ];
-  const kmsItems = [
-    { href: '/kms/keys', label: 'Keys', icon: KeyRound },
-    { href: '/crypto-engines', label: 'Crypto Engines', icon: Cpu },
-  ];
-  const pkiItems = [
-    { href: '/certificates', label: 'Certificates', icon: FileText },
-    { href: '/certificate-authorities', label: 'Certification Authorities', icon: Landmark },
-    { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon },
-    { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
-    { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
-  ];
-  const iotItems = [
-    { href: '/devices', label: 'Devices', icon: Router },
-    { href: '/integrations', label: 'Platform Integrations', icon: Blocks },
-  ];
-  const notificationItems = [
-    { href: '/alerts', label: 'Alerts', icon: Info },
-  ];
 
   return (
     <SidebarProvider defaultOpen>
@@ -320,102 +348,43 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               </SidebarHeader>
               <SidebarContent className="p-2">
                 <SidebarMenu>
-                  <SidebarMenuItem key={homeItem.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === homeItem.href}
-                      tooltip={{ children: homeItem.label, side: 'right', align: 'center' }}
-                    >
-                      <Link href={homeItem.href} className="flex items-center w-full justify-start">
-                        <homeItem.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                        <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{homeItem.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {navigationConfig.map((group, groupIndex) => {
+                    if (group.devOnly && process.env.NODE_ENV !== 'development') {
+                        return null;
+                    }
+                    
+                    const filteredItems = group.items.filter(item => 
+                        !(item.devOnly && process.env.NODE_ENV !== 'development')
+                    );
 
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">KMS</SidebarGroupLabel>
-                  {kmsItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname.startsWith(item.href)}
-                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                      >
-                        <Link href={item.href} className="flex items-center w-full justify-start">
-                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                    if (filteredItems.length === 0) {
+                        return null;
+                    }
 
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">PKI</SidebarGroupLabel>
-                  {pkiItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname.startsWith(item.href)}
-                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                      >
-                        <Link href={item.href} className="flex items-center w-full justify-start">
-                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">IoT</SidebarGroupLabel>
-                  {iotItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname.startsWith(item.href)}
-                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                      >
-                        <Link href={item.href} className="flex items-center w-full justify-start">
-                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap flex-grow">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-
-                  <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">NOTIFICATIONS</SidebarGroupLabel>
-                  {notificationItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname.startsWith(item.href)}
-                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                      >
-                        <Link href={item.href} className="flex items-center w-full justify-start">
-                          <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                  
-                  {process.env.NODE_ENV === 'development' && (
-                    <>
-                      <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">TOOLS</SidebarGroupLabel>
-                      {toolsItems.map((item) => (
-                        <SidebarMenuItem key={item.href}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={pathname.startsWith(item.href)}
-                            tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                          >
-                            <Link href={item.href} className="flex items-center w-full justify-start">
-                              <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
-                              <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </>
-                  )}
+                    return (
+                        <React.Fragment key={group.label || `group-${groupIndex}`}>
+                            {group.label && (
+                                <SidebarGroupLabel className="px-2 pt-2 group-data-[collapsible=icon]:pt-0">
+                                    {group.label}
+                                </SidebarGroupLabel>
+                            )}
+                            {filteredItems.map(item => (
+                                <SidebarMenuItem key={item.href}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
+                                        tooltip={{ children: item.label, side: 'right', align: 'center' }}
+                                    >
+                                        <Link href={item.href} className="flex items-center w-full justify-start">
+                                            <item.icon className="mr-2 h-5 w-5 flex-shrink-0" />
+                                            <span className="group-data-[collapsible=icon]:hidden whitespace-nowrap">{item.label}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </React.Fragment>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarContent>
               <SidebarFooter className="p-2 pb-4 mt-auto border-t border-sidebar-border">
