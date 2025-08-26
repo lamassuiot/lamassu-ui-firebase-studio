@@ -127,7 +127,6 @@ const navigationConfig: NavGroup[] = [
     },
     {
         label: 'TOOLS',
-        devOnly: true,
         items: [
             { href: '/tools/certificate-viewer', label: 'Certificate Viewer', icon: Binary },
         ],
