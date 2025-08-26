@@ -1,14 +1,14 @@
 # LamassuIoT
 
-LamassuIoT is a modern, web-based dashboard for managing X.509 certificates and Public Key Infrastructure (PKI). It provides a user-friendly interface for importing, inspecting, and verifying certificates, ensuring the security and integrity of your IoT ecosystem.
+LamassuIoT is a modern infrastructure for managing X.509 certificates and Public Key Infrastructure (PKI). It provides a user-friendly interface for issuing, inspecting, and verifying certificates, ensuring the security and integrity of your IoT ecosystem.
 
 ## Core Features
 
--   **Certificate Management**: Import existing X.509 certificates in PEM, CRT, or CER formats.
--   **In-Depth Inspection**: View detailed certificate information, including Subject, Issuer, validity period, and Subject Alternative Names (SANs).
--   **Chain Verification**: Verify the entire certificate chain up to a trusted root CA.
--   **Dashboard UI**: A clean, dashboard-style interface with minimalistic controls for all key actions.
--   **CA & Device Management**: Manage Certificate Authorities and IoT device identities within your PKI.
+-   **CA Management**: Create, import, and manage the lifecycle of Certificate Authorities.
+-   **RA Management**: Configure Registration Authorities supporting the EST protocol for device enrollment.
+-   **Certificate Management**: Issue, inspect, and revoke end-entity certificates.
+-   **VA via OCSP and CRL**: Provide certificate validation services through OCSP and Certificate Revocation Lists.
+-   **Device Identity Management**: Manage the lifecycle of IoT device identities and their associated certificates.
 
 ## Tech Stack
 
@@ -69,4 +69,3 @@ The application will be available at [http://localhost:9002](http://localhost:90
 ## License
 
 This project is licensed under the terms of the license specified in the `LICENSE` file.
-
