@@ -82,11 +82,15 @@ window.lamassuConfig = {
   LAMASSU_AUTH_CLIENT_ID: "frontend-client-id",
 
   // --- Integrations ---
-  // An array of strings defining available platform connectors for integrations.
+  // An array of strings defining available platform connectors for integrations. These connectors ID must be already recognized by the Lamassu backend.
   LAMASSU_CONNECTORS: ["aws.us-east-1.123456789012"],
 
   // --- UI Customization ---
   // Set to `true` to enable a custom HTML footer loaded from `public/footer.html`.
+  // If enabled, the content of `public/footer.html` will be rendered at the bottom of the main content area.
+  // This allows for adding static content like copyright notices, links, or disclaimers.
+  // The `footer.html` file should contain valid HTML markup for the footer content.
+  // If the file does not exist or LAMASSU_FOOTER_ENABLED is false, no footer will be displayed.
   // Defaults to `false`.
   LAMASSU_FOOTER_ENABLED: false
 };
