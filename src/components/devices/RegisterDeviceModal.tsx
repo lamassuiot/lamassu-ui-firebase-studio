@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { TagInput } from '@/components/shared/TagInput';
 import { DeviceIconSelectorModal, getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { Separator } from '../ui/separator';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { DMS_MANAGER_API_BASE_URL } from '@/lib/api-domains';
 import { registerDevice } from '@/lib/devices-api';
 

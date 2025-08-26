@@ -57,7 +57,7 @@ export const SelectableCertificateItem: React.FC<SelectableCertificateItemProps>
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleItemClick(e as any);}}
-        aria-selected={isSelected}
+        aria-pressed={isSelected}
     >
         <FileText className={cn("h-5 w-5 flex-shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
         <div className="flex-1 min-w-0">

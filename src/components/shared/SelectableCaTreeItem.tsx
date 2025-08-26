@@ -77,7 +77,7 @@ export const SelectableCaTreeItem: React.FC<SelectableCaTreeItemProps> = ({
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleItemClick(e as any);}}
-        aria-selected={isCurrentlySelected || isMultiSelected}
+        aria-pressed={isCurrentlySelected || isMultiSelected}
       >
         {showCheckbox && (
           <Input 
