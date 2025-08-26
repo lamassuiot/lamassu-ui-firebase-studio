@@ -68,4 +68,4 @@ The application will be available at [http://localhost:9002](http://localhost:90
 
 ## License
 
-This project is licensed under the terms of the license specified in the `LICENSE` file.
+This project is licensed under the Mozilla Public License 2.0 (MPL 2.0). See the `LICENSE` file for more details.
