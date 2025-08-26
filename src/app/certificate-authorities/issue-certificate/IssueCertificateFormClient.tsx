@@ -24,7 +24,6 @@ import {
 } from "pkijs";
 import * as asn1js from "asn1js";
 import { useAuth } from '@/contexts/AuthContext';
-import { DurationInput } from '@/components/shared/DurationInput';
 import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 import { fetchAndProcessCAs, findCaById, signCertificate, type CA } from '@/lib/ca-data';
