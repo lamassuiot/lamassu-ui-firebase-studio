@@ -100,7 +100,7 @@ const navigationConfig: NavGroup[] = [
     {
         label: 'KMS',
         items: [
-            { href: '/kms/keys', label: 'Keys', icon: KeyRound },
+            { href: '/kms/keys', label: 'Keys', icon: KeyRound, devOnly: true },
             { href: '/crypto-engines', label: 'Crypto Engines', icon: Cpu },
         ],
     },
@@ -109,7 +109,7 @@ const navigationConfig: NavGroup[] = [
         items: [
             { href: '/certificates', label: 'Certificates', icon: FileText },
             { href: '/certificate-authorities', label: 'Certification Authorities', icon: Landmark },
-            { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon },
+            { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon, devOnly: true },
             { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
             { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
         ],
