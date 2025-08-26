@@ -2,8 +2,6 @@
 
 LamassuIoT is a modern, web-based dashboard for managing X.509 certificates and Public Key Infrastructure (PKI). It provides a user-friendly interface for importing, inspecting, and verifying certificates, ensuring the security and integrity of your IoT ecosystem.
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Flamassuiot%2Flamassu-ui-firebase-studio.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Flamassuiot%2Flamassu-ui-firebase-studio?ref=badge_shield)
-
 ## Core Features
 
 -   **Certificate Management**: Import existing X.509 certificates in PEM, CRT, or CER formats.
@@ -23,7 +21,7 @@ This project is built with a modern, performant, and type-safe technology stack:
 -   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 -   **Authentication**: [OIDC Client](https://github.com/authts/oidc-client-ts) for OpenID Connect integration.
 -   **Cryptography**: [PKI.js](https://pkijs.org/) and [ASN1.js](https://github.com/PeculiarVentures/ASN1.js) for certificate parsing and manipulation.
--   **AI (Optional)**: Prepared for integration with [Genkit](https://firebase.google.com/docs/genkit).
+
 
 ## Getting Started
 
@@ -72,4 +70,3 @@ The application will be available at [http://localhost:9002](http://localhost:90
 
 This project is licensed under the terms of the license specified in the `LICENSE` file.
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Flamassuiot%2Flamassu-ui-firebase-studio.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Flamassuiot%2Flamassu-ui-firebase-studio?ref=badge_large)
