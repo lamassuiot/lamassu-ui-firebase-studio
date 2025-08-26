@@ -1,4 +1,3 @@
-
 # Stage 1: Build the Next.js application
 FROM node:20-alpine AS builder
 
@@ -22,6 +21,15 @@ RUN npm run build
 # Stage 2: Serve the static files with Nginx
 FROM nginx:stable-alpine
 
+ENV OIDC_ENABLED=true
+ENV CLOUD_CONNECTORS=[]
+ENV UI_FOOTER_ENABLED=false
+
+#ENV LAMASSU_API
+#ENV OIDC_AUTHORITY
+#ENV OIDC_CLIENT_ID
+
+
 # Remove default Nginx server configuration
 RUN rm /etc/nginx/conf.d/default.conf
 
@@ -32,8 +40,15 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # The 'out' directory contains the result of `next export`
 COPY --from=builder /app/out /var/www/html
 
+WORKDIR /var/www/html
+COPY ./config.js.tmpl /tmpl/config.js.tmpl
+
+COPY ./docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh && \
+    apk add --no-cache bash
+
 # Expose port 80
 EXPOSE 80
 
 # Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["bash", "/docker-entrypoint.sh"]
