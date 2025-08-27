@@ -190,6 +190,41 @@ docker run -d -p 9002:80 \
 - Place theme assets under `/local/path/themes/<theme-name>/`.
 - `custom-theme.css` should import `/themes/<theme-name>/style.css` and can contain overrides.
 
+## Developer-only menu options
+
+Some navigation items in the app are marked as developer-only. These are controlled by a `devOnly: true` flag in the navigation configuration (see `src/app/layout.tsx` → `navigationConfig`). By default these items are hidden in production.
+
+How the toggle works
+- Developer-only items are shown when either:
+  - `process.env.NODE_ENV === 'development'` (local dev server), OR
+  - `process.env.NEXT_FORCE_DEV_OPTIONS` is set (truthy) at build/runtime.
+- Groups with all items filtered out are automatically hidden.
+
+Enable developer-only items
+- Local development
+  - Run the dev server (`npm run dev` / `pnpm dev`) — items appear automatically.
+- Forcing in non-development environments
+  - Set the environment variable `NEXT_FORCE_DEV_OPTIONS=1` (or another truthy value) and rebuild/restart the Next.js app.
+  - Example (Linux/macOS):
+    - In one-off run: `NEXT_FORCE_DEV_OPTIONS=1 npm start`
+    - Or export then start: `export NEXT_FORCE_DEV_OPTIONS=1 && npm run build && npm start`
+
+Adding a dev-only menu item
+- Example snippet from `src/app/layout.tsx`:
+```ts
+{
+  label: 'KMS',
+  items: [
+    { href: '/kms/keys', label: 'Keys', icon: KeyRound, devOnly: true }, // will be hidden unless dev mode / forced
+    { href: '/crypto-engines', label: 'Crypto Engines', icon: Cpu },
+  ],
+}
+```
+
+Notes
+- Because `process.env` checks are evaluated at runtime/build-time by Next.js, changing `NEXT_FORCE_DEV_OPTIONS` typically requires a rebuild or restart to take effect in production builds.
+- Use dev-only items for debugging, feature preview, or tools that should not be exposed
+
 ## License
 
 This project is licensed under the Mozilla Public License 2.0 (MPL 2.0). See the `LICENSE` file for more details.
