@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -9,8 +9,11 @@ import { Loader2 } from 'lucide-react';
 export default function SigninCallbackPage() {
   const router = useRouter();
   const { userManager } = useAuth();
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
+
     if (!userManager) {
         console.log("SigninCallback: Waiting for UserManager...");
         return;
@@ -31,6 +34,11 @@ export default function SigninCallbackPage() {
     };
     processCallback();
   }, [userManager, router]);
+
+  // Only render content on the client
+  if (!isClient) {
+    return <div className="flex flex-col items-center justify-center min-h-screen p-4"></div>;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
