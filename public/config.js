@@ -17,7 +17,7 @@ window.lamassuConfig = {
     // --- Core API Endpoint ---
     // The base URL for all backend API services (CA, DMS, DevManager, etc.).
     // This should be the root of your API gateway or load balancer.
-    // Example: "https://api.yourdomain.com"
+    // Example: "https://api.yourdomain.com"    
     LAMASSU_API: "https://lab.lamassu.io/api",
   
     // --- Authentication (OIDC) ---
@@ -32,7 +32,7 @@ window.lamassuConfig = {
     
     // The OIDC client ID registered with your provider for this frontend application.
     LAMASSU_AUTH_CLIENT_ID: "frontend",
-    
+      
     // --- UI Customization ---
     // Set to true to enable loading of a custom footer from /public/footer.html
     LAMASSU_FOOTER_ENABLED: false,
