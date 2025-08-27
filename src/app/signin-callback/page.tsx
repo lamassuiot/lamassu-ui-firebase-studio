@@ -21,10 +21,12 @@ export default function SigninCallbackPage() {
         console.log("SigninCallback: Processing callback...");
         await userManager.signinRedirectCallback();
         console.log("SigninCallback: Callback processed, redirecting to /.");
-        router.push('/');
+        // Defer the redirect to allow React to finish hydration first.
+        setTimeout(() => router.push('/'), 0);
       } catch (error) {
         console.error('SigninCallback: Error processing signin callback:', error);
-        router.push('/'); // Fallback to home/login
+        // Also defer the error redirect.
+        setTimeout(() => router.push('/'), 0); // Fallback to home/login
       }
     };
     processCallback();
