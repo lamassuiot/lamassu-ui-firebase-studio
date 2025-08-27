@@ -463,11 +463,11 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
 
 const InnerLayout = ({ children }: { children: React.ReactNode }) => {
   const { isLoading: authIsLoading } = useAuth();
-  const [clientMounted, setClientMounted] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
   const pathname = usePathname();
 
   React.useEffect(() => {
-    setClientMounted(true);
+    setMounted(true);
   }, []);
 
   const isCallbackPage =
@@ -475,11 +475,14 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     pathname === '/silent-renew-callback' ||
     pathname === '/signout-callback';
 
+  // For callback pages, render children immediately without waiting for auth.
   if (isCallbackPage) {
     return <>{children}</>;
   }
 
-  if (!clientMounted || authIsLoading) {
+  // For all other pages, wait until the component is mounted and auth is no longer loading.
+  // This prevents hydration mismatches.
+  if (!mounted || authIsLoading) {
     return <LoadingState />;
   }
   
