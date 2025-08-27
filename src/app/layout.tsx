@@ -479,14 +479,10 @@ const InnerLayout = ({ children }: { children: React.ReactNode }) => {
     return <>{children}</>;
   }
 
-  if (!clientMounted) {
+  if (!clientMounted || authIsLoading) {
     return <LoadingState />;
   }
   
-  if (authIsLoading) {
-      return <LoadingState />;
-  }
-
   return <MainLayoutContent>{children}</MainLayoutContent>;
 };
 
