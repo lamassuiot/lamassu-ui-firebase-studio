@@ -105,6 +105,32 @@ window.lamassuConfig = {
 -   `npm run fix`: Runs ESLint and automatically fixes fixable issues.
 -   `npm run typecheck`: Runs the TypeScript compiler to check for type errors.
 
+## Production build
+
+Create an optimized static build and verify it locally:
+
+1. Install clean dependencies and build:
+```bash
+npm ci
+npm run build
+```
+The build output is exported to the out/ directory (static site).
+
+Serve the static output locally for verification:
+Quick (no global install):
+```bash
+npx http-server out -p 9002
+# or
+npx serve out -l 9002
+```
+- The site will be available at http://localhost:9002.
+
+Notes:
+
+- Runtime configuration is injected by the container entrypoint from config.js.tmpl into /var/www/html/config.js. For local testing you can create a out/config.js manually (or place public/config.js before building) so the app can read runtime settings without Docker.
+
+- For production deployment prefer the provided Docker image (see "Running with Docker") which builds and serves the out/ export and injects runtime config at container start.
+
 ## Running with Docker
 
 The image builds the static Next.js export and serves it with Nginx. At container startup the entrypoint uses the `config.js.tmpl` file and replaces template variables from environment variables to produce `/var/www/html/config.js`.
