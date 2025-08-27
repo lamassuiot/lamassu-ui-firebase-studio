@@ -111,7 +111,7 @@ const navigationConfig: NavGroup[] = [
             { href: '/certificate-authorities', label: 'Certification Authorities', icon: Landmark },
             { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon, devOnly: true },
             { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
-            { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
+            { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck, devOnly: true },
         ],
     },
     {
@@ -348,12 +348,12 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
               <SidebarContent className="p-2">
                 <SidebarMenu>
                   {navigationConfig.map((group, groupIndex) => {
-                    if (group.devOnly && process.env.NODE_ENV !== 'development') {
+                    if (group.devOnly && !(process.env.NODE_ENV == 'development' ||  process.env.NEXT_FORCE_DEV_OPTIONS)) {
                         return null;
                     }
                     
                     const filteredItems = group.items.filter(item => 
-                        !(item.devOnly && process.env.NODE_ENV !== 'development')
+                        !(item.devOnly && !(process.env.NODE_ENV == 'development' ||  process.env.NEXT_FORCE_DEV_OPTIONS))
                     );
 
                     if (filteredItems.length === 0) {
