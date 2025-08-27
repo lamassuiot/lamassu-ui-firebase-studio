@@ -69,8 +69,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (userManagerInstance) {
       try {
         setUser(null);
-        if (await userManagerInstance.getUser()) {
+        const logoutEndpoint = await userManagerInstance.metadataService.getEndSessionEndpoint();
+        if (logoutEndpoint && await userManagerInstance.getUser()) {
+          if (logoutEndpoint.includes('amazoncognito')) {
+            await signoutRedirectCognito();
+          } else {
           await userManagerInstance.signoutRedirect();
+          }
         } else {
           router.push('/');
         }
@@ -82,6 +87,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   }, [userManagerInstance, router]);
+
+  const signoutRedirectCognito = useCallback(async () => {
+    if (!userManagerInstance) {
+      router.push('/');
+      return;
+    }
+
+    const clientId = userManagerInstance.settings.client_id;
+    const logoutUri = `${window.location.origin}/signout-callback`;
+
+    await userManagerInstance?.signoutRedirect({
+      extraQueryParams: {
+        client_id: clientId,
+        logout_uri: logoutUri
+      }
+    })
+
+  }, [userManagerInstance, router]);
+
   
   useEffect(() => {
     if (!userManagerInstance) {
