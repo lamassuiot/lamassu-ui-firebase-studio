@@ -274,7 +274,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto text-header-foreground hover:bg-header/80 hover:text-header-foreground">
-                      <span className='hidden sm:inline'>{user?.profile.name}</span>
+                    <span className='hidden sm:inline'>{user?.profile.name || user?.profile.email}</span>
                        <div className='flex items-center justify-center bg-header-foreground/20 rounded-full h-8 w-8'>
                         <User className="h-5 w-5 text-header-foreground" />
                       </div>
