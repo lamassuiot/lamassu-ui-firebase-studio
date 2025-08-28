@@ -68,10 +68,10 @@ window.lamassuConfig = {
   // The base URL for all backend API services.
   LAMASSU_API: "https://your-api-endpoint.example.com",
 
-  // (Optional) An override URL for the VA (OCSP/CRL) and EST endpoints.
-  // If not provided, defaults to the LAMASSU_API value.
-  // Useful if the validation/enrollment services are hosted on a separate domain.
-  LAMASSU_VA_API_OVERRIDE: "https://your-va-and-est-endpoint.example.com",
+  // (Optional) An override URL for public-facing endpoints like VA (OCSP/CRL) and EST.
+  // If not provided, these endpoints will be based on the LAMASSU_API value.
+  // Useful if validation/enrollment services are hosted on a separate public domain.
+  LAMASSU_PUBLIC_API: "https://your-public-endpoint.example.com",
 
   // --- Authentication ---
   // Set to `false` to disable OIDC authentication for local development.

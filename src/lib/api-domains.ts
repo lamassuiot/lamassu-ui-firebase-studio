@@ -15,8 +15,8 @@ const getApiBaseUrl = (): string => {
 
 const getVaEstApiBaseUrl = (): string => {
     // 1. Check for the specific override for VA/EST endpoints
-    if (typeof window !== 'undefined' && (window as any).lamassuConfig?.LAMASSU_VA_API_OVERRIDE) {
-        return (window as any).lamassuConfig.LAMASSU_VA_API_OVERRIDE;
+    if (typeof window !== 'undefined' && (window as any).lamassuConfig?.LAMASSU_PUBLIC_API) {
+        return (window as any).lamassuConfig.LAMASSU_PUBLIC_API;
     }
     // 2. Fallback to the main API base URL
     return getApiBaseUrl();
