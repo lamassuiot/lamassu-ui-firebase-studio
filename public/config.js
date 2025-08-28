@@ -19,7 +19,12 @@ window.lamassuConfig = {
     // This should be the root of your API gateway or load balancer.
     // Example: "https://api.yourdomain.com"    
     LAMASSU_API: "https://lab.lamassu.io/api",
-  
+
+    // (Optional) An override URL for public-facing endpoints like VA (OCSP/CRL) and EST.
+    // If not provided, these endpoints will be based on the LAMASSU_API value.
+    // Useful if validation/enrollment services are hosted on a separate public domain.
+    // LAMASSU_PUBLIC_API: "https://your-public-endpoint.example.com"
+
     // --- Authentication (OIDC) ---
     // Set to `false` to disable OIDC authentication and use a mock user for development.
     // In a production environment, this should always be `true`.
