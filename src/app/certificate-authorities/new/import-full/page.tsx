@@ -21,7 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CryptoEngineSelector } from '@/components/shared/CryptoEngineSelector';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 import { Separator } from '@/components/ui/separator';
-import { importCa, type ImportCaPayload } from '@/lib/ca-data';
+import { importCa, type ImportCaPayload, ab2hex } from '@/lib/ca-data';
 
 interface DecodedImportedCertInfo {
   subject?: string;
@@ -39,9 +39,6 @@ const OID_MAP: Record<string, string> = {
 };
 function formatPkijsSubject(subject: any): string {
   return subject.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
-}
-function ab2hex(ab: ArrayBuffer) {
-  return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 

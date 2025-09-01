@@ -132,6 +132,10 @@ const OID_MAP: Record<string, string> = {
   "1.2.840.10045.3.1.7": "P-256", "1.3.132.0.34": "P-384", "1.3.132.0.35": "P-521",
 };
 
+export function ab2hex(ab: ArrayBuffer, separator: string = '') {
+  return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join(separator);
+}
+
 const formatPkijsSubject = (subject: RelativeDistinguishedNames): string => {
   return subject.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
 };
@@ -150,7 +154,6 @@ const formatPkijsPublicKeyInfo = (publicKeyInfo: PublicKeyInfo): string => {
   return `${algoName} ${details}`;
 };
 
-const ab2hex = (ab: ArrayBuffer) => Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join(':');
 
 export interface ParsedPemDetails {
     subject: string;
@@ -217,13 +220,13 @@ export async function parseCertificatePemDetails(pem: string): Promise<ParsedPem
         if (typeof window !== 'undefined' && window.crypto?.subtle) {
             try {
                 const hashBuffer = await crypto.subtle.digest('SHA-256', bytes.buffer);
-                defaultResult.fingerprintSha256 = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(':');
+                defaultResult.fingerprintSha256 = ab2hex(hashBuffer, ':');
             } catch(e) { console.error("Could not calculate fingerprint", e); }
         }
 
         defaultResult.subject = formatPkijsSubject(certificate.subject);
         defaultResult.issuer = formatPkijsSubject(certificate.issuer);
-        defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex);
+        defaultResult.serialNumber = ab2hex(certificate.serialNumber.valueBlock.valueHex, ':');
         defaultResult.validFrom = certificate.notBefore.value.toISOString();
         defaultResult.validTo = certificate.notAfter.value.toISOString();
         defaultResult.publicKeyAlgorithm = formatPkijsPublicKeyInfo(certificate.subjectPublicKeyInfo);
@@ -318,7 +321,7 @@ export async function parseCertificatePemDetails(pem: string): Promise<ParsedPem
             if (skiExtension?.parsedValue) {
                 const ski = skiExtension.parsedValue;
                 if (ski.valueBlock?.valueHex) {
-                    defaultResult.subjectKeyId = ab2hex(ski.valueBlock.valueHex);
+                    defaultResult.subjectKeyId = ab2hex(ski.valueBlock.valueHex, ':');
                 }
             }
         } catch(e) { console.error("Failed to parse Subject Key Identifier:", e); }
@@ -329,7 +332,7 @@ export async function parseCertificatePemDetails(pem: string): Promise<ParsedPem
                 const aki = akiExtension.parsedValue as AuthorityKeyIdentifier;
                 if (aki.keyIdentifier) {
                     if (aki.keyIdentifier.valueBlock?.valueHex) {
-                        defaultResult.authorityKeyId = ab2hex(aki.keyIdentifier.valueBlock.valueHex);
+                        defaultResult.authorityKeyId = ab2hex(aki.keyIdentifier.valueBlock.valueHex, ':');
                     }
                 }
             }
