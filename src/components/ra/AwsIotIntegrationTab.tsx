@@ -210,12 +210,13 @@ export const AwsIotIntegrationTab: React.FC<AwsIotIntegrationTabProps> = ({ ra, 
              patchOperations.push({ op: 'replace', path: statusPointer, value: 'REQUESTED' });
         } else {
             const registrationPayload = {
+            "registration":  {
                 primary_account: isPrimaryAccount,
                 registration_request_time: new Date().toISOString(),
                 status: "REQUESTED"
-            };
-            const registrationPointer = `${awsConfigPointer}/registration`;
-            patchOperations.push({ op: 'add', path: registrationPointer, value: registrationPayload });
+            }
+          };
+            patchOperations.push({ op: 'add', path: awsConfigPointer, value: registrationPayload});
         }
         
         await updateCaMetadata(enrollmentCa.id, patchOperations, user.access_token);
