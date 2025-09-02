@@ -31,6 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/shared/Stepper';
 import { ExpirationConfig, ExpirationInput } from '@/components/shared/ExpirationInput';
 import { formatISO, add, parseISO, isAfter } from 'date-fns';
+import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
 
 
 // This specific date string is used to represent "indefinite validity" (no expiration) in the API.
@@ -207,6 +208,13 @@ export default function IssueCertificateFormClient() {
 
     return null;
   }, [validity, issuerCa]);
+
+  const selectedProfile = useMemo(() => {
+    if (profileMode === 'reuse' && selectedProfileId) {
+      return signingProfiles.find(p => p.id === selectedProfileId);
+    }
+    return null;
+  }, [profileMode, selectedProfileId, signingProfiles]);
 
 
   // --- Effects ---
@@ -727,21 +735,28 @@ export default function IssueCertificateFormClient() {
                             </div>
                             
                             {profileMode === 'reuse' ? (
-                                <div className="space-y-2">
-                                    <Label htmlFor="profile-select">Issuance Profile</Label>
-                                    {isLoadingProfiles ? (
-                                        <Skeleton className="h-10 w-full md:w-1/2" />
-                                    ) : (
-                                        <Select value={selectedProfileId || ''} onValueChange={setSelectedProfileId}>
-                                            <SelectTrigger id="profile-select" className="w-full md:w-1/2">
-                                                <SelectValue placeholder="Select a profile..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {signingProfiles.map(p => (
-                                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="profile-select">Issuance Profile</Label>
+                                        {isLoadingProfiles ? (
+                                            <Skeleton className="h-10 w-full md:w-1/2" />
+                                        ) : (
+                                            <Select value={selectedProfileId || ''} onValueChange={setSelectedProfileId}>
+                                                <SelectTrigger id="profile-select" className="w-full md:w-1/2">
+                                                    <SelectValue placeholder="Select a profile..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {signingProfiles.map(p => (
+                                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    </div>
+                                    {selectedProfile && (
+                                        <div className="pt-2">
+                                            <IssuanceProfileCard profile={selectedProfile} />
+                                        </div>
                                     )}
                                 </div>
                             ) : (
