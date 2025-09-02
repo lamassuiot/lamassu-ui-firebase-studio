@@ -138,10 +138,6 @@ export function ab2hex(ab: ArrayBuffer, separator: string = '') {
   if (arr.length > 16 && arr[0] === 0x00) {
     arr = arr.slice(1);
   }
-   // Limit to 16 bytes (rightmost 16 bytes)
-   if (arr.length > 16) {
-    arr = arr.slice(arr.length - 16);
-  }
   return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join(separator);
 }
 
