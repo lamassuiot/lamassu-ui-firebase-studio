@@ -18,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
-import { importCa, type ImportCaPayload, fetchCaRequestById } from '@/lib/ca-data';
+import { importCa, type ImportCaPayload, fetchCaRequestById, ab2hex } from '@/lib/ca-data';
 
 // --- Type Definitions ---
 interface Subject { common_name: string; }
@@ -49,9 +49,6 @@ interface DecodedImportedCertInfo {
 const OID_MAP: Record<string, string> = { "2.5.4.3": "CN", "2.5.4.6": "C", "2.5.4.7": "L", "2.5.4.8": "ST", "2.5.4.10": "O", "2.5.4.11": "OU" };
 function formatPkijsSubject(subject: any): string {
   return subject.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
-}
-function ab2hex(ab: ArrayBuffer) {
-  return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
