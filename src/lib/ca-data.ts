@@ -133,7 +133,16 @@ const OID_MAP: Record<string, string> = {
 };
 
 export function ab2hex(ab: ArrayBuffer, separator: string = '') {
-  return Array.from(new Uint8Array(ab)).map(b => b.toString(16).padStart(2, '0')).join(separator);
+  let arr = new Uint8Array(ab);
+  // Trim leading 0x00 if present and length > 16
+  if (arr.length > 16 && arr[0] === 0x00) {
+    arr = arr.slice(1);
+  }
+   // Limit to 16 bytes (rightmost 16 bytes)
+   if (arr.length > 16) {
+    arr = arr.slice(arr.length - 16);
+  }
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join(separator);
 }
 
 const formatPkijsSubject = (subject: RelativeDistinguishedNames): string => {
