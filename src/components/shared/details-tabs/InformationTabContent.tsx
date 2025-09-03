@@ -101,7 +101,8 @@ const toTitleCase = (str: string) => {
 
 const formatHexWithColons = (hexString?: string): string | undefined => {
     if (!hexString) return undefined;
-    return hexString.replace(/:/g, '').match(/.{1,2}/g)?.join(':').toUpperCase();
+    // Remove existing colons or spaces, then insert colons every 2 characters.
+    return hexString.replace(/:/g, '').replace(/\s/g, '').match(/.{1,2}/g)?.join(':').toUpperCase();
 };
 
 
