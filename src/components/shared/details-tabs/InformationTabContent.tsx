@@ -99,12 +99,6 @@ const toTitleCase = (str: string) => {
     .replace(/^./, (s) => s.toUpperCase()); // uppercase the first character
 };
 
-const formatHexWithColons = (hexString?: string): string | undefined => {
-    if (!hexString) return undefined;
-    // Remove existing colons or spaces, then insert colons every 2 characters.
-    return hexString.replace(/:/g, '').replace(/\s/g, '').match(/.{1,2}/g)?.join(':').toUpperCase();
-};
-
 
 export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   item,
@@ -242,8 +236,8 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
           <AccordionContent className="space-y-1 px-4 pt-3">
             <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
             <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
-            <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{formatHexWithColons(caDetails.subjectKeyId) || 'N/A'}</span>} />
-            <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{formatHexWithColons(caDetails.authorityKeyId) || 'N/A'}</span>} />
+            <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{caDetails.subjectKeyId || 'N/A'}</span>} />
+            <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{caDetails.authorityKeyId || 'N/A'}</span>} />
           </AccordionContent>
         </AccordionItem>
 
@@ -358,7 +352,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="Public Key Algorithm" value={certDetails.publicKeyAlgorithm || 'N/A'} />
             <DetailItem label="Signature Algorithm" value={certDetails.signatureAlgorithm || 'N/A'} />
             <DetailItem label="SHA-256 Fingerprint" value={certDetails.fingerprintSha256 || 'N/A (Generate if needed)'} isMono />
-            <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{formatHexWithColons(certDetails.rawApiData?.subject_key_id) || 'N/A'}</span>} />
+            <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{certDetails.rawApiData?.subject_key_id || 'N/A'}</span>} />
             <DetailItem
                 label="Authority Key Identifier (AKI)"
                 value={
@@ -369,10 +363,10 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
                             onClick={() => onAkiClick(certDetails.rawApiData.authority_key_id)}
                             title="Find Issuer CA by AKI"
                         >
-                            {formatHexWithColons(certDetails.rawApiData.authority_key_id)}
+                            {certDetails.rawApiData.authority_key_id}
                         </Button>
                     ) : (
-                        <span className="font-mono text-xs">{formatHexWithColons(certDetails.rawApiData?.authority_key_id) || 'N/A'}</span>
+                        <span className="font-mono text-xs">{certDetails.rawApiData?.authority_key_id || 'N/A'}</span>
                     )
                 }
             />

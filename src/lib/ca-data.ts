@@ -389,6 +389,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
       }
   }
 
+  const formatHex = (hex?: string) => hex?.match(/.{1,2}/g)?.join(':').toUpperCase();
 
   return {
     id: apiCa.id,
@@ -400,8 +401,8 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     keyAlgorithm: keyAlgorithm,
     kmsKeyId: apiCa.certificate.engine_id,
     pemData: pemData,
-    subjectKeyId: apiCa.certificate.subject_key_id,
-    authorityKeyId: apiCa.certificate.authority_key_id,
+    subjectKeyId: formatHex(apiCa.certificate.subject_key_id),
+    authorityKeyId: formatHex(apiCa.certificate.authority_key_id),
     subjectDN: apiCa.certificate.subject,
     issuerDN: apiCa.certificate.issuer,
     isCa: apiCa.certificate.is_ca,
