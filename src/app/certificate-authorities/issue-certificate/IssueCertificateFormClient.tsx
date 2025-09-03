@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Loader2, AlertTriangle, Copy, Check, Download as DownloadIcon, X as XIcon } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, Loader2, AlertTriangle, Copy, Check, Download as DownloadIcon, X as XIcon, Settings2, BookText } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
 import { DetailItem } from '@/components/shared/DetailItem';
@@ -160,7 +160,7 @@ export default function IssueCertificateFormClient() {
   const [decodedCsrInfo, setDecodedCsrInfo] = useState<DecodedCsrInfo | null>(null);
 
   // Step 1 - Configuration State
-  const [profileMode, setProfileMode] = useState<'reuse' | 'inline'>('inline');
+  const [profileMode, setProfileMode] = useState<'reuse' | 'inline'>('reuse');
   const [signingProfiles, setSigningProfiles] = useState<ApiSigningProfile[]>([]);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -721,17 +721,79 @@ export default function IssueCertificateFormClient() {
                             
                             {/* --- Configuration section (both modes) --- */}
                             <h3 className="font-medium text-lg border-t pt-4">Certificate Configuration</h3>
-                             <div className="space-y-2">
-                                <Label htmlFor="profile-mode-select">Profile Mode</Label>
-                                <Select value={profileMode} onValueChange={(v: 'reuse' | 'inline') => setProfileMode(v)}>
-                                    <SelectTrigger id="profile-mode-select" className="w-full md:w-1/2">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="inline">Inline Profile</SelectItem>
-                                        <SelectItem value="reuse">Reuse Existing Profile</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="space-y-4">
+                                <Label>Profile Mode</Label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Reuse Profile Card */}
+                                    <Card 
+                                        className={cn(
+                                            "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                                            profileMode === 'reuse' 
+                                                ? "border-primary bg-primary/5 shadow-sm" 
+                                                : "border-border hover:border-primary/50"
+                                        )}
+                                        onClick={() => setProfileMode('reuse')}
+                                    >
+                                        <CardHeader className="pb-3">
+                                            <div className="flex items-center space-x-3">
+                                                <div className={cn(
+                                                    "p-2 rounded-lg",
+                                                    profileMode === 'reuse' 
+                                                        ? "bg-primary text-primary-foreground" 
+                                                        : "bg-muted text-muted-foreground"
+                                                )}>
+                                                    <BookText className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <CardTitle className="text-base">Reuse Existing Profile</CardTitle>
+                                                    <CardDescription className="text-sm">
+                                                        Use predefined issuance templates
+                                                    </CardDescription>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="pt-0">
+                                            <p className="text-sm text-muted-foreground">
+                                                Select from existing signing profiles with pre-configured security policies and certificate settings.
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Inline Profile Card */}
+                                    <Card 
+                                        className={cn(
+                                            "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                                            profileMode === 'inline' 
+                                                ? "border-primary bg-primary/5 shadow-sm" 
+                                                : "border-border hover:border-primary/50"
+                                        )}
+                                        onClick={() => setProfileMode('inline')}
+                                    >
+                                        <CardHeader className="pb-3">
+                                            <div className="flex items-center space-x-3">
+                                                <div className={cn(
+                                                    "p-2 rounded-lg",
+                                                    profileMode === 'inline' 
+                                                        ? "bg-primary text-primary-foreground" 
+                                                        : "bg-muted text-muted-foreground"
+                                                )}>
+                                                    <Settings2 className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <CardTitle className="text-base">Inline Profile</CardTitle>
+                                                    <CardDescription className="text-sm">
+                                                        Configure certificate settings manually
+                                                    </CardDescription>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="pt-0">
+                                            <p className="text-sm text-muted-foreground">
+                                                Customize validity period, key usage, and extended key usage for this specific certificate issuance.
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
                             </div>
                             
                             {profileMode === 'reuse' ? (
