@@ -26,6 +26,7 @@ import {
   type CreateSigningProfilePayload,
   type ApiSigningProfile,
 } from '@/lib/ca-data';
+import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
@@ -46,7 +47,20 @@ type ExtendedKeyUsageOption = typeof extendedKeyUsageOptions[number];
 const signingProfileSchema = z.object({
   profileName: z.string().min(3, "Profile name must be at least 3 characters long."),
   description: z.string().optional(),
-  duration: z.string().min(1, "Duration is required (e.g., '1y', '90d')."),
+  
+  validity: z.object({
+    type: z.enum(["Duration", "Date", "Indefinite"]),
+    durationValue: z.string().optional(),
+    dateValue: z.date().optional(),
+  }).refine(data => {
+      if (data.type === 'Duration') return !!data.durationValue;
+      if (data.type === 'Date') return !!data.dateValue;
+      return true; // Indefinite is always valid
+  }, {
+      message: "A value is required for the selected validity type.",
+      path: ["durationValue"], // Or an appropriate path
+  }),
+
   signAsCa: z.boolean().default(false),
   
   honorSubject: z.boolean().default(true),
@@ -74,8 +88,8 @@ const signingProfileSchema = z.object({
 type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
 const toTitleCase = (str: string) => {
-    if (!str) return '';
-    return str.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase());
+  if (!str) return '';
+  return str.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase());
 };
 
 const mapEcdsaCurveToBitSize = (curve: string): number => {
@@ -99,15 +113,27 @@ const mapEcdsaBitSizeToCurve = (size: number): string | undefined => {
 // Helper to map API data to form values, handling potential undefined fields
 const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFormValues => {
     const crypto = profile.crypto_enforcement || {};
-    let validityType = "duration";
-    if (profile.validity?.type) {
-        validityType = profile.validity.type.toLowerCase();
+    
+    let validityConfig: ExpirationConfig = { type: 'Duration', durationValue: '1y' };
+    if (profile.validity) {
+        const type = profile.validity.type;
+        if (type === 'Duration' && profile.validity.duration) {
+            validityConfig = { type: 'Duration', durationValue: profile.validity.duration };
+        } else if (type === 'Date' && profile.validity.time) {
+            if (profile.validity.time.startsWith('9999-12-31')) {
+                validityConfig = { type: 'Indefinite' };
+            } else {
+                validityConfig = { type: 'Date', dateValue: new Date(profile.validity.time) };
+            }
+        } else if (type === "Indefinite") {
+            validityConfig = { type: 'Indefinite' };
+        }
     }
     
     return {
         profileName: profile.name || '',
         description: profile.description || '',
-        duration: profile.validity?.duration || '1y',
+        validity: validityConfig,
         signAsCa: profile.sign_as_ca || false,
         honorSubject: profile.honor_subject,
         overrideCountry: profile.subject?.country || '',
@@ -131,7 +157,7 @@ const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFo
 const defaultFormValues: SigningProfileFormValues = {
     profileName: '',
     description: '',
-    duration: '1y',
+    validity: { type: 'Duration', durationValue: '1y' },
     signAsCa: false,
     honorSubject: true,
     overrideCountry: '',
@@ -205,10 +231,19 @@ export default function CreateOrEditSigningProfilePage() {
         return;
     }
 
+    let validityPayload: { type: string; duration?: string; time?: string } = { type: 'Duration', duration: '1y' };
+    if (data.validity.type === 'Duration') {
+        validityPayload = { type: 'Duration', duration: data.validity.durationValue };
+    } else if (data.validity.type === 'Date' && data.validity.dateValue) {
+        validityPayload = { type: 'Date', time: data.validity.dateValue.toISOString() };
+    } else if (data.validity.type === 'Indefinite') {
+        validityPayload = { type: 'Date', time: "9999-12-31T23:59:59.999Z" };
+    }
+
     const payload: CreateSigningProfilePayload = {
         name: data.profileName,
         description: data.description,
-        validity: { type: "Duration", duration: data.duration },
+        validity: validityPayload,
         sign_as_ca: data.signAsCa,
         honor_key_usage: data.honorKeyUsage,
         key_usage: data.keyUsages || [],
@@ -327,16 +362,20 @@ export default function CreateOrEditSigningProfilePage() {
               <Separator />
               <h3 className="text-lg font-semibold flex items-center"><Settings2 className="mr-2 h-5 w-5 text-muted-foreground"/>Policy Configuration</h3>
 
-              <FormField
+               <FormField
                 control={form.control}
-                name="duration"
+                name="validity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Certificate Duration</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., 1y, 365d, 2w" {...field} />
+                        <ExpirationInput
+                            idPrefix="profile-validity"
+                            label="Certificate Validity"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                        />
                     </FormControl>
-                    <FormDescription>Default validity period for certificates signed with this profile (e.g., '1y' for 1 year, '90d' for 90 days).</FormDescription>
+                    <FormDescription>Default validity for certificates signed with this profile.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
