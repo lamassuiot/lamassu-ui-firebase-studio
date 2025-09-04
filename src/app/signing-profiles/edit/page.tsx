@@ -68,12 +68,6 @@ const signingProfileSchema = z.object({
   honorExtendedKeyUsage: z.boolean().default(false),
   extendedKeyUsages: z.array(z.enum(extendedKeyUsageOptions)).optional().default([]),
 }).refine(data => {
-  if (!data.cryptoEnforcement.enabled) return true;
-  return data.cryptoEnforcement.allowRsa || data.cryptoEnforcement.allowEcdsa;
-}, {
-  message: "At least one key type (RSA or ECDSA) must be allowed when enforcement is enabled.",
-  path: ["cryptoEnforcement.allowRsa"], 
-}).refine(data => {
     if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowRsa) return true;
     return data.cryptoEnforcement.allowedRsaKeySizes && data.cryptoEnforcement.allowedRsaKeySizes.length > 0;
 }, {
@@ -92,9 +86,7 @@ type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
 const toTitleCase = (str: string) => {
     if (!str) return '';
-    return str
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/^./, (s) => s.toUpperCase());
+    return str.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, s => s.toUpperCase());
 };
 
 const mapEcdsaCurveToBitSize = (curve: string): number => {
