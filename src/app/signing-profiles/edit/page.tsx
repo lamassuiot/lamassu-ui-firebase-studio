@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Save, Settings2, KeyRound, ListChecks, Info, Loader2, Shield, AlertTriangle } from "lucide-react"; 
+import { ArrowLeft, Save, Settings2, KeyRound, ListChecks, Info, Loader2, Shield, AlertTriangle, PlusCircle } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -22,6 +22,7 @@ import { Alert, AlertDescription as AlertDescUI, AlertTitle as AlertTitleUI } fr
 import {
   fetchSigningProfileById,
   updateSigningProfile,
+  createSigningProfile,
   type CreateSigningProfilePayload,
   type ApiSigningProfile,
 } from '@/lib/ca-data';
@@ -85,8 +86,7 @@ const signingProfileSchema = z.object({
 type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
 const toTitleCase = (str: string) => {
-    if (!str) return '';
-    return str.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, s => s.toUpperCase());
+    return str.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase());
 };
 
 const mapEcdsaCurveToBitSize = (curve: string): number => {
@@ -135,28 +135,53 @@ const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFo
     };
 };
 
+const defaultFormValues: SigningProfileFormValues = {
+    profileName: '',
+    description: '',
+    duration: '1y',
+    signAsCa: false,
+    honorSubject: true,
+    overrideCountry: '',
+    overrideState: '',
+    overrideOrganization: '',
+    overrideOrgUnit: '',
+    cryptoEnforcement: {
+        enabled: true,
+        allowRsa: true,
+        allowEcdsa: true,
+        allowedRsaKeySizes: ["2048", "3072", "4096"],
+        allowedEcdsaCurves: ["P-256"],
+    },
+    honorKeyUsage: false,
+    keyUsages: ['DigitalSignature', 'KeyEncipherment'],
+    honorExtendedKeyUsage: false,
+    extendedKeyUsages: ['ClientAuth'],
+};
 
-export default function EditSigningProfilePage() {
+
+export default function CreateOrEditSigningProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const profileId = searchParams.get('id');
+  const isEditMode = !!profileId;
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(isEditMode);
   const [errorProfile, setErrorProfile] = useState<string | null>(null);
 
   const form = useForm<SigningProfileFormValues>({
     resolver: zodResolver(signingProfileSchema),
-    defaultValues: {},
+    defaultValues: isEditMode ? {} : defaultFormValues,
   });
 
   const fetchProfile = useCallback(async () => {
     if (!profileId || !user?.access_token) {
-        setErrorProfile('Profile ID or user token is missing.');
+        if (isEditMode) setErrorProfile('Profile ID or user token is missing.');
         setIsLoadingProfile(false);
         return;
     }
+    setIsLoadingProfile(true);
     try {
         const data = await fetchSigningProfileById(profileId, user.access_token);
         const formValues = mapApiProfileToFormValues(data);
@@ -167,13 +192,13 @@ export default function EditSigningProfilePage() {
     } finally {
         setIsLoadingProfile(false);
     }
-  }, [profileId, user?.access_token, form]);
+  }, [profileId, user?.access_token, form, isEditMode]);
 
   useEffect(() => {
-    if (user?.access_token) {
+    if (isEditMode && user?.access_token) {
         fetchProfile();
     }
-  }, [user?.access_token, fetchProfile]);
+  }, [user?.access_token, fetchProfile, isEditMode]);
 
   const { isSubmitting } = form.formState;
   const watchCryptoEnforcement = form.watch("cryptoEnforcement");
@@ -182,8 +207,8 @@ export default function EditSigningProfilePage() {
   const watchHonorExtendedKeyUsage = form.watch("honorExtendedKeyUsage");
 
   async function onSubmit(data: SigningProfileFormValues) {
-    if (!profileId || !user?.access_token) {
-        toast({ title: "Error", description: "Profile ID or authentication token is missing.", variant: "destructive" });
+    if (!user?.access_token) {
+        toast({ title: "Error", description: "Authentication token is missing.", variant: "destructive" });
         return;
     }
 
@@ -217,11 +242,17 @@ export default function EditSigningProfilePage() {
     }
 
     try {
-        await updateSigningProfile(profileId, payload, user.access_token);
-        toast({ title: "Profile Updated", description: `Issuance Profile "${data.profileName}" has been successfully updated.` });
+        if (isEditMode) {
+            await updateSigningProfile(profileId, payload, user.access_token);
+            toast({ title: "Profile Updated", description: `Issuance Profile "${data.profileName}" has been successfully updated.` });
+        } else {
+            await createSigningProfile(payload, user.access_token);
+            toast({ title: "Profile Created", description: `Issuance Profile "${data.profileName}" has been successfully created.` });
+        }
         router.push('/signing-profiles');
     } catch (error: any) {
-        toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+        const action = isEditMode ? "Update" : "Creation";
+        toast({ title: `${action} Failed`, description: error.message, variant: "destructive" });
     }
   }
   
@@ -249,6 +280,8 @@ export default function EditSigningProfilePage() {
     );
   }
 
+  const PageIcon = isEditMode ? Settings2 : PlusCircle;
+
   return (
     <div className="w-full space-y-6 mb-8">
       <Button variant="outline" onClick={() => router.push('/signing-profiles')} className="mb-0">
@@ -258,11 +291,11 @@ export default function EditSigningProfilePage() {
       <Card className="shadow-lg">
         <CardHeader>
           <div className="flex items-center space-x-3">
-            <Settings2 className="h-7 w-7 text-primary" />
-            <CardTitle className="text-xl font-headline">Edit Issuance Profile</CardTitle>
+            <PageIcon className="h-7 w-7 text-primary" />
+            <CardTitle className="text-xl font-headline">{isEditMode ? 'Edit' : 'Create'} Issuance Profile</CardTitle>
           </div>
           <CardDescription>
-            Modify the parameters for this certificate issuance profile.
+            {isEditMode ? 'Modify the parameters for this certificate issuance profile.' : 'Define the parameters for a new certificate issuance profile.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -641,9 +674,9 @@ export default function EditSigningProfilePage() {
                   {isSubmitting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Save className="mr-2 h-4 w-4" />
+                    isEditMode ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />
                   )}
-                  {isSubmitting ? "Saving..." : "Save Changes"}
+                  {isSubmitting ? "Saving..." : (isEditMode ? "Save Changes" : "Create Profile")}
                 </Button>
               </div>
             </form>
