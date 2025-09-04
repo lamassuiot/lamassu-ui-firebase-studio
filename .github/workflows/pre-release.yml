@@ -12,30 +12,9 @@ run-name: >-
         
 jobs:
   build_docker_image:
-    name: Release docker images
-    runs-on: ubuntu-latest
-    steps:        
-    - name: Login to Github Registry
-      uses: docker/login-action@v3
-      with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Build Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        build-args: |
-          SHA1VER=${{ env.SHA1VER }}
-          VERSION=${{ github.event.inputs.release_version }}
-        tags: |
-            ghcr.io/lamassuiot/lamassu-ui:${{ github.event.inputs.release_version }}
-        push: true
-      
+          
     - name: Create tag
       uses: actions/github-script@v7
       with:
