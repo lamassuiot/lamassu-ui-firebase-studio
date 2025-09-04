@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, RefreshCw, History, SlidersHorizontal, Info, Clock, AlertTriangle, ChevronRight, ChevronLeft, Trash2, Zap } from 'lucide-react';
 import { DeviceIcon, StatusBadge as DeviceStatusBadge, mapApiIconToIconType } from '@/app/devices/page';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNowStrict, parseISO, formatDistanceStrict } from 'date-fns';
@@ -25,8 +25,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
 import { DecommissionDeviceModal } from '@/components/shared/DecommissionDeviceModal';
-import { fetchDeviceById, decommissionDevice, type ApiDevice, type ApiDeviceIdentity } from '@/lib/devices-api';
-import { bindIdentityToDevice } from '@/lib/dms-api';
+import { fetchDeviceById, decommissionDevice, type ApiDevice, type ApiDeviceIdentity, updateDeviceMetadata, type PatchOperation } from '@/lib/devices-api';
+import { bindIdentityToDevice, fetchRaById, type ApiRaItem } from '@/lib/dms-api';
+import { discoverIntegrations, type DiscoveredIntegration } from '@/lib/integrations-api';
+import { ForceUpdateModal } from '@/components/shared/ForceUpdateModal';
 
 interface CertificateHistoryEntry {
   version: string;
@@ -87,6 +89,12 @@ export default function DeviceDetailsClient() {
   // State for decommissioning
   const [isDecommissionModalOpen, setIsDecommissionModalOpen] = useState(false);
   const [isDecommissioning, setIsDecommissioning] = useState(false);
+  
+  // State for integrations and force update
+  const [isForceUpdateModalOpen, setIsForceUpdateModalOpen] = useState(false);
+  const [activeIntegration, setActiveIntegration] = useState<DiscoveredIntegration | null>(null);
+  const [raForIntegration, setRaForIntegration] = useState<ApiRaItem | null>(null);
+  const [isForcingUpdate, setIsForcingUpdate] = useState(false);
 
 
   const fetchCertificateHistoryData = useCallback(async (identity: ApiDeviceIdentity) => {
@@ -107,6 +115,23 @@ export default function DeviceDetailsClient() {
         setIsLoadingHistory(false);
     }
   }, []);
+  
+  const fetchIntegrationData = useCallback(async (dmsOwnerId: string) => {
+    if (!user?.access_token) return;
+    try {
+        const [discovered, raDetails] = await Promise.all([
+            discoverIntegrations(user.access_token),
+            fetchRaById(dmsOwnerId, user.access_token)
+        ]);
+        const integration = discovered.find(int => int.raId === dmsOwnerId && int.type === 'AWS_IOT_CORE');
+        setActiveIntegration(integration || null);
+        setRaForIntegration(raDetails);
+    } catch(err) {
+        console.error("Failed to load integrations for device details page:", err);
+        setActiveIntegration(null);
+        setRaForIntegration(null);
+    }
+  }, [user?.access_token]);
 
   const fetchDeviceDetails = useCallback(async () => {
       if (!deviceId) {
@@ -135,13 +160,20 @@ export default function DeviceDetailsClient() {
             setIsLoadingHistory(false);
         }
 
+        if (data.dms_owner) {
+            fetchIntegrationData(data.dms_owner);
+        } else {
+            setActiveIntegration(null);
+            setRaForIntegration(null);
+        }
+
       } catch (err: any) {
         setErrorDevice(err.message || 'Failed to load device details.');
         setDevice(null);
       } finally {
         setIsLoadingDevice(false);
       }
-    }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistoryData]);
+    }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistoryData, fetchIntegrationData]);
 
 
   useEffect(() => {
@@ -495,13 +527,36 @@ export default function DeviceDetailsClient() {
         setIsDecommissioning(false);
     }
   };
+  
+  const handleForceUpdateConfirm = async (actions: string[]) => {
+    if (!device?.dms_owner || !deviceId || !user?.access_token || !activeIntegration) {
+        toast({ title: "Error", description: "Missing data required for force update.", variant: "destructive" });
+        return;
+    }
+    setIsForcingUpdate(true);
+    try {
+        const patch: PatchOperation = {
+            op: 'add', // or 'replace' if the key might exist
+            path: `/${activeIntegration.configKey.replace(/\//g, '~1')}`,
+            value: { actions }
+        };
+        await updateDeviceMetadata(deviceId, [patch], user.access_token);
+        
+        toast({ title: "Success", description: "A forced certificate update has been triggered for the device." });
+        setIsForceUpdateModalOpen(false);
+        setTimeout(() => fetchDeviceDetails(), 2000); // Refresh after a short delay
+    } catch(err: any) {
+        toast({ title: "Force Update Failed", description: err.message, variant: "destructive" });
+    } finally {
+        setIsForcingUpdate(false);
+    }
+  };
 
   const handleLoadMoreTimeline = () => {
     setTimelineDisplayCount(prev => prev + 5);
   };
 
   const totalHistoryPages = Math.ceil(fullCertificateIdentityList.length / historyPageSize);
-
 
   if (isLoadingDevice || authLoading) {
     return (
@@ -570,6 +625,11 @@ export default function DeviceDetailsClient() {
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" onClick={fetchDeviceDetails}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
+            {activeIntegration && (
+              <Button variant="outline" onClick={() => setIsForceUpdateModalOpen(true)}>
+                <Zap className="mr-2 h-4 w-4" /> Force Update
+              </Button>
+            )}
             <Button onClick={() => setIsAssignIdentityModalOpen(true)} disabled={!!device.identity && device.identity.status !== 'REVOKED'}>
               <PlusCircle className="mr-2 h-4 w-4" /> Assign Identity
             </Button>
@@ -817,6 +877,15 @@ export default function DeviceDetailsClient() {
         onConfirm={handleDecommissionConfirm}
         deviceName={device.id}
         isDecommissioning={isDecommissioning}
+      />
+      <ForceUpdateModal
+        isOpen={isForceUpdateModalOpen}
+        onOpenChange={setIsForceUpdateModalOpen}
+        onConfirm={handleForceUpdateConfirm}
+        device={device}
+        ra={raForIntegration}
+        integration={activeIntegration}
+        isUpdating={isForcingUpdate}
       />
     </div>
   );
