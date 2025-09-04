@@ -86,8 +86,8 @@ type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 const toTitleCase = (str: string) => {
     if (!str) return '';
     return str
-      .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space before capital letter if it's preceded by a lowercase letter
-      .replace(/^./, (s) => s.toUpperCase()); // Capitalize the first letter
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/^./, (s) => s.toUpperCase());
 };
 
 const mapEcdsaCurveToBitSize = (curve: string): number => {
@@ -364,7 +364,7 @@ export default function CreateSigningProfilePage() {
                         control={form.control}
                         name="cryptoEnforcement.allowRsa"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                          <FormItem className="flex flex-row items-center justify-between">
                             <FormLabel>Allow RSA Keys</FormLabel>
                             <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                           </FormItem>
@@ -398,7 +398,7 @@ export default function CreateSigningProfilePage() {
                         control={form.control}
                         name="cryptoEnforcement.allowEcdsa"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                          <FormItem className="flex flex-row items-center justify-between">
                             <FormLabel>Allow ECDSA Keys</FormLabel>
                             <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                           </FormItem>
