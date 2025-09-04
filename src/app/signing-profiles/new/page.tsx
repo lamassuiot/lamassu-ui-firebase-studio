@@ -84,9 +84,9 @@ type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
 // Helper to format camelCase to Title Case
 const toTitleCase = (str: string) => {
-  return str
-    .replace(/([A-Z])/g, ' $1') // insert a space before all caps
-    .replace(/^./, (s) => s.toUpperCase()); // uppercase the first character
+  if (!str) return '';
+  const result = str.replace(/([A-Z])/g, ' $1');
+  return result.charAt(0).toUpperCase() + result.slice(1);
 };
 
 
