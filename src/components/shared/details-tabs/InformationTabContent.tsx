@@ -184,6 +184,17 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
 
   if (itemType === 'ca' && caSpecific) {
     const caDetails = item as CA;
+
+    // Helper to transform colon-separated ASCII hex bytes to hex string
+    const formatHexString = (input?: string) => {
+      if (!input) return 'N/A';
+      // Check for colon-separated ASCII decimal bytes (e.g., "37:65:37:66:...")
+      if (/^([0-9]{2}:)+[0-9]{2}$/.test(input)) {
+        // Convert each pair to ASCII, then join with colon
+        return input.split(':').map(dec => String.fromCharCode(parseInt(dec, 10)).toUpperCase()).join(':');
+      }
+      return input;
+    };
     
     return (
       <Accordion type="multiple" defaultValue={['general', 'hierarchy']} className="w-full space-y-3">
@@ -236,7 +247,7 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
           <AccordionContent className="space-y-1 px-4 pt-3">
             <DetailItem label="Public Key Algorithm" value={caDetails.keyAlgorithm || 'N/A'} />
             <DetailItem label="Signature Algorithm" value={caDetails.signatureAlgorithm || 'N/A'} />
-            <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{caDetails.subjectKeyId || 'N/A'}</span>} />
+            <DetailItem label="Subject Key Identifier (SKI)" value={<span className="font-mono text-xs">{formatHexString(caDetails.subjectKeyId)}</span>} />
             <DetailItem label="Authority Key Identifier (AKI)" value={<span className="font-mono text-xs">{caDetails.authorityKeyId || 'N/A'}</span>} />
           </AccordionContent>
         </AccordionItem>
