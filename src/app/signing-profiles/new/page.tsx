@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, PlusCircle, Settings2, KeyRound, ListChecks, Info, Loader2, Shield } from "lucide-react"; 
@@ -23,10 +22,6 @@ import { createSigningProfile, type CreateSigningProfilePayload } from '@/lib/ca
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
 const ecdsaCurves = ["P-256", "P-384", "P-521"] as const;
-const signatureAlgorithms = [
-  "SHA256withRSA", "SHA384withRSA", "SHA512withRSA",
-  "SHA256withECDSA", "SHA384withECDSA", "SHA512withECDSA"
-] as const;
 
 const keyUsageOptions = [
   "DigitalSignature", "NonRepudiation", "KeyEncipherment", "DataEncipherment",
@@ -59,7 +54,6 @@ const signingProfileSchema = z.object({
     allowedRsaKeyStrengths: z.array(z.enum(rsaKeyStrengths)).optional().default([]),
     allowedEcdsaCurves: z.array(z.enum(ecdsaCurves)).optional().default([]),
   }),
-  defaultSignatureAlgorithm: z.enum(signatureAlgorithms).optional(),
   
   honorKeyUsage: z.boolean().default(false),
   keyUsages: z.array(z.enum(keyUsageOptions)).optional().default([]),
@@ -150,7 +144,7 @@ export default function CreateSigningProfilePage() {
         honor_key_usage: data.honorKeyUsage,
         key_usage: data.keyUsages || [],
         honor_extended_key_usage: data.honorExtendedKeyUsages,
-        extended_key_usages: data.extendedKeyUsages || [],
+        extended_key_usage: data.extendedKeyUsages || [],
         honor_subject: data.honorSubject,
         honor_extensions: true,
         crypto_enforcement: {
@@ -160,7 +154,6 @@ export default function CreateSigningProfilePage() {
             allowed_rsa_key_strengths: data.cryptoEnforcement.allowedRsaKeyStrengths,
             allowed_ecdsa_curves: data.cryptoEnforcement.allowedEcdsaCurves,
         },
-        default_signature_algorithm: data.defaultSignatureAlgorithm,
     };
     
     if (!data.honorSubject) {
@@ -176,7 +169,7 @@ export default function CreateSigningProfilePage() {
         await createSigningProfile(payload, user.access_token);
         toast({
             title: "Profile Created",
-            description: `Issuance Profile "${data.profileName}" has been successfully created.`,
+            description: `Issuance Profile "${''\'\''}${data.profileName}" has been successfully created.`'\'\'',
         });
         router.push('/signing-profiles'); 
     } catch (error: any) {
@@ -425,31 +418,6 @@ export default function CreateSigningProfilePage() {
                     )}
                 </div>
               )}
-
-
-              <FormField
-                  control={form.control}
-                  name="defaultSignatureAlgorithm"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Signature Algorithm</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a default signature algorithm (optional)" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {signatureAlgorithms.map(algo => (
-                            <SelectItem key={algo} value={algo}>{algo}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>Overrides CA's default if specified. Ensure compatibility with selected key types.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
               <Separator />
               <h3 className="text-lg font-semibold flex items-center"><ListChecks className="mr-2 h-5 w-5 text-muted-foreground"/>Certificate Usage Policies</h3>
