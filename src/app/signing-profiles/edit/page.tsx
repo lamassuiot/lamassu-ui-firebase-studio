@@ -58,8 +58,8 @@ const signingProfileSchema = z.object({
     enabled: z.boolean().default(false),
     allowRsa: z.boolean().default(false),
     allowEcdsa: z.boolean().default(false),
-    allowedRsaKeySizes: z.array(z.enum(rsaKeyStrengths)).optional().default([]),
-    allowedEcdsaCurves: z.array(z.enum(ecdsaCurves)).optional().default([]),
+    allowedRsaKeySizes: z.array(z.string()).optional().default([]),
+    allowedEcdsaCurves: z.array(z.string()).optional().default([]),
   }),
   
   honorKeyUsage: z.boolean().default(false),
@@ -92,7 +92,10 @@ type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
 const toTitleCase = (str: string) => {
     if (!str) return '';
-    return str.replace(/([A-Z])(?=[a-z])|([a-z])(?=[A-Z])/g, '$1$2 ').replace(/^./, (s) => s.toUpperCase());
+    return str
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space before capital letter if it's preceded by a lowercase letter
+      .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2') // Add space between acronym and next word (e.g. OCSPSigning -> OCSP Signing)
+      .replace(/^./, (s) => s.toUpperCase()); // Capitalize the first letter
 };
 
 const mapEcdsaCurveToBitSize = (curve: string): number => {
@@ -131,7 +134,7 @@ const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFo
             enabled: crypto.enabled || false,
             allowRsa: crypto.allow_rsa_keys || false,
             allowEcdsa: crypto.allow_ecdsa_keys || false,
-            allowedRsaKeySizes: (crypto.allowed_rsa_key_sizes || []).map(String) as ('2048' | '3072' | '4096')[],
+            allowedRsaKeySizes: (crypto.allowed_rsa_key_sizes || []).map(String),
             allowedEcdsaCurves: (crypto.allowed_ecdsa_key_sizes || []).map(mapEcdsaBitSizeToCurve).filter((c): c is 'P-256' | 'P-384' | 'P-521' => !!c),
         },
         honorKeyUsage: profile.honor_key_usage,
