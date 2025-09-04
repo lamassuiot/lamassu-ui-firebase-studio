@@ -2,11 +2,12 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Settings2, Clock, Fingerprint, BookText, KeyRound, ShieldCheck } from "lucide-react";
+import { Settings2, Clock, Fingerprint, BookText, KeyRound, ShieldCheck, Scale, Edit } from "lucide-react";
 import type { ApiSigningProfile } from '@/lib/ca-data';
 import { cn } from '@/lib/utils';
+import { Button } from '../ui/button';
 
 const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: string | React.ReactNode }> = ({ icon: Icon, label, value }) => (
   <div className="flex items-start space-x-2 py-1">
@@ -21,9 +22,11 @@ const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: strin
 interface IssuanceProfileCardProps {
   profile: ApiSigningProfile;
   className?: string;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export const IssuanceProfileCard: React.FC<IssuanceProfileCardProps> = ({ profile, className }) => {
+export const IssuanceProfileCard: React.FC<IssuanceProfileCardProps> = ({ profile, className, onEdit, onDelete }) => {
   const allowedKeyTypes = [];
   if (profile.crypto_enforcement?.allow_rsa_keys) allowedKeyTypes.push('RSA');
   if (profile.crypto_enforcement?.allow_ecdsa_keys) allowedKeyTypes.push('ECDSA');
@@ -50,34 +53,73 @@ export const IssuanceProfileCard: React.FC<IssuanceProfileCardProps> = ({ profil
   }
 
   return (
-    <Card className={cn("shadow-sm border-border", className)}>
-      <CardHeader className="p-4">
-        <div className="flex items-center space-x-2">
-           <Settings2 className="h-5 w-5 text-primary" />
-           <CardTitle className="text-md">{profile.name}</CardTitle>
+    <Card
+      className={cn(
+        "flex flex-col group shadow-md border border-border hover:border-primary/60 hover:shadow-xl transition-all duration-200 overflow-hidden relative",
+        profile.sign_as_ca && "ring-2 ring-primary/30",
+        className
+      )}
+      style={{ minHeight: 320 }}
+    >
+      <div className="h-2 w-full bg-gradient-to-r from-primary to-primary/60" />
+      <CardHeader className="pb-2 pt-4 flex flex-row items-start justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="rounded-md p-2 bg-primary/10 group-hover:bg-primary/20 transition-colors">
+              <Scale className="h-7 w-7 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-lg leading-tight">{profile.name}</CardTitle>
+            <CardDescription className="text-xs pt-1 text-muted-foreground max-w-xs line-clamp-2">{profile.description}</CardDescription>
+          </div>
         </div>
-        <CardDescription className="text-xs pt-1">{profile.description}</CardDescription>
+        {profile.sign_as_ca && (
+          <Badge variant="default" className="ml-2 text-xs px-2 py-1 bg-green-600/90 text-white">CA</Badge>
+        )}
       </CardHeader>
-      <CardContent className="p-4 pt-0 space-y-2 text-sm">
+      <CardContent className="space-y-2 text-sm flex-grow pt-0">
         <DetailRow icon={Clock} label="Validity Duration" value={profile.validity?.duration || 'Not specified'} />
         <DetailRow icon={Fingerprint} label="Subject Policy" value={subjectPolicy} />
         <DetailRow icon={BookText} label="Extensions Policy" value={extensionsPolicy} />
-        <DetailRow 
-          icon={KeyRound} 
-          label="Allowed Key Types" 
+        <DetailRow
+          icon={KeyRound}
+          label="Allowed Key Types"
           value={
             <div className="flex flex-wrap gap-1">
-              {allowedKeyTypes.map(kt => <Badge key={kt} variant="secondary" className="text-xs">{kt}</Badge>)}
+              {allowedKeyTypes.map(kt => (
+                <Badge key={kt} variant="secondary" className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-200">
+                  {kt}
+                </Badge>
+              ))}
               {allowedKeyTypes.length === 0 && <Badge variant="outline">None</Badge>}
             </div>
-          } 
+          }
         />
-         <DetailRow 
-            icon={ShieldCheck} 
-            label="Can Sign as CA" 
+         <DetailRow
+            icon={ShieldCheck}
+            label="Can Sign as CA"
             value={<Badge variant={profile.sign_as_ca ? "default" : "secondary"}>{profile.sign_as_ca ? 'Yes' : 'No'}</Badge>}
          />
       </CardContent>
+      {onEdit && onDelete && (
+        <CardFooter className="border-t pt-2 pb-2 bg-muted/30 flex justify-end gap-2 min-h-0">
+          <Button
+            variant="destructive"
+            size="sm"
+            className="group-hover:border-destructive"
+            onClick={onDelete}
+          >
+            Delete
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="group-hover:bg-primary/90"
+            onClick={onEdit}
+          >
+            <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 };
