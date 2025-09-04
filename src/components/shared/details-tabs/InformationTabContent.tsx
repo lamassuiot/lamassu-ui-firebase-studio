@@ -190,11 +190,25 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
       if (!input) return 'N/A';
       // Check for colon-separated ASCII decimal bytes (e.g., "37:65:37:66:...")
       if (/^([0-9]{2}:)+[0-9]{2}$/.test(input)) {
-        // Convert each pair to ASCII, then join with colon
-        return input.split(':').map(dec => String.fromCharCode(parseInt(dec, 10)).toUpperCase()).join(':');
+        // Convert each pair to ASCII, then concatenate as hex string
+        return decodeColonAsciiToHex(input)
       }
       return input;
     };
+
+ function decodeColonAsciiToHex(input: string): string {
+  // Step 1: Convert each decimal to its ASCII character
+  const asciiString = input.split(':')
+    .map(dec => String.fromCharCode(parseInt(dec, 10)))
+    .join('');
+  // Step 2: Group into pairs and convert each to hex
+  const hexPairs = [];
+  for (let i = 0; i < asciiString.length; i += 2) {
+    const pair = asciiString.slice(i, i + 2);
+    hexPairs.push(parseInt(pair, 16).toString(16).toUpperCase().padStart(2, '0'));
+  }
+  return hexPairs.join(':');
+}
     
     return (
       <Accordion type="multiple" defaultValue={['general', 'hierarchy']} className="w-full space-y-3">
