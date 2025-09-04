@@ -11,7 +11,10 @@ run-name: >-
   ${{ format('Pre-Release {0}', github.event.inputs.release_version) }}
         
 jobs:
-  build_docker_image:
+  pre-release:
+    name: Pre-Release Docker Image Build
+    runs-on: ubuntu-latest
+    steps: 
     - name: Checkout code
       uses: actions/checkout@v4
           
@@ -25,6 +28,10 @@ jobs:
             ref: 'refs/tags/${{ github.event.inputs.release_version }}',
             sha: context.sha
           })
+    - name: Update local repo after tag creation
+      run: |
+        git fetch --all --tags
+        git pull
 
     - name: Generate Release Changelog
       id: changelog
