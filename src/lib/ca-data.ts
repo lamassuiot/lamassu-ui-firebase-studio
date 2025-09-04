@@ -142,7 +142,7 @@ export function ab2hex(ab: ArrayBuffer, separator: string = '') {
 }
 
 const formatPkijsSubject = (subject: RelativeDistinguishedNames): string => {
-  return subject.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
+  return subject.typesAndValues.map(tv => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
 };
 
 const formatPkijsPublicKeyInfo = (publicKeyInfo: PublicKeyInfo): string => {
@@ -1018,8 +1018,8 @@ export interface ApiSigningProfile {
         enabled: boolean;
         allow_rsa_keys: boolean;
         allow_ecdsa_keys: boolean;
-        allowed_rsa_key_strengths?: string[];
-        allowed_ecdsa_curves?: string[];
+        allowed_rsa_key_sizes?: number[];
+        allowed_ecdsa_key_sizes?: number[];
     };
 }
 
@@ -1064,8 +1064,8 @@ export interface CreateSigningProfilePayload {
         enabled: boolean;
         allow_rsa_keys: boolean;
         allow_ecdsa_keys: boolean;
-        allowed_rsa_key_strengths?: string[];
-        allowed_ecdsa_curves?: string[];
+        allowed_rsa_key_sizes?: number[];
+        allowed_ecdsa_key_sizes?: number[];
     };
 }
 

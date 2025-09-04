@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -51,7 +52,7 @@ const signingProfileSchema = z.object({
     enabled: z.boolean().default(false),
     allowRsa: z.boolean().default(false),
     allowEcdsa: z.boolean().default(false),
-    allowedRsaKeyStrengths: z.array(z.enum(rsaKeyStrengths)).optional().default([]),
+    allowedRsaKeySizes: z.array(z.enum(rsaKeyStrengths)).optional().default([]),
     allowedEcdsaCurves: z.array(z.enum(ecdsaCurves)).optional().default([]),
   }),
   
@@ -68,10 +69,10 @@ const signingProfileSchema = z.object({
   path: ["cryptoEnforcement.allowRsa"], 
 }).refine(data => {
     if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowRsa) return true;
-    return data.cryptoEnforcement.allowedRsaKeyStrengths && data.cryptoEnforcement.allowedRsaKeyStrengths.length > 0;
+    return data.cryptoEnforcement.allowedRsaKeySizes && data.cryptoEnforcement.allowedRsaKeySizes.length > 0;
 }, {
     message: "At least one RSA Key Strength must be selected if RSA is allowed.",
-    path: ["cryptoEnforcement.allowedRsaKeyStrengths"],
+    path: ["cryptoEnforcement.allowedRsaKeySizes"],
 }).refine(data => {
     if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowEcdsa) return true;
     return data.cryptoEnforcement.allowedEcdsaCurves && data.cryptoEnforcement.allowedEcdsaCurves.length > 0;
@@ -85,6 +86,15 @@ type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 const toTitleCase = (str: string) => {
     if (!str) return '';
     return str.replace(/([A-Z])(?=[a-z])|([a-z])(?=[A-Z])/g, '$1$2 ').replace(/^./, (s) => s.toUpperCase());
+};
+
+const mapEcdsaCurveToBitSize = (curve: string): number => {
+    switch (curve) {
+        case 'P-256': return 256;
+        case 'P-384': return 384;
+        case 'P-521': return 521;
+        default: return 0;
+    }
 };
 
 
@@ -105,7 +115,7 @@ export default function CreateSigningProfilePage() {
         enabled: true,
         allowRsa: true,
         allowEcdsa: true,
-        allowedRsaKeyStrengths: ["2048", "3072", "4096"],
+        allowedRsaKeySizes: ["2048", "3072", "4096"],
         allowedEcdsaCurves: ["P-256"],
       },
       honorKeyUsage: false,
@@ -149,8 +159,8 @@ export default function CreateSigningProfilePage() {
             enabled: data.cryptoEnforcement.enabled,
             allow_rsa_keys: data.cryptoEnforcement.allowRsa,
             allow_ecdsa_keys: data.cryptoEnforcement.allowEcdsa,
-            allowed_rsa_key_strengths: data.cryptoEnforcement.allowedRsaKeyStrengths,
-            allowed_ecdsa_curves: data.cryptoEnforcement.allowedEcdsaCurves,
+            allowed_rsa_key_sizes: (data.cryptoEnforcement.allowedRsaKeySizes || []).map(s => parseInt(s, 10)),
+            allowed_ecdsa_key_sizes: (data.cryptoEnforcement.allowedEcdsaCurves || []).map(mapEcdsaCurveToBitSize),
         },
     };
     
@@ -167,7 +177,7 @@ export default function CreateSigningProfilePage() {
         await createSigningProfile(payload, user.access_token);
         toast({
             title: "Profile Created",
-            description: `Issuance Profile "${''\'\''}${data.profileName}" has been successfully created.`'\'\'',
+            description: `Issuance Profile "${data.profileName}" has been successfully created.`,
         });
         router.push('/signing-profiles'); 
     } catch (error: any) {
@@ -377,18 +387,22 @@ export default function CreateSigningProfilePage() {
                     </div>
 
                     {watchCryptoEnforcement.allowRsa && (
-                        <FormField control={form.control} name="cryptoEnforcement.allowedRsaKeyStrengths" render={({ field }) => (
+                        <FormField control={form.control} name="cryptoEnforcement.allowedRsaKeySizes" render={() => (
                             <FormItem className="p-3 border rounded-md bg-background">
                                 <FormLabel>Allowed RSA Key Strengths</FormLabel>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
                                     {rsaKeyStrengths.map((item) => (
-                                    <FormItem key={item} className="flex flex-row items-center space-x-2 space-y-0">
-                                        <FormControl><Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
-                                            const currentValue = field.value || [];
-                                            return checked ? field.onChange([...currentValue, item]) : field.onChange(currentValue.filter((value) => value !== item));
-                                        }} /></FormControl>
-                                        <FormLabel className="text-sm font-normal cursor-pointer">{item}-bit</FormLabel>
-                                    </FormItem>
+                                    <FormField key={item} control={form.control} name="cryptoEnforcement.allowedRsaKeySizes"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                <FormControl><Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
+                                                    const currentValue = field.value || [];
+                                                    return checked ? field.onChange([...currentValue, item]) : field.onChange(currentValue.filter((value) => value !== item));
+                                                }} /></FormControl>
+                                                <FormLabel className="text-sm font-normal cursor-pointer">{item}-bit</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
                                     ))}
                                 </div>
                                 <FormMessage />
@@ -396,18 +410,22 @@ export default function CreateSigningProfilePage() {
                         )}/>
                     )}
                     {watchCryptoEnforcement.allowEcdsa && (
-                        <FormField control={form.control} name="cryptoEnforcement.allowedEcdsaCurves" render={({ field }) => (
+                        <FormField control={form.control} name="cryptoEnforcement.allowedEcdsaCurves" render={() => (
                             <FormItem className="p-3 border rounded-md bg-background">
                                 <FormLabel>Allowed ECDSA Curves</FormLabel>
                                 <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
                                     {ecdsaCurves.map((item) => (
-                                    <FormItem key={item} className="flex flex-row items-center space-x-2 space-y-0">
-                                        <FormControl><Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
-                                            const currentValue = field.value || [];
-                                            return checked ? field.onChange([...currentValue, item]) : field.onChange(currentValue.filter((value) => value !== item));
-                                        }} /></FormControl>
-                                        <FormLabel className="text-sm font-normal cursor-pointer">{item}</FormLabel>
-                                    </FormItem>
+                                    <FormField key={item} control={form.control} name="cryptoEnforcement.allowedEcdsaCurves"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                <FormControl><Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
+                                                    const currentValue = field.value || [];
+                                                    return checked ? field.onChange([...currentValue, item]) : field.onChange(currentValue.filter((value) => value !== item));
+                                                }} /></FormControl>
+                                                <FormLabel className="text-sm font-normal cursor-pointer">{item}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
                                     ))}
                                 </div>
                                 <FormMessage />
