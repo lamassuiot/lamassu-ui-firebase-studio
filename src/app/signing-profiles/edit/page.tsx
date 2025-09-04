@@ -89,11 +89,9 @@ const signingProfileSchema = z.object({
 
 type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
-// Helper to format camelCase to Title Case
 const toTitleCase = (str: string) => {
-  if (!str) return '';
-  const result = str.replace(/([A-Z])/g, ' $1');
-  return result.charAt(0).toUpperCase() + result.slice(1);
+    if (!str) return '';
+    return str.replace(/([A-Z])(?=[a-z])|([a-z])(?=[A-Z])/g, '$1$2 ').replace(/^./, (s) => s.toUpperCase());
 };
 
 
@@ -411,26 +409,26 @@ export default function EditSigningProfilePage() {
                         <FormLabel>Allowed Key Types</FormLabel>
                         <FormDescription className="mb-2">Select at least one cryptographic key type.</FormDescription>
                         <div className="space-y-2 mt-1">
-                        <FormField
-                            control={form.control}
-                            name="cryptoEnforcement.allowRsa"
-                            render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm bg-background">
-                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none"><FormLabel>Allow RSA Keys</FormLabel></div>
-                            </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="cryptoEnforcement.allowEcdsa"
-                            render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm bg-background">
-                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none"><FormLabel>Allow ECDSA Keys</FormLabel></div>
-                            </FormItem>
-                            )}
-                        />
+                          <FormField
+                              control={form.control}
+                              name="cryptoEnforcement.allowRsa"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                                  <FormLabel>Allow RSA Keys</FormLabel>
+                                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                </FormItem>
+                              )}
+                          />
+                          <FormField
+                              control={form.control}
+                              name="cryptoEnforcement.allowEcdsa"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                                  <FormLabel>Allow ECDSA Keys</FormLabel>
+                                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                </FormItem>
+                              )}
+                          />
                         </div>
                         <FormMessage>{form.formState.errors.cryptoEnforcement?.allowRsa?.message}</FormMessage>
                     </div>
