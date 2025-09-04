@@ -223,11 +223,22 @@ export async function deleteRaIntegration(raId: string, integrationKey: string, 
     await createOrUpdateRa(payload, accessToken, true, raId);
 }
 
-export async function forceDeviceIdentityRefresh(dmsId: string, deviceId: string, accessToken: string): Promise<void> {
+interface ForceUpdateParams {
+    dmsId: string;
+    deviceId: string;
+    actions: string[];
+    accessToken: string;
+}
+
+export async function forceDeviceIdentityRefresh({ dmsId, deviceId, actions, accessToken }: ForceUpdateParams): Promise<void> {
     const url = `${DMS_MANAGER_API_BASE_URL}/dms/${dmsId}/devices/${deviceId}/refresh-identity`;
     const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}` },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ actions }),
     });
     if (!response.ok) {
         await handleApiError(response, 'Failed to force device identity refresh');

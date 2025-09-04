@@ -34,7 +34,7 @@ import Image from 'next/image';
 import AwsIcon from '../aws.svg';
 
 
-const IntegrationIcon: React.FC<{ type: DiscoveredIntegration['type'] }> = ({ type }) => {
+export const IntegrationIcon: React.FC<{ type: DiscoveredIntegration['type'] }> = ({ type }) => {
     switch (type) {
         case 'AWS_IOT_CORE':
             return <Image src={AwsIcon} alt="AWS IoT Core Icon" className="h-6 w-6" width={24} height={24} />;
@@ -263,4 +263,3 @@ export default function IntegrationsPage() {
     </>
   );
 }
-

@@ -26,8 +26,9 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
 import { DecommissionDeviceModal } from '@/components/shared/DecommissionDeviceModal';
 import { fetchDeviceById, decommissionDevice, type ApiDevice, type ApiDeviceIdentity } from '@/lib/devices-api';
-import { bindIdentityToDevice, forceDeviceIdentityRefresh } from '@/lib/dms-api';
+import { bindIdentityToDevice, forceDeviceIdentityRefresh, fetchRaById, type ApiRaItem } from '@/lib/dms-api';
 import { discoverIntegrations, type DiscoveredIntegration } from '@/lib/integrations-api';
+import { ForceUpdateModal } from '@/components/shared/ForceUpdateModal';
 
 interface CertificateHistoryEntry {
   version: string;
@@ -89,8 +90,10 @@ export default function DeviceDetailsClient() {
   const [isDecommissionModalOpen, setIsDecommissionModalOpen] = useState(false);
   const [isDecommissioning, setIsDecommissioning] = useState(false);
   
-  // State for integrations
-  const [integrations, setIntegrations] = useState<DiscoveredIntegration[]>([]);
+  // State for integrations and force update
+  const [isForceUpdateModalOpen, setIsForceUpdateModalOpen] = useState(false);
+  const [activeIntegration, setActiveIntegration] = useState<DiscoveredIntegration | null>(null);
+  const [raForIntegration, setRaForIntegration] = useState<ApiRaItem | null>(null);
   const [isForcingUpdate, setIsForcingUpdate] = useState(false);
 
 
@@ -113,13 +116,20 @@ export default function DeviceDetailsClient() {
     }
   }, []);
   
-  const fetchIntegrations = useCallback(async () => {
+  const fetchIntegrationData = useCallback(async (dmsOwnerId: string) => {
     if (!user?.access_token) return;
     try {
-        const discovered = await discoverIntegrations(user.access_token);
-        setIntegrations(discovered);
+        const [discovered, raDetails] = await Promise.all([
+            discoverIntegrations(user.access_token),
+            fetchRaById(dmsOwnerId, user.access_token)
+        ]);
+        const integration = discovered.find(int => int.raId === dmsOwnerId && int.type === 'AWS_IOT_CORE');
+        setActiveIntegration(integration || null);
+        setRaForIntegration(raDetails);
     } catch(err) {
         console.error("Failed to load integrations for device details page:", err);
+        setActiveIntegration(null);
+        setRaForIntegration(null);
     }
   }, [user?.access_token]);
 
@@ -150,19 +160,25 @@ export default function DeviceDetailsClient() {
             setIsLoadingHistory(false);
         }
 
+        if (data.dms_owner) {
+            fetchIntegrationData(data.dms_owner);
+        } else {
+            setActiveIntegration(null);
+            setRaForIntegration(null);
+        }
+
       } catch (err: any) {
         setErrorDevice(err.message || 'Failed to load device details.');
         setDevice(null);
       } finally {
         setIsLoadingDevice(false);
       }
-    }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistoryData]);
+    }, [deviceId, user?.access_token, authLoading, isAuthenticated, fetchCertificateHistoryData, fetchIntegrationData]);
 
 
   useEffect(() => {
     fetchDeviceDetails();
-    fetchIntegrations();
-  }, [fetchDeviceDetails, fetchIntegrations]);
+  }, [fetchDeviceDetails]);
 
   // Effect to automatically open Assign Identity modal if query param is present
   useEffect(() => {
@@ -512,15 +528,21 @@ export default function DeviceDetailsClient() {
     }
   };
   
-  const handleForceUpdate = async () => {
+  const handleForceUpdateConfirm = async (actions: string[]) => {
     if (!device?.dms_owner || !deviceId || !user?.access_token) {
         toast({ title: "Error", description: "Missing data required for force update.", variant: "destructive" });
         return;
     }
     setIsForcingUpdate(true);
     try {
-        await forceDeviceIdentityRefresh(device.dms_owner, deviceId, user.access_token);
+        await forceDeviceIdentityRefresh({
+            dmsId: device.dms_owner, 
+            deviceId: deviceId, 
+            actions: actions,
+            accessToken: user.access_token
+        });
         toast({ title: "Success", description: "A forced certificate update has been triggered for the device." });
+        setIsForceUpdateModalOpen(false);
         setTimeout(() => fetchDeviceDetails(), 2000); // Refresh after a short delay
     } catch(err: any) {
         toast({ title: "Force Update Failed", description: err.message, variant: "destructive" });
@@ -534,10 +556,6 @@ export default function DeviceDetailsClient() {
   };
 
   const totalHistoryPages = Math.ceil(fullCertificateIdentityList.length / historyPageSize);
-  
-  const hasAwsIntegration = device && integrations.some(
-    int => int.raId === device.dms_owner && int.type === 'AWS_IOT_CORE'
-  );
 
   if (isLoadingDevice || authLoading) {
     return (
@@ -606,10 +624,9 @@ export default function DeviceDetailsClient() {
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" onClick={fetchDeviceDetails}><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
-            {hasAwsIntegration && (
-              <Button variant="outline" onClick={handleForceUpdate} disabled={isForcingUpdate}>
-                {isForcingUpdate ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Zap className="mr-2 h-4 w-4" />}
-                 Force Update
+            {activeIntegration && (
+              <Button variant="outline" onClick={() => setIsForceUpdateModalOpen(true)}>
+                <Zap className="mr-2 h-4 w-4" /> Force Update
               </Button>
             )}
             <Button onClick={() => setIsAssignIdentityModalOpen(true)} disabled={!!device.identity && device.identity.status !== 'REVOKED'}>
@@ -859,6 +876,15 @@ export default function DeviceDetailsClient() {
         onConfirm={handleDecommissionConfirm}
         deviceName={device.id}
         isDecommissioning={isDecommissioning}
+      />
+      <ForceUpdateModal
+        isOpen={isForceUpdateModalOpen}
+        onOpenChange={setIsForceUpdateModalOpen}
+        onConfirm={handleForceUpdateConfirm}
+        device={device}
+        ra={raForIntegration}
+        integration={activeIntegration}
+        isUpdating={isForcingUpdate}
       />
     </div>
   );
