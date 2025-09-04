@@ -221,26 +221,3 @@ export async function deleteRaIntegration(raId: string, integrationKey: string, 
     // 5. Call the existing update function to save the modified RA
     await createOrUpdateRa(payload, accessToken, true, raId);
 }
-
-// THIS FUNCTION IS NOW DEPRECATED AND REPLACED BY A PATCH TO DEVICE METADATA
-interface ForceUpdateParams {
-    dmsId: string;
-    deviceId: string;
-    actions: string[];
-    accessToken: string;
-}
-
-export async function forceDeviceIdentityRefresh({ dmsId, deviceId, actions, accessToken }: ForceUpdateParams): Promise<void> {
-    const url = `${DMS_MANAGER_API_BASE_URL}/dms/${dmsId}/devices/${deviceId}/refresh-identity`;
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ actions }),
-    });
-    if (!response.ok) {
-        await handleApiError(response, 'Failed to force device identity refresh');
-    }
-}
