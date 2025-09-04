@@ -77,7 +77,7 @@ const signingProfileSchema = z.object({
     if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowRsa) return true;
     return data.cryptoEnforcement.allowedRsaKeySizes && data.cryptoEnforcement.allowedRsaKeySizes.length > 0;
 }, {
-    message: "At least one RSA Key Strength must be selected if RSA is allowed.",
+    message: "At least one RSA Key Size must be selected if RSA is allowed.",
     path: ["cryptoEnforcement.allowedRsaKeySizes"],
 }).refine(data => {
     if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowEcdsa) return true;
@@ -94,7 +94,6 @@ const toTitleCase = (str: string) => {
     if (!str) return '';
     return str
       .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space before capital letter if it's preceded by a lowercase letter
-      .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2') // Add space between acronym and next word (e.g. OCSPSigning -> OCSP Signing)
       .replace(/^./, (s) => s.toUpperCase()); // Capitalize the first letter
 };
 
@@ -427,38 +426,20 @@ export default function EditSigningProfilePage() {
 
               {watchCryptoEnforcement.enabled && (
                 <div className="space-y-4 p-4 border rounded-md ml-4 -mt-4">
-                    <div>
-                        <FormLabel>Allowed Key Types</FormLabel>
-                        <FormDescription className="mb-2">Select at least one cryptographic key type.</FormDescription>
-                        <div className="space-y-2 mt-1">
-                          <FormField
-                              control={form.control}
-                              name="cryptoEnforcement.allowRsa"
-                              render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
-                                  <FormLabel>Allow RSA Keys</FormLabel>
-                                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                </FormItem>
-                              )}
-                          />
-                          <FormField
-                              control={form.control}
-                              name="cryptoEnforcement.allowEcdsa"
-                              render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
-                                  <FormLabel>Allow ECDSA Keys</FormLabel>
-                                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                </FormItem>
-                              )}
-                          />
-                        </div>
-                        <FormMessage>{form.formState.errors.cryptoEnforcement?.allowRsa?.message}</FormMessage>
-                    </div>
-
+                    <FormField
+                        control={form.control}
+                        name="cryptoEnforcement.allowRsa"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                            <FormLabel>Allow RSA Keys</FormLabel>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          </FormItem>
+                        )}
+                    />
                     {watchCryptoEnforcement.allowRsa && (
                         <FormField control={form.control} name="cryptoEnforcement.allowedRsaKeySizes" render={() => (
-                            <FormItem className="p-3 border rounded-md bg-background">
-                                <FormLabel>Allowed RSA Key Strengths</FormLabel>
+                            <FormItem className="p-3 border rounded-md bg-background ml-4">
+                                <FormLabel>Allowed RSA Key Size</FormLabel>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
                                     {rsaKeyStrengths.map((item) => (
                                     <FormField key={item} control={form.control} name="cryptoEnforcement.allowedRsaKeySizes"
@@ -478,9 +459,20 @@ export default function EditSigningProfilePage() {
                             </FormItem>
                         )}/>
                     )}
+
+                    <FormField
+                        control={form.control}
+                        name="cryptoEnforcement.allowEcdsa"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                            <FormLabel>Allow ECDSA Keys</FormLabel>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          </FormItem>
+                        )}
+                    />
                     {watchCryptoEnforcement.allowEcdsa && (
                         <FormField control={form.control} name="cryptoEnforcement.allowedEcdsaCurves" render={() => (
-                            <FormItem className="p-3 border rounded-md bg-background">
+                            <FormItem className="p-3 border rounded-md bg-background ml-4">
                                 <FormLabel>Allowed ECDSA Curves</FormLabel>
                                 <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
                                     {ecdsaCurves.map((item) => (
@@ -501,6 +493,7 @@ export default function EditSigningProfilePage() {
                             </FormItem>
                         )}/>
                     )}
+                    <FormMessage>{form.formState.errors.cryptoEnforcement?.allowRsa?.message}</FormMessage>
                 </div>
               )}
 
