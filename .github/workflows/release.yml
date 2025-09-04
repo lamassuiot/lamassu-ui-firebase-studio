@@ -13,6 +13,7 @@ run-name: >-
 jobs:
   build_aws_connector_docker_image:
     name: Release docker images
+    permissions: write-all
     runs-on: ubuntu-latest
     steps:        
     - name: Login to Github Registry
