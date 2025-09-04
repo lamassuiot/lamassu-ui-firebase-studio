@@ -32,7 +32,7 @@ const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
 const ecdsaCurves = ["P-256", "P-384", "P-521"] as const;
 
 const keyUsageOptions = [
-  "DigitalSignature", "ContentCommitment", "KeyEncipherment", "DataEncipherment",
+  "DigitalSignature", "contentCommitment", "KeyEncipherment", "DataEncipherment",
   "KeyAgreement", "CertSign", "CRLSign", "EncipherOnly", "DecipherOnly"
 ] as const;
 type KeyUsageOption = typeof keyUsageOptions[number];
@@ -68,24 +68,13 @@ const signingProfileSchema = z.object({
   
   honorExtendedKeyUsage: z.boolean().default(false),
   extendedKeyUsages: z.array(z.enum(extendedKeyUsageOptions)).optional().default([]),
-}).refine(data => {
-    if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowRsa) return true;
-    return data.cryptoEnforcement.allowedRsaKeySizes && data.cryptoEnforcement.allowedRsaKeySizes.length > 0;
-}, {
-    message: "At least one RSA Key Size must be selected if RSA is allowed.",
-    path: ["cryptoEnforcement.allowedRsaKeySizes"],
-}).refine(data => {
-    if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowEcdsa) return true;
-    return data.cryptoEnforcement.allowedEcdsaCurves && data.cryptoEnforcement.allowedEcdsaCurves.length > 0;
-}, {
-    message: "At least one ECDSA Curve must be selected if ECDSA is allowed.",
-    path: ["cryptoEnforcement.allowedEcdsaCurves"],
 });
 
 
 type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
 const toTitleCase = (str: string) => {
+    if (!str) return '';
     return str.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase());
 };
 
@@ -110,6 +99,11 @@ const mapEcdsaBitSizeToCurve = (size: number): string | undefined => {
 // Helper to map API data to form values, handling potential undefined fields
 const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFormValues => {
     const crypto = profile.crypto_enforcement || {};
+    let validityType = "duration";
+    if (profile.validity?.type) {
+        validityType = profile.validity.type.toLowerCase();
+    }
+    
     return {
         profileName: profile.name || '',
         description: profile.description || '',
@@ -214,7 +208,7 @@ export default function CreateOrEditSigningProfilePage() {
     const payload: CreateSigningProfilePayload = {
         name: data.profileName,
         description: data.description,
-        validity: { type: "duration", duration: data.duration },
+        validity: { type: "Duration", duration: data.duration },
         sign_as_ca: data.signAsCa,
         honor_key_usage: data.honorKeyUsage,
         key_usage: data.keyUsages || [],

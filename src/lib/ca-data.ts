@@ -4,7 +4,7 @@
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo, AuthorityKeyIdentifier } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
+import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL, handleApiError } from "./api-domains";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -976,10 +976,7 @@ export async function fetchCaStatsSummary(accessToken: string): Promise<CaStatsS
     const response = await fetch(`${CA_API_BASE_URL}/stats`, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
-    if (!response.ok) {
-        throw new Error('Failed to fetch CA stats');
-    }
-    return response.json();
+    return handleApiError(response, 'Failed to fetch CA stats');
 }
 
 export async function fetchDevManagerStats(accessToken: string): Promise<{ total: number }> {
@@ -1044,8 +1041,9 @@ export interface CreateSigningProfilePayload {
     name: string;
     description?: string;
     validity: {
-        type: "duration";
-        duration: string;
+        type: "Duration" | "Date";
+        duration?: string;
+        time?: string;
     };
     sign_as_ca: boolean;
     honor_key_usage: boolean;
