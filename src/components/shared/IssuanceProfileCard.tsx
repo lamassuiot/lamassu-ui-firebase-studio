@@ -25,8 +25,8 @@ interface IssuanceProfileCardProps {
 
 export const IssuanceProfileCard: React.FC<IssuanceProfileCardProps> = ({ profile, className }) => {
   const allowedKeyTypes = [];
-  if (profile.allow_rsa_keys) allowedKeyTypes.push('RSA');
-  if (profile.allow_ecdsa_keys) allowedKeyTypes.push('ECDSA');
+  if (profile.crypto_enforcement?.allow_rsa_keys) allowedKeyTypes.push('RSA');
+  if (profile.crypto_enforcement?.allow_ecdsa_keys) allowedKeyTypes.push('ECDSA');
 
   let subjectPolicy = 'Honors Subject DN from CSR.';
   if (!profile.honor_subject) {

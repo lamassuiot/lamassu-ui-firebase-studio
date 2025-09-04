@@ -65,8 +65,8 @@ export default function SigningProfilesPage() {
         }
 
         const allowedKeyTypes = [];
-        if (p.allow_rsa_keys) allowedKeyTypes.push('RSA');
-        if (p.allow_ecdsa_keys) allowedKeyTypes.push('ECDSA');
+        if (p.crypto_enforcement?.allow_rsa_keys) allowedKeyTypes.push('RSA');
+        if (p.crypto_enforcement?.allow_ecdsa_keys) allowedKeyTypes.push('ECDSA');
 
         return {
             id: p.id,

@@ -1,5 +1,3 @@
-
-
 // Define the CA data structure
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo, AuthorityKeyIdentifier } from "pkijs";
@@ -513,7 +511,7 @@ export function findCaById(id: string | undefined | null, cas: CA[]): CA | null 
   for (const ca of cas) {
     if (ca.id === id) return ca;
     if (ca.children) {
-      const found = findCaById(id, ca.children);
+      const found = findCaById(id, cas.children);
       if (found) return found;
     }
   }
@@ -1014,10 +1012,13 @@ export interface ApiSigningProfile {
 		state?: string;
 	};
 	honor_extensions: boolean;
-	allow_rsa_keys: boolean;
-	allow_ecdsa_keys: boolean;
-    allowed_rsa_key_strengths?: string[];
-    allowed_ecdsa_curves?: string[];
+    crypto_enforcement: {
+        enabled: boolean;
+        allow_rsa_keys: boolean;
+        allow_ecdsa_keys: boolean;
+        allowed_rsa_key_strengths?: string[];
+        allowed_ecdsa_curves?: string[];
+    };
     default_signature_algorithm?: string;
 }
 
@@ -1048,8 +1049,8 @@ export interface CreateSigningProfilePayload {
     sign_as_ca: boolean;
     honor_key_usage: boolean;
     key_usage: string[];
-    honor_extended_key_usages: boolean;
-    extended_key_usages: string[];
+    honor_extended_key_usage: boolean;
+    extended_key_usage: string[];
     honor_subject: boolean;
     subject?: {
         organization?: string;
@@ -1058,10 +1059,13 @@ export interface CreateSigningProfilePayload {
         state?: string;
     };
     honor_extensions: boolean;
-    allow_rsa_keys: boolean;
-    allow_ecdsa_keys: boolean;
-    allowed_rsa_key_strengths?: string[];
-    allowed_ecdsa_curves?: string[];
+    crypto_enforcement: {
+        enabled: boolean;
+        allow_rsa_keys: boolean;
+        allow_ecdsa_keys: boolean;
+        allowed_rsa_key_strengths?: string[];
+        allowed_ecdsa_curves?: string[];
+    };
     default_signature_algorithm?: string;
 }
 

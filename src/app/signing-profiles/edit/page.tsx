@@ -58,10 +58,13 @@ const signingProfileSchema = z.object({
   overrideOrganization: z.string().optional(),
   overrideOrgUnit: z.string().optional(),
 
-  allowRsa: z.boolean().default(false),
-  allowEcdsa: z.boolean().default(false),
-  allowedRsaKeyStrengths: z.array(z.enum(rsaKeyStrengths)).optional().default([]),
-  allowedEcdsaCurves: z.array(z.enum(ecdsaCurves)).optional().default([]),
+  cryptoEnforcement: z.object({
+    enabled: z.boolean().default(false),
+    allowRsa: z.boolean().default(false),
+    allowEcdsa: z.boolean().default(false),
+    allowedRsaKeyStrengths: z.array(z.enum(rsaKeyStrengths)).optional().default([]),
+    allowedEcdsaCurves: z.array(z.enum(ecdsaCurves)).optional().default([]),
+  }),
   defaultSignatureAlgorithm: z.enum(signatureAlgorithms).optional(),
   
   honorKeyUsage: z.boolean().default(false),
@@ -69,15 +72,24 @@ const signingProfileSchema = z.object({
   
   honorExtendedKeyUsage: z.boolean().default(false),
   extendedKeyUsages: z.array(z.enum(extendedKeyUsageOptions)).optional().default([]),
-}).refine(data => data.allowRsa || data.allowEcdsa, {
-  message: "At least one key type (RSA or ECDSA) must be allowed.",
-  path: ["allowRsa"], 
-}).refine(data => data.allowRsa ? data.allowedRsaKeyStrengths && data.allowedRsaKeyStrengths.length > 0 : true, {
+}).refine(data => {
+  if (!data.cryptoEnforcement.enabled) return true;
+  return data.cryptoEnforcement.allowRsa || data.cryptoEnforcement.allowEcdsa;
+}, {
+  message: "At least one key type (RSA or ECDSA) must be allowed when enforcement is enabled.",
+  path: ["cryptoEnforcement.allowRsa"], 
+}).refine(data => {
+    if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowRsa) return true;
+    return data.cryptoEnforcement.allowedRsaKeyStrengths && data.cryptoEnforcement.allowedRsaKeyStrengths.length > 0;
+}, {
     message: "At least one RSA Key Strength must be selected if RSA is allowed.",
-    path: ["allowedRsaKeyStrengths"],
-}).refine(data => data.allowEcdsa ? data.allowedEcdsaCurves && data.allowedEcdsaCurves.length > 0 : true, {
+    path: ["cryptoEnforcement.allowedRsaKeyStrengths"],
+}).refine(data => {
+    if (!data.cryptoEnforcement.enabled || !data.cryptoEnforcement.allowEcdsa) return true;
+    return data.cryptoEnforcement.allowedEcdsaCurves && data.cryptoEnforcement.allowedEcdsaCurves.length > 0;
+}, {
     message: "At least one ECDSA Curve must be selected if ECDSA is allowed.",
-    path: ["allowedEcdsaCurves"],
+    path: ["cryptoEnforcement.allowedEcdsaCurves"],
 });
 
 
@@ -92,6 +104,7 @@ const toTitleCase = (str: string) => {
 
 // Helper to map API data to form values, handling potential undefined fields
 const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFormValues => {
+    const crypto = profile.crypto_enforcement || {};
     return {
         profileName: profile.name || '',
         description: profile.description || '',
@@ -102,10 +115,13 @@ const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFo
         overrideState: profile.subject?.state || '',
         overrideOrganization: profile.subject?.organization || '',
         overrideOrgUnit: profile.subject?.organizational_unit || '',
-        allowRsa: profile.allow_rsa_keys,
-        allowEcdsa: profile.allow_ecdsa_keys,
-        allowedRsaKeyStrengths: profile.allowed_rsa_key_strengths || [],
-        allowedEcdsaCurves: profile.allowed_ecdsa_curves || [],
+        cryptoEnforcement: {
+            enabled: crypto.enabled || false,
+            allowRsa: crypto.allow_rsa_keys || false,
+            allowEcdsa: crypto.allow_ecdsa_keys || false,
+            allowedRsaKeyStrengths: crypto.allowed_rsa_key_strengths || [],
+            allowedEcdsaCurves: crypto.allowed_ecdsa_curves || [],
+        },
         defaultSignatureAlgorithm: profile.default_signature_algorithm as any,
         honorKeyUsage: profile.honor_key_usage,
         keyUsages: (profile.key_usage || []) as KeyUsageOption[],
@@ -155,8 +171,7 @@ export default function EditSigningProfilePage() {
   }, [user?.access_token, fetchProfile]);
 
   const { isSubmitting } = form.formState;
-  const watchAllowRsa = form.watch("allowRsa");
-  const watchAllowEcdsa = form.watch("allowEcdsa");
+  const watchCryptoEnforcement = form.watch("cryptoEnforcement");
   const watchHonorSubject = form.watch("honorSubject");
   const watchHonorKeyUsage = form.watch("honorKeyUsage");
   const watchHonorExtendedKeyUsage = form.watch("honorExtendedKeyUsage");
@@ -178,10 +193,13 @@ export default function EditSigningProfilePage() {
         extended_key_usage: data.extendedKeyUsages || [],
         honor_subject: data.honorSubject,
         honor_extensions: true,
-        allow_rsa_keys: data.allowRsa,
-        allow_ecdsa_keys: data.allowEcdsa,
-        allowed_rsa_key_strengths: data.allowedRsaKeyStrengths,
-        allowed_ecdsa_curves: data.allowedEcdsaCurves,
+        crypto_enforcement: {
+            enabled: data.cryptoEnforcement.enabled,
+            allow_rsa_keys: data.cryptoEnforcement.allowRsa,
+            allow_ecdsa_keys: data.cryptoEnforcement.allowEcdsa,
+            allowed_rsa_key_strengths: data.cryptoEnforcement.allowedRsaKeyStrengths,
+            allowed_ecdsa_curves: data.cryptoEnforcement.allowedEcdsaCurves,
+        },
         default_signature_algorithm: data.defaultSignatureAlgorithm,
     };
     
@@ -376,121 +394,103 @@ export default function EditSigningProfilePage() {
               <Separator />
               <h3 className="text-lg font-semibold flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground"/>Cryptographic Settings</h3>
               
-              <div>
-                <FormLabel>Allowed Key Types</FormLabel>
-                 <FormDescription className="mb-2">Select at least one cryptographic key type.</FormDescription>
-                <div className="space-y-2 mt-1">
-                  <FormField
-                    control={form.control}
-                    name="allowRsa"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Allow RSA Keys</FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="allowEcdsa"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Allow ECDSA Keys</FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                 {form.formState.errors.allowRsa && (
-                    <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.allowRsa.message}</p>
+              <FormField
+                control={form.control}
+                name="cryptoEnforcement.enabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Enable Crypto Enforcement</FormLabel>
+                      <FormDescription>
+                        Enforce specific key types (RSA, ECDSA) and their parameters.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
                 )}
-              </div>
-              
-              {watchAllowRsa && (
-                <FormField
-                  control={form.control}
-                  name="allowedRsaKeyStrengths"
-                  render={() => (
-                    <FormItem className="p-3 border rounded-md">
-                      <FormLabel>Allowed RSA Key Strengths</FormLabel>
-                      <FormDescription>Select which RSA key strengths are permitted by this profile.</FormDescription>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
-                        {rsaKeyStrengths.map((item) => (
-                          <FormField
-                            key={item}
+              />
+
+              {watchCryptoEnforcement.enabled && (
+                <div className="space-y-4 p-4 border rounded-md ml-4 -mt-4">
+                    <div>
+                        <FormLabel>Allowed Key Types</FormLabel>
+                        <FormDescription className="mb-2">Select at least one cryptographic key type.</FormDescription>
+                        <div className="space-y-2 mt-1">
+                        <FormField
                             control={form.control}
-                            name="allowedRsaKeyStrengths"
+                            name="cryptoEnforcement.allowRsa"
                             render={({ field }) => (
-                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(item)}
-                                    onCheckedChange={(checked) => {
-                                      const currentValue = field.value || [];
-                                      return checked
-                                        ? field.onChange([...currentValue, item])
-                                        : field.onChange(currentValue.filter((value) => value !== item));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal cursor-pointer">{item}-bit</FormLabel>
-                              </FormItem>
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm bg-background">
+                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <div className="space-y-1 leading-none"><FormLabel>Allow RSA Keys</FormLabel></div>
+                            </FormItem>
                             )}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        />
+                        <FormField
+                            control={form.control}
+                            name="cryptoEnforcement.allowEcdsa"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm bg-background">
+                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <div className="space-y-1 leading-none"><FormLabel>Allow ECDSA Keys</FormLabel></div>
+                            </FormItem>
+                            )}
+                        />
+                        </div>
+                        <FormMessage>{form.formState.errors.cryptoEnforcement?.allowRsa?.message}</FormMessage>
+                    </div>
+
+                    {watchCryptoEnforcement.allowRsa && (
+                        <FormField control={form.control} name="cryptoEnforcement.allowedRsaKeyStrengths" render={() => (
+                            <FormItem className="p-3 border rounded-md bg-background">
+                                <FormLabel>Allowed RSA Key Strengths</FormLabel>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
+                                    {rsaKeyStrengths.map((item) => (
+                                    <FormField key={item} control={form.control} name="cryptoEnforcement.allowedRsaKeyStrengths"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                <FormControl><Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
+                                                    const currentValue = field.value || [];
+                                                    return checked ? field.onChange([...currentValue, item]) : field.onChange(currentValue.filter((value) => value !== item));
+                                                }} /></FormControl>
+                                                <FormLabel className="text-sm font-normal cursor-pointer">{item}-bit</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                    )}
+                    {watchCryptoEnforcement.allowEcdsa && (
+                        <FormField control={form.control} name="cryptoEnforcement.allowedEcdsaCurves" render={() => (
+                            <FormItem className="p-3 border rounded-md bg-background">
+                                <FormLabel>Allowed ECDSA Curves</FormLabel>
+                                <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
+                                    {ecdsaCurves.map((item) => (
+                                    <FormField key={item} control={form.control} name="cryptoEnforcement.allowedEcdsaCurves"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                <FormControl><Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => {
+                                                    const currentValue = field.value || [];
+                                                    return checked ? field.onChange([...currentValue, item]) : field.onChange(currentValue.filter((value) => value !== item));
+                                                }} /></FormControl>
+                                                <FormLabel className="text-sm font-normal cursor-pointer">{item}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                    )}
+                </div>
               )}
 
-              {watchAllowEcdsa && (
-                <FormField
-                  control={form.control}
-                  name="allowedEcdsaCurves"
-                  render={() => (
-                    <FormItem className="p-3 border rounded-md">
-                      <FormLabel>Allowed ECDSA Curves</FormLabel>
-                      <FormDescription>Select which ECDSA curves are permitted by this profile.</FormDescription>
-                      <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
-                        {ecdsaCurves.map((item) => (
-                          <FormField
-                            key={item}
-                            control={form.control}
-                            name="allowedEcdsaCurves"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(item)}
-                                    onCheckedChange={(checked) => {
-                                      const currentValue = field.value || [];
-                                      return checked
-                                        ? field.onChange([...currentValue, item])
-                                        : field.onChange(currentValue.filter((value) => value !== item));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal cursor-pointer">{item}</FormLabel>
-                              </FormItem>
-                            )}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
 
               <FormField
                   control={form.control}
@@ -498,7 +498,7 @@ export default function EditSigningProfilePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Default Signature Algorithm</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a default signature algorithm (optional)" />
