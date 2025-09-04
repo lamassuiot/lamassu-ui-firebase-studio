@@ -52,6 +52,16 @@ export const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({
 
   if (!device || !ra || !integration) return null;
 
+  const getConnectorId = (configKey: string) => {
+    const prefix = "lamassu.io/iot/";
+    if (configKey.startsWith(prefix)) {
+        return configKey.substring(prefix.length);
+    }
+    return configKey;
+  };
+  const connectorId = getConnectorId(integration.configKey);
+
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -69,14 +79,17 @@ export const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({
           <div className="p-3 border rounded-md bg-muted/50 space-y-2">
             <DetailItem label="Device ID" value={device.id} className="py-1" isMono/>
             <DetailItem label="Registration Authority" value={ra.name} className="py-1" />
-            <DetailItem 
-                label="Platform Integration" 
+            <DetailItem
+                label="Platform Integration"
                 value={
                     <div className="flex items-center gap-2">
                         <IntegrationIcon type={integration.type} />
-                        <span className="font-semibold">{integration.typeName}</span>
+                        <div className="flex flex-col">
+                            <span className="font-semibold">{integration.typeName}</span>
+                            <span className="text-xs text-muted-foreground font-mono">{connectorId}</span>
+                        </div>
                     </div>
-                } 
+                }
                 className="py-1"
             />
           </div>
