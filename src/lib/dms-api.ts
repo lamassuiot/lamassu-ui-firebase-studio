@@ -1,5 +1,4 @@
 
-
 // src/lib/dms-api.ts
 
 import { DMS_MANAGER_API_BASE_URL, handleApiError } from './api-domains';
@@ -223,6 +222,7 @@ export async function deleteRaIntegration(raId: string, integrationKey: string, 
     await createOrUpdateRa(payload, accessToken, true, raId);
 }
 
+// THIS FUNCTION IS NOW DEPRECATED AND REPLACED BY A PATCH TO DEVICE METADATA
 interface ForceUpdateParams {
     dmsId: string;
     deviceId: string;

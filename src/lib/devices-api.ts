@@ -1,3 +1,4 @@
+
 // src/lib/devices-api.ts
 import { DEV_MANAGER_API_BASE_URL, handleApiError } from './api-domains';
 
@@ -41,6 +42,13 @@ export interface DeviceStats {
         REVOKED: number;
     };
 }
+
+export interface PatchOperation {
+  op: "add" | "remove" | "replace";
+  path: string;
+  value?: any;
+}
+
 
 export async function fetchDevices(accessToken: string, params: URLSearchParams): Promise<ApiResponse> {
     const url = `${DEV_MANAGER_API_BASE_URL}/devices?${params.toString()}`;
@@ -90,3 +98,19 @@ export async function fetchDeviceStats(accessToken: string): Promise<DeviceStats
   });
   return handleApiError(response, 'Failed to fetch device stats');
 }
+
+export async function updateDeviceMetadata(deviceId: string, patchOperations: PatchOperation[], accessToken: string): Promise<void> {
+  const response = await fetch(`${DEV_MANAGER_API_BASE_URL}/devices/${deviceId}/metadata`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json-patch+json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(patchOperations),
+  });
+
+  if (!response.ok) {
+    await handleApiError(response, 'Failed to update device metadata');
+  }
+}
+

@@ -25,8 +25,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { AssignIdentityModal } from '@/components/shared/AssignIdentityModal';
 import { DecommissionDeviceModal } from '@/components/shared/DecommissionDeviceModal';
-import { fetchDeviceById, decommissionDevice, type ApiDevice, type ApiDeviceIdentity } from '@/lib/devices-api';
-import { bindIdentityToDevice, forceDeviceIdentityRefresh, fetchRaById, type ApiRaItem } from '@/lib/dms-api';
+import { fetchDeviceById, decommissionDevice, type ApiDevice, type ApiDeviceIdentity, updateDeviceMetadata, type PatchOperation } from '@/lib/devices-api';
+import { bindIdentityToDevice, fetchRaById, type ApiRaItem } from '@/lib/dms-api';
 import { discoverIntegrations, type DiscoveredIntegration } from '@/lib/integrations-api';
 import { ForceUpdateModal } from '@/components/shared/ForceUpdateModal';
 
@@ -529,18 +529,19 @@ export default function DeviceDetailsClient() {
   };
   
   const handleForceUpdateConfirm = async (actions: string[]) => {
-    if (!device?.dms_owner || !deviceId || !user?.access_token) {
+    if (!device?.dms_owner || !deviceId || !user?.access_token || !activeIntegration) {
         toast({ title: "Error", description: "Missing data required for force update.", variant: "destructive" });
         return;
     }
     setIsForcingUpdate(true);
     try {
-        await forceDeviceIdentityRefresh({
-            dmsId: device.dms_owner, 
-            deviceId: deviceId, 
-            actions: actions,
-            accessToken: user.access_token
-        });
+        const patch: PatchOperation = {
+            op: 'add', // or 'replace' if the key might exist
+            path: `/${activeIntegration.configKey.replace(/\//g, '~1')}`,
+            value: { actions }
+        };
+        await updateDeviceMetadata(deviceId, [patch], user.access_token);
+        
         toast({ title: "Success", description: "A forced certificate update has been triggered for the device." });
         setIsForceUpdateModalOpen(false);
         setTimeout(() => fetchDeviceDetails(), 2000); // Refresh after a short delay
