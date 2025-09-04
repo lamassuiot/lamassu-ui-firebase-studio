@@ -1,4 +1,5 @@
 
+
 // src/lib/dms-api.ts
 
 import { DMS_MANAGER_API_BASE_URL, handleApiError } from './api-domains';
@@ -220,4 +221,15 @@ export async function deleteRaIntegration(raId: string, integrationKey: string, 
     
     // 5. Call the existing update function to save the modified RA
     await createOrUpdateRa(payload, accessToken, true, raId);
+}
+
+export async function forceDeviceIdentityRefresh(dmsId: string, deviceId: string, accessToken: string): Promise<void> {
+    const url = `${DMS_MANAGER_API_BASE_URL}/dms/${dmsId}/devices/${deviceId}/refresh-identity`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        await handleApiError(response, 'Failed to force device identity refresh');
+    }
 }
