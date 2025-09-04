@@ -1124,3 +1124,21 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         throw new Error(errorMessage);
     }
 }
+
+export async function deleteSigningProfile(profileId: string, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/profiles/${profileId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        },
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to delete signing profile. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Profile deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorMessage);
+    }
+}

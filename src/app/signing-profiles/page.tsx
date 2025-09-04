@@ -1,25 +1,43 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ScrollTextIcon, PlusCircle, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { ScrollTextIcon, PlusCircle, Loader2, RefreshCw, AlertTriangle, Trash2 } from "lucide-react";
 
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchSigningProfiles, type ApiSigningProfile } from '@/lib/ca-data';
+import { fetchSigningProfiles, deleteSigningProfile, type ApiSigningProfile } from '@/lib/ca-data';
 import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 
 export default function SigningProfilesPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  
   const [profiles, setProfiles] = useState<ApiSigningProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // State for deletion
+  const [profileToDelete, setProfileToDelete] = useState<ApiSigningProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchProfiles = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -54,6 +72,29 @@ export default function SigningProfilesPage() {
     router.push(`/signing-profiles/edit?id=${profileId}`);
   };
 
+  const handleDeleteProfileClick = (profile: ApiSigningProfile) => {
+    setProfileToDelete(profile);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!profileToDelete || !user?.access_token) {
+      toast({ title: "Error", description: "No profile selected or user not authenticated.", variant: "destructive" });
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      await deleteSigningProfile(profileToDelete.id, user.access_token);
+      toast({ title: "Success", description: `Profile "${profileToDelete.name}" has been deleted.` });
+      setProfileToDelete(null); // Close the dialog
+      fetchProfiles(); // Refresh the list
+    } catch (err: any) {
+      toast({ title: "Deletion Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading || authLoading) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 p-8">
@@ -64,6 +105,7 @@ export default function SigningProfilesPage() {
   }
 
   return (
+    <>
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -98,7 +140,7 @@ export default function SigningProfilesPage() {
               key={profile.id}
               profile={profile}
               onEdit={() => handleEditProfile(profile.id)}
-              onDelete={() => alert(`Delete profile ${profile.name} (placeholder)`)}
+              onDelete={() => handleDeleteProfileClick(profile)}
             />
           ))}
         </div>
@@ -114,5 +156,28 @@ export default function SigningProfilesPage() {
         </div>
       )}
     </div>
+
+    <AlertDialog open={!!profileToDelete} onOpenChange={(open) => !open && setProfileToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the issuance profile "<strong>{profileToDelete?.name}</strong>".
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleConfirmDelete}
+                    className={cn(buttonVariants({ variant: "destructive" }))}
+                    disabled={isDeleting}
+                >
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isDeleting ? "Deleting..." : "Delete Profile"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

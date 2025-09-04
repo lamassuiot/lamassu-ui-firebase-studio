@@ -4,7 +4,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Settings2, Clock, Fingerprint, BookText, KeyRound, ShieldCheck, Scale, Edit } from "lucide-react";
+import { Settings2, Clock, Fingerprint, BookText, KeyRound, ShieldCheck, Scale, Edit, Trash2 } from "lucide-react";
 import type { ApiSigningProfile } from '@/lib/ca-data';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
@@ -108,7 +108,7 @@ export const IssuanceProfileCard: React.FC<IssuanceProfileCardProps> = ({ profil
             className="group-hover:border-destructive"
             onClick={onDelete}
           >
-            Delete
+            <Trash2 className="mr-1.5 h-3.5 w-3.5"/> Delete
           </Button>
           <Button
             variant="default"
