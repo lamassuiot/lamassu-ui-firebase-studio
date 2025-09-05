@@ -925,8 +925,13 @@ export async function verifyWithKmsKey(keyId: string, payload: any, accessToken:
     return response.json();
 }
 
-
-export async function createKmsKey(payload: any, accessToken: string): Promise<void> {
+export interface CreateKmsKeyPayload {
+    engine_id: string;
+    name: string;
+    algorithm: string;
+    size: number;
+}
+export async function createKmsKey(payload: CreateKmsKeyPayload, accessToken: string): Promise<void> {
     const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
         method: 'POST',
         headers: {
@@ -1042,8 +1047,9 @@ export interface CreateSigningProfilePayload {
     name: string;
     description?: string;
     validity: {
-        type: "duration";
-        duration: string;
+        type: "Duration" | "Date";
+        duration?: string;
+        time?: string;
     };
     sign_as_ca: boolean;
     honor_key_usage: boolean;
