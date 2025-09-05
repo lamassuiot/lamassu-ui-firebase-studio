@@ -27,6 +27,7 @@ import {
   type ApiSigningProfile,
 } from '@/lib/ca-data';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
@@ -177,6 +178,13 @@ const defaultFormValues: SigningProfileFormValues = {
     extendedKeyUsages: ['ClientAuth', 'ServerAuth'],
 };
 
+const templateOptions = [
+    { value: 'custom', label: 'Custom Profile' },
+    { value: 'device-auth', label: 'IoT Device Authentication Template' },
+    { value: 'code-signing', label: 'Code Signing Template' },
+    { value: 'server-cert', label: 'TLS Web Server Template' },
+];
+
 const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
   'device-auth': {
     profileName: 'IoT Device Authentication Profile',
@@ -185,6 +193,8 @@ const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
     cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
     keyUsages: ['DigitalSignature', 'KeyEncipherment'],
     extendedKeyUsages: ['ClientAuth', 'ServerAuth'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
   },
   'code-signing': {
     profileName: 'Code Signing Profile',
@@ -193,6 +203,8 @@ const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
     cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, allowedEcdsaCurves: [] }, // Often RSA
     keyUsages: ['DigitalSignature', 'contentCommitment'],
     extendedKeyUsages: ['CodeSigning'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
   },
   'server-cert': {
     profileName: 'TLS Web Server Profile',
@@ -201,6 +213,8 @@ const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
     cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
     keyUsages: ['DigitalSignature', 'KeyEncipherment'],
     extendedKeyUsages: ['ServerAuth'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
   }
 };
 
@@ -209,7 +223,6 @@ export default function CreateOrEditSigningProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const profileId = searchParams.get('id');
-  const template = searchParams.get('template');
   const isEditMode = !!profileId;
   const { toast } = useToast();
   const { user } = useAuth();
@@ -217,16 +230,18 @@ export default function CreateOrEditSigningProfilePage() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(isEditMode);
   const [errorProfile, setErrorProfile] = useState<string | null>(null);
 
-  const initialValues = isEditMode 
-    ? {} 
-    : template && templateDefaults[template] 
-      ? { ...defaultFormValues, ...templateDefaults[template] } 
-      : defaultFormValues;
-
   const form = useForm<SigningProfileFormValues>({
     resolver: zodResolver(signingProfileSchema),
-    defaultValues: initialValues,
+    defaultValues: defaultFormValues,
   });
+  
+  const handleTemplateChange = (templateKey: string) => {
+    const templateData = templateDefaults[templateKey] || {};
+    form.reset({
+      ...defaultFormValues,
+      ...templateData
+    });
+  };
 
   const fetchProfile = useCallback(async () => {
     if (!profileId || !user?.access_token) {
@@ -346,8 +361,8 @@ export default function CreateOrEditSigningProfilePage() {
 
   return (
     <div className="w-full space-y-6 mb-8">
-      <Button variant="outline" onClick={() => router.push(isEditMode ? '/signing-profiles' : '/signing-profiles/new')} className="mb-0">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to {isEditMode ? 'Issuance Profiles' : 'Templates'}
+      <Button variant="outline" onClick={() => router.push('/signing-profiles')} className="mb-0">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Issuance Profiles
       </Button>
 
       <Card className="shadow-lg">
@@ -358,13 +373,31 @@ export default function CreateOrEditSigningProfilePage() {
           </div>
           <CardDescription>
             {isEditMode ? 'Modify the parameters for this certificate issuance profile.' : 'Define the parameters for a new certificate issuance profile.'}
-            {template && ` Starting with the "${toTitleCase(template.replace('-', ' '))}" template.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               
+              {!isEditMode && (
+                <div className="space-y-2">
+                    <Label htmlFor="template-selector">Load Template</Label>
+                    <Select onValueChange={handleTemplateChange} defaultValue="custom">
+                        <SelectTrigger id="template-selector">
+                            <SelectValue placeholder="Start with a template..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {templateOptions.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                     <p className="text-xs text-muted-foreground">Selecting a template will reset the form with recommended settings.</p>
+                </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="profileName"
