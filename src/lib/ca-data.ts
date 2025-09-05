@@ -4,7 +4,7 @@
 import * as asn1js from "asn1js";
 import { Certificate, CRLDistributionPoints, BasicConstraints, ExtKeyUsage, RelativeDistinguishedNames, PublicKeyInfo, AuthorityKeyIdentifier } from "pkijs";
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL } from "./api-domains";
+import { CA_API_BASE_URL, DEV_MANAGER_API_BASE_URL, handleApiError } from "./api-domains";
 
 // API Response Structures
 interface ApiKeyMetadata {
@@ -142,7 +142,7 @@ export function ab2hex(ab: ArrayBuffer, separator: string = '') {
 }
 
 const formatPkijsSubject = (subject: RelativeDistinguishedNames): string => {
-  return subject.typesAndValues.map((tv: any) => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
+  return subject.typesAndValues.map(tv => `${OID_MAP[tv.type] || tv.type}=${(tv.value as any).valueBlock.value}`).join(', ');
 };
 
 const formatPkijsPublicKeyInfo = (publicKeyInfo: PublicKeyInfo): string => {
@@ -527,7 +527,7 @@ export function findCaByCommonName(commonName: string | undefined | null, cas: C
     // Ensure ca.name is used as it's the transformed common_name
     if (ca.name && ca.name.toLowerCase() === commonName.toLowerCase()) return ca;
     if (ca.children) {
-      const found = findCaByCommonName(commonName, cas.children);
+      const found = findCaByCommonName(commonName, ca.children);
       if (found) return found;
     }
   }
@@ -976,10 +976,7 @@ export async function fetchCaStatsSummary(accessToken: string): Promise<CaStatsS
     const response = await fetch(`${CA_API_BASE_URL}/stats`, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
-    if (!response.ok) {
-        throw new Error('Failed to fetch CA stats');
-    }
-    return response.json();
+    return handleApiError(response, 'Failed to fetch CA stats');
 }
 
 export async function fetchDevManagerStats(accessToken: string): Promise<{ total: number }> {
@@ -1014,11 +1011,13 @@ export interface ApiSigningProfile {
 		state?: string;
 	};
 	honor_extensions: boolean;
-	allow_rsa_keys: boolean;
-	allow_ecdsa_keys: boolean;
-    allowed_rsa_key_strengths?: string[];
-    allowed_ecdsa_curves?: string[];
-    default_signature_algorithm?: string;
+    crypto_enforcement: {
+        enabled: boolean;
+        allow_rsa_keys: boolean;
+        allow_ecdsa_keys: boolean;
+        allowed_rsa_key_sizes?: number[];
+        allowed_ecdsa_key_sizes?: number[];
+    };
 }
 
 export async function fetchSigningProfiles(accessToken: string): Promise<ApiSigningProfile[]> {
@@ -1042,14 +1041,15 @@ export interface CreateSigningProfilePayload {
     name: string;
     description?: string;
     validity: {
-        type: "duration";
-        duration: string;
+        type: "Duration" | "Date";
+        duration?: string;
+        time?: string;
     };
     sign_as_ca: boolean;
     honor_key_usage: boolean;
     key_usage: string[];
-    honor_extended_key_usages: boolean;
-    extended_key_usages: string[];
+    honor_extended_key_usage: boolean;
+    extended_key_usage: string[];
     honor_subject: boolean;
     subject?: {
         organization?: string;
@@ -1058,11 +1058,13 @@ export interface CreateSigningProfilePayload {
         state?: string;
     };
     honor_extensions: boolean;
-    allow_rsa_keys: boolean;
-    allow_ecdsa_keys: boolean;
-    allowed_rsa_key_strengths?: string[];
-    allowed_ecdsa_curves?: string[];
-    default_signature_algorithm?: string;
+    crypto_enforcement: {
+        enabled: boolean;
+        allow_rsa_keys: boolean;
+        allow_ecdsa_keys: boolean;
+        allowed_rsa_key_sizes?: number[];
+        allowed_ecdsa_key_sizes?: number[];
+    };
 }
 
 export async function createSigningProfile(payload: CreateSigningProfilePayload, accessToken: string): Promise<void> {
@@ -1116,6 +1118,24 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         try {
             errorJson = await response.json();
             errorMessage = `Profile update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorMessage);
+    }
+}
+
+export async function deleteSigningProfile(profileId: string, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/profiles/${profileId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        },
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to delete signing profile. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Profile deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
         } catch (e) { /* ignore */ }
         throw new Error(errorMessage);
     }

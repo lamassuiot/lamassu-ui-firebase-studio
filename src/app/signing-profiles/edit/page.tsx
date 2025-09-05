@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -10,10 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Save, Settings2, KeyRound, ListChecks, Info, Loader2, Shield, AlertTriangle } from "lucide-react"; 
+import { ArrowLeft, Save, Settings2, KeyRound, ListChecks, Info, Loader2, Shield, AlertTriangle, PlusCircle } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -22,20 +22,18 @@ import { Alert, AlertDescription as AlertDescUI, AlertTitle as AlertTitleUI } fr
 import {
   fetchSigningProfileById,
   updateSigningProfile,
+  createSigningProfile,
   type CreateSigningProfilePayload,
   type ApiSigningProfile,
 } from '@/lib/ca-data';
+import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
 const ecdsaCurves = ["P-256", "P-384", "P-521"] as const;
-const signatureAlgorithms = [
-  "SHA256withRSA", "SHA384withRSA", "SHA512withRSA",
-  "SHA256withECDSA", "SHA384withECDSA", "SHA512withECDSA"
-] as const;
 
 const keyUsageOptions = [
-  "DigitalSignature", "NonRepudiation", "KeyEncipherment", "DataEncipherment",
+  "DigitalSignature", "contentCommitment", "KeyEncipherment", "DataEncipherment",
   "KeyAgreement", "CertSign", "CRLSign", "EncipherOnly", "DecipherOnly"
 ] as const;
 type KeyUsageOption = typeof keyUsageOptions[number];
@@ -49,7 +47,20 @@ type ExtendedKeyUsageOption = typeof extendedKeyUsageOptions[number];
 const signingProfileSchema = z.object({
   profileName: z.string().min(3, "Profile name must be at least 3 characters long."),
   description: z.string().optional(),
-  duration: z.string().min(1, "Duration is required (e.g., '1y', '90d')."),
+  
+  validity: z.object({
+    type: z.enum(["Duration", "Date", "Indefinite"]),
+    durationValue: z.string().optional(),
+    dateValue: z.date().optional(),
+  }).refine(data => {
+      if (data.type === 'Duration') return !!data.durationValue;
+      if (data.type === 'Date') return !!data.dateValue;
+      return true; // Indefinite is always valid
+  }, {
+      message: "A value is required for the selected validity type.",
+      path: ["durationValue"], // Or an appropriate path
+  }),
+
   signAsCa: z.boolean().default(false),
   
   honorSubject: z.boolean().default(true),
@@ -58,55 +69,84 @@ const signingProfileSchema = z.object({
   overrideOrganization: z.string().optional(),
   overrideOrgUnit: z.string().optional(),
 
-  allowRsa: z.boolean().default(false),
-  allowEcdsa: z.boolean().default(false),
-  allowedRsaKeyStrengths: z.array(z.enum(rsaKeyStrengths)).optional().default([]),
-  allowedEcdsaCurves: z.array(z.enum(ecdsaCurves)).optional().default([]),
-  defaultSignatureAlgorithm: z.enum(signatureAlgorithms).optional(),
+  cryptoEnforcement: z.object({
+    enabled: z.boolean().default(false),
+    allowRsa: z.boolean().default(false),
+    allowEcdsa: z.boolean().default(false),
+    allowedRsaKeySizes: z.array(z.number()).optional().default([]),
+    allowedEcdsaCurves: z.array(z.number()).optional().default([]),
+  }),
   
   honorKeyUsage: z.boolean().default(false),
   keyUsages: z.array(z.enum(keyUsageOptions)).optional().default([]),
   
   honorExtendedKeyUsage: z.boolean().default(false),
   extendedKeyUsages: z.array(z.enum(extendedKeyUsageOptions)).optional().default([]),
-}).refine(data => data.allowRsa || data.allowEcdsa, {
-  message: "At least one key type (RSA or ECDSA) must be allowed.",
-  path: ["allowRsa"], 
-}).refine(data => data.allowRsa ? data.allowedRsaKeyStrengths && data.allowedRsaKeyStrengths.length > 0 : true, {
-    message: "At least one RSA Key Strength must be selected if RSA is allowed.",
-    path: ["allowedRsaKeyStrengths"],
-}).refine(data => data.allowEcdsa ? data.allowedEcdsaCurves && data.allowedEcdsaCurves.length > 0 : true, {
-    message: "At least one ECDSA Curve must be selected if ECDSA is allowed.",
-    path: ["allowedEcdsaCurves"],
 });
 
 
 type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
-// Helper to format camelCase to Title Case
 const toTitleCase = (str: string) => {
-  return str
-    .replace(/([A-Z])/g, ' $1') // insert a space before all caps
-    .replace(/^./, (s) => s.toUpperCase()); // uppercase the first character
+  if (!str) return '';
+  return str.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase());
 };
+
+const mapEcdsaCurveToBitSize = (curve: string): number => {
+    switch (curve) {
+        case 'P-256': return 256;
+        case 'P-384': return 384;
+        case 'P-521': return 521;
+        default: return 0;
+    }
+};
+
+const mapEcdsaBitSizeToCurve = (size: number): string | undefined => {
+    switch (size) {
+        case 256: return 'P-256';
+        case 384: return 'P-384';
+        case 521: return 'P-521';
+        default: return undefined;
+    }
+}
 
 // Helper to map API data to form values, handling potential undefined fields
 const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFormValues => {
+    const crypto = profile.crypto_enforcement || {};
+    
+    let validityConfig: ExpirationConfig = { type: 'Duration', durationValue: '1y' };
+    if (profile.validity) {
+        const type = profile.validity.type;
+        if (type === 'Duration' && profile.validity.duration) {
+            validityConfig = { type: 'Duration', durationValue: profile.validity.duration };
+        } else if (type === 'Date' && profile.validity.time) {
+            if (profile.validity.time.startsWith('9999-12-31')) {
+                validityConfig = { type: 'Indefinite' };
+            } else {
+                validityConfig = { type: 'Date', dateValue: new Date(profile.validity.time) };
+            }
+        } else if (type === "Indefinite") {
+            validityConfig = { type: 'Indefinite' };
+        }
+    }
+    
     return {
         profileName: profile.name || '',
         description: profile.description || '',
-        duration: profile.validity?.duration || '1y',
+        validity: validityConfig,
         signAsCa: profile.sign_as_ca || false,
         honorSubject: profile.honor_subject,
         overrideCountry: profile.subject?.country || '',
         overrideState: profile.subject?.state || '',
         overrideOrganization: profile.subject?.organization || '',
         overrideOrgUnit: profile.subject?.organizational_unit || '',
-        allowRsa: profile.allow_rsa_keys,
-        allowEcdsa: profile.allow_ecdsa_keys,
-        allowedRsaKeyStrengths: profile.allowed_rsa_key_strengths || [],
-        allowedEcdsaCurves: profile.allowed_ecdsa_curves || [],
-        defaultSignatureAlgorithm: profile.default_signature_algorithm as any,
+        cryptoEnforcement: {
+            enabled: crypto.enabled || false,
+            allowRsa: crypto.allow_rsa_keys || false,
+            allowEcdsa: crypto.allow_ecdsa_keys || false,
+            allowedRsaKeySizes: crypto.allowed_rsa_key_sizes || [],
+            allowedEcdsaCurves: crypto.allowed_ecdsa_key_sizes || [],
+        },
         honorKeyUsage: profile.honor_key_usage,
         keyUsages: (profile.key_usage || []) as KeyUsageOption[],
         honorExtendedKeyUsage: profile.honor_extended_key_usage,
@@ -114,28 +154,53 @@ const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFo
     };
 };
 
+const defaultFormValues: SigningProfileFormValues = {
+    profileName: '',
+    description: '',
+    validity: { type: 'Duration', durationValue: '1y' },
+    signAsCa: false,
+    honorSubject: true,
+    overrideCountry: '',
+    overrideState: '',
+    overrideOrganization: '',
+    overrideOrgUnit: '',
+    cryptoEnforcement: {
+        enabled: true,
+        allowRsa: true,
+        allowEcdsa: true,
+        allowedRsaKeySizes: [2048, 3072, 4096],
+        allowedEcdsaCurves: [256],
+    },
+    honorKeyUsage: false,
+    keyUsages: ['DigitalSignature', 'KeyEncipherment'],
+    honorExtendedKeyUsage: false,
+    extendedKeyUsages: ['ClientAuth'],
+};
 
-export default function EditSigningProfilePage() {
+
+export default function CreateOrEditSigningProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const profileId = searchParams.get('id');
+  const isEditMode = !!profileId;
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(isEditMode);
   const [errorProfile, setErrorProfile] = useState<string | null>(null);
 
   const form = useForm<SigningProfileFormValues>({
     resolver: zodResolver(signingProfileSchema),
-    defaultValues: {},
+    defaultValues: isEditMode ? {} : defaultFormValues,
   });
 
   const fetchProfile = useCallback(async () => {
     if (!profileId || !user?.access_token) {
-        setErrorProfile('Profile ID or user token is missing.');
+        if (isEditMode) setErrorProfile('Profile ID or user token is missing.');
         setIsLoadingProfile(false);
         return;
     }
+    setIsLoadingProfile(true);
     try {
         const data = await fetchSigningProfileById(profileId, user.access_token);
         const formValues = mapApiProfileToFormValues(data);
@@ -146,31 +211,39 @@ export default function EditSigningProfilePage() {
     } finally {
         setIsLoadingProfile(false);
     }
-  }, [profileId, user?.access_token, form]);
+  }, [profileId, user?.access_token, form, isEditMode]);
 
   useEffect(() => {
-    if (user?.access_token) {
+    if (isEditMode && user?.access_token) {
         fetchProfile();
     }
-  }, [user?.access_token, fetchProfile]);
+  }, [user?.access_token, fetchProfile, isEditMode]);
 
   const { isSubmitting } = form.formState;
-  const watchAllowRsa = form.watch("allowRsa");
-  const watchAllowEcdsa = form.watch("allowEcdsa");
+  const watchCryptoEnforcement = form.watch("cryptoEnforcement");
   const watchHonorSubject = form.watch("honorSubject");
   const watchHonorKeyUsage = form.watch("honorKeyUsage");
   const watchHonorExtendedKeyUsage = form.watch("honorExtendedKeyUsage");
 
   async function onSubmit(data: SigningProfileFormValues) {
-    if (!profileId || !user?.access_token) {
-        toast({ title: "Error", description: "Profile ID or authentication token is missing.", variant: "destructive" });
+    if (!user?.access_token) {
+        toast({ title: "Error", description: "Authentication token is missing.", variant: "destructive" });
         return;
+    }
+
+    let validityPayload: { type: string; duration?: string; time?: string } = { type: 'Duration', duration: '1y' };
+    if (data.validity.type === 'Duration') {
+        validityPayload = { type: 'Duration', duration: data.validity.durationValue };
+    } else if (data.validity.type === 'Date' && data.validity.dateValue) {
+        validityPayload = { type: 'Date', time: data.validity.dateValue.toISOString() };
+    } else if (data.validity.type === 'Indefinite') {
+        validityPayload = { type: 'Date', time: "9999-12-31T23:59:59.999Z" };
     }
 
     const payload: CreateSigningProfilePayload = {
         name: data.profileName,
         description: data.description,
-        validity: { type: "duration", duration: data.duration },
+        validity: validityPayload,
         sign_as_ca: data.signAsCa,
         honor_key_usage: data.honorKeyUsage,
         key_usage: data.keyUsages || [],
@@ -178,11 +251,13 @@ export default function EditSigningProfilePage() {
         extended_key_usage: data.extendedKeyUsages || [],
         honor_subject: data.honorSubject,
         honor_extensions: true,
-        allow_rsa_keys: data.allowRsa,
-        allow_ecdsa_keys: data.allowEcdsa,
-        allowed_rsa_key_strengths: data.allowedRsaKeyStrengths,
-        allowed_ecdsa_curves: data.allowedEcdsaCurves,
-        default_signature_algorithm: data.defaultSignatureAlgorithm,
+        crypto_enforcement: {
+            enabled: data.cryptoEnforcement.enabled,
+            allow_rsa_keys: data.cryptoEnforcement.allowRsa,
+            allow_ecdsa_keys: data.cryptoEnforcement.allowEcdsa,
+            allowed_rsa_key_sizes: data.cryptoEnforcement.allowedRsaKeySizes || [],
+            allowed_ecdsa_key_sizes: data.cryptoEnforcement.allowedEcdsaCurves || [],
+        },
     };
     
     if (!data.honorSubject) {
@@ -195,11 +270,17 @@ export default function EditSigningProfilePage() {
     }
 
     try {
-        await updateSigningProfile(profileId, payload, user.access_token);
-        toast({ title: "Profile Updated", description: `Issuance Profile "${data.profileName}" has been successfully updated.` });
+        if (isEditMode) {
+            await updateSigningProfile(profileId, payload, user.access_token);
+            toast({ title: "Profile Updated", description: `Issuance Profile "${data.profileName}" has been successfully updated.` });
+        } else {
+            await createSigningProfile(payload, user.access_token);
+            toast({ title: "Profile Created", description: `Issuance Profile "${data.profileName}" has been successfully created.` });
+        }
         router.push('/signing-profiles');
     } catch (error: any) {
-        toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+        const action = isEditMode ? "Update" : "Creation";
+        toast({ title: `${action} Failed`, description: error.message, variant: "destructive" });
     }
   }
   
@@ -227,6 +308,8 @@ export default function EditSigningProfilePage() {
     );
   }
 
+  const PageIcon = isEditMode ? Settings2 : PlusCircle;
+
   return (
     <div className="w-full space-y-6 mb-8">
       <Button variant="outline" onClick={() => router.push('/signing-profiles')} className="mb-0">
@@ -236,11 +319,11 @@ export default function EditSigningProfilePage() {
       <Card className="shadow-lg">
         <CardHeader>
           <div className="flex items-center space-x-3">
-            <Settings2 className="h-7 w-7 text-primary" />
-            <CardTitle className="text-xl font-headline">Edit Issuance Profile</CardTitle>
+            <PageIcon className="h-7 w-7 text-primary" />
+            <CardTitle className="text-xl font-headline">{isEditMode ? 'Edit' : 'Create'} Issuance Profile</CardTitle>
           </div>
           <CardDescription>
-            Modify the parameters for this certificate issuance profile.
+            {isEditMode ? 'Modify the parameters for this certificate issuance profile.' : 'Define the parameters for a new certificate issuance profile.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -279,16 +362,20 @@ export default function EditSigningProfilePage() {
               <Separator />
               <h3 className="text-lg font-semibold flex items-center"><Settings2 className="mr-2 h-5 w-5 text-muted-foreground"/>Policy Configuration</h3>
 
-              <FormField
+               <FormField
                 control={form.control}
-                name="duration"
+                name="validity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Certificate Duration</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., 1y, 365d, 2w" {...field} />
+                        <ExpirationInput
+                            idPrefix="profile-validity"
+                            label="Certificate Validity"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                        />
                     </FormControl>
-                    <FormDescription>Default validity period for certificates signed with this profile (e.g., '1y' for 1 year, '90d' for 90 days).</FormDescription>
+                    <FormDescription>Default validity for certificates signed with this profile.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -376,145 +463,97 @@ export default function EditSigningProfilePage() {
               <Separator />
               <h3 className="text-lg font-semibold flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground"/>Cryptographic Settings</h3>
               
-              <div>
-                <FormLabel>Allowed Key Types</FormLabel>
-                 <FormDescription className="mb-2">Select at least one cryptographic key type.</FormDescription>
-                <div className="space-y-2 mt-1">
-                  <FormField
-                    control={form.control}
-                    name="allowRsa"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Allow RSA Keys</FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="allowEcdsa"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Allow ECDSA Keys</FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                 {form.formState.errors.allowRsa && (
-                    <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.allowRsa.message}</p>
-                )}
-              </div>
-              
-              {watchAllowRsa && (
-                <FormField
-                  control={form.control}
-                  name="allowedRsaKeyStrengths"
-                  render={() => (
-                    <FormItem className="p-3 border rounded-md">
-                      <FormLabel>Allowed RSA Key Strengths</FormLabel>
-                      <FormDescription>Select which RSA key strengths are permitted by this profile.</FormDescription>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
-                        {rsaKeyStrengths.map((item) => (
-                          <FormField
-                            key={item}
-                            control={form.control}
-                            name="allowedRsaKeyStrengths"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(item)}
-                                    onCheckedChange={(checked) => {
-                                      const currentValue = field.value || [];
-                                      return checked
-                                        ? field.onChange([...currentValue, item])
-                                        : field.onChange(currentValue.filter((value) => value !== item));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal cursor-pointer">{item}-bit</FormLabel>
-                              </FormItem>
-                            )}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {watchAllowEcdsa && (
-                <FormField
-                  control={form.control}
-                  name="allowedEcdsaCurves"
-                  render={() => (
-                    <FormItem className="p-3 border rounded-md">
-                      <FormLabel>Allowed ECDSA Curves</FormLabel>
-                      <FormDescription>Select which ECDSA curves are permitted by this profile.</FormDescription>
-                      <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
-                        {ecdsaCurves.map((item) => (
-                          <FormField
-                            key={item}
-                            control={form.control}
-                            name="allowedEcdsaCurves"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(item)}
-                                    onCheckedChange={(checked) => {
-                                      const currentValue = field.value || [];
-                                      return checked
-                                        ? field.onChange([...currentValue, item])
-                                        : field.onChange(currentValue.filter((value) => value !== item));
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="text-sm font-normal cursor-pointer">{item}</FormLabel>
-                              </FormItem>
-                            )}
-                          />
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
               <FormField
-                  control={form.control}
-                  name="defaultSignatureAlgorithm"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Signature Algorithm</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a default signature algorithm (optional)" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {signatureAlgorithms.map(algo => (
-                            <SelectItem key={algo} value={algo}>{algo}</SelectItem>
+                control={form.control}
+                name="cryptoEnforcement.enabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Enable Crypto Enforcement</FormLabel>
+                      <FormDescription>
+                        Enforce specific key types (RSA, ECDSA) and their parameters.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {watchCryptoEnforcement.enabled && (
+                <div className="space-y-4 p-4 border rounded-md ml-4 -mt-4">
+                  <FormField
+                    control={form.control}
+                    name="cryptoEnforcement.allowRsa"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between">
+                        <FormLabel>Allow RSA Keys</FormLabel>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  {watchCryptoEnforcement.allowRsa && (
+                    <FormField control={form.control} name="cryptoEnforcement.allowedRsaKeySizes" render={() => (
+                      <FormItem className="p-3 border rounded-md bg-background ml-4">
+                        <FormLabel>Allowed RSA Key Size</FormLabel>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
+                          {rsaKeyStrengths.map((item) => (
+                            <FormField key={item} control={form.control} name="cryptoEnforcement.allowedRsaKeySizes"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                  <FormControl><Checkbox checked={field.value?.includes(parseInt(item, 10))} onCheckedChange={(checked) => {
+                                    const intItem = parseInt(item, 10);
+                                    const currentValue = field.value || [];
+                                    return checked ? field.onChange([...currentValue, intItem]) : field.onChange(currentValue.filter((value) => value !== intItem));
+                                  }} /></FormControl>
+                                  <FormLabel className="text-sm font-normal cursor-pointer">{item}-bit</FormLabel>
+                                </FormItem>
+                              )}
+                            />
                           ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>Overrides CA's default if specified. Ensure compatibility with selected key types.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
                   )}
-                />
+
+                  <FormField
+                    control={form.control}
+                    name="cryptoEnforcement.allowEcdsa"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between">
+                        <FormLabel>Allow ECDSA Keys</FormLabel>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  {watchCryptoEnforcement.allowEcdsa && (
+                    <FormField control={form.control} name="cryptoEnforcement.allowedEcdsaCurves" render={() => (
+                      <FormItem className="p-3 border rounded-md bg-background ml-4">
+                        <FormLabel>Allowed ECDSA Curves</FormLabel>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
+                          {ecdsaCurves.map((item) => (
+                            <FormField key={item} control={form.control} name="cryptoEnforcement.allowedEcdsaCurves"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                  <FormControl><Checkbox checked={field.value?.includes(mapEcdsaCurveToBitSize(item))} onCheckedChange={(checked) => {
+                                      const bitSize = mapEcdsaCurveToBitSize(item);
+                                      const currentValue = field.value || [];
+                                      return checked ? field.onChange([...currentValue, bitSize]) : field.onChange(currentValue.filter((value) => value !== bitSize));
+                                  }} /></FormControl>
+                                  <FormLabel className="text-sm font-normal cursor-pointer">{item}</FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}/>
+                  )}
+                </div>
+              )}
 
               <Separator />
               <h3 className="text-lg font-semibold flex items-center"><ListChecks className="mr-2 h-5 w-5 text-muted-foreground"/>Certificate Usage Policies</h3>
@@ -668,9 +707,9 @@ export default function EditSigningProfilePage() {
                   {isSubmitting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Save className="mr-2 h-4 w-4" />
+                    isEditMode ? <Save className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />
                   )}
-                  {isSubmitting ? "Saving..." : "Save Changes"}
+                  {isSubmitting ? "Saving..." : (isEditMode ? "Save Changes" : "Create Profile")}
                 </Button>
               </div>
             </form>
@@ -680,3 +719,4 @@ export default function EditSigningProfilePage() {
     </div>
   );
 }
+

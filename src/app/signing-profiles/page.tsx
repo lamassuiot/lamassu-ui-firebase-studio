@@ -1,86 +1,43 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollTextIcon, PlusCircle, Settings2, Clock, Fingerprint, BookText, Edit, KeyRound, ShieldCheck, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { ScrollTextIcon, PlusCircle, Loader2, RefreshCw, AlertTriangle, Trash2 } from "lucide-react";
+
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchSigningProfiles, type ApiSigningProfile } from '@/lib/ca-data';
+import { fetchSigningProfiles, deleteSigningProfile, type ApiSigningProfile } from '@/lib/ca-data';
+import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-
-interface SigningProfile {
-  id: string;
-  name: string;
-  description: string;
-  duration: string;
-  subjectPolicy: string;
-  extensionsPolicy: string;
-  allowedKeyTypes: string[];
-  signAsCa: boolean;
-}
-
-const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: string | React.ReactNode }> = ({ icon: Icon, label, value }) => (
-  <div className="flex items-start space-x-2 py-1">
-    <Icon className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-    <div>
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      {typeof value === 'string' ? <p className="text-sm text-foreground">{value}</p> : value}
-    </div>
-  </div>
-);
 
 export default function SigningProfilesPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const [profiles, setProfiles] = useState<SigningProfile[]>([]);
+  const { toast } = useToast();
+  
+  const [profiles, setProfiles] = useState<ApiSigningProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const transformAndSetProfiles = useCallback((apiProfiles: ApiSigningProfile[]) => {
-    const transformed = apiProfiles.map(p => {
-        let subjectPolicy = 'Honors Subject DN from CSR.';
-        if (!p.honor_subject) {
-            const overrides = Object.entries(p.subject || {})
-                .filter(([, value]) => value)
-                .map(([key, value]) => `${key.substring(0,2).toUpperCase()}=${value}`)
-                .join(', ');
-            subjectPolicy = `Overrides subject with: ${overrides || 'No specific overrides defined'}`;
-        }
-
-        let extensionsPolicy = '';
-        if (p.honor_key_usage) {
-            extensionsPolicy += 'Honors Key Usage from CSR. ';
-        } else {
-            extensionsPolicy += `Enforces KU: ${p.key_usage?.join(', ') || 'None'}. `;
-        }
-        if (p.honor_extended_key_usage) {
-            extensionsPolicy += 'Honors EKU from CSR.';
-        } else {
-            extensionsPolicy += `Enforces EKU: ${p.extended_key_usage?.join(', ') || 'None'}.`;
-        }
-
-        const allowedKeyTypes = [];
-        if (p.allow_rsa_keys) allowedKeyTypes.push('RSA');
-        if (p.allow_ecdsa_keys) allowedKeyTypes.push('ECDSA');
-
-        return {
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            duration: p.validity?.duration || 'Not specified',
-            subjectPolicy,
-            extensionsPolicy,
-            allowedKeyTypes,
-            signAsCa: p.sign_as_ca
-        };
-    });
-    setProfiles(transformed);
-  }, []);
+  // State for deletion
+  const [profileToDelete, setProfileToDelete] = useState<ApiSigningProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchProfiles = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
@@ -92,14 +49,14 @@ export default function SigningProfilesPage() {
     setError(null);
     try {
       const data = await fetchSigningProfiles(user.access_token);
-      transformAndSetProfiles(data);
+      setProfiles(data);
     } catch (err: any) {
       setError(err.message || "An unknown error occurred while fetching profiles.");
       setProfiles([]);
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, user, authLoading, transformAndSetProfiles]);
+  }, [isAuthenticated, user, authLoading]);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated()) {
@@ -108,11 +65,34 @@ export default function SigningProfilesPage() {
   }, [fetchProfiles, authLoading, isAuthenticated]);
 
   const handleCreateNewProfile = () => {
-    router.push('/signing-profiles/new');
+    router.push('/signing-profiles/edit');
   };
 
   const handleEditProfile = (profileId: string) => {
     router.push(`/signing-profiles/edit?id=${profileId}`);
+  };
+
+  const handleDeleteProfileClick = (profile: ApiSigningProfile) => {
+    setProfileToDelete(profile);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!profileToDelete || !user?.access_token) {
+      toast({ title: "Error", description: "No profile selected or user not authenticated.", variant: "destructive" });
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      await deleteSigningProfile(profileToDelete.id, user.access_token);
+      toast({ title: "Success", description: `Profile "${profileToDelete.name}" has been deleted.` });
+      setProfileToDelete(null); // Close the dialog
+      fetchProfiles(); // Refresh the list
+    } catch (err: any) {
+      toast({ title: "Deletion Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (isLoading || authLoading) {
@@ -125,6 +105,7 @@ export default function SigningProfilesPage() {
   }
 
   return (
+    <>
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -155,45 +136,12 @@ export default function SigningProfilesPage() {
       {!isLoading && !error && profiles.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {profiles.map((profile) => (
-            <Card key={profile.id} className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-center space-x-2">
-                   <Settings2 className="h-5 w-5 text-primary" />
-                   <CardTitle className="text-lg">{profile.name}</CardTitle>
-                </div>
-                <CardDescription className="text-xs pt-1">{profile.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm flex-grow">
-                <DetailRow icon={Clock} label="Validity Duration" value={profile.duration} />
-                <DetailRow icon={Fingerprint} label="Subject Policy" value={profile.subjectPolicy} />
-                <DetailRow icon={BookText} label="Extensions Policy" value={profile.extensionsPolicy} />
-                <DetailRow 
-                  icon={KeyRound} 
-                  label="Allowed Key Types" 
-                  value={
-                    <div className="flex flex-wrap gap-1">
-                      {profile.allowedKeyTypes.map(kt => <Badge key={kt} variant="secondary" className="text-xs">{kt}</Badge>)}
-                      {profile.allowedKeyTypes.length === 0 && <Badge variant="outline">None</Badge>}
-                    </div>
-                  } 
-                />
-                 <DetailRow 
-                    icon={ShieldCheck} 
-                    label="Can Sign as CA" 
-                    value={<Badge variant={profile.signAsCa ? "default" : "secondary"}>{profile.signAsCa ? 'Yes' : 'No'}</Badge>}
-                 />
-              </CardContent>
-              <CardFooter className="border-t pt-4">
-                <div className="flex w-full justify-end space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => alert(`View usage for ${profile.name} (placeholder)`)}>
-                    View Usage
-                  </Button>
-                  <Button variant="default" size="sm" onClick={() => handleEditProfile(profile.id)}>
-                    <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
+            <IssuanceProfileCard
+              key={profile.id}
+              profile={profile}
+              onEdit={() => handleEditProfile(profile.id)}
+              onDelete={() => handleDeleteProfileClick(profile)}
+            />
           ))}
         </div>
       ) : (
@@ -208,5 +156,28 @@ export default function SigningProfilesPage() {
         </div>
       )}
     </div>
+
+    <AlertDialog open={!!profileToDelete} onOpenChange={(open) => !open && setProfileToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the issuance profile "<strong>{profileToDelete?.name}</strong>".
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleConfirmDelete}
+                    className={cn(buttonVariants({ variant: "destructive" }))}
+                    disabled={isDeleting}
+                >
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isDeleting ? "Deleting..." : "Delete Profile"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
