@@ -45,6 +45,7 @@ export default function CreateKmsKeyPage() {
   const [selectedMode, setSelectedMode] = useState<string | null>(null);
 
   // New Key Pair mode fields
+  const [keyName, setKeyName] = useState('');
   const [cryptoEngineId, setCryptoEngineId] = useState<string | undefined>(undefined);
   const [keyType, setKeyType] = useState('RSA');
   const [rsaKeySize, setRsaKeySize] = useState('2048');
@@ -115,19 +116,25 @@ export default function CreateKmsKeyPage() {
             setIsSubmitting(false);
             return;
         }
+        if (!keyName.trim()) {
+            toast({ title: "Validation Error", description: "Key Name / Alias is required.", variant: "destructive" });
+            setIsSubmitting(false);
+            return;
+        }
 
         try {
-            let size: number | string = 0; // Use number type
+            let size: number = 0;
             if (keyType === 'RSA') {
                 size = parseInt(rsaKeySize, 10);
             } else if (keyType === 'ECDSA') {
-                size = ecdsaCurve.replace('P-', '');
+                size = parseInt(ecdsaCurve.replace('P-', ''), 10);
             } else if (keyType === 'ML-DSA') {
-                size = mlDsaSecurityLevel.replace('ML-DSA-', '');
+                size = parseInt(mlDsaSecurityLevel.replace('ML-DSA-', ''), 10);
             }
 
             const payload = {
                 engine_id: cryptoEngineId,
+                name: keyName.trim(),
                 algorithm: keyType,
                 size: size,
             };
@@ -136,7 +143,7 @@ export default function CreateKmsKeyPage() {
 
             toast({
                 title: "Key Pair Created",
-                description: `Key pair of type ${keyType} has been successfully created.`,
+                description: `Key pair with name "${keyName.trim()}" has been successfully created.`,
             });
             router.push('/kms/keys');
 
@@ -248,6 +255,17 @@ export default function CreateKmsKeyPage() {
               <section>
                 <h3 className="text-lg font-semibold mb-3 flex items-center"><KeyRound className="mr-2 h-5 w-5 text-muted-foreground" />Key Generation Parameters</h3>
                 <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="keyName">Key Name / Alias</Label>
+                    <Input
+                      id="keyName"
+                      value={keyName}
+                      onChange={(e) => setKeyName(e.target.value)}
+                      placeholder="e.g., my-secure-rsa-key"
+                      required
+                      className="mt-1"
+                    />
+                  </div>
                   <div>
                     <Label htmlFor="cryptoEngine">Crypto Engine</Label>
                     <CryptoEngineSelector
