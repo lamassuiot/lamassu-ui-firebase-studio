@@ -184,6 +184,7 @@ const templateOptions = [
     { value: 'device-auth', label: 'IoT Device Authentication Template' },
     { value: 'code-signing', label: 'Code Signing Template' },
     { value: 'server-cert', label: 'TLS Web Server Template' },
+    { value: 'ca-cert', label: 'CA Certificate Template' },
 ];
 
 const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
@@ -216,7 +217,18 @@ const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
     extendedKeyUsages: ['ServerAuth'],
     honorKeyUsage: false,
     honorExtendedKeyUsage: false,
-  }
+  },
+  'ca-cert': {
+    profileName: 'Intermediate CA Profile',
+    description: 'For issuing intermediate CA certificates that can sign other certificates.',
+    validity: { type: 'Duration', durationValue: '5y' },
+    signAsCa: true,
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    keyUsages: ['CertSign', 'CRLSign'],
+    extendedKeyUsages: [],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+  },
 };
 
 
