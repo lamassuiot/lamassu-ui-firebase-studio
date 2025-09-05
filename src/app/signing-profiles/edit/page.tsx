@@ -28,6 +28,7 @@ import {
 } from '@/lib/ca-data';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
