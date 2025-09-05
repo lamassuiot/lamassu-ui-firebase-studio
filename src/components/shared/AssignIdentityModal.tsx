@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -32,6 +33,24 @@ interface AssignIdentityModalProps {
   deviceRaId?: string;
   isAssigning: boolean;
 }
+
+// Helper to flatten the CA hierarchy
+const flattenCaTree = (cas: CA[]): CA[] => {
+  const flatList: CA[] = [];
+  function recurse(items: CA[]) {
+    for (const item of items) {
+      // Add the parent but without its children to avoid duplication in the flat list
+      const { children, ...rest } = item;
+      flatList.push(rest as CA);
+      if (children) {
+        recurse(children);
+      }
+    }
+  }
+  recurse(cas);
+  return flatList;
+};
+
 
 export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
   isOpen,
@@ -124,7 +143,8 @@ export const AssignIdentityModal: React.FC<AssignIdentityModalProps> = ({
             fetchCryptoEngines(user.access_token)
         ]);
         
-        const activeCAs = cas.filter(ca => ca.status === 'active' && ca.caType !== 'EXTERNAL_PUBLIC');
+        const flatCaList = flattenCaTree(cas);
+        const activeCAs = flatCaList.filter(ca => ca.status === 'active' && ca.caType !== 'EXTERNAL_PUBLIC');
         setAllAvailableCAs(activeCAs);
         setAllCryptoEngines(engines);
     } catch (e: any) {
