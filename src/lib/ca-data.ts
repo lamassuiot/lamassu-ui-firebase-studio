@@ -866,12 +866,24 @@ export async function fetchCaRequestById(requestId: string, accessToken: string)
 
 export interface ApiKmsKey {
   id: string;
+  name?: string;
   algorithm: string;
-  size: string;
+  size: number;
   public_key: string;
+  status: string;
+  creation_ts: string;
 }
-export async function fetchKmsKeys(accessToken: string): Promise<ApiKmsKey[]> {
-    const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
+
+interface ApiKmsKeyListResponse {
+    next: string | null;
+    list: ApiKmsKey[];
+}
+
+export async function fetchKmsKeys(accessToken: string, params: URLSearchParams): Promise<ApiKmsKeyListResponse> {
+    const url = new URL(`${CA_API_BASE_URL}/kms/keys`);
+    params.forEach((value, key) => url.searchParams.append(key, value));
+    
+    const response = await fetch(url.toString(), {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     if (!response.ok) {
@@ -1003,7 +1015,7 @@ export interface ApiSigningProfile {
 	validity: {
 		type: string;
 		duration: string;
-		validity_from?: string;
+		time?: string;
 	};
 	sign_as_ca: boolean;
 	honor_key_usage: boolean;
@@ -1015,8 +1027,8 @@ export interface ApiSigningProfile {
 		organization?: string;
 		organizational_unit?: string;
 		country?: string;
-		locality?: string;
 		state?: string;
+		locality?: string;
 	};
 	honor_extensions: boolean;
 	allow_rsa_keys: boolean;
@@ -1062,6 +1074,7 @@ export interface CreateSigningProfilePayload {
         organizational_unit?: string;
         country?: string;
         state?: string;
+        locality?: string;
     };
     honor_extensions: boolean;
     allow_rsa_keys: boolean;
@@ -1122,6 +1135,22 @@ export async function updateSigningProfile(profileId: string, payload: CreateSig
         try {
             errorJson = await response.json();
             errorMessage = `Profile update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorMessage);
+    }
+}
+
+export async function deleteSigningProfile(profileId: string, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/profiles/${profileId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+        let errorJson;
+        let errorMessage = `Failed to delete signing profile. Status: ${response.status}`;
+        try {
+            errorJson = await response.json();
+            errorMessage = `Deletion failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
         } catch (e) { /* ignore */ }
         throw new Error(errorMessage);
     }
