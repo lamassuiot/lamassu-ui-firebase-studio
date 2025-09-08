@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -205,7 +204,6 @@ interface SigningProfileFormProps {
   initialValues?: SigningProfileFormValues | null;
   onSubmit: (data: SigningProfileFormValues) => Promise<void>;
   isSubmitting: boolean;
-  submitButton?: React.ReactNode;
 }
 
 export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
@@ -213,16 +211,14 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
   initialValues,
   onSubmit,
   isSubmitting,
-  submitButton,
 }) => {
   const form = useForm<SigningProfileFormValues>({
     resolver: zodResolver(signingProfileSchema),
     defaultValues: profileToEdit 
       ? mapApiProfileToFormValues(profileToEdit) 
       : {
-        ...defaultFormValues, // Start with a complete default object
-        ...initialValues, // Then override with any initial values provided
-        // Deep merge for nested objects to avoid them being undefined
+        ...defaultFormValues,
+        ...initialValues,
         validity: initialValues?.validity || defaultFormValues.validity,
         cryptoEnforcement: {
           ...defaultFormValues.cryptoEnforcement,
@@ -238,7 +234,7 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form id="signing-profile-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <FormField
           control={form.control}
           name="profileName"
@@ -418,7 +414,6 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
             />
            </div>
         )}
-        {submitButton && <div className="pt-4">{submitButton}</div>}
       </form>
     </Form>
   );
