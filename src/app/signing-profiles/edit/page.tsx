@@ -4,8 +4,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Edit, PlusCircle } from "lucide-react"; 
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { ArrowLeft, Edit, PlusCircle, FileText, Shield, Lock, Code, Settings2 } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription as AlertDescUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
@@ -18,6 +18,15 @@ import {
   type ApiSigningProfile,
 } from '@/lib/ca-data';
 import { SigningProfileForm, type SigningProfileFormValues, templateDefaults, defaultFormValues } from '@/components/shared/SigningProfileForm';
+
+
+const templateMetadata = [
+    { id: 'blank', title: 'Blank Template', description: 'Start with an empty, default profile.', icon: FileText },
+    { id: 'device-auth', title: 'IoT Device Auth', description: 'For standard device client/server authentication.', icon: Shield },
+    { id: 'server-cert', title: 'TLS Web Server', description: 'Standard profile for HTTPS web servers.', icon: Lock },
+    { id: 'code-signing', title: 'Code Signing', description: 'For signing application binaries and code.', icon: Code },
+    { id: 'ca-cert', title: 'Intermediate CA', description: 'Profile for creating a new sub-CA.', icon: Settings2 },
+];
 
 
 export default function CreateOrEditSigningProfilePage() {
@@ -33,8 +42,9 @@ export default function CreateOrEditSigningProfilePage() {
   const [errorProfile, setErrorProfile] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // State for create flow: 'template' selection or 'form' view
   const [view, setView] = useState<'template' | 'form'>(isEditMode ? 'form' : 'template');
-  const [initialFormValues, setInitialFormValues] = useState<SigningProfileFormValues | null>(null);
+  const [initialFormValues, setInitialFormValues] = useState<SigningProfileFormValues | null>(defaultFormValues);
 
   const fetchProfile = useCallback(async () => {
     if (!profileId || !user?.access_token) {
@@ -179,18 +189,46 @@ export default function CreateOrEditSigningProfilePage() {
             )}
           </div>
           <CardDescription>
-            {isEditMode ? 'Modify the parameters for this certificate issuance profile.' : 'Define the parameters for a new certificate issuance profile.'}
+            {isEditMode ? 'Modify the parameters for this certificate issuance profile.' : 
+             view === 'template' ? 'Select a template to start with or begin with a blank slate.' : 
+             'Define the parameters for the new certificate issuance profile.'}
           </CardDescription>
           </CardHeader>
           <CardContent>
-            <SigningProfileForm
-                profileToEdit={profileData}
-                initialValues={initialFormValues}
-                onSubmit={handleSubmit}
-                isSubmitting={isSubmitting}
-                key={initialFormValues?.profileName || profileData?.id}
-            />
+            {view === 'template' && !isEditMode ? (
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {templateMetadata.map(({ id, title, description, icon: Icon }) => (
+                            <Card key={id} className="hover:shadow-md hover:border-primary/50 transition-shadow cursor-pointer flex flex-col" onClick={() => handleTemplateSelect(id)}>
+                                <CardHeader className="flex-grow">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                        <div className="p-2 bg-muted rounded-md"><Icon className="h-6 w-6 text-primary"/></div>
+                                        <h3 className="font-semibold">{title}</h3>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{description}</p>
+                                </CardHeader>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <SigningProfileForm
+                    profileToEdit={profileData}
+                    initialValues={initialFormValues}
+                    onSubmit={handleSubmit}
+                    isSubmitting={isSubmitting}
+                    key={initialFormValues?.profileName || profileData?.id}
+                />
+            )}
           </CardContent>
+           {view === 'form' && (
+                <CardFooter>
+                  <Button type="submit" form="signing-profile-form" disabled={isSubmitting} className="w-full sm:w-auto ml-auto">
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                    {isEditMode ? 'Save Changes' : 'Create Profile'}
+                  </Button>
+              </CardFooter>
+           )}
       </Card>
     </div>
   );
