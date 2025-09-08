@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
-import { Settings2, BookText, PlusCircle, AlertTriangle } from 'lucide-react';
+import { Settings2, BookText, PlusCircle, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ApiSigningProfile, CreateSigningProfilePayload } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -162,6 +162,30 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
     ? 'md:grid-cols-3' 
     : 'md:grid-cols-2';
 
+  if (profileMode === 'create' && createModeEnabled) {
+    return (
+        <div className="pt-4 mt-4 border-t">
+           <div className="flex justify-between items-center mb-4">
+              <Label>Create New Reusable Profile</Label>
+              <Button variant="ghost" onClick={() => onProfileModeChange('reuse')}>
+                  <ArrowLeft className="mr-2 h-4 w-4"/> Back to Selection
+              </Button>
+           </div>
+           <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              <SigningProfileForm form={form} />
+               <div className="flex justify-end">
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                    Create and Select Profile
+                  </Button>
+               </div>
+            </form>
+          </Form>
+       </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Label>Profile Mode</Label>
@@ -234,22 +258,6 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
                     </div>
                 </div>
           </div>
-      )}
-
-      {profileMode === 'create' && createModeEnabled && (
-         <div className="pt-4 mt-4 border-t">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                <SigningProfileForm form={form} />
-                 <div className="flex justify-end">
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                      Create and Select Profile
-                    </Button>
-                 </div>
-              </form>
-            </Form>
-         </div>
       )}
     </div>
   );
