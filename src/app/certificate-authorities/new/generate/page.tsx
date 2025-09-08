@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2 } from "lucide-react";
+import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2, FilePenLine } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload, fetchSigningProfiles, type ApiSigningProfile, createSigningProfile, type CreateSigningProfilePayload } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +21,9 @@ import { formatISO } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { DurationInput } from '@/components/shared/DurationInput';
+
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 
@@ -47,7 +50,14 @@ export default function CreateCaGeneratePage() {
   const [organizationalUnit, setOrganizationalUnit] = useState('');
 
   const [caExpiration, setCaExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '10y' });
-  const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
+  
+  // Profile state
+  const [profileMode, setProfileMode] = useState<'select' | 'create'>('select');
+  const [availableProfiles, setAvailableProfiles] = useState<ApiSigningProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const [newProfileName, setNewProfileName] = useState('');
+  const [newProfileDuration, setNewProfileDuration] = useState('1y');
+
 
   const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
 
@@ -77,25 +87,24 @@ export default function CreateCaGeneratePage() {
     setIsLoadingCAs(true);
     setErrorCAs(null);
     try {
-      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-      setAvailableParentCAs(fetchedCAs); 
-    } catch (err: any) {
-      setErrorCAs(err.message || 'Failed to load available parent CAs.');
-      setAvailableParentCAs([]);
-    } finally {
-      setIsLoadingCAs(false);
-    }
-
-    setIsLoadingEngines(true);
-    setErrorEngines(null);
-    try {
-        const enginesData = await fetchCryptoEngines(user.access_token);
+        const [fetchedCAs, enginesData, profilesData] = await Promise.all([
+            fetchAndProcessCAs(user.access_token),
+            fetchCryptoEngines(user.access_token),
+            fetchSigningProfiles(user.access_token),
+        ]);
+        setAvailableParentCAs(fetchedCAs); 
         setAllCryptoEngines(enginesData);
+        setAvailableProfiles(profilesData);
+        if(profilesData.length > 0) {
+            setSelectedProfileId(profilesData[0].id);
+        }
     } catch (err: any) {
-        setErrorEngines(err.message || 'Failed to load Crypto Engines.');
+        setErrorCAs(err.message || 'Failed to load page dependencies.');
+        setAvailableParentCAs([]);
         setAllCryptoEngines([]);
+        setAvailableProfiles([]);
     } finally {
-        setIsLoadingEngines(false);
+        setIsLoadingCAs(false);
     }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
@@ -110,10 +119,8 @@ export default function CreateCaGeneratePage() {
     setSelectedParentCa(null);
     if (value === 'root') {
       setCaExpiration({ type: 'Duration', durationValue: '10y' });
-      setIssuanceExpiration({ type: 'Duration', durationValue: '1y' });
     } else {
       setCaExpiration({ type: 'Duration', durationValue: '5y' });
-      setIssuanceExpiration({ type: 'Duration', durationValue: '90d' });
     }
   };
 
@@ -182,19 +189,38 @@ export default function CreateCaGeneratePage() {
       setIsSubmitting(false);
       return;
     }
-    if ((caExpiration.type === "Duration" && !caExpiration.durationValue?.trim()) ||
-        (issuanceExpiration.type === "Duration" && !issuanceExpiration.durationValue?.trim()) ||
-        (caExpiration.type === "Date" && !caExpiration.dateValue) ||
-        (issuanceExpiration.type === "Date" && !issuanceExpiration.dateValue)) {
-      toast({ title: "Validation Error", description: "Please provide valid expiration settings.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
+    
+    let finalProfileId = '';
+    if (profileMode === 'select') {
+      if (!selectedProfileId) {
+        toast({ title: "Validation Error", description: "Please select a default issuance profile.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+      finalProfileId = selectedProfileId;
+    } else { // Create new profile
+        if (!newProfileName.trim() || !newProfileDuration.trim()) {
+            toast({ title: "Validation Error", description: "New profile name and duration are required.", variant: "destructive" });
+            setIsSubmitting(false);
+            return;
+        }
+        try {
+            const newProfilePayload: CreateSigningProfilePayload = {
+                name: newProfileName,
+                validity: { type: "Duration", duration: newProfileDuration },
+                // Sensible defaults for inline creation
+                sign_as_ca: false, honor_key_usage: false, key_usage: ["DigitalSignature"], honor_extended_key_usage: false, extended_key_usage: ["ClientAuth"], honor_subject: true, honor_extensions: true, allow_rsa_keys: true, allow_ecdsa_keys: true, allowed_rsa_key_strengths: ['2048', '3072', '4096'], allowed_ecdsa_curves: ['P-256', 'P-384'],
+            };
+            const createdProfile = await createSigningProfile(newProfilePayload, user!.access_token!);
+            finalProfileId = createdProfile.id;
+            toast({ title: "Profile Created", description: `Issuance Profile "${newProfileName}" was created successfully.` });
+        } catch (error: any) {
+            toast({ title: "Profile Creation Failed", description: error.message, variant: "destructive" });
+            setIsSubmitting(false);
+            return;
+        }
     }
-    if (!user?.access_token) {
-      toast({ title: "Authentication Error", description: "User not authenticated.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
-    }
+
 
     const payload: CreateCaPayload = {
       parent_id: caType === 'root' ? null : selectedParentCa?.id || null,
@@ -213,12 +239,12 @@ export default function CreateCaGeneratePage() {
         bits: keyType === 'RSA' ? parseInt(keySize) : mapEcdsaCurveToBits(keySize),
       },
       ca_expiration: formatExpirationForApi(caExpiration),
-      issuance_expiration: formatExpirationForApi(issuanceExpiration),
+      default_profile_id: finalProfileId,
       ca_type: "MANAGED",
     };
 
     try {
-      await createCa(payload, user.access_token);
+      await createCa(payload, user.access_token!);
 
       toast({ title: "Certification Authority Creation Successful", description: `Certification Authority "${caName}" has been created.`, variant: "default" });
       router.push('/certificate-authorities');
@@ -374,8 +400,59 @@ export default function CreateCaGeneratePage() {
               <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <ExpirationInput idPrefix="ca-exp" label="CA Certificate Expiration" value={caExpiration} onValueChange={setCaExpiration} />
-                <ExpirationInput idPrefix="issuance-exp" label="Default End-Entity Certificate Issuance Expiration" value={issuanceExpiration} onValueChange={setIssuanceExpiration} />
               </div>
+            </section>
+            
+            <section>
+              <h3 className="text-lg font-semibold mb-3 flex items-center"><FilePenLine className="mr-2 h-5 w-5 text-muted-foreground" />Default Issuance Profile</h3>
+                <RadioGroup value={profileMode} onValueChange={(v) => setProfileMode(v as any)} className="grid grid-cols-2 gap-4">
+                    <div>
+                        <RadioGroupItem value="select" id="profile-select" className="peer sr-only" />
+                        <Label htmlFor="profile-select" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            Select Existing Profile
+                        </Label>
+                    </div>
+                    <div>
+                        <RadioGroupItem value="create" id="profile-create" className="peer sr-only" />
+                        <Label htmlFor="profile-create" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            Create New Profile
+                        </Label>
+                    </div>
+                </RadioGroup>
+                
+                <div className="mt-4 space-y-4">
+                    {profileMode === 'select' ? (
+                        <div>
+                            <Label htmlFor="profile-selector">Select Profile</Label>
+                            <Select value={selectedProfileId} onValueChange={setSelectedProfileId} disabled={availableProfiles.length === 0}>
+                                <SelectTrigger id="profile-selector" className="mt-1">
+                                    <SelectValue placeholder="Select an issuance profile..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableProfiles.length > 0 ? (
+                                        availableProfiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)
+                                    ) : (
+                                        <SelectItem value="none" disabled>No profiles available</SelectItem>
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 p-4 border rounded-md">
+                            <div>
+                                <Label htmlFor="new-profile-name">New Profile Name</Label>
+                                <Input id="new-profile-name" value={newProfileName} onChange={e => setNewProfileName(e.target.value)} placeholder="e.g., Default IoT Device Profile" className="mt-1"/>
+                            </div>
+                            <DurationInput
+                                id="new-profile-duration"
+                                label="New Profile Default Duration"
+                                value={newProfileDuration}
+                                onChange={setNewProfileDuration}
+                                placeholder="e.g., 90d"
+                            />
+                        </div>
+                    )}
+                </div>
             </section>
 
             <div className="flex justify-end pt-4">
