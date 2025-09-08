@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -131,45 +132,24 @@ const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFo
     };
 };
 
-const defaultFormValues: SigningProfileFormValues = {
-    profileName: '',
-    description: '',
-    validity: { type: 'Duration', durationValue: '1y' },
-    signAsCa: false,
-    honorSubject: true,
-    overrideCountry: '',
-    overrideState: '',
-    overrideOrganization: '',
-    overrideOrgUnit: '',
-    cryptoEnforcement: {
-        enabled: true,
-        allowRsa: true,
-        allowEcdsa: true,
-        allowedRsaKeySizes: [2048, 3072, 4096],
-        allowedEcdsaCurves: [256],
-    },
-    honorKeyUsage: false,
-    keyUsages: ['DigitalSignature', 'KeyEncipherment'],
-    honorExtendedKeyUsage: false,
-    extendedKeyUsages: ['ClientAuth'],
-};
-
 interface SigningProfileFormProps {
   profileToEdit?: ApiSigningProfile | null;
+  initialValues?: SigningProfileFormValues | null;
   onSubmit: (data: SigningProfileFormValues) => Promise<void>;
   isSubmitting: boolean;
-  submitButton?: React.ReactNode; // Allow custom submit button
+  submitButton?: React.ReactNode;
 }
 
 export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
   profileToEdit,
+  initialValues,
   onSubmit,
   isSubmitting,
   submitButton,
 }) => {
   const form = useForm<SigningProfileFormValues>({
     resolver: zodResolver(signingProfileSchema),
-    defaultValues: profileToEdit ? mapApiProfileToFormValues(profileToEdit) : defaultFormValues,
+    defaultValues: profileToEdit ? mapApiProfileToFormValues(profileToEdit) : initialValues || undefined,
   });
 
   const watchCryptoEnforcement = form.watch("cryptoEnforcement");
@@ -359,7 +339,7 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
             />
            </div>
         )}
-        {submitButton}
+        {submitButton && <div className="pt-4">{submitButton}</div>}
       </form>
     </Form>
   );
