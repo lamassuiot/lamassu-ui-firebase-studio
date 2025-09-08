@@ -27,6 +27,8 @@ import {
   type ApiSigningProfile,
 } from '@/lib/ca-data';
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
@@ -169,12 +171,67 @@ const defaultFormValues: SigningProfileFormValues = {
         allowRsa: true,
         allowEcdsa: true,
         allowedRsaKeySizes: [2048, 3072, 4096],
-        allowedEcdsaCurves: [256],
+        allowedEcdsaCurves: [256, 384, 521],
     },
     honorKeyUsage: false,
     keyUsages: ['DigitalSignature', 'KeyEncipherment'],
     honorExtendedKeyUsage: false,
-    extendedKeyUsages: ['ClientAuth'],
+    extendedKeyUsages: ['ClientAuth', 'ServerAuth'],
+};
+
+const templateOptions = [
+    { value: 'custom', label: 'Custom Profile' },
+    { value: 'device-auth', label: 'IoT Device Authentication Template' },
+    { value: 'code-signing', label: 'Code Signing Template' },
+    { value: 'server-cert', label: 'TLS Web Server Template' },
+    { value: 'ca-cert', label: 'CA Certificate Template' },
+];
+
+const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
+  'device-auth': {
+    profileName: 'IoT Device Authentication Profile',
+    description: 'For authenticating IoT devices. Includes client and server authentication.',
+    validity: { type: 'Duration', durationValue: '5y' },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    keyUsages: ['DigitalSignature', 'KeyEncipherment'],
+    extendedKeyUsages: ['ClientAuth', 'ServerAuth'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+    signAsCa: false,
+  },
+  'code-signing': {
+    profileName: 'Code Signing Profile',
+    description: 'For signing application code and executables.',
+    validity: { type: 'Duration', durationValue: '3y' },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, allowedEcdsaCurves: [] }, // Often RSA
+    keyUsages: ['DigitalSignature', 'contentCommitment'],
+    extendedKeyUsages: ['CodeSigning'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+    signAsCa: false,
+  },
+  'server-cert': {
+    profileName: 'TLS Web Server Profile',
+    description: 'For standard TLS web server certificates (HTTPS).',
+    validity: { type: 'Duration', durationValue: '1y' },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    keyUsages: ['DigitalSignature', 'KeyEncipherment'],
+    extendedKeyUsages: ['ServerAuth'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+    signAsCa: false,
+  },
+  'ca-cert': {
+    profileName: 'Intermediate CA Profile',
+    description: 'For issuing intermediate CA certificates that can sign other certificates.',
+    validity: { type: 'Duration', durationValue: '5y' },
+    signAsCa: true,
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    keyUsages: ['CertSign', 'CRLSign'],
+    extendedKeyUsages: [],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+  },
 };
 
 
@@ -191,8 +248,16 @@ export default function CreateOrEditSigningProfilePage() {
 
   const form = useForm<SigningProfileFormValues>({
     resolver: zodResolver(signingProfileSchema),
-    defaultValues: isEditMode ? {} : defaultFormValues,
+    defaultValues: defaultFormValues,
   });
+  
+  const handleTemplateChange = (templateKey: string) => {
+    const templateData = templateDefaults[templateKey] || {};
+    form.reset({
+      ...defaultFormValues,
+      ...templateData
+    });
+  };
 
   const fetchProfile = useCallback(async () => {
     if (!profileId || !user?.access_token) {
@@ -330,6 +395,25 @@ export default function CreateOrEditSigningProfilePage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               
+              {!isEditMode && (
+                <div className="space-y-2">
+                    <Label htmlFor="template-selector">Load Template</Label>
+                    <Select onValueChange={handleTemplateChange} defaultValue="custom">
+                        <SelectTrigger id="template-selector">
+                            <SelectValue placeholder="Start with a template..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {templateOptions.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                     <p className="text-xs text-muted-foreground">Selecting a template will reset the form with recommended settings.</p>
+                </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="profileName"
@@ -532,7 +616,7 @@ export default function CreateOrEditSigningProfilePage() {
                     <FormField control={form.control} name="cryptoEnforcement.allowedEcdsaCurves" render={() => (
                       <FormItem className="p-3 border rounded-md bg-background ml-4">
                         <FormLabel>Allowed ECDSA Curves</FormLabel>
-                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
                           {ecdsaCurves.map((item) => (
                             <FormField key={item} control={form.control} name="cryptoEnforcement.allowedEcdsaCurves"
                               render={({ field }) => (
@@ -719,4 +803,3 @@ export default function CreateOrEditSigningProfilePage() {
     </div>
   );
 }
-
