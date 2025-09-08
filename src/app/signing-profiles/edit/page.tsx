@@ -197,6 +197,7 @@ const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
     extendedKeyUsages: ['ClientAuth', 'ServerAuth'],
     honorKeyUsage: false,
     honorExtendedKeyUsage: false,
+    signAsCa: false,
   },
   'code-signing': {
     profileName: 'Code Signing Profile',
@@ -207,6 +208,7 @@ const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
     extendedKeyUsages: ['CodeSigning'],
     honorKeyUsage: false,
     honorExtendedKeyUsage: false,
+    signAsCa: false,
   },
   'server-cert': {
     profileName: 'TLS Web Server Profile',
@@ -217,6 +219,7 @@ const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
     extendedKeyUsages: ['ServerAuth'],
     honorKeyUsage: false,
     honorExtendedKeyUsage: false,
+    signAsCa: false,
   },
   'ca-cert': {
     profileName: 'Intermediate CA Profile',
@@ -613,7 +616,7 @@ export default function CreateOrEditSigningProfilePage() {
                     <FormField control={form.control} name="cryptoEnforcement.allowedEcdsaCurves" render={() => (
                       <FormItem className="p-3 border rounded-md bg-background ml-4">
                         <FormLabel>Allowed ECDSA Curves</FormLabel>
-                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 pt-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
                           {ecdsaCurves.map((item) => (
                             <FormField key={item} control={form.control} name="cryptoEnforcement.allowedEcdsaCurves"
                               render={({ field }) => (
