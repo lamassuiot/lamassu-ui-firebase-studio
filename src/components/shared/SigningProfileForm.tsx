@@ -151,7 +151,11 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
     resolver: zodResolver(signingProfileSchema),
     defaultValues: profileToEdit 
       ? mapApiProfileToFormValues(profileToEdit) 
-      : initialValues || { cryptoEnforcement: {} }, // Ensure cryptoEnforcement is at least an empty object
+      : {
+        ...initialValues,
+        validity: initialValues?.validity || { type: 'Duration', durationValue: '1y' },
+        cryptoEnforcement: initialValues?.cryptoEnforcement || { enabled: false, allowRsa: false, allowEcdsa: false, allowedRsaKeySizes: [], allowedEcdsaCurves: [] },
+      },
   });
 
   const watchCryptoEnforcement = form.watch("cryptoEnforcement");
