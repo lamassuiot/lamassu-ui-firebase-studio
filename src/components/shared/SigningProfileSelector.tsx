@@ -9,14 +9,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
 import { Settings2, BookText, PlusCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ApiSigningProfile } from '@/lib/ca-data';
+import type { ApiSigningProfile, CreateSigningProfilePayload } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createSigningProfile } from '@/lib/ca-data';
 import { ExpirationInput, ExpirationConfig } from './ExpirationInput';
 import { KEY_USAGE_OPTIONS, EKU_OPTIONS } from '@/lib/form-options';
 import { Alert } from '../ui/alert';
 import { Checkbox } from '../ui/checkbox';
+import { Form } from '../ui/form';
+import { signingProfileSchema, type SigningProfileFormValues, defaultFormValues } from './SigningProfileForm';
+import { SigningProfileForm } from './SigningProfileForm';
+import { Button } from '../ui/button';
+import { Loader2 } from 'lucide-react';
 
 
 export type ProfileMode = 'reuse' | 'inline' | 'create';
@@ -40,9 +47,8 @@ interface SigningProfileSelectorProps {
   onExtendedKeyUsageChange?: (usage: string, checked: boolean) => void;
 
   createModeEnabled?: boolean;
+  onProfileCreated?: (newProfile: ApiSigningProfile) => void;
 }
-
-const toTitleCase = (str: string) => str.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
 
 
 export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
@@ -61,19 +67,82 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
   extendedKeyUsages,
   onExtendedKeyUsageChange,
   createModeEnabled = true,
+  onProfileCreated,
 }) => {
-  const router = useRouter();
     
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<SigningProfileFormValues>({
+    resolver: zodResolver(signingProfileSchema),
+    defaultValues: defaultFormValues,
+  });
+
+  async function handleSubmit(data: SigningProfileFormValues) {
+    if (!user?.access_token) {
+        toast({ title: "Error", description: "Authentication token is missing.", variant: "destructive" });
+        return;
+    }
+    
+    setIsSubmitting(true);
+
+    let validityPayload: { type: string; duration?: string; time?: string } = { type: 'Duration', duration: '1y' };
+    if (data.validity.type === 'Duration' && data.validity.durationValue) {
+        validityPayload = { type: 'Duration', duration: data.validity.durationValue };
+    } else if (data.validity.type === 'Date' && data.validity.dateValue) {
+        validityPayload = { type: 'Date', time: data.validity.dateValue.toISOString() };
+    } else if (data.validity.type === 'Indefinite') {
+        validityPayload = { type: 'Date', time: "9999-12-31T23:59:59.999Z" };
+    }
+
+    const payload: CreateSigningProfilePayload = {
+        name: data.profileName,
+        description: data.description,
+        validity: validityPayload,
+        sign_as_ca: data.signAsCa,
+        honor_key_usage: data.honorKeyUsage,
+        key_usage: data.keyUsages || [],
+        honor_extended_key_usage: data.honorExtendedKeyUsage,
+        extended_key_usage: data.extendedKeyUsages || [],
+        honor_subject: data.honorSubject,
+        honor_extensions: true,
+        crypto_enforcement: {
+            enabled: data.cryptoEnforcement.enabled,
+            allow_rsa_keys: data.cryptoEnforcement.allowRsa,
+            allow_ecdsa_keys: data.cryptoEnforcement.allowEcdsa,
+            allowed_rsa_key_sizes: data.cryptoEnforcement.allowedRsaKeySizes || [],
+            allowed_ecdsa_key_sizes: data.cryptoEnforcement.allowedEcdsaCurves || [],
+        },
+    };
+    
+    if (!data.honorSubject) {
+        payload.subject = {
+            country: data.overrideCountry,
+            state: data.overrideState,
+            organization: data.overrideOrganization,
+            organizational_unit: data.overrideOrgUnit,
+        }
+    }
+
+    try {
+        const newProfile = await createSigningProfile(payload, user.access_token);
+        toast({ title: "Profile Created", description: `Issuance Profile "${data.profileName}" has been successfully created.` });
+        onProfileCreated?.(newProfile); // Callback to parent
+    } catch (error: any) {
+        toast({ title: `Creation Failed`, description: error.message, variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
+
+
   const selectedProfile = React.useMemo(() => {
     if (profileMode === 'reuse' && selectedProfileId) {
       return availableProfiles.find(p => p.id === selectedProfileId);
     }
     return null;
   }, [profileMode, selectedProfileId, availableProfiles]);
-
-  const handleCreateProfileClick = () => {
-    router.push('/signing-profiles/new');
-  };
 
   const cardClass = (mode: ProfileMode) => cn(
     "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
@@ -106,8 +175,8 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
             </Card>
         )}
         {createModeEnabled && (
-            <Card className={cardClass('create')} onClick={handleCreateProfileClick}>
-              <CardHeader ><div className="flex items-center space-x-3"><div className={iconWrapperClass('create')}><PlusCircle className="h-5 w-5" /></div><div><CardTitle className="text-base">Create New Profile</CardTitle><CardDescription className="text-sm">Go to profile creation page</CardDescription></div></div></CardHeader>
+            <Card className={cardClass('create')} onClick={() => onProfileModeChange('create')}>
+              <CardHeader ><div className="flex items-center space-x-3"><div className={iconWrapperClass('create')}><PlusCircle className="h-5 w-5" /></div><div><CardTitle className="text-base">Create New Profile</CardTitle><CardDescription className="text-sm">Create a new reusable profile</CardDescription></div></div></CardHeader>
             </Card>
         )}
       </div>
@@ -165,6 +234,22 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
                     </div>
                 </div>
           </div>
+      )}
+
+      {profileMode === 'create' && createModeEnabled && (
+         <div className="pt-4 mt-4 border-t">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                <SigningProfileForm form={form} />
+                 <div className="flex justify-end">
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                      Create and Select Profile
+                    </Button>
+                 </div>
+              </form>
+            </Form>
+         </div>
       )}
     </div>
   );

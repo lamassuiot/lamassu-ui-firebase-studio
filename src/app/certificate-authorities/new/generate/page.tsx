@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -192,6 +191,11 @@ export default function CreateCaGeneratePage() {
         setIsSubmitting(false);
         return;
     }
+    if (profileMode === 'create') {
+        toast({ title: "Validation Error", description: "A new profile must be created and selected first.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
 
     const payload: CreateCaPayload = {
       parent_id: caType === 'root' ? null : selectedParentCa?.id || null,
@@ -226,6 +230,12 @@ export default function CreateCaGeneratePage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleProfileCreated = (newProfile: ApiSigningProfile) => {
+    setAvailableProfiles(prev => [...prev, newProfile]);
+    setSelectedProfileId(newProfile.id);
+    setProfileMode('reuse');
   };
 
   return (
@@ -385,6 +395,7 @@ export default function CreateCaGeneratePage() {
                     onProfileIdChange={setSelectedProfileId}
                     inlineModeEnabled={false}
                     createModeEnabled={true}
+                    onProfileCreated={handleProfileCreated}
                />
             </section>
 
