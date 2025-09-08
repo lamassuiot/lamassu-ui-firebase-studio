@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -8,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide, Edit } from "lucide-react";
+import { ArrowLeft, PlusCircle, Cpu, HelpCircle, Settings, Key, Server, PackageCheck, AlertTriangle, Loader2, Tag as TagIconLucide, Edit, BookText } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, findCaById, fetchCryptoEngines } from '@/lib/ca-data';
+import { fetchAndProcessCAs, findCaById, fetchCryptoEngines, fetchSigningProfiles, type ApiSigningProfile } from '@/lib/ca-data';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { cn } from '@/lib/utils';
@@ -28,14 +29,8 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { createOrUpdateRa, fetchRaById, type ApiRaItem, type RaCreationPayload } from '@/lib/dms-api';
-
-
-const mockSigningProfiles = [
-  { id: 'profile-iot-standard', name: 'IoT Device Standard Profile' },
-  { id: 'profile-web-server-tls', name: 'Web Server TLS Profile' },
-  { id: 'profile-code-signing', name: 'Code Signing Profile' },
-  { id: 'profile-short-lived-api', name: 'Short-Lived API Client Profile' },
-];
+import { SigningProfileSelector } from '@/components/shared/SigningProfileSelector';
+import type { ProfileMode } from '@/components/shared/SigningProfileSelector';
 
 const serverKeygenTypes = [ { value: 'RSA', label: 'RSA' }, { value: 'ECDSA', label: 'ECDSA' }];
 const serverKeygenRsaBits = [ { value: '2048', label: '2048 bit' }, { value: '3072', label: '3072 bit' }, { value: '4096', label: '4096 bit' }];
@@ -73,7 +68,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
   const [registrationMode, setRegistrationMode] = useState('JITP');
   const [tags, setTags] = useState<string[]>(['iot']);
   const [protocol, setProtocol] = useState('EST');
-  const [signingProfileId, setSigningProfileId] = useState<string | null>(mockSigningProfiles[0].id);
+  const [issuanceProfileId, setIssuanceProfileId] = useState<string | null>(null); // New state
   const [enrollmentCa, setEnrollmentCa] = useState<CA | null>(null);
   const [allowOverrideEnrollment, setAllowOverrideEnrollment] = useState(true);
   const [authMode, setAuthMode] = useState('Client Certificate');
@@ -117,6 +112,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
   const [isAdditionalValidationCaModalOpen, setIsAdditionalValidationCaModalOpen] = useState(false);
   const [isManagedCaModalOpen, setIsManagedCaModalOpen] = useState(false);
   const [availableCAsForSelection, setAvailableCAsForSelection] = useState<CA[]>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<ApiSigningProfile[]>([]);
   const [isLoadingDependencies, setIsLoadingDependencies] = useState(true);
   const [errorDependencies, setErrorDependencies] = useState<string | null>(null);
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
@@ -126,12 +122,14 @@ export default function CreateOrEditRegistrationAuthorityPage() {
     setIsLoadingDependencies(true);
     setErrorDependencies(null);
     try {
-        const [cas, enginesData] = await Promise.all([
+        const [cas, enginesData, profiles] = await Promise.all([
             fetchAndProcessCAs(user.access_token),
-            fetchCryptoEngines(user.access_token)
+            fetchCryptoEngines(user.access_token),
+            fetchSigningProfiles(user.access_token)
         ]);
         setAvailableCAsForSelection(cas);
         setAllCryptoEngines(enginesData);
+        setAvailableProfiles(profiles);
     } catch (err: any) {
         setErrorDependencies(err.message || 'Failed to load dependencies');
     } finally {
@@ -172,6 +170,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
         const { enrollment_settings, reenrollment_settings, server_keygen_settings, ca_distribution_settings } = settings;
         setRegistrationMode(enrollment_settings.registration_mode);
         setProtocol(enrollment_settings.protocol === 'EST_RFC7030' ? 'EST' : 'CMP');
+        setIssuanceProfileId(enrollment_settings.issuance_profile_id || null);
         setEnrollmentCa(findCaById(enrollment_settings.enrollment_ca, availableCAsForSelection));
         setAllowOverrideEnrollment(enrollment_settings.enable_replaceable_enrollment);
 
@@ -323,6 +322,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
           enrollment_ca: enrollmentCa.id,
           protocol: protocolMapping[protocol as keyof typeof protocolMapping],
           enable_replaceable_enrollment: allowOverrideEnrollment,
+          issuance_profile_id: issuanceProfileId || undefined,
           est_rfc7030_settings: estSettings,
           device_provisioning_profile: {
             icon: selectedDeviceIconName!,
@@ -465,7 +465,30 @@ export default function CreateOrEditRegistrationAuthorityPage() {
               </CardContent></Card>
               <Separator className="my-6"/>
               <h3 className={cn(sectionHeadingStyle)}><Key className="mr-2 h-5 w-5 text-muted-foreground"/>Enrollment Settings</h3>
-              <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4"><div><Label htmlFor="protocol">Protocol</Label><Select value={protocol} onValueChange={setProtocol}><SelectTrigger id="protocol" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="EST">EST</SelectItem><SelectItem value="CMP">CMP</SelectItem></SelectContent></Select></div><div><Label htmlFor="enrollmentCa">Enrollment CA</Label><Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : enrollmentCa ? enrollmentCa.name : "Select Enrollment CA..."}</Button>{enrollmentCa && <div className="mt-2"><CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines} /></div>}</div><div className="flex items-center space-x-2 pt-2"><Switch id="allowOverrideEnrollment" checked={allowOverrideEnrollment} onCheckedChange={setAllowOverrideEnrollment} /><Label htmlFor="allowOverrideEnrollment">Allow Override Enrollment</Label></div><div><Label htmlFor="authMode">Authentication Mode</Label><Select value={authMode} onValueChange={setAuthMode}><SelectTrigger id="authMode" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Client Certificate">Client Certificate</SelectItem><SelectItem value="External Webhook">External Webhook</SelectItem><SelectItem value="No Auth">No Auth</SelectItem></SelectContent></Select></div>
+              <Card className="border-border shadow-sm rounded-md"><CardContent className="p-4"><div className="space-y-4"><div><Label htmlFor="protocol">Protocol</Label><Select value={protocol} onValueChange={setProtocol}><SelectTrigger id="protocol" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="EST">EST</SelectItem><SelectItem value="CMP">CMP</SelectItem></SelectContent></Select></div>
+              <div>
+                <Label htmlFor="enrollmentCa">Enrollment CA</Label>
+                <Button type="button" variant="outline" onClick={() => setIsEnrollmentCaModalOpen(true)} className="w-full justify-start text-left font-normal mt-1" disabled={isLoadingDependencies || authLoading}>{isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : enrollmentCa ? enrollmentCa.name : "Select Enrollment CA..."}</Button>
+                {enrollmentCa && 
+                  <div className="mt-2 space-y-3">
+                    <CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines} />
+                    <div className='pl-2'>
+                        <Label>Issuance Profile (Optional)</Label>
+                         <Select value={issuanceProfileId || "ca-default"} onValueChange={(v) => setIssuanceProfileId(v === "ca-default" ? null : v)}>
+                            <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select an issuance profile..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ca-default">Use CA Default Profile</SelectItem>
+                                {availableProfiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        {!issuanceProfileId && <Alert className="mt-2" variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Using Default</AlertTitle><AlertDescription>No profile selected. The Enrollment CA's default issuance profile will be used to sign certificates.</AlertDescription></Alert>}
+                    </div>
+                  </div>
+                }
+              </div>
+              <div className="flex items-center space-x-2 pt-2"><Switch id="allowOverrideEnrollment" checked={allowOverrideEnrollment} onCheckedChange={setAllowOverrideEnrollment} /><Label htmlFor="allowOverrideEnrollment">Allow Override Enrollment</Label></div><div><Label htmlFor="authMode">Authentication Mode</Label><Select value={authMode} onValueChange={setAuthMode}><SelectTrigger id="authMode" className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Client Certificate">Client Certificate</SelectItem><SelectItem value="External Webhook">External Webhook</SelectItem><SelectItem value="No Auth">No Auth</SelectItem></SelectContent></Select></div>
               
               {authMode === 'Client Certificate' && (
                   <div className="space-y-4 pt-2 border-t mt-4">
