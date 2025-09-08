@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2, FilePenLine } from "lucide-react";
+import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2, FilePenLine, BookText, Settings2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload, fetchSigningProfiles, type ApiSigningProfile, createSigningProfile, type CreateSigningProfilePayload } from '@/lib/ca-data';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -21,8 +21,8 @@ import { formatISO } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DurationInput } from '@/components/shared/DurationInput';
+import { cn } from '@/lib/utils';
 
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
@@ -405,20 +405,50 @@ export default function CreateCaGeneratePage() {
             
             <section>
               <h3 className="text-lg font-semibold mb-3 flex items-center"><FilePenLine className="mr-2 h-5 w-5 text-muted-foreground" />Default Issuance Profile</h3>
-                <RadioGroup value={profileMode} onValueChange={(v) => setProfileMode(v as any)} className="grid grid-cols-2 gap-4">
-                    <div>
-                        <RadioGroupItem value="select" id="profile-select" className="peer sr-only" />
-                        <Label htmlFor="profile-select" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            Select Existing Profile
-                        </Label>
-                    </div>
-                    <div>
-                        <RadioGroupItem value="create" id="profile-create" className="peer sr-only" />
-                        <Label htmlFor="profile-create" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            Create New Profile
-                        </Label>
-                    </div>
-                </RadioGroup>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card
+                        className={cn(
+                            "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                            profileMode === 'select' 
+                                ? "border-primary bg-primary/5 shadow-sm" 
+                                : "border-border hover:border-primary/50"
+                        )}
+                        onClick={() => setProfileMode('select')}
+                    >
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className={cn("p-2 rounded-lg", profileMode === 'select' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                                <BookText className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-base">Select Existing Profile</CardTitle>
+                                <CardDescription className="text-sm">Use a predefined issuance template.</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                    </Card>
+                    <Card
+                        className={cn(
+                            "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                            profileMode === 'create' 
+                                ? "border-primary bg-primary/5 shadow-sm" 
+                                : "border-border hover:border-primary/50"
+                        )}
+                        onClick={() => setProfileMode('create')}
+                    >
+                         <CardHeader className="pb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className={cn("p-2 rounded-lg", profileMode === 'create' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                                <Settings2 className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-base">Create New Profile</CardTitle>
+                                <CardDescription className="text-sm">Define basic settings for a new profile.</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                    </Card>
+                </div>
                 
                 <div className="mt-4 space-y-4">
                     {profileMode === 'select' ? (
@@ -482,3 +512,4 @@ export default function CreateCaGeneratePage() {
     </div>
   );
 }
+
