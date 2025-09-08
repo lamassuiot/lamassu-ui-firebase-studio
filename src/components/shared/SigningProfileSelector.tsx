@@ -174,16 +174,16 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
       <Label>Profile Mode</Label>
       <div className={cn("grid grid-cols-1 gap-4", gridColsClass)}>
         <Card className={cardClass('reuse')} onClick={() => onProfileModeChange('reuse')}>
-          <CardHeader className="pb-3"><div className="flex items-center space-x-3"><div className={iconWrapperClass('reuse')}><BookText className="h-5 w-5" /></div><div><CardTitle className="text-base">Reuse Existing Profile</CardTitle><CardDescription className="text-sm">Use predefined issuance templates</CardDescription></div></div></CardHeader>
+          <CardHeader ><div className="flex items-center space-x-3"><div className={iconWrapperClass('reuse')}><BookText className="h-5 w-5" /></div><div><CardTitle className="text-base">Reuse Existing Profile</CardTitle><CardDescription className="text-sm">Use predefined issuance templates</CardDescription></div></div></CardHeader>
         </Card>
         {inlineModeEnabled && (
             <Card className={cardClass('inline')} onClick={() => onProfileModeChange('inline')}>
-              <CardHeader className="pb-3"><div className="flex items-center space-x-3"><div className="icon-wrapper inline"><Settings2 className="h-5 w-5" /></div><div><CardTitle className="text-base">Inline Profile</CardTitle><CardDescription className="text-sm">Define a one-time issuance policy</CardDescription></div></div></CardHeader>
+              <CardHeader ><div className="flex items-center space-x-3"><div className={iconWrapperClass('inline')}><Settings2 className="h-5 w-5" /></div><div><CardTitle className="text-base">Inline Profile</CardTitle><CardDescription className="text-sm">Define a one-time issuance policy</CardDescription></div></div></CardHeader>
             </Card>
         )}
         {createModeEnabled && (
-            <Card className={cardClass('create')} onClick={() => { onProfileModeChange('create'); setCreationView('template'); }}>
-              <CardHeader className="pb-3"><div className="flex items-center space-x-3"><div className={iconWrapperClass('create')}><PlusCircle className="h-5 w-5" /></div><div><CardTitle className="text-base">Create New Profile</CardTitle><CardDescription className="text-sm">Define a full, reusable profile</CardDescription></div></div></CardHeader>
+            <Card className={cardClass('create')} onClick={() => onProfileModeChange('create')}>
+              <CardHeader ><div className="flex items-center space-x-3"><div className={iconWrapperClass('create')}><PlusCircle className="h-5 w-5" /></div><div><CardTitle className="text-base">Create New Profile</CardTitle><CardDescription className="text-sm">Define a full, reusable profile</CardDescription></div></div></CardHeader>
             </Card>
         )}
       </div>
