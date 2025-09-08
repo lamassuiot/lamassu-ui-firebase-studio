@@ -74,6 +74,74 @@ const signingProfileSchema = z.object({
 
 export type SigningProfileFormValues = z.infer<typeof signingProfileSchema>;
 
+export const defaultFormValues: SigningProfileFormValues = {
+  profileName: '',
+  description: '',
+  validity: { type: 'Duration', durationValue: '1y' },
+  signAsCa: false,
+  honorSubject: true,
+  overrideCountry: '',
+  overrideState: '',
+  overrideOrganization: '',
+  overrideOrgUnit: '',
+  cryptoEnforcement: {
+    enabled: false,
+    allowRsa: true,
+    allowEcdsa: true,
+    allowedRsaKeySizes: [2048, 3072, 4096],
+    allowedEcdsaCurves: [256, 384, 521],
+  },
+  honorKeyUsage: true,
+  keyUsages: [],
+  honorExtendedKeyUsage: true,
+  extendedKeyUsages: [],
+};
+
+export const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
+  'device-auth': {
+    profileName: 'IoT Device Authentication Profile',
+    description: 'For authenticating IoT devices. Includes client and server authentication.',
+    validity: { type: 'Duration', durationValue: '5y' },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    keyUsages: ['DigitalSignature', 'KeyEncipherment'],
+    extendedKeyUsages: ['ClientAuth', 'ServerAuth'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+  },
+  'code-signing': {
+    profileName: 'Code Signing Profile',
+    description: 'For signing application code and executables.',
+    validity: { type: 'Duration', durationValue: '3y' },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, allowedEcdsaCurves: [] }, // Often RSA
+    keyUsages: ['DigitalSignature', 'contentCommitment'],
+    extendedKeyUsages: ['CodeSigning'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+  },
+  'server-cert': {
+    profileName: 'TLS Web Server Profile',
+    description: 'For standard TLS web server certificates (HTTPS).',
+    validity: { type: 'Duration', durationValue: '1y' },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    keyUsages: ['DigitalSignature', 'KeyEncipherment'],
+    extendedKeyUsages: ['ServerAuth'],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+  },
+  'ca-cert': {
+    profileName: 'Intermediate CA Profile',
+    description: 'For issuing intermediate CA certificates that can sign other certificates.',
+    validity: { type: 'Duration', durationValue: '5y' },
+    signAsCa: true,
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    keyUsages: ['CertSign', 'CRLSign'],
+    extendedKeyUsages: [],
+    honorKeyUsage: false,
+    honorExtendedKeyUsage: false,
+  },
+};
+
+
 const toTitleCase = (str: string) => {
   if (!str) return '';
   return str.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (s) => s.toUpperCase());
@@ -152,9 +220,14 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
     defaultValues: profileToEdit 
       ? mapApiProfileToFormValues(profileToEdit) 
       : {
-        ...initialValues,
-        validity: initialValues?.validity || { type: 'Duration', durationValue: '1y' },
-        cryptoEnforcement: initialValues?.cryptoEnforcement || { enabled: false, allowRsa: false, allowEcdsa: false, allowedRsaKeySizes: [], allowedEcdsaCurves: [] },
+        ...defaultFormValues, // Start with a complete default object
+        ...initialValues, // Then override with any initial values provided
+        // Deep merge for nested objects to avoid them being undefined
+        validity: initialValues?.validity || defaultFormValues.validity,
+        cryptoEnforcement: {
+          ...defaultFormValues.cryptoEnforcement,
+          ...initialValues?.cryptoEnforcement,
+        },
       },
   });
 
