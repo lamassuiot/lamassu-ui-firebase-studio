@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
-import { Settings2, BookText, PlusCircle, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Settings2, BookText, PlusCircle, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ApiSigningProfile, CreateSigningProfilePayload } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,10 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createSigningProfile } from '@/lib/ca-data';
-import { ExpirationInput, ExpirationConfig } from './ExpirationInput';
-import { KEY_USAGE_OPTIONS, EKU_OPTIONS } from '@/lib/form-options';
-import { Alert } from '../ui/alert';
-import { Checkbox } from '../ui/checkbox';
 import { Form } from '../ui/form';
 import { signingProfileSchema, type SigningProfileFormValues, defaultFormValues } from './SigningProfileForm';
 import { SigningProfileForm } from './SigningProfileForm';
@@ -161,6 +157,7 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
   const gridColsClass = [inlineModeEnabled, createModeEnabled].filter(Boolean).length + 1 >= 3 
     ? 'md:grid-cols-3' 
     : 'md:grid-cols-2';
+
 
   if (profileMode === 'create' && createModeEnabled) {
     return (
