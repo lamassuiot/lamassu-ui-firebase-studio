@@ -18,7 +18,6 @@ import {
   type ApiSigningProfile,
 } from '@/lib/ca-data';
 import { SigningProfileForm, type SigningProfileFormValues } from '@/components/shared/SigningProfileForm';
-import { cn } from '@/lib/utils';
 
 
 const defaultFormValues: SigningProfileFormValues = {
@@ -59,7 +58,7 @@ const templateDefaults: Record<string, Partial<SigningProfileFormValues>> = {
     profileName: 'Code Signing Profile',
     description: 'For signing application code and executables.',
     validity: { type: 'Duration', durationValue: '3y' },
-    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, allowEcdsa: false, allowedEcdsaCurves: [] }, // Often RSA
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, allowEcdsa: false, allowedRsaKeySizes: [4096] }, // Often RSA
     keyUsages: ['DigitalSignature', 'contentCommitment'],
     extendedKeyUsages: ['CodeSigning'],
     honorKeyUsage: false,
@@ -111,7 +110,7 @@ export default function CreateOrEditSigningProfilePage() {
   
   // State for create flow: 'template' selection or 'form' view
   const [view, setView] = useState<'template' | 'form'>(isEditMode ? 'form' : 'template');
-  const [initialFormValues, setInitialFormValues] = useState<SigningProfileFormValues | null>(profileToEdit ? null : defaultFormValues);
+  const [initialFormValues, setInitialFormValues] = useState<SigningProfileFormValues | null>(isEditMode ? null : defaultFormValues);
 
   const fetchProfile = useCallback(async () => {
     if (!profileId || !user?.access_token) {
