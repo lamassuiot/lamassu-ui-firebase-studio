@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload, fetchSigningProfiles, type ApiSigningProfile, createSigningProfile, type CreateSigningProfilePayload } from '@/lib/ca-data';
+import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload, fetchSigningProfiles, type ApiSigningProfile } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +21,6 @@ import { formatISO } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
-import { DurationInput } from '@/components/shared/DurationInput';
 import { SigningProfileSelector } from '@/components/shared/SigningProfileSelector';
 import type { ProfileMode } from '@/components/shared/SigningProfileSelector';
 
@@ -55,7 +54,7 @@ export default function CreateCaGeneratePage() {
   // Profile state
   const [profileMode, setProfileMode] = useState<ProfileMode>('create');
   const [availableProfiles, setAvailableProfiles] = useState<ApiSigningProfile[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileDuration, setNewProfileDuration] = useState('1y');
 
@@ -64,32 +63,27 @@ export default function CreateCaGeneratePage() {
 
   const [availableParentCAs, setAvailableParentCAs] = useState<CA[]>([]);
   const [isLoadingCAs, setIsLoadingCAs] = useState(false);
-  const [errorCAs, setErrorCAs] = useState<string | null>(null);
   
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
-  const [isLoadingEngines, setIsLoadingEngines] = useState(false);
-  const [errorEngines, setErrorEngines] = useState<string | null>(null);
   
-  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const [isLoadingDependencies, setIsLoadingDependencies] = useState(true);
+  const [errorDependencies, setErrorDependencies] = useState<string | null>(null);
 
   useEffect(() => {
     setCaId(crypto.randomUUID());
   }, []);
 
-  const loadCaData = useCallback(async () => {
+  const loadDependencies = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading) {
-        setErrorCAs("User not authenticated. Cannot load parent CAs.");
-        setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
+        setErrorDependencies("User not authenticated. Cannot load dependencies.");
       }
-      setIsLoadingCAs(false);
-      setIsLoadingEngines(false);
+      setIsLoadingDependencies(false);
       return;
     }
     
-    setIsLoadingCAs(true);
-    setIsLoadingProfiles(true);
-    setErrorCAs(null);
+    setIsLoadingDependencies(true);
+    setErrorDependencies(null);
     try {
         const [fetchedCAs, enginesData, profilesData] = await Promise.all([
             fetchAndProcessCAs(user.access_token),
@@ -106,21 +100,20 @@ export default function CreateCaGeneratePage() {
             setProfileMode('create');
         }
     } catch (err: any) {
-        setErrorCAs(err.message || 'Failed to load page dependencies.');
+        setErrorDependencies(err.message || 'Failed to load page dependencies.');
         setAvailableParentCAs([]);
         setAllCryptoEngines([]);
         setAvailableProfiles([]);
     } finally {
-        setIsLoadingCAs(false);
-        setIsLoadingProfiles(false);
+        setIsLoadingDependencies(false);
     }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (!authLoading) {
-        loadCaData();
+        loadDependencies();
     }
-  }, [loadCaData, authLoading]);
+  }, [loadDependencies, authLoading]);
 
   const handleCaTypeChange = (value: string) => {
     setCaType(value);
@@ -197,38 +190,11 @@ export default function CreateCaGeneratePage() {
       setIsSubmitting(false);
       return;
     }
-    
-    let finalProfileId = '';
-    if (profileMode === 'reuse') {
-      if (!selectedProfileId) {
-        toast({ title: "Validation Error", description: "Please select a default issuance profile.", variant: "destructive" });
+    if (profileMode === 'reuse' && !selectedProfileId) {
+        toast({ title: "Validation Error", description: "An issuance profile must be selected.", variant: "destructive" });
         setIsSubmitting(false);
         return;
-      }
-      finalProfileId = selectedProfileId;
-    } else { // Create new profile
-        if (!newProfileName.trim() || !newProfileDuration.trim()) {
-            toast({ title: "Validation Error", description: "New profile name and duration are required.", variant: "destructive" });
-            setIsSubmitting(false);
-            return;
-        }
-        try {
-            const newProfilePayload: CreateSigningProfilePayload = {
-                name: newProfileName,
-                validity: { type: "Duration", duration: newProfileDuration },
-                // Sensible defaults for inline creation
-                sign_as_ca: false, honor_key_usage: false, key_usage: ["DigitalSignature"], honor_extended_key_usage: false, extended_key_usage: ["ClientAuth"], honor_subject: true, honor_extensions: true, allow_rsa_keys: true, allow_ecdsa_keys: true, allowed_rsa_key_strengths: [2048, 3072, 4096], allowed_ecdsa_curves: [256, 384, 521],
-            };
-            const createdProfile = await createSigningProfile(newProfilePayload, user!.access_token!);
-            finalProfileId = createdProfile.id;
-            toast({ title: "Profile Created", description: `Issuance Profile "${newProfileName}" was created successfully.` });
-        } catch (error: any) {
-            toast({ title: "Profile Creation Failed", description: error.message, variant: "destructive" });
-            setIsSubmitting(false);
-            return;
-        }
     }
-
 
     const payload: CreateCaPayload = {
       parent_id: caType === 'root' ? null : selectedParentCa?.id || null,
@@ -247,7 +213,7 @@ export default function CreateCaGeneratePage() {
         bits: keyType === 'RSA' ? parseInt(keySize) : mapEcdsaCurveToBits(keySize),
       },
       ca_expiration: formatExpirationForApi(caExpiration),
-      default_profile_id: finalProfileId,
+      default_profile_id: selectedProfileId!,
       ca_type: "MANAGED",
     };
 
@@ -342,9 +308,9 @@ export default function CreateCaGeneratePage() {
                       onClick={() => setIsParentCaModalOpen(true)}
                       className="w-full justify-start text-left font-normal mt-1"
                       id="parentCa"
-                      disabled={isLoadingCAs || authLoading}
+                      disabled={isLoadingDependencies || authLoading}
                     >
-                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent Certification Authority..."}
+                      {isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent Certification Authority..."}
                     </Button>
                     {selectedParentCa && (
                       <div className="mt-2">
@@ -414,17 +380,14 @@ export default function CreateCaGeneratePage() {
             <section>
               <h3 className="text-lg font-semibold mb-3">Default Issuance Profile</h3>
                <SigningProfileSelector
-                  profileMode={profileMode}
-                  onProfileModeChange={setProfileMode}
-                  availableProfiles={availableProfiles}
-                  isLoadingProfiles={isLoadingProfiles}
-                  selectedProfileId={selectedProfileId}
-                  onProfileIdChange={setSelectedProfileId}
-                  newProfileName={newProfileName}
-                  onNewProfileNameChange={setNewProfileName}
-                  newProfileDuration={newProfileDuration}
-                  onNewProfileDurationChange={setNewProfileDuration}
-                  inlineModeEnabled={false} // Disable the third mode for this view
+                    profileMode={profileMode}
+                    onProfileModeChange={setProfileMode}
+                    availableProfiles={availableProfiles}
+                    isLoadingProfiles={isLoadingDependencies}
+                    selectedProfileId={selectedProfileId}
+                    onProfileIdChange={setSelectedProfileId}
+                    inlineModeEnabled={false}
+                    createModeEnabled={false} // Temporarily disable create mode here until it's fully implemented
                />
             </section>
 
@@ -444,9 +407,9 @@ export default function CreateCaGeneratePage() {
         title="Select Parent Certification Authority"
         description="Choose an existing Certification Authority to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
         availableCAs={availableParentCAs}
-        isLoadingCAs={isLoadingCAs}
-        errorCAs={errorCAs}
-        loadCAsAction={loadCaData}
+        isLoadingCAs={isLoadingCAs || isLoadingDependencies}
+        errorCAs={errorDependencies}
+        loadCAsAction={loadDependencies}
         onCaSelected={handleParentCaSelectFromModal}
         currentSelectedCaId={selectedParentCa?.id}
         isAuthLoading={authLoading}
@@ -455,4 +418,3 @@ export default function CreateCaGeneratePage() {
     </div>
   );
 }
-
