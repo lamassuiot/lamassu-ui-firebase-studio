@@ -7,19 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
-import { Settings2, BookText, PlusCircle, AlertTriangle, FileText, Shield, Lock, Code } from 'lucide-react';
+import { Settings2, BookText, PlusCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ApiSigningProfile, CreateSigningProfilePayload } from '@/lib/ca-data';
+import type { ApiSigningProfile } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { createSigningProfile } from '@/lib/ca-data';
-import { Button } from '../ui/button';
-import { Loader2 } from 'lucide-react';
-import { SigningProfileForm, type SigningProfileFormValues, defaultFormValues, templateDefaults } from './SigningProfileForm';
 import { ExpirationInput, ExpirationConfig } from './ExpirationInput';
 import { KEY_USAGE_OPTIONS, EKU_OPTIONS } from '@/lib/form-options';
 import { Alert } from '../ui/alert';
+import { Checkbox } from '../ui/checkbox';
 
 
 export type ProfileMode = 'reuse' | 'inline' | 'create';
@@ -47,13 +44,6 @@ interface SigningProfileSelectorProps {
 
 const toTitleCase = (str: string) => str.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
 
-const templateMetadata = [
-    { id: 'blank', title: 'Blank Template', description: 'Start with an empty, default profile.', icon: FileText },
-    { id: 'device-auth', title: 'IoT Device Auth', description: 'For standard device client/server authentication.', icon: Shield },
-    { id: 'server-cert', title: 'TLS Web Server', description: 'Standard profile for HTTPS web servers.', icon: Lock },
-    { id: 'code-signing', title: 'Code Signing', description: 'For signing application binaries and code.', icon: Code },
-    { id: 'ca-cert', title: 'Intermediate CA', description: 'Profile for creating a new sub-CA.', icon: Settings2 },
-];
 
 export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
   profileMode,
@@ -72,14 +62,7 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
   onExtendedKeyUsageChange,
   createModeEnabled = true,
 }) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
   const router = useRouter();
-  const [isSubmittingNewProfile, setIsSubmittingNewProfile] = React.useState(false);
-  
-  // New state for the creation sub-flow
-  const [creationView, setCreationView] = React.useState<'template' | 'form'>('template');
-  const [initialFormValues, setInitialFormValues] = React.useState<SigningProfileFormValues | null>(defaultFormValues);
     
   const selectedProfile = React.useMemo(() => {
     if (profileMode === 'reuse' && selectedProfileId) {
@@ -88,67 +71,8 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
     return null;
   }, [profileMode, selectedProfileId, availableProfiles]);
 
-  const handleCreateProfileSubmit = async (data: SigningProfileFormValues) => {
-    if (!user?.access_token) {
-        toast({ title: "Error", description: "Authentication token is missing.", variant: "destructive" });
-        return;
-    }
-    
-    setIsSubmittingNewProfile(true);
-
-    let validityPayload: { type: string; duration?: string; time?: string } = { type: 'Duration', duration: '1y' };
-    if (data.validity.type === 'Duration' && data.validity.durationValue) {
-        validityPayload = { type: 'Duration', duration: data.validity.durationValue };
-    } else if (data.validity.type === 'Date' && data.validity.dateValue) {
-        validityPayload = { type: 'Date', time: data.validity.dateValue.toISOString() };
-    } else if (data.validity.type === 'Indefinite') {
-        validityPayload = { type: 'Date', time: "9999-12-31T23:59:59.999Z" };
-    }
-
-    const payload: CreateSigningProfilePayload = {
-        name: data.profileName,
-        description: data.description,
-        validity: validityPayload,
-        sign_as_ca: data.signAsCa,
-        honor_key_usage: data.honorKeyUsage,
-        key_usage: data.keyUsages || [],
-        honor_extended_key_usage: data.honorExtendedKeyUsage,
-        extended_key_usage: data.extendedKeyUsages || [],
-        honor_subject: data.honorSubject,
-        honor_extensions: true,
-        crypto_enforcement: {
-            enabled: data.cryptoEnforcement.enabled,
-            allow_rsa_keys: data.cryptoEnforcement.allowRsa,
-            allow_ecdsa_keys: data.cryptoEnforcement.allowEcdsa,
-            allowed_rsa_key_sizes: data.cryptoEnforcement.allowedRsaKeySizes || [],
-            allowed_ecdsa_key_sizes: data.cryptoEnforcement.allowedEcdsaCurves || [],
-        },
-    };
-    if (!data.honorSubject) {
-        payload.subject = { country: data.overrideCountry, state: data.overrideState, organization: data.overrideOrganization, organizational_unit: data.overrideOrgUnit };
-    }
-
-    try {
-        const newProfile = await createSigningProfile(payload, user.access_token);
-        toast({ title: "Profile Created", description: `Issuance Profile "${newProfile.name}" created.` });
-        onProfileIdChange(newProfile.id); 
-        onProfileModeChange('reuse'); // Switch back to reuse mode and select the new profile
-        router.refresh(); 
-    } catch (error: any) {
-        toast({ title: `Creation Failed`, description: error.message, variant: "destructive" });
-    } finally {
-        setIsSubmittingNewProfile(false);
-    }
-  };
-  
-  const handleTemplateSelect = (templateId: string) => {
-    if (templateId === 'blank') {
-        setInitialFormValues(defaultFormValues);
-    } else {
-        const templateData = templateDefaults[templateId];
-        setInitialFormValues({ ...defaultFormValues, ...templateData });
-    }
-    setCreationView('form');
+  const handleCreateProfileClick = () => {
+    router.push('/signing-profiles/new');
   };
 
   const cardClass = (mode: ProfileMode) => cn(
@@ -182,8 +106,8 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
             </Card>
         )}
         {createModeEnabled && (
-            <Card className={cardClass('create')} onClick={() => onProfileModeChange('create')}>
-              <CardHeader ><div className="flex items-center space-x-3"><div className={iconWrapperClass('create')}><PlusCircle className="h-5 w-5" /></div><div><CardTitle className="text-base">Create New Profile</CardTitle><CardDescription className="text-sm">Define a full, reusable profile</CardDescription></div></div></CardHeader>
+            <Card className={cardClass('create')} onClick={handleCreateProfileClick}>
+              <CardHeader ><div className="flex items-center space-x-3"><div className={iconWrapperClass('create')}><PlusCircle className="h-5 w-5" /></div><div><CardTitle className="text-base">Create New Profile</CardTitle><CardDescription className="text-sm">Go to profile creation page</CardDescription></div></div></CardHeader>
             </Card>
         )}
       </div>
@@ -241,43 +165,6 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
                     </div>
                 </div>
           </div>
-      )}
-
-      {profileMode === 'create' && createModeEnabled && (
-        <div className="pt-4 mt-4 border-t">
-          {creationView === 'template' ? (
-            <div className="space-y-4">
-              <h3 className="font-medium">Select a Template</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {templateMetadata.map(({ id, title, description, icon: Icon }) => (
-                      <Card key={id} className="hover:shadow-md hover:border-primary/50 transition-shadow cursor-pointer flex flex-col" onClick={() => handleTemplateSelect(id)}>
-                          <CardHeader className="flex-grow">
-                              <div className="flex items-center space-x-3 mb-2">
-                                  <div className="p-2 bg-muted rounded-md"><Icon className="h-6 w-6 text-primary"/></div>
-                                  <h3 className="font-semibold">{title}</h3>
-                              </div>
-                              <p className="text-xs text-muted-foreground">{description}</p>
-                          </CardHeader>
-                      </Card>
-                  ))}
-              </div>
-            </div>
-          ) : (
-            <SigningProfileForm
-              initialValues={initialFormValues}
-              onSubmit={handleCreateProfileSubmit}
-              isSubmitting={isSubmittingNewProfile}
-              submitButton={
-                <div className="flex justify-end pt-4">
-                  <Button type="submit" disabled={isSubmittingNewProfile}>
-                    {isSubmittingNewProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
-                    Create Profile & Continue
-                  </Button>
-                </div>
-              }
-            />
-          )}
-        </div>
       )}
     </div>
   );
