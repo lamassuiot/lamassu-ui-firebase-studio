@@ -149,7 +149,9 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
 }) => {
   const form = useForm<SigningProfileFormValues>({
     resolver: zodResolver(signingProfileSchema),
-    defaultValues: profileToEdit ? mapApiProfileToFormValues(profileToEdit) : initialValues || undefined,
+    defaultValues: profileToEdit 
+      ? mapApiProfileToFormValues(profileToEdit) 
+      : initialValues || { cryptoEnforcement: {} }, // Ensure cryptoEnforcement is at least an empty object
   });
 
   const watchCryptoEnforcement = form.watch("cryptoEnforcement");
