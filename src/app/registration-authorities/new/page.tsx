@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -51,12 +50,12 @@ function hslToHex(h: number, s: number, l: number) {
 export default function CreateOrEditRegistrationAuthorityPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const raIdFromQuery = searchParams.get('raId');
-  const isEditMode = !!raIdFromQuery;
-  
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   
+  const raIdFromQuery = searchParams.get('raId');
+  const isEditMode = !!raIdFromQuery;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [raData, setRaData] = useState<ApiRaItem | null>(null);
   const [isLoadingRA, setIsLoadingRA] = useState(isEditMode);
@@ -116,6 +115,11 @@ export default function CreateOrEditRegistrationAuthorityPage() {
   const [isLoadingDependencies, setIsLoadingDependencies] = useState(true);
   const [errorDependencies, setErrorDependencies] = useState<string | null>(null);
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
+
+  // MOVED HOOKS TO TOP LEVEL
+  const selectedProfileForDisplay = useMemo(() => {
+    return availableProfiles.find(p => p.id === issuanceProfileId);
+  }, [issuanceProfileId, availableProfiles]);
 
   const loadDependencies = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) return;
@@ -412,11 +416,6 @@ export default function CreateOrEditRegistrationAuthorityPage() {
   const SelectedIconComponent = getLucideIconByName(selectedDeviceIconName);
   const currentServerKeygenSpecOptions = serverKeygenType === 'RSA' ? serverKeygenRsaBits : serverKeygenEcdsaCurves;
   const PageIcon = isEditMode ? Edit : PlusCircle;
-
-  const selectedProfileForDisplay = useMemo(() => {
-    return availableProfiles.find(p => p.id === issuanceProfileId);
-  }, [issuanceProfileId, availableProfiles]);
-
 
   return (
     <div className="w-full space-y-6 mb-8">
