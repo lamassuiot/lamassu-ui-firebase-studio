@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2, FilePenLine, BookText, Settings2 } from "lucide-react";
+import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
 import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload, fetchSigningProfiles, type ApiSigningProfile, createSigningProfile, type CreateSigningProfilePayload } from '@/lib/ca-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,7 +22,8 @@ import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
 import { DurationInput } from '@/components/shared/DurationInput';
-import { cn } from '@/lib/utils';
+import { SigningProfileSelector } from '@/components/shared/SigningProfileSelector';
+import type { ProfileMode } from '@/components/shared/SigningProfileSelector';
 
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
@@ -52,7 +53,7 @@ export default function CreateCaGeneratePage() {
   const [caExpiration, setCaExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '10y' });
   
   // Profile state
-  const [profileMode, setProfileMode] = useState<'select' | 'create'>('select');
+  const [profileMode, setProfileMode] = useState<ProfileMode>('create');
   const [availableProfiles, setAvailableProfiles] = useState<ApiSigningProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
   const [newProfileName, setNewProfileName] = useState('');
@@ -68,6 +69,8 @@ export default function CreateCaGeneratePage() {
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   const [isLoadingEngines, setIsLoadingEngines] = useState(false);
   const [errorEngines, setErrorEngines] = useState<string | null>(null);
+  
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
 
   useEffect(() => {
     setCaId(crypto.randomUUID());
@@ -85,6 +88,7 @@ export default function CreateCaGeneratePage() {
     }
     
     setIsLoadingCAs(true);
+    setIsLoadingProfiles(true);
     setErrorCAs(null);
     try {
         const [fetchedCAs, enginesData, profilesData] = await Promise.all([
@@ -97,6 +101,9 @@ export default function CreateCaGeneratePage() {
         setAvailableProfiles(profilesData);
         if(profilesData.length > 0) {
             setSelectedProfileId(profilesData[0].id);
+            setProfileMode('reuse');
+        } else {
+            setProfileMode('create');
         }
     } catch (err: any) {
         setErrorCAs(err.message || 'Failed to load page dependencies.');
@@ -105,6 +112,7 @@ export default function CreateCaGeneratePage() {
         setAvailableProfiles([]);
     } finally {
         setIsLoadingCAs(false);
+        setIsLoadingProfiles(false);
     }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
@@ -191,7 +199,7 @@ export default function CreateCaGeneratePage() {
     }
     
     let finalProfileId = '';
-    if (profileMode === 'select') {
+    if (profileMode === 'reuse') {
       if (!selectedProfileId) {
         toast({ title: "Validation Error", description: "Please select a default issuance profile.", variant: "destructive" });
         setIsSubmitting(false);
@@ -209,7 +217,7 @@ export default function CreateCaGeneratePage() {
                 name: newProfileName,
                 validity: { type: "Duration", duration: newProfileDuration },
                 // Sensible defaults for inline creation
-                sign_as_ca: false, honor_key_usage: false, key_usage: ["DigitalSignature"], honor_extended_key_usage: false, extended_key_usage: ["ClientAuth"], honor_subject: true, honor_extensions: true, allow_rsa_keys: true, allow_ecdsa_keys: true, allowed_rsa_key_strengths: ['2048', '3072', '4096'], allowed_ecdsa_curves: ['P-256', 'P-384'],
+                sign_as_ca: false, honor_key_usage: false, key_usage: ["DigitalSignature"], honor_extended_key_usage: false, extended_key_usage: ["ClientAuth"], honor_subject: true, honor_extensions: true, allow_rsa_keys: true, allow_ecdsa_keys: true, allowed_rsa_key_strengths: [2048, 3072, 4096], allowed_ecdsa_curves: [256, 384, 521],
             };
             const createdProfile = await createSigningProfile(newProfilePayload, user!.access_token!);
             finalProfileId = createdProfile.id;
@@ -244,7 +252,7 @@ export default function CreateCaGeneratePage() {
     };
 
     try {
-      await createCa(payload, user.access_token!);
+      await createCa(payload, user!.access_token!);
 
       toast({ title: "Certification Authority Creation Successful", description: `Certification Authority "${caName}" has been created.`, variant: "default" });
       router.push('/certificate-authorities');
@@ -271,9 +279,9 @@ export default function CreateCaGeneratePage() {
               Create New Certification Authority (New Key Pair)
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1.5">
+          <CardDescription>
             Provision a new Root or Intermediate Certification Authority. A new cryptographic key pair will be generated and managed by LamassuIoT.
-          </p>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -404,85 +412,20 @@ export default function CreateCaGeneratePage() {
             </section>
             
             <section>
-              <h3 className="text-lg font-semibold mb-3 flex items-center"><FilePenLine className="mr-2 h-5 w-5 text-muted-foreground" />Default Issuance Profile</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card
-                        className={cn(
-                            "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
-                            profileMode === 'select' 
-                                ? "border-primary bg-primary/5 shadow-sm" 
-                                : "border-border hover:border-primary/50"
-                        )}
-                        onClick={() => setProfileMode('select')}
-                    >
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center space-x-3">
-                            <div className={cn("p-2 rounded-lg", profileMode === 'select' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
-                                <BookText className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-base">Select Existing Profile</CardTitle>
-                                <CardDescription className="text-sm">Use a predefined issuance template.</CardDescription>
-                            </div>
-                          </div>
-                        </CardHeader>
-                    </Card>
-                    <Card
-                        className={cn(
-                            "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
-                            profileMode === 'create' 
-                                ? "border-primary bg-primary/5 shadow-sm" 
-                                : "border-border hover:border-primary/50"
-                        )}
-                        onClick={() => setProfileMode('create')}
-                    >
-                         <CardHeader className="pb-3">
-                          <div className="flex items-center space-x-3">
-                            <div className={cn("p-2 rounded-lg", profileMode === 'create' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
-                                <Settings2 className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-base">Create New Profile</CardTitle>
-                                <CardDescription className="text-sm">Define basic settings for a new profile.</CardDescription>
-                            </div>
-                          </div>
-                        </CardHeader>
-                    </Card>
-                </div>
-                
-                <div className="mt-4 space-y-4">
-                    {profileMode === 'select' ? (
-                        <div>
-                            <Label htmlFor="profile-selector">Select Profile</Label>
-                            <Select value={selectedProfileId} onValueChange={setSelectedProfileId} disabled={availableProfiles.length === 0}>
-                                <SelectTrigger id="profile-selector" className="mt-1">
-                                    <SelectValue placeholder="Select an issuance profile..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableProfiles.length > 0 ? (
-                                        availableProfiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)
-                                    ) : (
-                                        <SelectItem value="none" disabled>No profiles available</SelectItem>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    ) : (
-                        <div className="space-y-4 p-4 border rounded-md">
-                            <div>
-                                <Label htmlFor="new-profile-name">New Profile Name</Label>
-                                <Input id="new-profile-name" value={newProfileName} onChange={e => setNewProfileName(e.target.value)} placeholder="e.g., Default IoT Device Profile" className="mt-1"/>
-                            </div>
-                            <DurationInput
-                                id="new-profile-duration"
-                                label="New Profile Default Duration"
-                                value={newProfileDuration}
-                                onChange={setNewProfileDuration}
-                                placeholder="e.g., 90d"
-                            />
-                        </div>
-                    )}
-                </div>
+              <h3 className="text-lg font-semibold mb-3">Default Issuance Profile</h3>
+               <SigningProfileSelector
+                  profileMode={profileMode}
+                  onProfileModeChange={setProfileMode}
+                  availableProfiles={availableProfiles}
+                  isLoadingProfiles={isLoadingProfiles}
+                  selectedProfileId={selectedProfileId}
+                  onProfileIdChange={setSelectedProfileId}
+                  newProfileName={newProfileName}
+                  onNewProfileNameChange={setNewProfileName}
+                  newProfileDuration={newProfileDuration}
+                  onNewProfileDurationChange={setNewProfileDuration}
+                  inlineModeEnabled={false} // Disable the third mode for this view
+               />
             </section>
 
             <div className="flex justify-end pt-4">
