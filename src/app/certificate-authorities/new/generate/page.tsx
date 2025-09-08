@@ -20,7 +20,7 @@ import { ExpirationInput, type ExpirationConfig } from '@/components/shared/Expi
 import { formatISO } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
+import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/form-options';
 import { SigningProfileSelector } from '@/components/shared/SigningProfileSelector';
 import type { ProfileMode } from '@/components/shared/SigningProfileSelector';
 
@@ -52,17 +52,14 @@ export default function CreateCaGeneratePage() {
   const [caExpiration, setCaExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '10y' });
   
   // Profile state
-  const [profileMode, setProfileMode] = useState<ProfileMode>('create');
+  const [profileMode, setProfileMode] = useState<ProfileMode>('reuse');
   const [availableProfiles, setAvailableProfiles] = useState<ApiSigningProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [newProfileName, setNewProfileName] = useState('');
-  const [newProfileDuration, setNewProfileDuration] = useState('1y');
 
 
   const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
 
   const [availableParentCAs, setAvailableParentCAs] = useState<CA[]>([]);
-  const [isLoadingCAs, setIsLoadingCAs] = useState(false);
   
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
   
@@ -387,7 +384,7 @@ export default function CreateCaGeneratePage() {
                     selectedProfileId={selectedProfileId}
                     onProfileIdChange={setSelectedProfileId}
                     inlineModeEnabled={false}
-                    createModeEnabled={false} // Temporarily disable create mode here until it's fully implemented
+                    createModeEnabled={true}
                />
             </section>
 
@@ -407,7 +404,7 @@ export default function CreateCaGeneratePage() {
         title="Select Parent Certification Authority"
         description="Choose an existing Certification Authority to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
         availableCAs={availableParentCAs}
-        isLoadingCAs={isLoadingCAs || isLoadingDependencies}
+        isLoadingCAs={isLoadingDependencies}
         errorCAs={errorDependencies}
         loadCAsAction={loadDependencies}
         onCaSelected={handleParentCaSelectFromModal}
