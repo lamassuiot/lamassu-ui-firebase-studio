@@ -6,20 +6,22 @@ import React, { useState, useEffect } from 'react';
 import type { CA } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Info, KeyRound, Lock, Link as LinkIcon, Network, Users, FileText, Loader2 } from "lucide-react";
+import { Info, KeyRound, Lock, Link as LinkIcon, Network, Users, FileText } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { CaHierarchyPathNode } from '@/components/ca/details/CaHierarchyPathNode';
-import { getCaDisplayName, updateCaIssuanceExpiration } from '@/lib/ca-data';
-import { format, parseISO, isValid } from 'date-fns';
+import { getCaDisplayName, fetchSigningProfileById, fetchSigningProfiles, type ApiSigningProfile, updateCaDefaultProfileId } from '@/lib/ca-data';
+import { format, parseISO } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { ExpirationInput, type ExpirationConfig } from '../ExpirationInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import { SigningProfileSelector } from '@/components/shared/SigningProfileSelector';
+import type { ProfileMode } from '@/components/shared/SigningProfileSelector';
 
 
 interface CaStats {
@@ -66,32 +68,6 @@ const renderUrlList = (urls: string[] | undefined, listTitle: string) => {
   );
 }
 
-const formatIssuanceLifetime = (lifetime?: string): string => {
-  if (!lifetime || lifetime === 'Not Specified') {
-    return 'Not Specified';
-  }
-  // Check if it's an ISO date string (a bit of a heuristic)
-  if (lifetime.includes('T') && lifetime.endsWith('Z')) {
-    if (lifetime.startsWith('9999-12-31')) return 'Indefinite';
-    const date = parseISO(lifetime);
-    if (isValid(date)) {
-      return format(date, 'PPpp');
-    }
-  }
-  // Otherwise, assume it's a duration string like "1y" or "Indefinite"
-  return lifetime;
-};
-
-const parseLifetime = (lifetime?: string): ExpirationConfig => {
-  if (!lifetime || lifetime === 'Not Specified') return { type: 'Duration', durationValue: '1y' };
-  if (lifetime === 'Indefinite' || lifetime.startsWith('9999-12-31')) return { type: 'Indefinite' };
-  if (lifetime.includes('T') && lifetime.endsWith('Z')) {
-    const date = parseISO(lifetime);
-    if (isValid(date)) return { type: 'Date', dateValue: date };
-  }
-  // Assume duration if nothing else matches
-  return { type: 'Duration', durationValue: lifetime };
-};
 
 const toTitleCase = (str: string) => {
   return str
@@ -114,72 +90,69 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   
-  const [isEditingExpiration, setIsEditingExpiration] = useState(false);
-  const [expirationValue, setExpirationValue] = useState<ExpirationConfig | null>(null);
+  // State for profile editing
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileMode, setProfileMode] = useState<ProfileMode>('reuse');
+  const [availableProfiles, setAvailableProfiles] = useState<ApiSigningProfile[]>([]);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const initialExpirationConfig = React.useMemo(() => {
-    if (itemType === 'ca') {
-      return parseLifetime((item as CA).defaultIssuanceLifetime);
-    }
-    return null;
-  }, [item, itemType]);
 
   useEffect(() => {
-    setExpirationValue(initialExpirationConfig);
-  }, [initialExpirationConfig]);
+    // Load available profiles when editing starts or component mounts
+    const loadProfiles = async () => {
+      if (user?.access_token) {
+        setIsLoadingProfiles(true);
+        try {
+          const profiles = await fetchSigningProfiles(user.access_token);
+          setAvailableProfiles(profiles);
+        } catch (err) {
+          console.error("Failed to load signing profiles:", err);
+          toast({ title: "Error", description: "Could not load issuance profiles.", variant: "destructive" });
+        } finally {
+          setIsLoadingProfiles(false);
+        }
+      }
+    };
 
-  const handleSaveExpiration = async () => {
-    if (!expirationValue || itemType !== 'ca' || !user?.access_token) {
-        toast({ title: "Error", description: "Cannot update. Missing data or authentication.", variant: "destructive" });
-        return;
+    if (isEditingProfile) {
+        loadProfiles();
     }
+    
+    // Set initial selected profile ID from the CA item
+    if (itemType === 'ca') {
+        setSelectedProfileId((item as CA).defaultProfileId || null);
+    }
+  }, [item, itemType, isEditingProfile, user?.access_token, toast]);
+
+  const handleSaveProfile = async () => {
+    if (itemType !== 'ca' || !user?.access_token) return;
 
     const caDetails = item as CA;
-    let payload: { type: string; duration?: string; time?: string } = { type: '' };
-
-    if (expirationValue.type === 'Duration') {
-        if (!expirationValue.durationValue?.trim()) {
-            toast({ title: "Validation Error", description: "Duration cannot be empty.", variant: "destructive" });
-            return;
-        }
-        payload = { type: 'Duration', duration: expirationValue.durationValue };
-    } else if (expirationValue.type === 'Date') {
-        if (!expirationValue.dateValue || !isValid(expirationValue.dateValue)) {
-            toast({ title: "Validation Error", description: "A valid date must be selected.", variant: "destructive" });
-            return;
-        }
-        payload = { type: 'Date', time: expirationValue.dateValue.toISOString() };
-    } else if (expirationValue.type === 'Indefinite') {
-        payload = { type: 'Date', time: "9999-12-31T23:59:59.999Z" };
-    }
-
     setIsSubmitting(true);
     try {
-        await updateCaIssuanceExpiration(caDetails.id, payload, user.access_token);
-
-        toast({
-            title: "Success",
-            description: "Default issuance expiration has been updated successfully.",
-        });
-        onUpdateSuccess?.(); // Trigger parent to re-fetch data
-        setIsEditingExpiration(false);
-
+        await updateCaDefaultProfileId(caDetails.id, selectedProfileId, user.access_token);
+        toast({ title: "Success", description: "Default issuance profile updated." });
+        onUpdateSuccess?.(); // Re-fetch parent data
+        setIsEditingProfile(false);
     } catch (e: any) {
-        toast({
-            title: "Update Failed",
-            description: e.message,
-            variant: "destructive"
-        });
+        toast({ title: "Update Failed", description: e.message, variant: "destructive" });
     } finally {
         setIsSubmitting(false);
     }
   };
-
+  
   const handleCancelEdit = () => {
-    setExpirationValue(initialExpirationConfig);
-    setIsEditingExpiration(false);
+      setIsEditingProfile(false);
+      // Reset selected profile to the original one from the `item` prop
+      if (itemType === 'ca') {
+          setSelectedProfileId((item as CA).defaultProfileId || null);
+      }
   };
+  
+  const selectedProfileForDisplay = React.useMemo(() => {
+    return availableProfiles.find(p => p.id === selectedProfileId);
+  }, [selectedProfileId, availableProfiles]);
 
 
   if (itemType === 'ca' && caSpecific) {
@@ -197,25 +170,33 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, caSpecific.allCAsForLinking)} />
             <DetailItem label="Expires On" value={format(parseISO(caDetails.expires), 'PPpp')} />
             
-            <div className="py-2 grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 items-center">
-              <dt className="text-sm font-medium text-muted-foreground">Default Issuance Lifetime</dt>
-              <dd className="mt-1 sm:mt-0 flex items-center gap-2">
-                {!isEditingExpiration ? (
+             <div className="py-2 grid grid-cols-1 gap-x-4 items-start">
+              <dt className="text-sm font-medium text-muted-foreground mb-2">Default Issuance Profile</dt>
+              <dd className="mt-1 sm:mt-0 flex flex-col gap-2">
+                {!isEditingProfile ? (
                    <>
-                    <span>{formatIssuanceLifetime(caDetails.defaultIssuanceLifetime)}</span>
-                    <Button variant="outline" size="sm" onClick={() => setIsEditingExpiration(true)}>Edit</Button>
+                    {caDetails.defaultProfileId ? (
+                        <p className="text-sm text-foreground">{caDetails.defaultProfileId}</p>
+                    ): (
+                        <p className="text-sm text-muted-foreground italic">Not Set</p>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(true)} className="w-fit">Edit</Button>
                   </>
-                ) : expirationValue && (
+                ) : (
                   <div className='w-full'>
-                    <ExpirationInput
-                        label=""
-                        value={expirationValue}
-                        onValueChange={setExpirationValue}
-                        idPrefix="ca-issuance-exp"
+                    <SigningProfileSelector
+                        profileMode={profileMode}
+                        onProfileModeChange={setProfileMode}
+                        availableProfiles={availableProfiles}
+                        isLoadingProfiles={isLoadingProfiles}
+                        selectedProfileId={selectedProfileId}
+                        onProfileIdChange={setSelectedProfileId}
+                        inlineModeEnabled={false} // Inline mode not applicable here
+                        createModeEnabled={true}  // Allow creating a new profile
                     />
-                    <div className="flex justify-end space-x-2 mt-2">
+                    <div className="flex justify-end space-x-2 mt-4">
                         <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isSubmitting}>Cancel</Button>
-                        <Button size="sm" onClick={handleSaveExpiration} disabled={isSubmitting}>
+                        <Button size="sm" onClick={handleSaveProfile} disabled={isSubmitting || isLoadingProfiles}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                             Save
                         </Button>
