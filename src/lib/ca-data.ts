@@ -579,7 +579,7 @@ export interface CreateCaPayload {
     bits: number;
   };
   ca_expiration: { type: string; duration?: string; time?: string };
-  default_profile_id: string;
+  default_profile_id: string | null;
   ca_type: "MANAGED";
 }
 
@@ -961,19 +961,19 @@ export async function createKmsKey(payload: { engine_id: string; algorithm: stri
     }
 }
 
-export async function updateCaIssuanceExpiration(caId: string, payload: any, accessToken: string): Promise<void> {
-    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/issuance-expiration`, {
+export async function updateCaDefaultProfileId(caId: string, profileId: string | null, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/issuance-profile`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ profile_id: profileId })
     });
 
     if (!response.ok) {
         let errorJson;
-        let errorMessage = `Failed to update issuance expiration. Status: ${response.status}`;
+        let errorMessage = `Failed to update issuance profile. Status: ${response.status}`;
         try {
             errorJson = await response.json();
             errorMessage = `Update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
