@@ -2,12 +2,12 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
-import { Settings2, BookText, PlusCircle } from 'lucide-react';
+import { Settings2, BookText, PlusCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ApiSigningProfile, CreateSigningProfilePayload } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,6 +17,10 @@ import { createSigningProfile } from '@/lib/ca-data';
 import { Button } from '../ui/button';
 import { Loader2 } from 'lucide-react';
 import { SigningProfileForm, type SigningProfileFormValues } from './SigningProfileForm';
+import { ExpirationInput, ExpirationConfig } from './ExpirationInput';
+import { Checkbox } from '../ui/checkbox';
+import { KEY_USAGE_OPTIONS, EKU_OPTIONS } from '@/lib/form-options';
+import { Alert } from '../ui/alert';
 
 
 export type ProfileMode = 'reuse' | 'inline' | 'create';
@@ -27,9 +31,22 @@ interface SigningProfileSelectorProps {
   availableProfiles: ApiSigningProfile[];
   isLoadingProfiles: boolean;
   selectedProfileId: string | null;
-  onProfileIdChange: (id: string) => void;
+  onProfileIdChange: (id: string | null) => void;
+  
+  // Props for inline mode
   inlineModeEnabled?: boolean;
+  validity?: ExpirationConfig;
+  onValidityChange?: (config: ExpirationConfig) => void;
+  validityWarning?: string | null;
+  keyUsages?: string[];
+  onKeyUsageChange?: (usage: string, checked: boolean) => void;
+  extendedKeyUsages?: string[];
+  onExtendedKeyUsageChange?: (usage: string, checked: boolean) => void;
+
+  createModeEnabled?: boolean;
 }
+
+const toTitleCase = (str: string) => str.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
 
 export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
   profileMode,
@@ -38,7 +55,15 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
   isLoadingProfiles,
   selectedProfileId,
   onProfileIdChange,
-  inlineModeEnabled = false, // Set to false by default as it's not used now
+  inlineModeEnabled = false,
+  validity,
+  onValidityChange,
+  validityWarning,
+  keyUsages,
+  onKeyUsageChange,
+  extendedKeyUsages,
+  onExtendedKeyUsageChange,
+  createModeEnabled = true,
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -91,9 +116,9 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
     try {
         const newProfile = await createSigningProfile(payload, user.access_token);
         toast({ title: "Profile Created", description: `Issuance Profile "${newProfile.name}" created.` });
-        onProfileIdChange(newProfile.id); // Automatically select the new profile
-        onProfileModeChange('reuse'); // Switch back to reuse mode
-        router.push('/certificate-authorities/new/generate'); // A bit of a hack to force re-render with new profile list
+        onProfileIdChange(newProfile.id); 
+        onProfileModeChange('reuse');
+        router.refresh(); 
     } catch (error: any) {
         toast({ title: `Creation Failed`, description: error.message, variant: "destructive" });
     } finally {
@@ -115,16 +140,25 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
       : "bg-muted text-muted-foreground"
   );
 
+  const gridColsClass = inlineModeEnabled && createModeEnabled ? 'md:grid-cols-3' : 'md:grid-cols-2';
+
   return (
     <div className="space-y-4">
       <Label>Profile Mode</Label>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className={cn("grid grid-cols-1 gap-4", gridColsClass)}>
         <Card className={cardClass('reuse')} onClick={() => onProfileModeChange('reuse')}>
           <CardHeader className="pb-3"><div className="flex items-center space-x-3"><div className={iconWrapperClass('reuse')}><BookText className="h-5 w-5" /></div><div><CardTitle className="text-base">Reuse Existing Profile</CardTitle><CardDescription className="text-sm">Use predefined issuance templates</CardDescription></div></div></CardHeader>
         </Card>
-        <Card className={cardClass('create')} onClick={() => onProfileModeChange('create')}>
-          <CardHeader className="pb-3"><div className="flex items-center space-x-3"><div className={iconWrapperClass('create')}><PlusCircle className="h-5 w-5" /></div><div><CardTitle className="text-base">Create New Profile</CardTitle><CardDescription className="text-sm">Define a full profile on the fly.</CardDescription></div></div></CardHeader>
-        </Card>
+        {inlineModeEnabled && (
+            <Card className={cardClass('inline')} onClick={() => onProfileModeChange('inline')}>
+              <CardHeader className="pb-3"><div className="flex items-center space-x-3"><div className={iconWrapperClass('inline')}><Settings2 className="h-5 w-5" /></div><div><CardTitle className="text-base">Inline Profile</CardTitle><CardDescription className="text-sm">Define a one-time issuance policy</CardDescription></div></div></CardHeader>
+            </Card>
+        )}
+        {createModeEnabled && (
+            <Card className={cardClass('create')} onClick={() => onProfileModeChange('create')}>
+              <CardHeader className="pb-3"><div className="flex items-center space-x-3"><div className={iconWrapperClass('create')}><PlusCircle className="h-5 w-5" /></div><div><CardTitle className="text-base">Create New Profile</CardTitle><CardDescription className="text-sm">Define a full, reusable profile</CardDescription></div></div></CardHeader>
+            </Card>
+        )}
       </div>
 
       {profileMode === 'reuse' && (
@@ -132,7 +166,7 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
           <div className="space-y-2">
             <Label htmlFor="profile-select">Issuance Profile</Label>
             {isLoadingProfiles ? ( <Skeleton className="h-10 w-full md:w-1/2" /> ) : (
-              <Select value={selectedProfileId || ''} onValueChange={onProfileIdChange}>
+              <Select value={selectedProfileId || ''} onValueChange={(v) => onProfileIdChange(v)}>
                 <SelectTrigger id="profile-select" className="w-full md:w-1/2"><SelectValue placeholder="Select a profile..." /></SelectTrigger>
                 <SelectContent>
                   {availableProfiles.length > 0 ? ( availableProfiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>) ) : ( <SelectItem value="none" disabled>No profiles available</SelectItem> )}
@@ -146,7 +180,43 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
         </div>
       )}
 
-      {profileMode === 'create' && (
+      {profileMode === 'inline' && inlineModeEnabled && validity && onValidityChange && (
+          <div className="pt-4 mt-4 border-t space-y-4">
+                <ExpirationInput
+                    idPrefix="inline-validity"
+                    label="Certificate Validity"
+                    value={validity}
+                    onValueChange={onValidityChange}
+                />
+                {validityWarning && <Alert variant="warning"><AlertTriangle className="h-4 w-4"/><CardDescription>{validityWarning}</CardDescription></Alert>}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <Label>Key Usages</Label>
+                        <div className="p-3 border rounded-md mt-1 space-y-2">
+                            {KEY_USAGE_OPTIONS.map(usage => (
+                                <div key={usage.id} className="flex items-center space-x-2">
+                                    <Checkbox id={`inline-ku-${usage.id}`} checked={keyUsages?.includes(usage.id)} onCheckedChange={(c) => onKeyUsageChange?.(usage.id, !!c)} />
+                                    <Label htmlFor={`inline-ku-${usage.id}`} className="font-normal">{usage.label}</Label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                     <div>
+                        <Label>Extended Key Usages</Label>
+                        <div className="p-3 border rounded-md mt-1 space-y-2">
+                             {EKU_OPTIONS.map(eku => (
+                                <div key={eku.id} className="flex items-center space-x-2">
+                                    <Checkbox id={`inline-eku-${eku.id}`} checked={extendedKeyUsages?.includes(eku.id)} onCheckedChange={(c) => onExtendedKeyUsageChange?.(eku.id, !!c)} />
+                                    <Label htmlFor={`inline-eku-${eku.id}`} className="font-normal">{eku.label}</Label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+          </div>
+      )}
+
+      {profileMode === 'create' && createModeEnabled && (
         <div className="pt-4 mt-4 border-t">
           <SigningProfileForm
             onSubmit={handleCreateProfileSubmit}

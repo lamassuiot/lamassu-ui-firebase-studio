@@ -25,7 +25,7 @@ import {
 import * as asn1js from "asn1js";
 import { useAuth } from '@/contexts/AuthContext';
 import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
-import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
+import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS, KEY_USAGE_OPTIONS, EKU_OPTIONS } from '@/lib/form-options';
 import { fetchAndProcessCAs, findCaById, signCertificate, type CA, fetchSigningProfiles, type ApiSigningProfile } from '@/lib/ca-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/shared/Stepper';
@@ -80,27 +80,6 @@ function ipToBuffer(ip: string): ArrayBuffer | null {
   }
   return null;
 }
-
-const KEY_USAGE_OPTIONS = [
-    { id: "DigitalSignature", label: "Digital Signature" },
-    { id: "ContentCommitment", label: "Content Commitment (Non-Repudiation)" },
-    { id: "KeyEncipherment", label: "Key Encipherment" },
-    { id: "DataEncipherment", label: "Data Encipherment" },
-    { id: "KeyAgreement", label: "Key Agreement" },
-    { id: "CertSign", label: "Certificate Signing" },
-    { id: "CRLSign", label: "CRL Signing" },
-    { id: "EncipherOnly", label: "Encipher Only" },
-    { id: "DecipherOnly", label: "Decipher Only" },
-] as const;
-
-const EKU_OPTIONS = [
-    { id: "ServerAuth", label: "Server Authentication" },
-    { id: "ClientAuth", label: "Client Authentication" },
-    { id: "CodeSigning", label: "Code Signing" },
-    { id: "EmailProtection", label: "Email Protection" },
-    { id: "TimeStamping", label: "Time Stamping" },
-    { id: "OcspSigning", label: "OCSP Signing" },
-] as const;
 
 // --- SAN Interface ---
 interface SanEntry {
@@ -735,6 +714,7 @@ export default function IssueCertificateFormClient() {
                                 isLoadingProfiles={isLoadingProfiles}
                                 selectedProfileId={selectedProfileId}
                                 onProfileIdChange={setSelectedProfileId}
+                                inlineModeEnabled={true}
                                 validity={validity}
                                 onValidityChange={setValidity}
                                 validityWarning={validityWarning}
