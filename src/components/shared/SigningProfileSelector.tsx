@@ -2,6 +2,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import type { UseFormReturn } from 'react-hook-form';
+import { z } from 'zod';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -79,7 +81,7 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
     defaultValues: defaultFormValues,
   });
 
-  async function handleSubmit(data: SigningProfileFormValues) {
+  async function handleProfileCreationSubmit(data: SigningProfileFormValues) {
     if (!user?.access_token) {
         toast({ title: "Error", description: "Authentication token is missing.", variant: "destructive" });
         return;
@@ -168,21 +170,21 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
         <div className="pt-4 mt-4 border-t">
            <div className="flex justify-between items-center mb-4">
               <Label>Create New Reusable Profile</Label>
-              <Button variant="ghost" onClick={() => onProfileModeChange('reuse')}>
+              <Button type="button" variant="ghost" onClick={() => onProfileModeChange('reuse')}>
                   <ArrowLeft className="mr-2 h-4 w-4"/> Back to Selection
               </Button>
            </div>
            <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-              <SigningProfileForm form={form} />
-               <div className="flex justify-end">
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Create and Select Profile
-                  </Button>
-               </div>
-            </form>
-          </Form>
+              <form onSubmit={form.handleSubmit(handleProfileCreationSubmit)} className="space-y-4">
+                <SigningProfileForm form={form} />
+                <div className="flex justify-end">
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                      Create and Select Profile
+                    </Button>
+                </div>
+              </form>
+            </Form>
        </div>
     );
   }
