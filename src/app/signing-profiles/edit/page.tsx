@@ -3,6 +3,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { ArrowLeft, Edit } from "lucide-react"; 
@@ -16,7 +18,8 @@ import {
   type CreateSigningProfilePayload,
   type ApiSigningProfile,
 } from '@/lib/ca-data';
-import { SigningProfileForm, type SigningProfileFormValues } from '@/components/shared/SigningProfileForm';
+import { SigningProfileForm, signingProfileSchema, type SigningProfileFormValues } from '@/components/shared/SigningProfileForm';
+import { Form } from '@/components/ui/form';
 
 
 export default function EditSigningProfilePage() {
@@ -32,6 +35,10 @@ export default function EditSigningProfilePage() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(isEditMode);
   const [errorProfile, setErrorProfile] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<SigningProfileFormValues>({
+    resolver: zodResolver(signingProfileSchema),
+  });
   
   const fetchProfile = useCallback(async () => {
     if (!profileId || !user?.access_token) {
@@ -43,22 +50,66 @@ export default function EditSigningProfilePage() {
     try {
         const data = await fetchSigningProfileById(profileId, user.access_token);
         setProfileData(data);
+        form.reset(mapApiProfileToFormValues(data)); // Reset form with fetched data
         setErrorProfile(null);
     } catch (error: any) {
         setErrorProfile(error.message);
     } finally {
         setIsLoadingProfile(false);
     }
-  }, [profileId, user?.access_token, isEditMode]);
+  }, [profileId, user?.access_token, isEditMode, form]);
 
   useEffect(() => {
     if (isEditMode && user?.access_token) {
         fetchProfile();
     } else if (!isEditMode) {
-        // If not in edit mode, redirect or show error, as this page is for editing only.
         setErrorProfile("No Profile ID was provided. This page is for editing existing profiles.");
     }
   }, [user?.access_token, fetchProfile, isEditMode]);
+  
+
+  const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFormValues => {
+    const crypto = profile.crypto_enforcement || {};
+    
+    let validityConfig: ExpirationConfig = { type: 'Duration', durationValue: '1y' };
+    if (profile.validity) {
+        const type = profile.validity.type;
+        if (type === 'Duration' && profile.validity.duration) {
+            validityConfig = { type: 'Duration', durationValue: profile.validity.duration };
+        } else if (type === 'Date' && profile.validity.time) {
+            if (profile.validity.time.startsWith('9999-12-31')) {
+                validityConfig = { type: 'Indefinite' };
+            } else {
+                validityConfig = { type: 'Date', dateValue: new Date(profile.validity.time) };
+            }
+        } else if (type === "Indefinite") {
+            validityConfig = { type: 'Indefinite' };
+        }
+    }
+    
+    return {
+        profileName: profile.name || '',
+        description: profile.description || '',
+        validity: validityConfig,
+        signAsCa: profile.sign_as_ca || false,
+        honorSubject: profile.honor_subject,
+        overrideCountry: profile.subject?.country || '',
+        overrideState: profile.subject?.state || '',
+        overrideOrganization: profile.subject?.organization || '',
+        overrideOrgUnit: profile.subject?.organizational_unit || '',
+        cryptoEnforcement: {
+            enabled: crypto.enabled || false,
+            allowRsa: crypto.allow_rsa_keys || false,
+            allowEcdsa: crypto.allow_ecdsa_keys || false,
+            allowedRsaKeySizes: crypto.allowed_rsa_key_sizes || [],
+            allowedEcdsaCurves: crypto.allowed_ecdsa_key_sizes || [],
+        },
+        honorKeyUsage: profile.honor_key_usage,
+        keyUsages: (profile.key_usage || []) as any[],
+        honorExtendedKeyUsage: profile.honor_extended_key_usage,
+        extendedKeyUsages: (profile.extended_key_usage || []) as any[],
+    };
+  };
 
   async function handleSubmit(data: SigningProfileFormValues) {
     if (!user?.access_token || !profileId) {
@@ -147,39 +198,36 @@ export default function EditSigningProfilePage() {
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Issuance Profiles
       </Button>
 
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
-        <Card className="shadow-lg">
-            <CardHeader>
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                <Edit className="h-7 w-7 text-primary" />
-                <CardTitle className="text-xl font-headline">Edit Issuance Profile</CardTitle>
-                </div>
-            </div>
-            <CardDescription>
-                Modify the parameters for this certificate issuance profile.
-            </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {profileData ? (
-                    <SigningProfileForm
-                        profileToEdit={profileData}
-                        onSubmit={handleSubmit}
-                        isSubmitting={isSubmitting}
-                        key={profileData.id}
-                    />
-                ) : (
-                    <p className="text-muted-foreground text-center">No profile data to display.</p>
-                )}
-            </CardContent>
-            <CardFooter>
-                <Button type="submit" disabled={isSubmitting || !profileData} className="w-full sm:w-auto ml-auto">
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                    Save Changes
-                </Button>
-            </CardFooter>
-        </Card>
-      </form>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
+          <Card className="shadow-lg">
+              <CardHeader>
+              <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                  <Edit className="h-7 w-7 text-primary" />
+                  <CardTitle className="text-xl font-headline">Edit Issuance Profile</CardTitle>
+                  </div>
+              </div>
+              <CardDescription>
+                  Modify the parameters for this certificate issuance profile.
+              </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  {profileData ? (
+                      <SigningProfileForm form={form} />
+                  ) : (
+                      <p className="text-muted-foreground text-center">No profile data to display.</p>
+                  )}
+              </CardContent>
+              <CardFooter>
+                  <Button type="submit" disabled={isSubmitting || !profileData} className="w-full sm:w-auto ml-auto">
+                      {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                      Save Changes
+                  </Button>
+              </CardFooter>
+          </Card>
+        </form>
+      </Form>
     </div>
   );
 }

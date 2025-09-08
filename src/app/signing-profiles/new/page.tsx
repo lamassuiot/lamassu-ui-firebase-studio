@@ -1,11 +1,13 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, PlusCircle, FileText, Shield, Lock, Code, Settings2 } from "lucide-react"; 
+import { ArrowLeft, PlusCircle, FileText, Shield, Lock, Code, Settings2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -13,7 +15,8 @@ import {
   createSigningProfile,
   type CreateSigningProfilePayload,
 } from '@/lib/ca-data';
-import { SigningProfileForm, type SigningProfileFormValues, templateDefaults, defaultFormValues } from '@/components/shared/SigningProfileForm';
+import { SigningProfileForm, signingProfileSchema, type SigningProfileFormValues, templateDefaults, defaultFormValues } from '@/components/shared/SigningProfileForm';
+import { Form } from '@/components/ui/form';
 
 
 const templateMetadata = [
@@ -33,6 +36,11 @@ export default function CreateSigningProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [view, setView] = useState<'template' | 'form'>('template');
   const [initialFormValues, setInitialFormValues] = useState<SigningProfileFormValues | null>(defaultFormValues);
+  
+  const form = useForm<SigningProfileFormValues>({
+    resolver: zodResolver(signingProfileSchema),
+    values: initialFormValues || defaultFormValues, // Use values to re-initialize on template selection
+  });
 
   async function handleSubmit(data: SigningProfileFormValues) {
     if (!user?.access_token) {
@@ -92,12 +100,15 @@ export default function CreateSigningProfilePage() {
   }
 
   const handleTemplateSelect = (templateId: string) => {
+    let newInitialValues: SigningProfileFormValues;
     if (templateId === 'blank') {
-        setInitialFormValues(defaultFormValues);
+        newInitialValues = defaultFormValues;
     } else {
-        const templateData = templateDefaults[templateId];
-        setInitialFormValues({ ...defaultFormValues, ...templateData });
+        const templateData = templateDefaults[templateId] || {};
+        newInitialValues = { ...defaultFormValues, ...templateData };
     }
+    setInitialFormValues(newInitialValues);
+    form.reset(newInitialValues); // Explicitly reset the form with new values
     setView('form');
   };
 
@@ -107,61 +118,58 @@ export default function CreateSigningProfilePage() {
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Issuance Profiles
       </Button>
 
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
-        <Card className="shadow-lg">
-            <CardHeader>
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                <PlusCircle className="h-7 w-7 text-primary" />
-                <CardTitle className="text-xl font-headline">Create Issuance Profile</CardTitle>
-                </div>
-                {view === 'form' && (
-                <Button variant="ghost" onClick={() => setView('template')}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Templates
-                </Button>
-                )}
-            </div>
-            <CardDescription>
-                {view === 'template' ? 'Select a template to start with or begin with a blank slate.' : 
-                'Define the parameters for the new certificate issuance profile.'}
-            </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {view === 'template' ? (
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {templateMetadata.map(({ id, title, description, icon: Icon }) => (
-                                <Card key={id} className="hover:shadow-md hover:border-primary/50 transition-shadow cursor-pointer flex flex-col" onClick={() => handleTemplateSelect(id)}>
-                                    <CardHeader className="flex-grow">
-                                        <div className="flex items-center space-x-3 mb-2">
-                                            <div className="p-2 bg-muted rounded-md"><Icon className="h-6 w-6 text-primary"/></div>
-                                            <h3 className="font-semibold">{title}</h3>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">{description}</p>
-                                    </CardHeader>
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <SigningProfileForm
-                        initialValues={initialFormValues}
-                        onSubmit={handleSubmit}
-                        isSubmitting={isSubmitting}
-                        key={initialFormValues?.profileName}
-                    />
-                )}
-            </CardContent>
-            {view === 'form' && (
-                    <CardFooter>
-                    <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto ml-auto">
-                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                        Create Profile
-                    </Button>
-                </CardFooter>
-            )}
-        </Card>
-      </form>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
+          <Card className="shadow-lg">
+              <CardHeader>
+              <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                  <PlusCircle className="h-7 w-7 text-primary" />
+                  <CardTitle className="text-xl font-headline">Create Issuance Profile</CardTitle>
+                  </div>
+                  {view === 'form' && (
+                  <Button variant="ghost" onClick={() => setView('template')}>
+                      <ArrowLeft className="mr-2 h-4 w-4" /> Back to Templates
+                  </Button>
+                  )}
+              </div>
+              <CardDescription>
+                  {view === 'template' ? 'Select a template to start with or begin with a blank slate.' : 
+                  'Define the parameters for the new certificate issuance profile.'}
+              </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  {view === 'template' ? (
+                      <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {templateMetadata.map(({ id, title, description, icon: Icon }) => (
+                                  <Card key={id} className="hover:shadow-md hover:border-primary/50 transition-shadow cursor-pointer flex flex-col" onClick={() => handleTemplateSelect(id)}>
+                                      <CardHeader className="flex-grow">
+                                          <div className="flex items-center space-x-3 mb-2">
+                                              <div className="p-2 bg-muted rounded-md"><Icon className="h-6 w-6 text-primary"/></div>
+                                              <h3 className="font-semibold">{title}</h3>
+                                          </div>
+                                          <p className="text-xs text-muted-foreground">{description}</p>
+                                      </CardHeader>
+                                  </Card>
+                              ))}
+                          </div>
+                      </div>
+                  ) : (
+                      <SigningProfileForm form={form} />
+                  )}
+              </CardContent>
+              {view === 'form' && (
+                      <CardFooter>
+                      <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto ml-auto">
+                          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                          Create Profile
+                      </Button>
+                  </CardFooter>
+              )}
+          </Card>
+        </form>
+      </Form>
     </div>
   );
 }

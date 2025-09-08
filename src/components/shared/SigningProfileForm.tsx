@@ -2,25 +2,22 @@
 'use client';
 
 import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import type { UseFormReturn } from 'react-hook-form';
+import { z } from 'zod';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Settings2, KeyRound, ListChecks, Info, Shield } from "lucide-react"; 
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from "@/components/ui/textarea";
 import { ExpirationInput, type ExpirationConfig } from '@/components/shared/ExpirationInput';
-import type { ApiSigningProfile } from '@/lib/ca-data';
 
 const rsaKeyStrengths = ["2048", "3072", "4096"] as const;
 const ecdsaCurves = ["P-256", "P-384", "P-521"] as const;
 
 const keyUsageOptions = [
-  "DigitalSignature", "contentCommitment", "KeyEncipherment", "DataEncipherment",
+  "DigitalSignature", "ContentCommitment", "KeyEncipherment", "DataEncipherment",
   "KeyAgreement", "CertSign", "CRLSign", "EncipherOnly", "DecipherOnly"
 ] as const;
 type KeyUsageOption = typeof keyUsageOptions[number];
@@ -31,7 +28,7 @@ const extendedKeyUsageOptions = [
 ] as const;
 type ExtendedKeyUsageOption = typeof extendedKeyUsageOptions[number];
 
-const signingProfileSchema = z.object({
+export const signingProfileSchema = z.object({
   profileName: z.string().min(3, "Profile name must be at least 3 characters long."),
   description: z.string().optional(),
   
@@ -101,7 +98,7 @@ export const templateDefaults: Record<string, Partial<SigningProfileFormValues>>
     profileName: 'IoT Device Authentication Profile',
     description: 'For authenticating IoT devices. Includes client and server authentication.',
     validity: { type: 'Duration', durationValue: '5y' },
-    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, enabled: true },
     keyUsages: ['DigitalSignature', 'KeyEncipherment'],
     extendedKeyUsages: ['ClientAuth', 'ServerAuth'],
     honorKeyUsage: false,
@@ -111,8 +108,8 @@ export const templateDefaults: Record<string, Partial<SigningProfileFormValues>>
     profileName: 'Code Signing Profile',
     description: 'For signing application code and executables.',
     validity: { type: 'Duration', durationValue: '3y' },
-    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, allowedEcdsaCurves: [] }, // Often RSA
-    keyUsages: ['DigitalSignature', 'contentCommitment'],
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, allowedEcdsaCurves: [], enabled: true }, // Often RSA
+    keyUsages: ['DigitalSignature', 'ContentCommitment'],
     extendedKeyUsages: ['CodeSigning'],
     honorKeyUsage: false,
     honorExtendedKeyUsage: false,
@@ -121,7 +118,7 @@ export const templateDefaults: Record<string, Partial<SigningProfileFormValues>>
     profileName: 'TLS Web Server Profile',
     description: 'For standard TLS web server certificates (HTTPS).',
     validity: { type: 'Duration', durationValue: '1y' },
-    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, enabled: true },
     keyUsages: ['DigitalSignature', 'KeyEncipherment'],
     extendedKeyUsages: ['ServerAuth'],
     honorKeyUsage: false,
@@ -132,7 +129,7 @@ export const templateDefaults: Record<string, Partial<SigningProfileFormValues>>
     description: 'For issuing intermediate CA certificates that can sign other certificates.',
     validity: { type: 'Duration', durationValue: '5y' },
     signAsCa: true,
-    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement },
+    cryptoEnforcement: { ...defaultFormValues.cryptoEnforcement, enabled: true },
     keyUsages: ['CertSign', 'CRLSign'],
     extendedKeyUsages: [],
     honorKeyUsage: false,
@@ -155,86 +152,18 @@ const mapEcdsaCurveToBitSize = (curve: string): number => {
     }
 };
 
-// Helper to map API data to form values
-const mapApiProfileToFormValues = (profile: ApiSigningProfile): SigningProfileFormValues => {
-    const crypto = profile.crypto_enforcement || {};
-    
-    let validityConfig: ExpirationConfig = { type: 'Duration', durationValue: '1y' };
-    if (profile.validity) {
-        const type = profile.validity.type;
-        if (type === 'Duration' && profile.validity.duration) {
-            validityConfig = { type: 'Duration', durationValue: profile.validity.duration };
-        } else if (type === 'Date' && profile.validity.time) {
-            if (profile.validity.time.startsWith('9999-12-31')) {
-                validityConfig = { type: 'Indefinite' };
-            } else {
-                validityConfig = { type: 'Date', dateValue: new Date(profile.validity.time) };
-            }
-        } else if (type === "Indefinite") {
-            validityConfig = { type: 'Indefinite' };
-        }
-    }
-    
-    return {
-        profileName: profile.name || '',
-        description: profile.description || '',
-        validity: validityConfig,
-        signAsCa: profile.sign_as_ca || false,
-        honorSubject: profile.honor_subject,
-        overrideCountry: profile.subject?.country || '',
-        overrideState: profile.subject?.state || '',
-        overrideOrganization: profile.subject?.organization || '',
-        overrideOrgUnit: profile.subject?.organizational_unit || '',
-        cryptoEnforcement: {
-            enabled: crypto.enabled || false,
-            allowRsa: crypto.allow_rsa_keys || false,
-            allowEcdsa: crypto.allow_ecdsa_keys || false,
-            allowedRsaKeySizes: crypto.allowed_rsa_key_sizes || [],
-            allowedEcdsaCurves: crypto.allowed_ecdsa_key_sizes || [],
-        },
-        honorKeyUsage: profile.honor_key_usage,
-        keyUsages: (profile.key_usage || []) as KeyUsageOption[],
-        honorExtendedKeyUsage: profile.honor_extended_key_usage,
-        extendedKeyUsages: (profile.extended_key_usage || []) as ExtendedKeyUsageOption[],
-    };
-};
-
 interface SigningProfileFormProps {
-  profileToEdit?: ApiSigningProfile | null;
-  initialValues?: SigningProfileFormValues | null;
-  onSubmit: (data: SigningProfileFormValues) => Promise<void>;
-  isSubmitting: boolean;
+  form: UseFormReturn<SigningProfileFormValues>;
 }
 
-export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
-  profileToEdit,
-  initialValues,
-  onSubmit,
-  isSubmitting,
-}) => {
-  const form = useForm<SigningProfileFormValues>({
-    resolver: zodResolver(signingProfileSchema),
-    defaultValues: profileToEdit 
-      ? mapApiProfileToFormValues(profileToEdit) 
-      : {
-        ...defaultFormValues,
-        ...initialValues,
-        validity: initialValues?.validity || defaultFormValues.validity,
-        cryptoEnforcement: {
-          ...defaultFormValues.cryptoEnforcement,
-          ...initialValues?.cryptoEnforcement,
-        },
-      },
-  });
-
+export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({ form }) => {
   const watchCryptoEnforcement = form.watch("cryptoEnforcement");
   const watchHonorSubject = form.watch("honorSubject");
   const watchHonorKeyUsage = form.watch("honorKeyUsage");
   const watchHonorExtendedKeyUsage = form.watch("honorExtendedKeyUsage");
 
   return (
-    <Form {...form}>
-      <form id="signing-profile-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+    <div className="space-y-8">
         <FormField
           control={form.control}
           name="profileName"
@@ -328,7 +257,7 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
             </FormItem>
           )}
         />
-        {watchCryptoEnforcement.enabled && (
+        {watchCryptoEnforcement && watchCryptoEnforcement.enabled && (
           <div className="space-y-4 p-4 border rounded-md ml-4 -mt-4">
             <FormField control={form.control} name="cryptoEnforcement.allowRsa" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between"><FormLabel>Allow RSA Keys</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem> )}/>
             {watchCryptoEnforcement.allowRsa && (
@@ -414,7 +343,6 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({
             />
            </div>
         )}
-      </form>
-    </Form>
+      </div>
   );
 };
