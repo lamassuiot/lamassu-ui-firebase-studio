@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Loader2, AlertTriangle, Copy, Check, Download as DownloadIcon, X as XIcon } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, Loader2, AlertTriangle, Copy, Check, Download as DownloadIcon, X as XIcon, Settings2, BookText } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
 import { DetailItem } from '@/components/shared/DetailItem';
@@ -26,11 +26,12 @@ import * as asn1js from "asn1js";
 import { useAuth } from '@/contexts/AuthContext';
 import { parseCsr, type DecodedCsrInfo } from '@/lib/csr-utils';
 import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
-import { fetchAndProcessCAs, findCaById, signCertificate, type CA } from '@/lib/ca-data';
+import { fetchAndProcessCAs, findCaById, signCertificate, type CA, fetchSigningProfiles, type ApiSigningProfile } from '@/lib/ca-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Stepper } from '@/components/shared/Stepper';
 import { ExpirationConfig, ExpirationInput } from '@/components/shared/ExpirationInput';
 import { formatISO, add, parseISO, isAfter } from 'date-fns';
+import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
 
 
 // This specific date string is used to represent "indefinite validity" (no expiration) in the API.
@@ -159,6 +160,11 @@ export default function IssueCertificateFormClient() {
   const [decodedCsrInfo, setDecodedCsrInfo] = useState<DecodedCsrInfo | null>(null);
 
   // Step 1 - Configuration State
+  const [profileMode, setProfileMode] = useState<'reuse' | 'inline'>('reuse');
+  const [signingProfiles, setSigningProfiles] = useState<ApiSigningProfile[]>([]);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+
   const [keyUsages, setKeyUsages] = useState<string[]>(['DigitalSignature', 'KeyEncipherment']);
   const [extendedKeyUsages, setExtendedKeyUsages] = useState<string[]>(['ClientAuth', 'ServerAuth']);
   const [validity, setValidity] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
@@ -203,6 +209,13 @@ export default function IssueCertificateFormClient() {
     return null;
   }, [validity, issuerCa]);
 
+  const selectedProfile = useMemo(() => {
+    if (profileMode === 'reuse' && selectedProfileId) {
+      return signingProfiles.find(p => p.id === selectedProfileId);
+    }
+    return null;
+  }, [profileMode, selectedProfileId, signingProfiles]);
+
 
   // --- Effects ---
   useEffect(() => {
@@ -239,6 +252,23 @@ export default function IssueCertificateFormClient() {
         }
     }
     loadIssuerCa();
+    
+    const loadProfiles = async () => {
+        setIsLoadingProfiles(true);
+        try {
+            const profiles = await fetchSigningProfiles(user.access_token!);
+            setSigningProfiles(profiles);
+        } catch (error: any) {
+            toast({
+                title: "Error loading profiles",
+                description: error.message,
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoadingProfiles(false);
+        }
+    };
+    loadProfiles();
   }, [caId, user?.access_token, toast]);
 
   useEffect(() => {
@@ -370,6 +400,22 @@ export default function IssueCertificateFormClient() {
     setExtendedKeyUsages(prev => checked ? [...prev, usage] : prev.filter(u => u !== usage));
   };
 
+  const buildProfilePayload = () => {
+    if (profileMode === 'reuse') {
+        return { profile_id: selectedProfileId };
+    }
+    // Inline profile mode
+    return {
+        profile: {
+            extended_key_usage: extendedKeyUsages,
+            key_usage: keyUsages,
+            honor_extensions: true,
+            honor_subject: true,
+            validity: formatValidityForApi(),
+        }
+    };
+  };
+
   // New combined handler for Generate mode
   const handleGenerateAndIssue = async () => {
     if (isGenerating) return;
@@ -441,13 +487,7 @@ export default function IssueCertificateFormClient() {
       // --- Part 2: Issue Certificate ---
       const payload = {
         csr: window.btoa(signedCsrPem),
-        profile: {
-            extended_key_usage: extendedKeyUsages,
-            key_usage: keyUsages,
-            honor_extensions: true,
-            honor_subject: true,
-            validity: formatValidityForApi(),
-        }
+        ...buildProfilePayload()
       };
     
       const result = await signCertificate(caId!, payload, user!.access_token!);
@@ -481,13 +521,7 @@ export default function IssueCertificateFormClient() {
 
     const payload = {
         csr: window.btoa(csrPem),
-        profile: {
-            extended_key_usage: extendedKeyUsages,
-            key_usage: keyUsages,
-            honor_extensions: true,
-            honor_subject: true,
-            validity: formatValidityForApi(),
-        }
+        ...buildProfilePayload()
     };
     
     try {
@@ -687,22 +721,126 @@ export default function IssueCertificateFormClient() {
                             
                             {/* --- Configuration section (both modes) --- */}
                             <h3 className="font-medium text-lg border-t pt-4">Certificate Configuration</h3>
-                             <ExpirationInput
-                                idPrefix="cert-validity"
-                                label="Certificate Validity"
-                                value={validity}
-                                onValueChange={setValidity}
-                            />
-                            {validityWarning && (
-                                <Alert variant="warning" className="mt-2">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertDescription>{validityWarning}</AlertDescription>
-                                </Alert>
-                            )}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2"><h4 className="font-medium">Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{KEY_USAGE_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`ku-${o.id}`} checked={keyUsages.includes(o.id)} onCheckedChange={(c)=>handleKeyUsageChange(o.id, !!c)}/><Label htmlFor={`ku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
-                                <div className="space-y-2"><h4 className="font-medium">Extended Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{EKU_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`eku-${o.id}`} checked={extendedKeyUsages.includes(o.id)} onCheckedChange={(c)=>handleExtendedKeyUsageChange(o.id, !!c)}/><Label htmlFor={`eku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
+                            <div className="space-y-4">
+                                <Label>Profile Mode</Label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Reuse Profile Card */}
+                                    <Card 
+                                        className={cn(
+                                            "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                                            profileMode === 'reuse' 
+                                                ? "border-primary bg-primary/5 shadow-sm" 
+                                                : "border-border hover:border-primary/50"
+                                        )}
+                                        onClick={() => setProfileMode('reuse')}
+                                    >
+                                        <CardHeader className="pb-3">
+                                            <div className="flex items-center space-x-3">
+                                                <div className={cn(
+                                                    "p-2 rounded-lg",
+                                                    profileMode === 'reuse' 
+                                                        ? "bg-primary text-primary-foreground" 
+                                                        : "bg-muted text-muted-foreground"
+                                                )}>
+                                                    <BookText className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <CardTitle className="text-base">Reuse Existing Profile</CardTitle>
+                                                    <CardDescription className="text-sm">
+                                                        Use predefined issuance templates
+                                                    </CardDescription>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="pt-0">
+                                            <p className="text-sm text-muted-foreground">
+                                                Select from existing signing profiles with pre-configured security policies and certificate settings.
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Inline Profile Card */}
+                                    <Card 
+                                        className={cn(
+                                            "cursor-pointer transition-all duration-200 hover:shadow-md border-2",
+                                            profileMode === 'inline' 
+                                                ? "border-primary bg-primary/5 shadow-sm" 
+                                                : "border-border hover:border-primary/50"
+                                        )}
+                                        onClick={() => setProfileMode('inline')}
+                                    >
+                                        <CardHeader className="pb-3">
+                                            <div className="flex items-center space-x-3">
+                                                <div className={cn(
+                                                    "p-2 rounded-lg",
+                                                    profileMode === 'inline' 
+                                                        ? "bg-primary text-primary-foreground" 
+                                                        : "bg-muted text-muted-foreground"
+                                                )}>
+                                                    <Settings2 className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <CardTitle className="text-base">Inline Profile</CardTitle>
+                                                    <CardDescription className="text-sm">
+                                                        Configure certificate settings manually
+                                                    </CardDescription>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="pt-0">
+                                            <p className="text-sm text-muted-foreground">
+                                                Customize validity period, key usage, and extended key usage for this specific certificate issuance.
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
                             </div>
+                            
+                            {profileMode === 'reuse' ? (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="profile-select">Issuance Profile</Label>
+                                        {isLoadingProfiles ? (
+                                            <Skeleton className="h-10 w-full md:w-1/2" />
+                                        ) : (
+                                            <Select value={selectedProfileId || ''} onValueChange={setSelectedProfileId}>
+                                                <SelectTrigger id="profile-select" className="w-full md:w-1/2">
+                                                    <SelectValue placeholder="Select a profile..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {signingProfiles.map(p => (
+                                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    </div>
+                                    {selectedProfile && (
+                                        <div className="pt-2">
+                                            <IssuanceProfileCard profile={selectedProfile} />
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <ExpirationInput
+                                        idPrefix="cert-validity"
+                                        label="Certificate Validity"
+                                        value={validity}
+                                        onValueChange={setValidity}
+                                    />
+                                    {validityWarning && (
+                                        <Alert variant="warning" className="mt-2">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <AlertDescription>{validityWarning}</AlertDescription>
+                                        </Alert>
+                                    )}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2"><h4 className="font-medium">Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{KEY_USAGE_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`ku-${o.id}`} checked={keyUsages.includes(o.id)} onCheckedChange={(c)=>handleKeyUsageChange(o.id, !!c)}/><Label htmlFor={`ku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
+                                        <div className="space-y-2"><h4 className="font-medium">Extended Key Usage</h4><div className="space-y-1.5 border p-3 rounded-md">{EKU_OPTIONS.map(o=><div key={o.id} className="flex items-center space-x-2"><Checkbox id={`eku-${o.id}`} checked={extendedKeyUsages.includes(o.id)} onCheckedChange={(c)=>handleExtendedKeyUsageChange(o.id, !!c)}/><Label htmlFor={`eku-${o.id}`} className="font-normal">{o.label}</Label></div>)}</div></div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
