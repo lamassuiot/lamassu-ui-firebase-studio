@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
-import { Settings2, BookText, PlusCircle, AlertTriangle } from 'lucide-react';
+import { Settings2, BookText, PlusCircle, AlertTriangle, FileText, Shield, Lock, Code } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ApiSigningProfile, CreateSigningProfilePayload } from '@/lib/ca-data';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,9 +16,8 @@ import { useRouter } from 'next/navigation';
 import { createSigningProfile } from '@/lib/ca-data';
 import { Button } from '../ui/button';
 import { Loader2 } from 'lucide-react';
-import { SigningProfileForm, type SigningProfileFormValues } from './SigningProfileForm';
+import { SigningProfileForm, type SigningProfileFormValues, defaultFormValues, templateDefaults } from './SigningProfileForm';
 import { ExpirationInput, ExpirationConfig } from './ExpirationInput';
-import { Checkbox } from '../ui/checkbox';
 import { KEY_USAGE_OPTIONS, EKU_OPTIONS } from '@/lib/form-options';
 import { Alert } from '../ui/alert';
 
@@ -48,6 +47,14 @@ interface SigningProfileSelectorProps {
 
 const toTitleCase = (str: string) => str.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
 
+const templateMetadata = [
+    { id: 'blank', title: 'Blank Template', description: 'Start with an empty, default profile.', icon: FileText },
+    { id: 'device-auth', title: 'IoT Device Auth', description: 'For standard device client/server authentication.', icon: Shield },
+    { id: 'server-cert', title: 'TLS Web Server', description: 'Standard profile for HTTPS web servers.', icon: Lock },
+    { id: 'code-signing', title: 'Code Signing', description: 'For signing application binaries and code.', icon: Code },
+    { id: 'ca-cert', title: 'Intermediate CA', description: 'Profile for creating a new sub-CA.', icon: Settings2 },
+];
+
 export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
   profileMode,
   onProfileModeChange,
@@ -69,6 +76,10 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmittingNewProfile, setIsSubmittingNewProfile] = React.useState(false);
+  
+  // New state for the creation sub-flow
+  const [creationView, setCreationView] = React.useState<'template' | 'form'>('template');
+  const [initialFormValues, setInitialFormValues] = React.useState<SigningProfileFormValues | null>(defaultFormValues);
     
   const selectedProfile = React.useMemo(() => {
     if (profileMode === 'reuse' && selectedProfileId) {
@@ -86,9 +97,13 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
     setIsSubmittingNewProfile(true);
 
     let validityPayload: { type: string; duration?: string; time?: string } = { type: 'Duration', duration: '1y' };
-    if (data.validity.type === 'Duration') validityPayload = { type: 'Duration', duration: data.validity.durationValue };
-    else if (data.validity.type === 'Date' && data.validity.dateValue) validityPayload = { type: 'Date', time: data.validity.dateValue.toISOString() };
-    else if (data.validity.type === 'Indefinite') validityPayload = { type: 'Date', time: "9999-12-31T23:59:59.999Z" };
+    if (data.validity.type === 'Duration' && data.validity.durationValue) {
+        validityPayload = { type: 'Duration', duration: data.validity.durationValue };
+    } else if (data.validity.type === 'Date' && data.validity.dateValue) {
+        validityPayload = { type: 'Date', time: data.validity.dateValue.toISOString() };
+    } else if (data.validity.type === 'Indefinite') {
+        validityPayload = { type: 'Date', time: "9999-12-31T23:59:59.999Z" };
+    }
 
     const payload: CreateSigningProfilePayload = {
         name: data.profileName,
@@ -117,13 +132,23 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
         const newProfile = await createSigningProfile(payload, user.access_token);
         toast({ title: "Profile Created", description: `Issuance Profile "${newProfile.name}" created.` });
         onProfileIdChange(newProfile.id); 
-        onProfileModeChange('reuse');
+        onProfileModeChange('reuse'); // Switch back to reuse mode and select the new profile
         router.refresh(); 
     } catch (error: any) {
         toast({ title: `Creation Failed`, description: error.message, variant: "destructive" });
     } finally {
         setIsSubmittingNewProfile(false);
     }
+  };
+  
+  const handleTemplateSelect = (templateId: string) => {
+    if (templateId === 'blank') {
+        setInitialFormValues(defaultFormValues);
+    } else {
+        const templateData = templateDefaults[templateId];
+        setInitialFormValues({ ...defaultFormValues, ...templateData });
+    }
+    setCreationView('form');
   };
 
   const cardClass = (mode: ProfileMode) => cn(
@@ -140,7 +165,9 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
       : "bg-muted text-muted-foreground"
   );
 
-  const gridColsClass = inlineModeEnabled && createModeEnabled ? 'md:grid-cols-3' : 'md:grid-cols-2';
+  const gridColsClass = [inlineModeEnabled, createModeEnabled].filter(Boolean).length + 1 >= 3 
+    ? 'md:grid-cols-3' 
+    : 'md:grid-cols-2';
 
   return (
     <div className="space-y-4">
@@ -180,7 +207,7 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
         </div>
       )}
 
-      {profileMode === 'inline' && inlineModeEnabled && validity && onValidityChange && (
+      {profileMode === 'inline' && inlineModeEnabled && validity && onValidityChange && onKeyUsageChange && onExtendedKeyUsageChange && keyUsages && extendedKeyUsages && (
           <div className="pt-4 mt-4 border-t space-y-4">
                 <ExpirationInput
                     idPrefix="inline-validity"
@@ -195,7 +222,7 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
                         <div className="p-3 border rounded-md mt-1 space-y-2">
                             {KEY_USAGE_OPTIONS.map(usage => (
                                 <div key={usage.id} className="flex items-center space-x-2">
-                                    <Checkbox id={`inline-ku-${usage.id}`} checked={keyUsages?.includes(usage.id)} onCheckedChange={(c) => onKeyUsageChange?.(usage.id, !!c)} />
+                                    <Checkbox id={`inline-ku-${usage.id}`} checked={keyUsages.includes(usage.id)} onCheckedChange={(c) => onKeyUsageChange(usage.id, !!c)} />
                                     <Label htmlFor={`inline-ku-${usage.id}`} className="font-normal">{usage.label}</Label>
                                 </div>
                             ))}
@@ -206,7 +233,7 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
                         <div className="p-3 border rounded-md mt-1 space-y-2">
                              {EKU_OPTIONS.map(eku => (
                                 <div key={eku.id} className="flex items-center space-x-2">
-                                    <Checkbox id={`inline-eku-${eku.id}`} checked={extendedKeyUsages?.includes(eku.id)} onCheckedChange={(c) => onExtendedKeyUsageChange?.(eku.id, !!c)} />
+                                    <Checkbox id={`inline-eku-${eku.id}`} checked={extendedKeyUsages.includes(eku.id)} onCheckedChange={(c) => onExtendedKeyUsageChange(eku.id, !!c)} />
                                     <Label htmlFor={`inline-eku-${eku.id}`} className="font-normal">{eku.label}</Label>
                                 </div>
                             ))}
@@ -218,18 +245,38 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
 
       {profileMode === 'create' && createModeEnabled && (
         <div className="pt-4 mt-4 border-t">
-          <SigningProfileForm
-            onSubmit={handleCreateProfileSubmit}
-            isSubmitting={isSubmittingNewProfile}
-            submitButton={
-              <div className="flex justify-end pt-4">
-                <Button type="submit" disabled={isSubmittingNewProfile}>
-                  {isSubmittingNewProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
-                  Create Profile & Continue
-                </Button>
+          {creationView === 'template' ? (
+            <div className="space-y-4">
+              <h3 className="font-medium">Select a Template</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {templateMetadata.map(({ id, title, description, icon: Icon }) => (
+                      <Card key={id} className="hover:shadow-md hover:border-primary/50 transition-shadow cursor-pointer flex flex-col" onClick={() => handleTemplateSelect(id)}>
+                          <CardHeader className="flex-grow">
+                              <div className="flex items-center space-x-3 mb-2">
+                                  <div className="p-2 bg-muted rounded-md"><Icon className="h-6 w-6 text-primary"/></div>
+                                  <h3 className="font-semibold">{title}</h3>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{description}</p>
+                          </CardHeader>
+                      </Card>
+                  ))}
               </div>
-            }
-          />
+            </div>
+          ) : (
+            <SigningProfileForm
+              initialValues={initialFormValues}
+              onSubmit={handleCreateProfileSubmit}
+              isSubmitting={isSubmittingNewProfile}
+              submitButton={
+                <div className="flex justify-end pt-4">
+                  <Button type="submit" disabled={isSubmittingNewProfile}>
+                    {isSubmittingNewProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
+                    Create Profile & Continue
+                  </Button>
+                </div>
+              }
+            />
+          )}
         </div>
       )}
     </div>
