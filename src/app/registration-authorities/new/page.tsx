@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -29,8 +29,8 @@ import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useToast } from '@/hooks/use-toast';
 import { DurationInput } from '@/components/shared/DurationInput';
 import { createOrUpdateRa, fetchRaById, type ApiRaItem, type RaCreationPayload } from '@/lib/dms-api';
-import { SigningProfileSelector } from '@/components/shared/SigningProfileSelector';
-import type { ProfileMode } from '@/components/shared/SigningProfileSelector';
+import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
+
 
 const serverKeygenTypes = [ { value: 'RSA', label: 'RSA' }, { value: 'ECDSA', label: 'ECDSA' }];
 const serverKeygenRsaBits = [ { value: '2048', label: '2048 bit' }, { value: '3072', label: '3072 bit' }, { value: '4096', label: '4096 bit' }];
@@ -68,7 +68,7 @@ export default function CreateOrEditRegistrationAuthorityPage() {
   const [registrationMode, setRegistrationMode] = useState('JITP');
   const [tags, setTags] = useState<string[]>(['iot']);
   const [protocol, setProtocol] = useState('EST');
-  const [issuanceProfileId, setIssuanceProfileId] = useState<string | null>(null); // New state
+  const [issuanceProfileId, setIssuanceProfileId] = useState<string | null>(null);
   const [enrollmentCa, setEnrollmentCa] = useState<CA | null>(null);
   const [allowOverrideEnrollment, setAllowOverrideEnrollment] = useState(true);
   const [authMode, setAuthMode] = useState('Client Certificate');
@@ -413,6 +413,11 @@ export default function CreateOrEditRegistrationAuthorityPage() {
   const currentServerKeygenSpecOptions = serverKeygenType === 'RSA' ? serverKeygenRsaBits : serverKeygenEcdsaCurves;
   const PageIcon = isEditMode ? Edit : PlusCircle;
 
+  const selectedProfileForDisplay = useMemo(() => {
+    return availableProfiles.find(p => p.id === issuanceProfileId);
+  }, [issuanceProfileId, availableProfiles]);
+
+
   return (
     <div className="w-full space-y-6 mb-8">
       <Button variant="outline" onClick={() => router.back()} className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to RAs</Button>
@@ -472,18 +477,24 @@ export default function CreateOrEditRegistrationAuthorityPage() {
                 {enrollmentCa && 
                   <div className="mt-2 space-y-3">
                     <CaVisualizerCard ca={enrollmentCa} className="shadow-none border-border" allCryptoEngines={allCryptoEngines} />
-                    <div className='pl-2'>
+                    <div className='pl-2 space-y-2'>
                         <Label>Issuance Profile (Optional)</Label>
                          <Select value={issuanceProfileId || "ca-default"} onValueChange={(v) => setIssuanceProfileId(v === "ca-default" ? null : v)}>
                             <SelectTrigger className="mt-1">
                                 <SelectValue placeholder="Select an issuance profile..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="ca-default">Use CA Default Profile</SelectItem>
+                                <SelectItem value="ca-default">Use Enrollment CA's Default</SelectItem>
                                 {availableProfiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        {!issuanceProfileId && <Alert className="mt-2" variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Using Default</AlertTitle><AlertDescription>No profile selected. The Enrollment CA's default issuance profile will be used to sign certificates.</AlertDescription></Alert>}
+                        {selectedProfileForDisplay ? (
+                          <div className="pt-2">
+                            <IssuanceProfileCard profile={selectedProfileForDisplay} />
+                          </div>
+                        ) : (
+                          <Alert className="mt-2" variant="warning"><AlertTriangle className="h-4 w-4"/><AlertTitle>Using Default</AlertTitle><AlertDescription>No profile selected. The Enrollment CA's default issuance profile will be used to sign certificates.</AlertDescription></Alert>
+                        )}
                     </div>
                   </div>
                 }
