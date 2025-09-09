@@ -61,7 +61,7 @@ export interface ApiCaItem {
   };
   creation_ts: string;
   level: number; // Hierarchy level, 0 for root
-  default_profile_id?: string;
+  profile_id?: string;
 }
 
 export interface ApiResponseList {
@@ -412,7 +412,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     rawApiData: apiCa,
     caType: apiCa.certificate.type,
     defaultIssuanceLifetime: defaultIssuanceLifetime, // Kept for display purposes
-    defaultProfileId: apiCa.default_profile_id,
+    defaultProfileId: apiCa.profile_id,
     // Parsed fields are intentionally left undefined for lazy parsing
   };
 }
@@ -579,7 +579,7 @@ export interface CreateCaPayload {
     bits: number;
   };
   ca_expiration: { type: string; duration?: string; time?: string };
-  default_profile_id: string | null;
+  profile_id: string | null;
   ca_type: "MANAGED";
 }
 

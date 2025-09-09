@@ -214,7 +214,7 @@ export default function CreateCaGeneratePage() {
         bits: keyType === 'RSA' ? parseInt(keySize) : mapEcdsaCurveToBits(keySize),
       },
       ca_expiration: formatExpirationForApi(caExpiration),
-      default_profile_id: selectedProfileId,
+      profile_id: selectedProfileId,
       ca_type: "MANAGED",
     };
 

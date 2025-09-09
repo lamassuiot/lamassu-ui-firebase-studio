@@ -109,9 +109,9 @@ const navigationConfig: NavGroup[] = [
         items: [
             { href: '/certificates', label: 'Certificates', icon: FileText },
             { href: '/certificate-authorities', label: 'Certification Authorities', icon: Landmark },
-            { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon, devOnly: true },
+            { href: '/signing-profiles', label: 'Issuance Profiles', icon: ScrollTextIcon },
             { href: '/registration-authorities', label: 'Registration Authorities', icon: Users },
-            { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck, devOnly: true },
+            { href: '/verification-authorities', label: 'Verification Authorities', icon: ShieldCheck },
         ],
     },
     {
