@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { IssuanceProfileCard } from '@/components/shared/IssuanceProfileCard';
 import { Settings2, BookText, PlusCircle, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -81,7 +82,13 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
     defaultValues: defaultFormValues,
   });
 
-  async function handleProfileCreationSubmit(data: SigningProfileFormValues) {
+  async function handleProfileCreationSubmit(data: SigningProfileFormValues, event?: React.BaseSyntheticEvent) {
+    // Prevent default form submission behavior
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
     if (!user?.access_token) {
         toast({ title: "Error", description: "Authentication token is missing.", variant: "destructive" });
         return;
@@ -89,7 +96,7 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
     
     setIsSubmitting(true);
 
-    let validityPayload: { type: string; duration?: string; time?: string } = { type: 'Duration', duration: '1y' };
+    let validityPayload: { type: "Duration" | "Date"; duration?: string; time?: string } = { type: 'Duration', duration: '1y' };
     if (data.validity.type === 'Duration' && data.validity.durationValue) {
         validityPayload = { type: 'Duration', duration: data.validity.durationValue };
     } else if (data.validity.type === 'Date' && data.validity.dateValue) {
@@ -175,10 +182,25 @@ export const SigningProfileSelector: React.FC<SigningProfileSelectorProps> = ({
               </Button>
            </div>
            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleProfileCreationSubmit)} className="space-y-4">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  form.handleSubmit(handleProfileCreationSubmit)(e);
+                }} 
+                className="space-y-4"
+              >
                 <SigningProfileForm form={form} />
                 <div className="flex justify-end">
-                    <Button type="submit" disabled={isSubmitting}>
+                    <Button 
+                      type="button" 
+                      disabled={isSubmitting}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        form.handleSubmit(handleProfileCreationSubmit)();
+                      }}
+                    >
                       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                       Create and Select Profile
                     </Button>
