@@ -120,7 +120,7 @@ const EKU_OID_MAP: Record<string, string> = {
     "1.3.6.1.5.5.7.3.4": "EmailProtection",
     "1.3.6.1.5.5.7.3.8": "TimeStamping",
     "1.3.6.1.5.5.7.3.9": "OCSPSigning",
-    "2.5.29.37.0": "AnyExtendedKeyUsage",
+    "2.5.29.37.0": "Any",
 };
 
 const KEY_USAGE_NAMES = [
@@ -1015,8 +1015,8 @@ export interface ApiSigningProfile {
 	sign_as_ca: boolean;
 	honor_key_usage: boolean;
 	key_usage: string[];
-	honor_extended_key_usage: boolean;
-	extended_key_usage: string[];
+	honor_extended_key_usages: boolean;
+	extended_key_usages: string[];
 	honor_subject: boolean;
 	subject: {
 		organization?: string;
@@ -1063,8 +1063,8 @@ export interface CreateSigningProfilePayload {
     sign_as_ca: boolean;
     honor_key_usage: boolean;
     key_usage: string[];
-    honor_extended_key_usage: boolean;
-    extended_key_usage: string[];
+    honor_extended_key_usages: boolean;
+    extended_key_usages: string[];
     honor_subject: boolean;
     subject?: {
         organization?: string;

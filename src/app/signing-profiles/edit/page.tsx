@@ -106,8 +106,8 @@ export default function EditSigningProfilePage() {
         },
         honorKeyUsage: profile.honor_key_usage,
         keyUsages: (profile.key_usage || []) as any[],
-        honorExtendedKeyUsage: profile.honor_extended_key_usage,
-        extendedKeyUsages: (profile.extended_key_usage || []) as any[],
+        honorExtendedKeyUsages: profile.honor_extended_key_usages,
+        extendedKeyUsages: (profile.extended_key_usages || []) as any[],
     };
   };
 
@@ -135,8 +135,8 @@ export default function EditSigningProfilePage() {
         sign_as_ca: data.signAsCa,
         honor_key_usage: data.honorKeyUsage,
         key_usage: data.keyUsages || [],
-        honor_extended_key_usage: data.honorExtendedKeyUsage,
-        extended_key_usage: data.extendedKeyUsages || [],
+        honor_extended_key_usages: data.honorExtendedKeyUsages,
+        extended_key_usages: data.extendedKeyUsages || [],
         honor_subject: data.honorSubject,
         honor_extensions: true,
         crypto_enforcement: {

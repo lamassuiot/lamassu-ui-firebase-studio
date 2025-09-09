@@ -24,7 +24,7 @@ type KeyUsageOption = typeof keyUsageOptions[number];
 
 const extendedKeyUsageOptions = [
   "ServerAuth", "ClientAuth", "CodeSigning", "EmailProtection",
-  "TimeStamping", "OCSPSigning", "AnyExtendedKeyUsage"
+  "TimeStamping", "OCSPSigning", "Any"
 ] as const;
 type ExtendedKeyUsageOption = typeof extendedKeyUsageOptions[number];
 
@@ -64,7 +64,7 @@ export const signingProfileSchema = z.object({
   honorKeyUsage: z.boolean().default(false),
   keyUsages: z.array(z.enum(keyUsageOptions)).optional().default([]),
   
-  honorExtendedKeyUsage: z.boolean().default(false),
+  honorExtendedKeyUsages: z.boolean().default(false),
   extendedKeyUsages: z.array(z.enum(extendedKeyUsageOptions)).optional().default([]),
 });
 
@@ -89,7 +89,7 @@ export const defaultFormValues: SigningProfileFormValues = {
   },
   honorKeyUsage: true,
   keyUsages: [],
-  honorExtendedKeyUsage: true,
+  honorExtendedKeyUsages: true,
   extendedKeyUsages: [],
 };
 
@@ -102,7 +102,7 @@ export const templateDefaults: Record<string, Partial<SigningProfileFormValues>>
     keyUsages: ['DigitalSignature', 'KeyEncipherment'],
     extendedKeyUsages: ['ClientAuth', 'ServerAuth'],
     honorKeyUsage: false,
-    honorExtendedKeyUsage: false,
+    honorExtendedKeyUsages: false,
   },
   'code-signing': {
     profileName: 'Code Signing Profile',
@@ -112,7 +112,7 @@ export const templateDefaults: Record<string, Partial<SigningProfileFormValues>>
     keyUsages: ['DigitalSignature', 'ContentCommitment'],
     extendedKeyUsages: ['CodeSigning'],
     honorKeyUsage: false,
-    honorExtendedKeyUsage: false,
+    honorExtendedKeyUsages: false,
   },
   'server-cert': {
     profileName: 'TLS Web Server Profile',
@@ -122,7 +122,7 @@ export const templateDefaults: Record<string, Partial<SigningProfileFormValues>>
     keyUsages: ['DigitalSignature', 'KeyEncipherment'],
     extendedKeyUsages: ['ServerAuth'],
     honorKeyUsage: false,
-    honorExtendedKeyUsage: false,
+    honorExtendedKeyUsages: false,
   },
   'ca-cert': {
     profileName: 'Intermediate CA Profile',
@@ -133,7 +133,7 @@ export const templateDefaults: Record<string, Partial<SigningProfileFormValues>>
     keyUsages: ['CertSign', 'CRLSign'],
     extendedKeyUsages: [],
     honorKeyUsage: false,
-    honorExtendedKeyUsage: false,
+    honorExtendedKeyUsages: false,
   },
 };
 
@@ -160,7 +160,7 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({ form }) 
   const watchCryptoEnforcement = form.watch("cryptoEnforcement");
   const watchHonorSubject = form.watch("honorSubject");
   const watchHonorKeyUsage = form.watch("honorKeyUsage");
-  const watchHonorExtendedKeyUsage = form.watch("honorExtendedKeyUsage");
+  const watchhonorExtendedKeyUsages = form.watch("honorExtendedKeyUsages");
 
   return (
     <div className="space-y-8">
@@ -324,8 +324,8 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({ form }) 
             />
           </div>
         )}
-        <FormField control={form.control} name="honorExtendedKeyUsage" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Honor Extended Key Usage From CSR</FormLabel><FormDescription>Use the Extended Key Usage (EKU) extension from the CSR. If off, specify EKUs below.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange}/></FormControl></FormItem> )}/>
-        {!watchHonorExtendedKeyUsage && (
+        <FormField control={form.control} name="honorExtendedKeyUsages" render={({ field }) => ( <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Honor Extended Key Usage From CSR</FormLabel><FormDescription>Use the Extended Key Usage (EKU) extension from the CSR. If off, specify EKUs below.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange}/></FormControl></FormItem> )}/>
+        {!watchhonorExtendedKeyUsages && (
            <div className="ml-4 -mt-4">
             <FormField control={form.control} name="extendedKeyUsages"
               render={() => ( 

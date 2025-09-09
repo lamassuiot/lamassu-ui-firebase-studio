@@ -393,7 +393,7 @@ export default function IssueCertificateFormClient() {
     // Inline profile mode
     return {
         profile: {
-            extended_key_usage: extendedKeyUsages,
+            extended_key_usages: extendedKeyUsages,
             key_usage: keyUsages,
             honor_extensions: true,
             honor_subject: true,
