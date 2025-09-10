@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -12,9 +13,22 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import type { AlertEvent, AlertSortConfig, SortableAlertColumn } from '@/app/alerts/page';
-import { Layers, ChevronDown, ChevronsUpDown, ArrowDownAZ, ArrowUpAZ, ArrowDown10, ArrowUp01 } from 'lucide-react';
+import { Layers, ChevronDown, ChevronsUpDown, ArrowDownAZ, ArrowUpAZ, ArrowDown10, ArrowUp01, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Textarea } from '../ui/textarea';
+import dynamic from 'next/dynamic';
+
+const Editor = dynamic(
+    () => import('@monaco-editor/react'), 
+    { 
+        ssr: false, 
+        loading: () => (
+            <div className="h-64 w-full flex items-center justify-center bg-muted/30 rounded-md">
+                <Loader2 className="h-8 w-8 animate-spin"/>
+            </div>
+        )
+    }
+);
+
 
 interface AlertsTableProps {
   events: AlertEvent[];
@@ -138,7 +152,20 @@ export const AlertsTable: React.FC<AlertsTableProps> = ({ events, onSubscription
                 <TableRow>
                   <TableCell colSpan={6} className="p-0">
                     <div className="p-4 bg-muted/50">
-                        <Textarea value={JSON.stringify(event.payload, null, 2)} readOnly className="font-mono text-xs h-64 bg-background" />
+                        <div className="border rounded-md overflow-hidden">
+                             <Editor
+                                height="20rem"
+                                language="json"
+                                value={JSON.stringify(event.payload, null, 2)}
+                                theme="vs-dark"
+                                options={{
+                                    readOnly: true,
+                                    minimap: { enabled: false },
+                                    scrollBeyondLastLine: false,
+                                    automaticLayout: true,
+                                }}
+                             />
+                        </div>
                     </div>
                   </TableCell>
                 </TableRow>
