@@ -1035,8 +1035,18 @@ export interface ApiSigningProfile {
     };
 }
 
-export async function fetchSigningProfiles(accessToken: string): Promise<ApiSigningProfile[]> {
-    const response = await fetch(`${CA_API_BASE_URL}/profiles`, {
+export interface ApiSigningProfileListResponse {
+  next: string | null;
+  list: ApiSigningProfile[];
+}
+
+export async function fetchSigningProfiles(accessToken: string, params?: URLSearchParams): Promise<ApiSigningProfileListResponse> {
+    const url = new URL(`${CA_API_BASE_URL}/profiles`);
+    if (params) {
+        params.forEach((value, key) => url.searchParams.append(key, value));
+    }
+    
+    const response = await fetch(url.toString(), {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     if (!response.ok) {
@@ -1048,8 +1058,7 @@ export async function fetchSigningProfiles(accessToken: string): Promise<ApiSign
         } catch(e) { /* ignore */}
         throw new Error(errorMessage);
     }
-    const data = await response.json();
-    return data.list || [];
+    return response.json();
 }
 
 export interface CreateSigningProfilePayload {
