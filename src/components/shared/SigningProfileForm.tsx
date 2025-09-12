@@ -285,7 +285,7 @@ export const SigningProfileForm: React.FC<SigningProfileFormProps> = ({ form }) 
               <FormField control={form.control} name="cryptoEnforcement.allowedEcdsaCurves" render={() => (
                 <FormItem className="p-3 border rounded-md bg-background ml-4">
                   <FormLabel>Allowed ECDSA Curves</FormLabel>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 pt-2">
                     {ecdsaCurves.map((item) => (
                       <FormField key={item} control={form.control} name="cryptoEnforcement.allowedEcdsaCurves"
                         render={({ field }) => (
