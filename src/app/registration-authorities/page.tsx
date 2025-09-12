@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -39,12 +39,23 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { getLucideIconByName } from '@/components/shared/DeviceIconSelectorModal';
 import { EstEnrollModal } from '@/components/shared/EstEnrollModal';
 import { EstReEnrollModal } from '@/components/shared/EstReEnrollModal';
-import { fetchRegistrationAuthorities, updateRaMetadata, type ApiRaItem } from '@/lib/dms-api';
+import { fetchRegistrationAuthorities, updateRaMetadata, type ApiRaItem, deleteRa } from '@/lib/dms-api';
 import { MetadataViewerModal } from '@/components/shared/MetadataViewerModal';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 
 const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: React.ReactNode }> = ({ icon: Icon, label, value }) => (
@@ -60,6 +71,7 @@ const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: React
 export default function RegistrationAuthoritiesPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   
   const [ras, setRas] = useState<ApiRaItem[]>([]);
   const [allCAs, setAllCAs] = useState<CA[]>([]);
@@ -88,6 +100,10 @@ export default function RegistrationAuthoritiesPage() {
   
   const [isCaSelectorOpen, setIsCaSelectorOpen] = useState(false);
   const [isClientMounted, setIsClientMounted] = useState(false);
+  
+  // State for delete dialog
+  const [raToDelete, setRaToDelete] = useState<ApiRaItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setIsClientMounted(true);
@@ -224,6 +240,32 @@ export default function RegistrationAuthoritiesPage() {
         throw new Error("User not authenticated.");
     }
     await updateRaMetadata(raId, metadata, user.access_token);
+  };
+
+  const handleDeleteRa = async () => {
+    if (!raToDelete || !user?.access_token) {
+      toast({ title: "Error", description: "RA details or authentication missing.", variant: "destructive" });
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteRa(raToDelete.id, user.access_token);
+      toast({
+        title: "Registration Authority Deleted",
+        description: `RA "${raToDelete.name}" has been deleted.`,
+        variant: "default",
+      });
+      setRaToDelete(null); // Close dialog
+      handleRefresh(); // Refresh list
+    } catch (error: any) {
+      toast({
+        title: "Deletion Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!isClientMounted || authLoading || (isLoading && ras.length === 0)) {
@@ -388,7 +430,7 @@ export default function RegistrationAuthoritiesPage() {
                                         </DropdownMenuSub>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
-                                            onClick={() => alert(`Delete RA ${ra.name} (placeholder)`)}
+                                            onClick={() => setRaToDelete(ra)}
                                             className="text-destructive focus:text-destructive focus:bg-destructive/10"
                                         >
                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -551,6 +593,27 @@ export default function RegistrationAuthoritiesPage() {
         onSave={handleUpdateRaMetadata}
         onUpdateSuccess={handleRefresh}
       />
+      <AlertDialog open={!!raToDelete} onOpenChange={(open) => !open && setRaToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the Registration Authority "<strong>{raToDelete?.name}</strong>".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRa}
+              className={buttonVariants({ variant: "destructive" })}
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
