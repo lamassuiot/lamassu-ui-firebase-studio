@@ -224,3 +224,15 @@ export async function deleteRaIntegration(raId: string, integrationKey: string, 
     // 5. Call the existing update function to save the modified RA
     await createOrUpdateRa(payload, accessToken, true, raId);
 }
+
+export async function deleteRa(raId: string, accessToken: string): Promise<void> {
+    const url = `${DMS_MANAGER_API_BASE_URL}/dms/${raId}`;
+    const response = await fetch(url, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) {
+        await handleApiError(response, 'Failed to delete Registration Authority');
+    }
+}
