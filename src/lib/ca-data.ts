@@ -61,6 +61,7 @@ export interface ApiCaItem {
   };
   creation_ts: string;
   level: number; // Hierarchy level, 0 for root
+  profile_id?: string;
 }
 
 export interface ApiResponseList {
@@ -89,6 +90,7 @@ export interface CA {
   rawApiData?: ApiCaItem; // Optional: store raw for debugging or more details
   caType?: string;
   defaultIssuanceLifetime?: string;
+  defaultProfileId?: string;
   // Optional fields that will be parsed on demand
   signatureAlgorithm?: string;
   crlDistributionPoints?: string[];
@@ -118,7 +120,7 @@ const EKU_OID_MAP: Record<string, string> = {
     "1.3.6.1.5.5.7.3.4": "EmailProtection",
     "1.3.6.1.5.5.7.3.8": "TimeStamping",
     "1.3.6.1.5.5.7.3.9": "OCSPSigning",
-    "2.5.29.37.0": "AnyExtendedKeyUsage",
+    "2.5.29.37.0": "Any",
 };
 
 const KEY_USAGE_NAMES = [
@@ -374,6 +376,7 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
 
   const pemData = typeof window !== 'undefined' ? window.atob(apiCa.certificate.certificate) : ''; // Decode base64 PEM
 
+  // This logic is now redundant as we use defaultProfileId, but we'll keep it for display fallback.
   let defaultIssuanceLifetime = 'Not Specified';
   if (apiCa.validity) {
       if (apiCa.validity.type === 'Duration' && apiCa.validity.duration) {
@@ -408,7 +411,8 @@ function transformApiCaToLocalCa(apiCa: ApiCaItem): Omit<CA, 'children'> {
     level: apiCa.level,
     rawApiData: apiCa,
     caType: apiCa.certificate.type,
-    defaultIssuanceLifetime: defaultIssuanceLifetime,
+    defaultIssuanceLifetime: defaultIssuanceLifetime, // Kept for display purposes
+    defaultProfileId: apiCa.profile_id,
     // Parsed fields are intentionally left undefined for lazy parsing
   };
 }
@@ -575,7 +579,7 @@ export interface CreateCaPayload {
     bits: number;
   };
   ca_expiration: { type: string; duration?: string; time?: string };
-  issuance_expiration: { type: string; duration?: string; time?: string };
+  profile_id: string | null;
   ca_type: "MANAGED";
 }
 
@@ -866,12 +870,23 @@ export async function fetchCaRequestById(requestId: string, accessToken: string)
 
 export interface ApiKmsKey {
   id: string;
+  name?: string;
   algorithm: string;
   size: string;
   public_key: string;
+  status: string;
+  creation_ts: string;
 }
-export async function fetchKmsKeys(accessToken: string): Promise<ApiKmsKey[]> {
-    const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
+
+export interface ApiKmsKeyListResponse {
+  next: string | null;
+  list: ApiKmsKey[];
+}
+
+
+export async function fetchKmsKeys(accessToken: string, apiQueryString?: string): Promise<ApiKmsKeyListResponse> {
+    const url = `${CA_API_BASE_URL}/kms/keys?${apiQueryString || ''}`;
+    const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     if (!response.ok) {
@@ -926,7 +941,7 @@ export async function verifyWithKmsKey(keyId: string, payload: any, accessToken:
 }
 
 
-export async function createKmsKey(payload: any, accessToken: string): Promise<void> {
+export async function createKmsKey(payload: { engine_id: string; algorithm: string; size: number; name: string }, accessToken: string): Promise<void> {
     const response = await fetch(`${CA_API_BASE_URL}/kms/keys`, {
         method: 'POST',
         headers: {
@@ -946,19 +961,19 @@ export async function createKmsKey(payload: any, accessToken: string): Promise<v
     }
 }
 
-export async function updateCaIssuanceExpiration(caId: string, payload: any, accessToken: string): Promise<void> {
-    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/issuance-expiration`, {
+export async function updateCaDefaultProfileId(caId: string, profileId: string | null, accessToken: string): Promise<void> {
+    const response = await fetch(`${CA_API_BASE_URL}/cas/${caId}/issuance-profile`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ profile_id: profileId })
     });
 
     if (!response.ok) {
         let errorJson;
-        let errorMessage = `Failed to update issuance expiration. Status: ${response.status}`;
+        let errorMessage = `Failed to update issuance profile. Status: ${response.status}`;
         try {
             errorJson = await response.json();
             errorMessage = `Update failed: ${errorJson.err || errorJson.message || 'Unknown error'}`;
@@ -994,14 +1009,14 @@ export interface ApiSigningProfile {
 	description: string;
 	validity: {
 		type: string;
-		duration: string;
-		validity_from?: string;
+		duration?: string;
+		time?: string;
 	};
 	sign_as_ca: boolean;
 	honor_key_usage: boolean;
 	key_usage: string[];
-	honor_extended_key_usage: boolean;
-	extended_key_usage: string[];
+	honor_extended_key_usages: boolean;
+	extended_key_usages: string[];
 	honor_subject: boolean;
 	subject: {
 		organization?: string;
@@ -1048,14 +1063,15 @@ export interface CreateSigningProfilePayload {
     sign_as_ca: boolean;
     honor_key_usage: boolean;
     key_usage: string[];
-    honor_extended_key_usage: boolean;
-    extended_key_usage: string[];
+    honor_extended_key_usages: boolean;
+    extended_key_usages: string[];
     honor_subject: boolean;
     subject?: {
         organization?: string;
         organizational_unit?: string;
         country?: string;
         state?: string;
+        locality?: string;
     };
     honor_extensions: boolean;
     crypto_enforcement: {
@@ -1067,7 +1083,7 @@ export interface CreateSigningProfilePayload {
     };
 }
 
-export async function createSigningProfile(payload: CreateSigningProfilePayload, accessToken: string): Promise<void> {
+export async function createSigningProfile(payload: CreateSigningProfilePayload, accessToken: string): Promise<ApiSigningProfile> {
     const response = await fetch(`${CA_API_BASE_URL}/profiles`, {
         method: 'POST',
         headers: {
@@ -1085,6 +1101,7 @@ export async function createSigningProfile(payload: CreateSigningProfilePayload,
         } catch (e) { /* ignore */ }
         throw new Error(errorMessage);
     }
+    return response.json();
 }
 
 export async function fetchSigningProfileById(profileId: string, accessToken: string): Promise<ApiSigningProfile> {

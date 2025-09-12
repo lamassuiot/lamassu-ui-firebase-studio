@@ -2,6 +2,7 @@
 // src/lib/dms-api.ts
 
 import { DMS_MANAGER_API_BASE_URL, handleApiError } from './api-domains';
+import type { CA } from './ca-data';
 
 // --- Interfaces ---
 
@@ -28,19 +29,21 @@ export interface ApiRaEstSettings {
         oidc_auth?: ApiRaOidcAuth;
     };
 }
-export interface ApiRaSettings {
-    enrollment_settings: {
-        registration_mode: string;
-        enrollment_ca: string;
-        protocol: string;
-        enable_replaceable_enrollment: boolean;
-        est_rfc7030_settings?: ApiRaEstSettings;
-        device_provisioning_profile: {
-            icon: string;
-            icon_color: string;
-            tags: string[];
-        };
+export interface ApiRaEnrollmentSettings {
+    registration_mode: string;
+    enrollment_ca: string;
+    protocol: string;
+    enable_replaceable_enrollment: boolean;
+    issuance_profile_id?: string; // Newly added field
+    est_rfc7030_settings?: ApiRaEstSettings;
+    device_provisioning_profile: {
+        icon: string;
+        icon_color: string;
+        tags: string[];
     };
+}
+export interface ApiRaSettings {
+    enrollment_settings: ApiRaEnrollmentSettings;
     reenrollment_settings: {
         revoke_on_reenrollment: boolean;
         enable_expired_renewal: boolean;

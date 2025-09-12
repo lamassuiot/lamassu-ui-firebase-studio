@@ -48,10 +48,10 @@ export const IssuanceProfileCard: React.FC<IssuanceProfileCardProps> = ({ profil
   } else {
       extensionsPolicy += `Enforces KU: ${profile.key_usage?.join(', ') || 'None'}. `;
   }
-  if (profile.honor_extended_key_usage) {
+  if (profile.honor_extended_key_usages) {
       extensionsPolicy += 'Honors EKU from CSR.';
   } else {
-      extensionsPolicy += `Enforces EKU: ${profile.extended_key_usage?.join(', ') || 'None'}.`;
+      extensionsPolicy += `Enforces EKU: ${profile.extended_key_usages?.join(', ') || 'None'}.`;
   }
 
   return (

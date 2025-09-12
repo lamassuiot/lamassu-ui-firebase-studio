@@ -5,9 +5,8 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, KeyRound, Repeat, UploadCloud, FileText, ChevronRight } from "lucide-react";
+import { ArrowLeft, KeyRound, UploadCloud, FileText, ChevronRight, FileSignature } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface CreationMode {
@@ -16,46 +15,38 @@ interface CreationMode {
   title: string;
   description: string;
   icon: React.ReactNode;
-  disabled?: boolean;
 }
 
 const creationModes: CreationMode[] = [
   {
     id: 'generate',
     href: '/certificate-authorities/new/generate',
-    title: 'Create New Certification Authority (new Key Pair)',
-    description: 'Provision a new Root or Intermediate Certification Authority directly. The CA will be active immediately upon creation.',
+    title: 'Create New CA (Server-side Key)',
+    description: 'Provision a new Root or Intermediate Certification Authority directly. A new key is generated and managed by the KMS.',
     icon: <KeyRound className="h-8 w-8 text-primary" />,
   },
   {
-    id: 'reuse-key',
-    href: '/certificate-authorities/new/reuse-key',
-    title: 'Create Certification Authority (Reuse Key)',
-    description: 'Provision a new Root or Intermediate Certification Authority using an existing key pair from your KMS.',
-    icon: <Repeat className="h-8 w-8 text-primary" />,
-    disabled: true,
+    id: 'generate-csr',
+    href: '/certificate-authorities/new/generate-csr',
+    title: 'Request New CA (CSR)',
+    description: 'Request a new CA by generating a server-side key and a CSR. Requires external approval and certificate import.',
+    icon: <FileSignature className="h-8 w-8 text-primary" />,
   },
   {
     id: 'import-full',
     href: '/certificate-authorities/new/import-full',
-    title: 'Import External Certification Authority (with Private Key)',
-    description: 'Import an existing Certification Authority certificate along with its private key. This CA will be fully managed by LamassuIoT.',
+    title: 'Import CA (with Private Key)',
+    description: 'Import an existing Certification Authority certificate along with its private key. This CA will be fully managed.',
     icon: <UploadCloud className="h-8 w-8 text-primary" />,
   },
   {
     id: 'import-public',
     href: '/certificate-authorities/new/import-public',
-    title: 'Import Certification Authority Certificate Only (no Private Key)',
-    description: "Import an existing Certification Authority certificate (public key only) for trust anchor or reference purposes. LamassuIoT will not be able to sign certificates with this Certification Authority.",
+    title: 'Import Public CA (Certificate Only)',
+    description: "Import a public CA certificate (no private key) for trust anchor or reference purposes.",
     icon: <FileText className="h-8 w-8 text-primary" />,
   },
 ];
-
-const ComingSoonBadge = () => (
-    <Badge variant="outline" className="absolute top-2 right-2 bg-yellow-100 text-yellow-800 border-yellow-300">
-      Coming Soon
-    </Badge>
-);
 
 
 export default function CreateCaHubPage() {
@@ -75,35 +66,26 @@ export default function CreateCaHubPage() {
           <Card
             key={mode.id}
             role="button"
-            tabIndex={mode.disabled ? -1 : 0}
-            aria-disabled={mode.disabled}
-            className={cn(
-              "hover:shadow-lg transition-shadow flex flex-col group h-full relative",
-              mode.disabled
-                ? "opacity-50 cursor-not-allowed"
-                : "cursor-pointer"
-            )}
-            onClick={() => {
-              if (!mode.disabled) router.push(mode.href);
-            }}
+            tabIndex={0}
+            className={cn("hover:shadow-lg transition-shadow flex flex-col group h-full cursor-pointer")}
+            onClick={() => router.push(mode.href)}
             onKeyDown={(e) => {
-              if (!mode.disabled && (e.key === 'Enter' || e.key === ' ')) {
+              if (e.key === 'Enter' || e.key === ' ') {
                 router.push(mode.href);
               }
             }}
           >
-            {mode.disabled && <ComingSoonBadge />}
             <CardHeader className="flex-grow">
               <div className="flex items-start space-x-4">
                 <div className="mt-1">{mode.icon}</div>
                 <div>
-                  <CardTitle className={cn("text-xl", !mode.disabled && "group-hover:text-primary transition-colors")}>{mode.title}</CardTitle>
+                  <CardTitle className={cn("text-xl", "group-hover:text-primary transition-colors")}>{mode.title}</CardTitle>
                   <CardDescription className="mt-1 text-sm">{mode.description}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardFooter>
-              <Button variant="default" className="w-full" disabled={mode.disabled} tabIndex={-1}>
+              <Button variant="default" className="w-full" tabIndex={-1}>
                   Select & Continue <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </CardFooter>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -10,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, PlusCircle, Settings, Info, CalendarDays, KeyRound, Loader2 } from "lucide-react";
 import type { CA } from '@/lib/ca-data';
-import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload } from '@/lib/ca-data';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { fetchAndProcessCAs, fetchCryptoEngines, createCa, type CreateCaPayload, fetchSigningProfiles, type ApiSigningProfile } from '@/lib/ca-data';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CaVisualizerCard } from '@/components/CaVisualizerCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +19,10 @@ import { ExpirationInput, type ExpirationConfig } from '@/components/shared/Expi
 import { formatISO } from 'date-fns';
 import { CaSelectorModal } from '@/components/shared/CaSelectorModal';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
-import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/key-spec-constants';
+import { KEY_TYPE_OPTIONS, RSA_KEY_SIZE_OPTIONS, ECDSA_CURVE_OPTIONS } from '@/lib/form-options';
+import { SigningProfileSelector } from '@/components/shared/SigningProfileSelector';
+import type { ProfileMode } from '@/components/shared/SigningProfileSelector';
+
 
 const INDEFINITE_DATE_API_VALUE = "9999-12-31T23:59:59.999Z";
 
@@ -47,73 +49,75 @@ export default function CreateCaGeneratePage() {
   const [organizationalUnit, setOrganizationalUnit] = useState('');
 
   const [caExpiration, setCaExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '10y' });
-  const [issuanceExpiration, setIssuanceExpiration] = useState<ExpirationConfig>({ type: 'Duration', durationValue: '1y' });
+  
+  // Profile state
+  const [profileMode, setProfileMode] = useState<ProfileMode>('reuse');
+  const [availableProfiles, setAvailableProfiles] = useState<ApiSigningProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+
 
   const [isParentCaModalOpen, setIsParentCaModalOpen] = useState(false);
 
   const [availableParentCAs, setAvailableParentCAs] = useState<CA[]>([]);
-  const [isLoadingCAs, setIsLoadingCAs] = useState(false);
-  const [errorCAs, setErrorCAs] = useState<string | null>(null);
   
   const [allCryptoEngines, setAllCryptoEngines] = useState<ApiCryptoEngine[]>([]);
-  const [isLoadingEngines, setIsLoadingEngines] = useState(false);
-  const [errorEngines, setErrorEngines] = useState<string | null>(null);
+  
+  const [isLoadingDependencies, setIsLoadingDependencies] = useState(true);
+  const [errorDependencies, setErrorDependencies] = useState<string | null>(null);
 
   useEffect(() => {
     setCaId(crypto.randomUUID());
   }, []);
 
-  const loadCaData = useCallback(async () => {
+  const loadDependencies = useCallback(async () => {
     if (!isAuthenticated() || !user?.access_token) {
       if (!authLoading) {
-        setErrorCAs("User not authenticated. Cannot load parent CAs.");
-        setErrorEngines("User not authenticated. Cannot load Crypto Engines.");
+        setErrorDependencies("User not authenticated. Cannot load dependencies.");
       }
-      setIsLoadingCAs(false);
-      setIsLoadingEngines(false);
+      setIsLoadingDependencies(false);
       return;
     }
     
-    setIsLoadingCAs(true);
-    setErrorCAs(null);
+    setIsLoadingDependencies(true);
+    setErrorDependencies(null);
     try {
-      const fetchedCAs = await fetchAndProcessCAs(user.access_token);
-      setAvailableParentCAs(fetchedCAs); 
-    } catch (err: any) {
-      setErrorCAs(err.message || 'Failed to load available parent CAs.');
-      setAvailableParentCAs([]);
-    } finally {
-      setIsLoadingCAs(false);
-    }
-
-    setIsLoadingEngines(true);
-    setErrorEngines(null);
-    try {
-        const enginesData = await fetchCryptoEngines(user.access_token);
+        const [fetchedCAs, enginesData, profilesData] = await Promise.all([
+            fetchAndProcessCAs(user.access_token),
+            fetchCryptoEngines(user.access_token),
+            fetchSigningProfiles(user.access_token),
+        ]);
+        setAvailableParentCAs(fetchedCAs); 
         setAllCryptoEngines(enginesData);
+        setAvailableProfiles(profilesData);
+        if(profilesData.length > 0) {
+            setSelectedProfileId(profilesData[0].id);
+            setProfileMode('reuse');
+        } else {
+            setProfileMode('create');
+        }
     } catch (err: any) {
-        setErrorEngines(err.message || 'Failed to load Crypto Engines.');
+        setErrorDependencies(err.message || 'Failed to load page dependencies.');
+        setAvailableParentCAs([]);
         setAllCryptoEngines([]);
+        setAvailableProfiles([]);
     } finally {
-        setIsLoadingEngines(false);
+        setIsLoadingDependencies(false);
     }
   }, [user?.access_token, isAuthenticated, authLoading]);
 
   useEffect(() => {
     if (!authLoading) {
-        loadCaData();
+        loadDependencies();
     }
-  }, [loadCaData, authLoading]);
+  }, [loadDependencies, authLoading]);
 
   const handleCaTypeChange = (value: string) => {
     setCaType(value);
     setSelectedParentCa(null);
     if (value === 'root') {
       setCaExpiration({ type: 'Duration', durationValue: '10y' });
-      setIssuanceExpiration({ type: 'Duration', durationValue: '1y' });
     } else {
       setCaExpiration({ type: 'Duration', durationValue: '5y' });
-      setIssuanceExpiration({ type: 'Duration', durationValue: '90d' });
     }
   };
 
@@ -182,18 +186,15 @@ export default function CreateCaGeneratePage() {
       setIsSubmitting(false);
       return;
     }
-    if ((caExpiration.type === "Duration" && !caExpiration.durationValue?.trim()) ||
-        (issuanceExpiration.type === "Duration" && !issuanceExpiration.durationValue?.trim()) ||
-        (caExpiration.type === "Date" && !caExpiration.dateValue) ||
-        (issuanceExpiration.type === "Date" && !issuanceExpiration.dateValue)) {
-      toast({ title: "Validation Error", description: "Please provide valid expiration settings.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
+    if (profileMode === 'reuse' && !selectedProfileId) {
+        toast({ title: "Validation Error", description: "An issuance profile must be selected.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
     }
-    if (!user?.access_token) {
-      toast({ title: "Authentication Error", description: "User not authenticated.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
+    if (profileMode === 'create') {
+        toast({ title: "Validation Error", description: "A new profile must be created and selected first.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
     }
 
     const payload: CreateCaPayload = {
@@ -213,12 +214,12 @@ export default function CreateCaGeneratePage() {
         bits: keyType === 'RSA' ? parseInt(keySize) : mapEcdsaCurveToBits(keySize),
       },
       ca_expiration: formatExpirationForApi(caExpiration),
-      issuance_expiration: formatExpirationForApi(issuanceExpiration),
+      profile_id: selectedProfileId,
       ca_type: "MANAGED",
     };
 
     try {
-      await createCa(payload, user.access_token);
+      await createCa(payload, user!.access_token!);
 
       toast({ title: "Certification Authority Creation Successful", description: `Certification Authority "${caName}" has been created.`, variant: "default" });
       router.push('/certificate-authorities');
@@ -229,6 +230,12 @@ export default function CreateCaGeneratePage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleProfileCreated = (newProfile: ApiSigningProfile) => {
+    setAvailableProfiles(prev => [...prev, newProfile]);
+    setSelectedProfileId(newProfile.id);
+    setProfileMode('reuse');
   };
 
   return (
@@ -245,9 +252,9 @@ export default function CreateCaGeneratePage() {
               Create New Certification Authority (New Key Pair)
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1.5">
+          <CardDescription>
             Provision a new Root or Intermediate Certification Authority. A new cryptographic key pair will be generated and managed by LamassuIoT.
-          </p>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -308,9 +315,9 @@ export default function CreateCaGeneratePage() {
                       onClick={() => setIsParentCaModalOpen(true)}
                       className="w-full justify-start text-left font-normal mt-1"
                       id="parentCa"
-                      disabled={isLoadingCAs || authLoading}
+                      disabled={isLoadingDependencies || authLoading}
                     >
-                      {isLoadingCAs || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent Certification Authority..."}
+                      {isLoadingDependencies || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : selectedParentCa ? `Selected: ${selectedParentCa.name}` : "Select Parent Certification Authority..."}
                     </Button>
                     {selectedParentCa && (
                       <div className="mt-2">
@@ -374,8 +381,22 @@ export default function CreateCaGeneratePage() {
               <h3 className="text-lg font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-muted-foreground" />Expiration Settings</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <ExpirationInput idPrefix="ca-exp" label="CA Certificate Expiration" value={caExpiration} onValueChange={setCaExpiration} />
-                <ExpirationInput idPrefix="issuance-exp" label="Default End-Entity Certificate Issuance Expiration" value={issuanceExpiration} onValueChange={setIssuanceExpiration} />
               </div>
+            </section>
+            
+            <section>
+              <h3 className="text-lg font-semibold mb-3">Default Issuance Profile</h3>
+               <SigningProfileSelector
+                    profileMode={profileMode}
+                    onProfileModeChange={setProfileMode}
+                    availableProfiles={availableProfiles}
+                    isLoadingProfiles={isLoadingDependencies}
+                    selectedProfileId={selectedProfileId}
+                    onProfileIdChange={setSelectedProfileId}
+                    inlineModeEnabled={false}
+                    createModeEnabled={true}
+                    onProfileCreated={handleProfileCreated}
+               />
             </section>
 
             <div className="flex justify-end pt-4">
@@ -394,9 +415,9 @@ export default function CreateCaGeneratePage() {
         title="Select Parent Certification Authority"
         description="Choose an existing Certification Authority to be the issuer for this new intermediate CA. Only active, non-external CAs can be selected."
         availableCAs={availableParentCAs}
-        isLoadingCAs={isLoadingCAs}
-        errorCAs={errorCAs}
-        loadCAsAction={loadCaData}
+        isLoadingCAs={isLoadingDependencies}
+        errorCAs={errorDependencies}
+        loadCAsAction={loadDependencies}
         onCaSelected={handleParentCaSelectFromModal}
         currentSelectedCaId={selectedParentCa?.id}
         isAuthLoading={authLoading}

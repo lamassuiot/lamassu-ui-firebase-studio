@@ -65,7 +65,7 @@ export default function SigningProfilesPage() {
   }, [fetchProfiles, authLoading, isAuthenticated]);
 
   const handleCreateNewProfile = () => {
-    router.push('/signing-profiles/edit');
+    router.push('/signing-profiles/new');
   };
 
   const handleEditProfile = (profileId: string) => {

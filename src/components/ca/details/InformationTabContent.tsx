@@ -6,22 +6,20 @@ import React, { useState, useEffect } from 'react';
 import type { CA } from '@/lib/ca-data';
 import type { CertificateData } from '@/types/certificate';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Info, KeyRound, Lock, Link as LinkIcon, Network, Users, FileText } from "lucide-react";
+import { Info, KeyRound, Lock, Link as LinkIcon, Network, Users, FileText, FilePenLine } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DetailItem } from '@/components/shared/DetailItem';
 import { CaHierarchyPathNode } from '@/components/ca/details/CaHierarchyPathNode';
-import { getCaDisplayName, fetchSigningProfileById, fetchSigningProfiles, type ApiSigningProfile, updateCaDefaultProfileId } from '@/lib/ca-data';
+import { getCaDisplayName, fetchSigningProfileById } from '@/lib/ca-data';
 import { format, parseISO } from 'date-fns';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import type { ApiCryptoEngine } from '@/types/crypto-engine';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { SigningProfileSelector } from '@/components/shared/SigningProfileSelector';
-import type { ProfileMode } from '@/components/shared/SigningProfileSelector';
 
 
 interface CaStats {
@@ -88,71 +86,29 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
   const accordionTriggerStyle = "text-md font-medium bg-muted/30 hover:bg-muted/40 data-[state=open]:bg-muted/50 px-4 py-3 rounded-md";
 
   const { user } = useAuth();
-  const { toast } = useToast();
   
-  // State for profile editing
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [profileMode, setProfileMode] = useState<ProfileMode>('reuse');
-  const [availableProfiles, setAvailableProfiles] = useState<ApiSigningProfile[]>([]);
-  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [defaultProfileName, setDefaultProfileName] = useState<string | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   useEffect(() => {
-    // Load available profiles when editing starts or component mounts
-    const loadProfiles = async () => {
-      if (user?.access_token) {
-        setIsLoadingProfiles(true);
+    const loadProfileName = async () => {
+      if (itemType === 'ca' && (item as CA).defaultProfileId && user?.access_token) {
+        setIsLoadingProfile(true);
         try {
-          const profiles = await fetchSigningProfiles(user.access_token);
-          setAvailableProfiles(profiles);
-        } catch (err) {
-          console.error("Failed to load signing profiles:", err);
-          toast({ title: "Error", description: "Could not load issuance profiles.", variant: "destructive" });
+          const profile = await fetchSigningProfileById((item as CA).defaultProfileId!, user.access_token);
+          setDefaultProfileName(profile.name);
+        } catch (error) {
+          console.error("Failed to fetch default profile name:", error);
+          setDefaultProfileName("Error fetching profile");
         } finally {
-          setIsLoadingProfiles(false);
+          setIsLoadingProfile(false);
         }
+      } else {
+        setDefaultProfileName(null);
       }
     };
-
-    if (isEditingProfile) {
-        loadProfiles();
-    }
-    
-    // Set initial selected profile ID from the CA item
-    if (itemType === 'ca') {
-        setSelectedProfileId((item as CA).defaultProfileId || null);
-    }
-  }, [item, itemType, isEditingProfile, user?.access_token, toast]);
-
-  const handleSaveProfile = async () => {
-    if (itemType !== 'ca' || !user?.access_token) return;
-
-    const caDetails = item as CA;
-    setIsSubmitting(true);
-    try {
-        await updateCaDefaultProfileId(caDetails.id, selectedProfileId, user.access_token);
-        toast({ title: "Success", description: "Default issuance profile updated." });
-        onUpdateSuccess?.(); // Re-fetch parent data
-        setIsEditingProfile(false);
-    } catch (e: any) {
-        toast({ title: "Update Failed", description: e.message, variant: "destructive" });
-    } finally {
-        setIsSubmitting(false);
-    }
-  };
-  
-  const handleCancelEdit = () => {
-      setIsEditingProfile(false);
-      // Reset selected profile to the original one from the `item` prop
-      if (itemType === 'ca') {
-          setSelectedProfileId((item as CA).defaultProfileId || null);
-      }
-  };
-  
-  const selectedProfileForDisplay = React.useMemo(() => {
-    return availableProfiles.find(p => p.id === selectedProfileId);
-  }, [selectedProfileId, availableProfiles]);
+    loadProfileName();
+  }, [item, itemType, user?.access_token]);
 
 
   if (itemType === 'ca' && caSpecific) {
@@ -170,41 +126,23 @@ export const InformationTabContent: React.FC<InformationTabContentProps> = ({
             <DetailItem label="Issuer" value={getCaDisplayName(caDetails.issuer, caSpecific.allCAsForLinking)} />
             <DetailItem label="Expires On" value={format(parseISO(caDetails.expires), 'PPpp')} />
             
-             <div className="py-2 grid grid-cols-1 gap-x-4 items-start">
-              <dt className="text-sm font-medium text-muted-foreground mb-2">Default Issuance Profile</dt>
-              <dd className="mt-1 sm:mt-0 flex flex-col gap-2">
-                {!isEditingProfile ? (
-                   <>
-                    {caDetails.defaultProfileId ? (
-                        <p className="text-sm text-foreground">{caDetails.defaultProfileId}</p>
-                    ): (
-                        <p className="text-sm text-muted-foreground italic">Not Set</p>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(true)} className="w-fit">Edit</Button>
-                  </>
+             <DetailItem
+              label="Default Issuance Profile"
+              value={
+                isLoadingProfile ? <Loader2 className="h-4 w-4 animate-spin"/> :
+                caDetails.defaultProfileId ? (
+                   <Button 
+                      variant="link" 
+                      className="p-0 h-auto" 
+                      onClick={() => routerHook.push(`/signing-profiles/edit?id=${caDetails.defaultProfileId}`)}
+                   >
+                     {defaultProfileName || caDetails.defaultProfileId}
+                   </Button>
                 ) : (
-                  <div className='w-full'>
-                    <SigningProfileSelector
-                        profileMode={profileMode}
-                        onProfileModeChange={setProfileMode}
-                        availableProfiles={availableProfiles}
-                        isLoadingProfiles={isLoadingProfiles}
-                        selectedProfileId={selectedProfileId}
-                        onProfileIdChange={setSelectedProfileId}
-                        inlineModeEnabled={false} // Inline mode not applicable here
-                        createModeEnabled={true}  // Allow creating a new profile
-                    />
-                    <div className="flex justify-end space-x-2 mt-4">
-                        <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isSubmitting}>Cancel</Button>
-                        <Button size="sm" onClick={handleSaveProfile} disabled={isSubmitting || isLoadingProfiles}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            Save
-                        </Button>
-                    </div>
-                  </div>
-                )}
-              </dd>
-            </div>
+                  <span className="text-muted-foreground italic">Not Set</span>
+                )
+              }
+            />
             
             <DetailItem label="Serial Number" value={<span className="font-mono text-sm">{caDetails.serialNumber}</span>} />
           </AccordionContent>
